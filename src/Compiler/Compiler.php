@@ -22,4 +22,19 @@ class Compiler
 
         return $this->parser->render($ast);
     }
+
+    public function tokenize(string $template): array
+    {
+        return $this->parser->tokenize($template);
+    }
+
+    public function parse(array $tokens): array
+    {
+        return $this->parser->parse($tokens);
+    }
+
+    public function render(array $ast): string
+    {
+        return $this->parser->render($ast);
+    }
 }

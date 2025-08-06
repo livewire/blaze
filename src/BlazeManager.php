@@ -14,4 +14,9 @@ class BlazeManager
     {
         return $this->compiler->compile($template);
     }
+
+    public function compiler(): Compiler
+    {
+        return $this->compiler;
+    }
 }

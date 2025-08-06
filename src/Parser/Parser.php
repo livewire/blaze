@@ -2,19 +2,10 @@
 
 namespace Livewire\Blaze\Parser;
 
+use Livewire\Blaze\Parser\State;
+
 class Parser
 {
-    const STATE_TEXT = 'TEXT';
-    const STATE_TAG_OPEN = 'TAG_OPEN';
-    const STATE_TAG_NAME = 'TAG_NAME';
-    const STATE_ATTRIBUTE_NAME = 'ATTRIBUTE_NAME';
-    const STATE_ATTRIBUTE_VALUE = 'ATTRIBUTE_VALUE';
-    const STATE_SLOT = 'SLOT';
-    const STATE_SLOT_NAME = 'SLOT_NAME';
-    const STATE_TAG_CLOSE = 'TAG_CLOSE';
-    const STATE_SLOT_CLOSE = 'SLOT_CLOSE';
-    const STATE_SHORT_SLOT = 'SHORT_SLOT';
-
     protected array $prefixes = [
         'flux:' => [
             'namespace' => 'flux::',
@@ -35,7 +26,7 @@ class Parser
     function tokenize(string $content): array
     {
         $tokens = [];
-        $state = self::STATE_TEXT;
+        $state = State::TEXT;
         $buffer = '';
         $currentToken = null;
         $i = 0;
@@ -46,7 +37,7 @@ class Parser
             $char = $content[$i];
 
             switch ($state) {
-                case self::STATE_TEXT:
+                case State::TEXT:
                     // Check for slot tags first to ensure they take precedence over component tags
                     $foundSlotPrefix = false;
                     foreach ($this->prefixes as $prefix => $config) {
@@ -58,12 +49,12 @@ class Parser
                             }
                             // Check for short slot syntax (<x-slot:name>)
                             if ($i + strlen($slotPrefix) + 1 < $len && $content[$i + strlen($slotPrefix) + 1] === ':') {
-                                $state = self::STATE_SHORT_SLOT;
+                                $state = State::SHORT_SLOT;
                                 $currentToken = ['type' => 'slot_open', 'slot_style' => 'short'];
                                 $this->currentSlotPrefix = $slotPrefix;
                                 $i += strlen($slotPrefix) + 2; // Skip <x-slot:
                             } else {
-                                $state = self::STATE_SLOT;
+                                $state = State::SLOT;
                                 $currentToken = ['type' => 'slot_open', 'slot_style' => 'standard'];
                                 $this->currentSlotPrefix = $slotPrefix;
                                 $i += strlen($slotPrefix);
@@ -87,7 +78,7 @@ class Parser
                                 $tokens[] = ['type' => 'text', 'content' => $buffer];
                                 $buffer = '';
                             }
-                            $state = self::STATE_SLOT_CLOSE;
+                            $state = State::SLOT_CLOSE;
                             $currentToken = ['type' => 'slot_close'];
                             $this->currentSlotPrefix = $slotPrefix;
                             $i += strlen($slotPrefix) + 2;
@@ -109,7 +100,7 @@ class Parser
                                     $tokens[] = ['type' => 'text', 'content' => $buffer];
                                     $buffer = '';
                                 }
-                                $state = self::STATE_TAG_OPEN;
+                                $state = State::TAG_OPEN;
                                 $this->currentPrefix = $prefix;
                                 $currentToken = [
                                     'type' => 'tag_open',
@@ -135,7 +126,7 @@ class Parser
                                         $tokens[] = ['type' => 'text', 'content' => $buffer];
                                         $buffer = '';
                                     }
-                                    $state = self::STATE_TAG_CLOSE;
+                                    $state = State::TAG_CLOSE;
                                     $this->currentPrefix = $prefix;
                                     $currentToken = [
                                         'type' => 'tag_close',
@@ -162,25 +153,25 @@ class Parser
                     }
                     break;
 
-                case self::STATE_TAG_OPEN:
+                case State::TAG_OPEN:
                     if (preg_match('/^[a-zA-Z0-9-\.:]+/', substr($content, $i), $matches)) {
                         $currentToken['name'] = $matches[0];
                         $tagStack[] = $matches[0];
                         $i += strlen($matches[0]);
-                        $state = self::STATE_ATTRIBUTE_NAME;
+                        $state = State::ATTRIBUTE_NAME;
                     } else {
                         $i++;
                     }
                     break;
 
-                case self::STATE_TAG_CLOSE:
+                case State::TAG_CLOSE:
                     if (preg_match('/^[a-zA-Z0-9-\.:]+/', substr($content, $i), $matches)) {
                         $currentToken['name'] = $matches[0];
                         array_pop($tagStack);
                         $i += strlen($matches[0]);
                         if ($i < $len && $content[$i] === '>') {
                             $tokens[] = $currentToken;
-                            $state = self::STATE_TEXT;
+                            $state = State::TEXT;
                             $i++;
                         }
                     } else {
@@ -188,18 +179,18 @@ class Parser
                     }
                     break;
 
-                case self::STATE_ATTRIBUTE_NAME:
+                case State::ATTRIBUTE_NAME:
                     if ($char === ' ') {
                         $i++;
                     } elseif ($char === '>' && $this->isTagEndMarker($content, $i)) {
                         $tokens[] = $currentToken;
-                        $state = self::STATE_TEXT;
+                        $state = State::TEXT;
                         $i++;
                     } elseif ($char === '/' && $i + 1 < $len && $content[$i + 1] === '>' && $this->isTagEndMarker($content, $i)) {
                         $currentToken['type'] = 'tag_self_close';
                         array_pop($tagStack);
                         $tokens[] = $currentToken;
-                        $state = self::STATE_TEXT;
+                        $state = State::TEXT;
                         $i += 2;
                     } else {
                         // Start collecting the entire attribute string
@@ -245,27 +236,27 @@ class Parser
                         }
 
                         $currentToken['attributes'] = trim($attrString);
-                        $state = self::STATE_ATTRIBUTE_NAME;
+                        $state = State::ATTRIBUTE_NAME;
                     }
                     break;
 
-                case self::STATE_SLOT:
+                case State::SLOT:
                     if ($char === ' ') {
                         $i++;
                     } elseif (preg_match('/^name="([^"]+)"/', substr($content, $i), $matches)) {
                         $currentToken['name'] = $matches[1];
                         $i += strlen($matches[0]);
-                        $state = self::STATE_ATTRIBUTE_NAME;
+                        $state = State::ATTRIBUTE_NAME;
                     } elseif ($char === '>') {
                         $tokens[] = $currentToken;
-                        $state = self::STATE_TEXT;
+                        $state = State::TEXT;
                         $i++;
                     } else {
                         $i++;
                     }
                     break;
 
-                case self::STATE_SLOT_CLOSE:
+                case State::SLOT_CLOSE:
                     if (preg_match('/^:[a-zA-Z0-9-]+/', substr($content, $i), $matches)) {
                         $currentToken['name'] = substr($matches[0], 1); // Remove the colon
                         $i += strlen($matches[0]);
@@ -273,14 +264,14 @@ class Parser
 
                     if ($i < $len && $content[$i] === '>') {
                         $tokens[] = $currentToken;
-                        $state = self::STATE_TEXT;
+                        $state = State::TEXT;
                         $i++;
                     } else {
                         $i++;
                     }
                     break;
 
-                case self::STATE_SHORT_SLOT:
+                case State::SHORT_SLOT:
                     if (preg_match('/^[a-zA-Z0-9-]+/', substr($content, $i), $matches)) {
                         $currentToken['name'] = $matches[0];
                         $i += strlen($matches[0]);
@@ -298,7 +289,7 @@ class Parser
 
                         if ($i < $len && $content[$i] === '>') {
                             $tokens[] = $currentToken;
-                            $state = self::STATE_TEXT;
+                            $state = State::TEXT;
                             $i++;
                         }
                     } else {
