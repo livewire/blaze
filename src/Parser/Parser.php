@@ -30,7 +30,7 @@ class Parser
             'slot' => 'x-slot',
         ],
     ];
-    
+
     // Tokenizer state
     protected string $content = '';
     protected int $position = 0;
@@ -45,9 +45,9 @@ class Parser
     public function tokenize(string $content): array
     {
         $this->resetTokenizer($content);
-        
+
         $state = State::TEXT;
-        
+
         while (!$this->isAtEnd()) {
             $state = match($state) {
                 State::TEXT => $this->handleTextState(),
@@ -60,16 +60,16 @@ class Parser
                 default => throw new \RuntimeException("Unknown state: $state"),
             };
         }
-        
+
         $this->flushBuffer();
-        
+
         return $this->tokens;
     }
 
     public function parse(array $tokens): array
     {
         $stack = new ParseStack();
-        
+
         foreach ($tokens as $token) {
             match(get_class($token)) {
                 TagOpenToken::class => $this->handleTagOpen($token, $stack),
@@ -81,7 +81,7 @@ class Parser
                 default => throw new \RuntimeException('Unknown token type: ' . get_class($token))
             };
         }
-        
+
         return $stack->getAst();
     }
 
@@ -106,8 +106,8 @@ class Parser
 
         // Check for dynamic expressions in attributes
         if (!empty($node->attributes)) {
-            if (preg_match('/(^|\s):[a-zA-Z]/', $node->attributes) || 
-                str_contains($node->attributes, '{{')) {
+            if (preg_match('/(^|\s):[a-zA-Z]/', $node->attributes) ||
+                str_contains($node->attributes, '{'.'{')) {
                 return false;
             }
         }
@@ -121,11 +121,11 @@ class Parser
 
         return true;
     }
-    
+
     // =================================================================
     // Tokenizer Methods
     // =================================================================
-    
+
     protected function resetTokenizer(string $content): void
     {
         $this->content = $content;
@@ -138,18 +138,18 @@ class Parser
         $this->currentPrefix = '';
         $this->currentSlotPrefix = '';
     }
-    
+
     protected function handleTextState(): State
     {
         $char = $this->current();
-        
+
         // Check for slot tags first
         if ($char === '<') {
             // Try slot open tags
             if ($slotInfo = $this->matchSlotOpen()) {
                 $this->flushBuffer();
                 $this->currentSlotPrefix = $slotInfo['prefix'];
-                
+
                 if ($slotInfo['isShort']) {
                     $this->currentToken = new SlotOpenToken(slotStyle: 'short');
                     $this->advance(strlen('<' . $slotInfo['prefix'] . ':'));
@@ -160,7 +160,7 @@ class Parser
                     return State::SLOT;
                 }
             }
-            
+
             // Try slot close tags
             if ($slotInfo = $this->matchSlotClose()) {
                 $this->flushBuffer();
@@ -169,7 +169,7 @@ class Parser
                 $this->advance(strlen('</' . $slotInfo['prefix']));
                 return State::SLOT_CLOSE;
             }
-            
+
             // Try component open tags
             if ($prefixInfo = $this->matchComponentOpen()) {
                 $this->flushBuffer();
@@ -182,7 +182,7 @@ class Parser
                 $this->advance(strlen('<' . $prefixInfo['prefix']));
                 return State::TAG_OPEN;
             }
-            
+
             // Try component close tags
             if ($this->peek(1) === '/' && ($prefixInfo = $this->matchComponentClose())) {
                 $this->flushBuffer();
@@ -196,13 +196,13 @@ class Parser
                 return State::TAG_CLOSE;
             }
         }
-        
+
         // Regular text
         $this->buffer .= $char;
         $this->advance();
         return State::TEXT;
     }
-    
+
     protected function handleTagOpenState(): State
     {
         if ($name = $this->matchTagName()) {
@@ -211,46 +211,46 @@ class Parser
             $this->advance(strlen($name));
             return State::ATTRIBUTE_NAME;
         }
-        
+
         $this->advance();
         return State::TAG_OPEN;
     }
-    
+
     protected function handleTagCloseState(): State
     {
         if ($name = $this->matchTagName()) {
             $this->currentToken->name = $name;
             array_pop($this->tagStack);
             $this->advance(strlen($name));
-            
+
             if ($this->current() === '>') {
                 $this->tokens[] = $this->currentToken;
                 $this->advance();
                 return State::TEXT;
             }
         }
-        
+
         $this->advance();
         return State::TAG_CLOSE;
     }
-    
+
     protected function handleAttributeState(): State
     {
         $char = $this->current();
-        
+
         // Skip whitespace
         if ($char === ' ') {
             $this->advance();
             return State::ATTRIBUTE_NAME;
         }
-        
+
         // End of tag
         if ($char === '>') {
             $this->tokens[] = $this->currentToken;
             $this->advance();
             return State::TEXT;
         }
-        
+
         // Self-closing tag
         if ($char === '/' && $this->peek() === '>') {
             $this->currentToken = new TagSelfCloseToken(
@@ -264,25 +264,25 @@ class Parser
             $this->advance(2);
             return State::TEXT;
         }
-        
+
         // Collect attributes
         $attributes = $this->collectAttributes();
         if ($attributes !== null) {
             $this->currentToken->attributes = $attributes;
         }
-        
+
         return State::ATTRIBUTE_NAME;
     }
-    
+
     protected function handleSlotState(): State
     {
         $char = $this->current();
-        
+
         if ($char === ' ') {
             $this->advance();
             return State::SLOT;
         }
-        
+
         // Check for name attribute
         if ($this->match('/^name="([^"]+)"/')) {
             $matches = [];
@@ -291,17 +291,17 @@ class Parser
             $this->advance(strlen($matches[0]));
             return State::ATTRIBUTE_NAME;
         }
-        
+
         if ($char === '>') {
             $this->tokens[] = $this->currentToken;
             $this->advance();
             return State::TEXT;
         }
-        
+
         $this->advance();
         return State::SLOT;
     }
-    
+
     protected function handleSlotCloseState(): State
     {
         // Check for :name pattern
@@ -311,45 +311,45 @@ class Parser
             $this->currentToken->name = substr($matches[0], 1);
             $this->advance(strlen($matches[0]));
         }
-        
+
         if ($this->current() === '>') {
             $this->tokens[] = $this->currentToken;
             $this->advance();
             return State::TEXT;
         }
-        
+
         $this->advance();
         return State::SLOT_CLOSE;
     }
-    
+
     protected function handleShortSlotState(): State
     {
         if ($name = $this->matchSlotName()) {
             $this->currentToken->name = $name;
             $this->advance(strlen($name));
-            
+
             // Collect attributes until >
             $attrBuffer = '';
             while (!$this->isAtEnd() && $this->current() !== '>') {
                 $attrBuffer .= $this->current();
                 $this->advance();
             }
-            
+
             if (trim($attrBuffer) !== '') {
                 $this->currentToken->attributes = trim($attrBuffer);
             }
-            
+
             if ($this->current() === '>') {
                 $this->tokens[] = $this->currentToken;
                 $this->advance();
                 return State::TEXT;
             }
         }
-        
+
         $this->advance();
         return State::SHORT_SLOT;
     }
-    
+
     protected function collectAttributes(): ?string
     {
         $attrString = '';
@@ -358,18 +358,18 @@ class Parser
         $braceCount = 0;
         $bracketCount = 0;
         $parenCount = 0;
-        
+
         while (!$this->isAtEnd()) {
             $char = $this->current();
             $prevChar = $this->position > 0 ? $this->content[$this->position - 1] : '';
-            
+
             // Track quote state
             if ($char === '"' && !$inSingleQuote && $prevChar !== '\\') {
                 $inDoubleQuote = !$inDoubleQuote;
             } elseif ($char === "'" && !$inDoubleQuote && $prevChar !== '\\') {
                 $inSingleQuote = !$inSingleQuote;
             }
-            
+
             // Track nesting only outside quotes
             if (!$inSingleQuote && !$inDoubleQuote) {
                 match($char) {
@@ -382,32 +382,32 @@ class Parser
                     default => null
                 };
             }
-            
+
             // Check for end of attributes
             if (($char === '>' || ($char === '/' && $this->peek() === '>')) &&
                 !$inSingleQuote && !$inDoubleQuote &&
                 $braceCount === 0 && $bracketCount === 0 && $parenCount === 0) {
                 break;
             }
-            
+
             $attrString .= $char;
             $this->advance();
         }
-        
+
         return trim($attrString) !== '' ? trim($attrString) : null;
     }
-    
+
     // Pattern matching helpers
     protected function matchSlotOpen(): ?array
     {
         foreach ($this->prefixes as $prefix => $config) {
             $slotPrefix = $config['slot'];
-            
+
             // Check for short slot syntax
             if ($this->matchesAt('<' . $slotPrefix . ':')) {
                 return ['prefix' => $slotPrefix, 'isShort' => true];
             }
-            
+
             // Check for standard slot syntax
             if ($this->matchesAt('<' . $slotPrefix)) {
                 $nextChar = $this->peek(strlen('<' . $slotPrefix));
@@ -418,7 +418,7 @@ class Parser
         }
         return null;
     }
-    
+
     protected function matchSlotClose(): ?array
     {
         foreach ($this->prefixes as $prefix => $config) {
@@ -429,7 +429,7 @@ class Parser
         }
         return null;
     }
-    
+
     protected function matchComponentOpen(): ?array
     {
         foreach ($this->prefixes as $prefix => $config) {
@@ -442,7 +442,7 @@ class Parser
         }
         return null;
     }
-    
+
     protected function matchComponentClose(): ?array
     {
         foreach ($this->prefixes as $prefix => $config) {
@@ -455,7 +455,7 @@ class Parser
         }
         return null;
     }
-    
+
     protected function matchTagName(): ?string
     {
         if (preg_match('/^[a-zA-Z0-9-\.:]+/', $this->remaining(), $matches)) {
@@ -463,7 +463,7 @@ class Parser
         }
         return null;
     }
-    
+
     protected function matchSlotName(): ?string
     {
         if (preg_match('/^[a-zA-Z0-9-]+/', $this->remaining(), $matches)) {
@@ -471,56 +471,56 @@ class Parser
         }
         return null;
     }
-    
+
     protected function match(string $pattern): bool
     {
         return preg_match($pattern, $this->remaining()) === 1;
     }
-    
+
     protected function matchesAt(string $string): bool
     {
         return substr($this->content, $this->position, strlen($string)) === $string;
     }
-    
+
     // Character navigation
     protected function current(): string
     {
         return $this->isAtEnd() ? '' : $this->content[$this->position];
     }
-    
+
     protected function peek(int $offset = 1): string
     {
         $pos = $this->position + $offset;
         return $pos >= $this->length ? '' : $this->content[$pos];
     }
-    
+
     protected function remaining(): string
     {
         return substr($this->content, $this->position);
     }
-    
+
     protected function advance(int $count = 1): void
     {
         $this->position += $count;
     }
-    
+
     protected function isAtEnd(): bool
     {
         return $this->position >= $this->length;
     }
-    
+
     protected function flushBuffer(): void
     {
-        if (trim($this->buffer) !== '') {
+        if ($this->buffer !== '') {
             $this->tokens[] = new TextToken($this->buffer);
             $this->buffer = '';
         }
     }
-    
+
     // =================================================================
     // Parser Methods
     // =================================================================
-    
+
     protected function handleTagOpen(TagOpenToken $token, ParseStack $stack): void
     {
         $node = new TagNode(
@@ -533,7 +533,7 @@ class Parser
 
         $stack->pushContainer($node);
     }
-    
+
     protected function handleTagSelfClose(TagSelfCloseToken $token, ParseStack $stack): void
     {
         $node = new TagNode(
@@ -546,12 +546,12 @@ class Parser
 
         $stack->addToRoot($node);
     }
-    
+
     protected function handleTagClose(TagCloseToken $token, ParseStack $stack): void
     {
         $stack->popContainer();
     }
-    
+
     protected function handleSlotOpen(SlotOpenToken $token, ParseStack $stack): void
     {
         $node = new SlotNode(
@@ -563,24 +563,23 @@ class Parser
 
         $stack->pushContainer($node);
     }
-    
+
     protected function handleSlotClose(SlotCloseToken $token, ParseStack $stack): void
     {
         $stack->popContainer();
     }
-    
+
     protected function handleText(TextToken $token, ParseStack $stack): void
     {
-        if (trim($token->content) !== '') {
-            $node = new TextNode(content: $token->content);
-            $stack->addToRoot($node);
-        }
+        // Always preserve text content, including whitespace
+        $node = new TextNode(content: $token->content);
+        $stack->addToRoot($node);
     }
-    
+
     // =================================================================
     // Renderer Methods
     // =================================================================
-    
+
     protected function renderNode(Node $node): string
     {
         return match(get_class($node)) {
@@ -590,72 +589,72 @@ class Parser
             default => throw new \RuntimeException('Unknown node type: ' . get_class($node))
         };
     }
-    
+
     protected function renderTag(TagNode $node): string
     {
         $output = $this->buildOpeningTag($node);
-        
+
         if ($node->selfClosing) {
             return $output . ' />';
         }
-        
+
         $output .= '>';
         $output .= $this->render($node->children);
         $output .= $this->buildClosingTag($node);
-        
+
         return $output;
     }
-    
+
     protected function renderSlot(SlotNode $node): string
     {
         if ($node->slotStyle === 'short') {
             return $this->renderShortSlot($node);
         }
-        
+
         return $this->renderStandardSlot($node);
     }
-    
+
     protected function buildOpeningTag(TagNode $node): string
     {
         $prefix = $node->prefix;
         $name = $this->stripNamespaceFromName($node->name, $prefix);
-        
+
         $output = "<{$prefix}{$name}";
-        
+
         if (!empty($node->attributes)) {
             $output .= " {$node->attributes}";
         }
-        
+
         return $output;
     }
-    
+
     protected function buildClosingTag(TagNode $node): string
     {
         $prefix = $node->prefix;
         $name = $this->stripNamespaceFromName($node->name, $prefix);
-        
+
         return "</{$prefix}{$name}>";
     }
-    
+
     protected function renderShortSlot(SlotNode $node): string
     {
         $output = "<{$this->currentSlotPrefix}:{$node->name}";
-        
+
         if (!empty($node->attributes)) {
             $output .= " {$node->attributes}";
         }
-        
+
         $output .= ">";
         $output .= $this->render($node->children);
         $output .= "</{$this->currentSlotPrefix}:{$node->name}>";
-        
+
         return $output;
     }
-    
+
     protected function renderStandardSlot(SlotNode $node): string
     {
         $output = "<{$this->currentSlotPrefix} name=\"{$node->name}\"";
-        
+
         if (!empty($node->attributes)) {
             // Handle attributes carefully to avoid duplicating name
             if (preg_match('/^class="([^"]*)"/', $node->attributes, $matches)) {
@@ -664,29 +663,29 @@ class Parser
                 $output .= " {$node->attributes}";
             }
         }
-        
+
         $output .= ">";
         $output .= $this->render($node->children);
         $output .= "</{$this->currentSlotPrefix}>";
-        
+
         return $output;
     }
-    
+
     protected function stripNamespaceFromName(string $name, string $prefix): string
     {
         $namespace = $this->prefixes[$prefix]['namespace'] ?? '';
-        
+
         if ($namespace && str_starts_with($name, $namespace)) {
             return substr($name, strlen($namespace));
         }
-        
+
         return $name;
     }
-    
+
     // =================================================================
     // Transform Methods
     // =================================================================
-    
+
     protected function transformNode(Node $node, int $tagLevel, callable $callback, bool $postOrder): ?Node
     {
         // Pre-order transformation
@@ -703,9 +702,9 @@ class Parser
             $node->children = array_filter(
                 array_map(
                     fn($child) => $this->transformNode(
-                        $child, 
-                        $node instanceof TagNode ? $tagLevel + 1 : $tagLevel, 
-                        $callback, 
+                        $child,
+                        $node instanceof TagNode ? $tagLevel + 1 : $tagLevel,
+                        $callback,
                         $postOrder
                     ),
                     $node->children
