@@ -355,18 +355,44 @@ Therefore, we end up with lots of bad results when compiling a string within a c
 
 There are two strategies around this:
 
-A) Deferring Blaze's compilation until after Laravel finishes compiling the file.
-B) Creating a sandboxed compilation environment to avoid global compiler property conflicts
+**Strategy A: Deferred compilation**
+Replace parts of the templates with markers, let Blade finish compiling, then go back and replace the markers. This follows a similar pattern to how Blade handles "raw blocks".
 
-_A_ seems possible using a similar strategy to "raw blocks" where we would replace parts of the templates with markers, let Blade finish compiling, then go back and replace the markers.
+**Strategy B: Sandboxed compilation** 
+Store the current value of the global compiler properties, wipe them clean, perform the nested compilation, then restore all the properties back to their original values.
 
-_B_ is also possible by storing the current value of the global properties, wiping them, precompiling, then replacing all the properties back with the old ones.
+#### Chosen approach: Strategy B (Sandboxed compilation)
 
-B is not ideal because we might end up in situations where a new property is added that we haven't accounted for, causing surprising behavior.
+Blaze uses Strategy B for the following reasons:
 
-A is not ideal because we may end up in situations where markers aren't properly cleaned up and such.
+1. **Simpler AST manipulation** - Strategy A would require tracking markers throughout the AST transformation process, adding significant complexity
+2. **Cleaner separation** - Each compilation happens in its own clean environment without leaving artifacts
+3. **More predictable** - While we need to track compiler properties, this is more maintainable than ensuring markers are always properly cleaned up
 
-Also A will make the AST manipulation step more complicated because we will have to track markers and replacements and such.
+The implementation looks like this:
+
+```php
+// Store current compiler state
+$savedProperties = [
+    'rawBlocks' => $compiler->getRawBlocks(),
+    'currentPath' => $compiler->getCurrentPath(),
+    // ... other properties
+];
+
+// Clear compiler state for nested compilation
+$compiler->clearState();
+
+// Perform the nested compilation
+$rendered = Blade::render($bladeSourceOfSingleComponent);
+
+// Restore original compiler state
+$compiler->restoreState($savedProperties);
+```
+
+**Trade-offs acknowledged:**
+- We must maintain a list of compiler properties to save/restore
+- New Laravel versions might add properties we haven't accounted for
+- However, these can be detected through testing and the failure mode is clear (missing property errors) rather than subtle marker cleanup issues
 
 ### Cache-busting folded components
 
