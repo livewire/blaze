@@ -1,0 +1,5 @@
+<?php
+
+use Livewire\Blaze\Tests\TestCase;
+
+uses(TestCase::class)->in(__DIR__);
