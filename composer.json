@@ -1,6 +1,6 @@
 {
     "name": "livewire/blaze",
-    "description": "A tool for massively optimizing Blade component performance",
+    "description": "A tool for optimizing Blade component performance by folding them into parent templates",
     "type": "library",
     "license": "MIT",
     "authors": [
