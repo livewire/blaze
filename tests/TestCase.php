@@ -22,5 +22,10 @@ class TestCase extends Orchestra
     protected function getEnvironmentSetUp($app)
     {
         // Setup default configuration
+        $app['config']->set('view.paths', [
+            __DIR__ . '/fixtures/views',
+        ]);
+        
+        $app['config']->set('view.compiled', sys_get_temp_dir() . '/views');
     }
 }
