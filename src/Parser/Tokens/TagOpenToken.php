@@ -1,33 +1,29 @@
 <?php
 
-namespace Livewire\Blaze\Parser\Nodes;
+namespace Livewire\Blaze\Parser\Tokens;
 
-class TagNode extends Node
+class TagOpenToken extends Token
 {
     public function __construct(
         public string $name,
         public string $prefix,
+        public string $namespace = '',
         public string $attributes = '',
-        public array $children = [],
-        public bool $selfClosing = false,
     ) {}
 
     public function getType(): string
     {
-        return 'tag';
+        return 'tag_open';
     }
 
     public function toArray(): array
     {
-        $array = [
+        return [
             'type' => $this->getType(),
             'name' => $this->name,
             'prefix' => $this->prefix,
+            'namespace' => $this->namespace,
             'attributes' => $this->attributes,
-            'children' => array_map(fn($child) => $child instanceof Node ? $child->toArray() : $child, $this->children),
-            'self_closing' => $this->selfClosing,
         ];
-
-        return $array;
     }
 }

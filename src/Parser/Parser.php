@@ -7,6 +7,13 @@ use Livewire\Blaze\Parser\Nodes\Node;
 use Livewire\Blaze\Parser\Nodes\TagNode;
 use Livewire\Blaze\Parser\Nodes\TextNode;
 use Livewire\Blaze\Parser\Nodes\SlotNode;
+use Livewire\Blaze\Parser\Tokens\Token;
+use Livewire\Blaze\Parser\Tokens\TextToken;
+use Livewire\Blaze\Parser\Tokens\TagOpenToken;
+use Livewire\Blaze\Parser\Tokens\TagSelfCloseToken;
+use Livewire\Blaze\Parser\Tokens\TagCloseToken;
+use Livewire\Blaze\Parser\Tokens\SlotOpenToken;
+use Livewire\Blaze\Parser\Tokens\SlotCloseToken;
 
 class Parser
 {
@@ -48,18 +55,18 @@ class Parser
                         $slotPrefix = $config['slot'];
                         if ($char === '<' && substr($content, $i, strlen($slotPrefix) + 1) === '<' . $slotPrefix) {
                             if (trim($buffer) !== '') {
-                                $tokens[] = ['type' => 'text', 'content' => $buffer];
+                                $tokens[] = new TextToken($buffer);
                                 $buffer = '';
                             }
                             // Check for short slot syntax (<x-slot:name>)
                             if ($i + strlen($slotPrefix) + 1 < $len && $content[$i + strlen($slotPrefix) + 1] === ':') {
                                 $state = State::SHORT_SLOT;
-                                $currentToken = ['type' => 'slot_open', 'slot_style' => 'short'];
+                                $currentToken = new SlotOpenToken(slotStyle: 'short');
                                 $this->currentSlotPrefix = $slotPrefix;
                                 $i += strlen($slotPrefix) + 2; // Skip <x-slot:
                             } else {
                                 $state = State::SLOT;
-                                $currentToken = ['type' => 'slot_open', 'slot_style' => 'standard'];
+                                $currentToken = new SlotOpenToken(slotStyle: 'standard');
                                 $this->currentSlotPrefix = $slotPrefix;
                                 $i += strlen($slotPrefix);
                             }
@@ -79,11 +86,11 @@ class Parser
                         if ($char === '<' && substr($content, $i, 2) === '</' &&
                                 substr($content, $i, strlen($slotPrefix) + 2) === '</' . $slotPrefix) {
                             if (trim($buffer) !== '') {
-                                $tokens[] = ['type' => 'text', 'content' => $buffer];
+                                $tokens[] = new TextToken($buffer);
                                 $buffer = '';
                             }
                             $state = State::SLOT_CLOSE;
-                            $currentToken = ['type' => 'slot_close'];
+                            $currentToken = new SlotCloseToken();
                             $this->currentSlotPrefix = $slotPrefix;
                             $i += strlen($slotPrefix) + 2;
                             $foundSlotClose = true;
@@ -101,16 +108,16 @@ class Parser
                         foreach ($this->prefixes as $prefix => $config) {
                             if (substr($content, $i, strlen($prefix) + 1) === '<' . $prefix) {
                                 if (trim($buffer) !== '') {
-                                    $tokens[] = ['type' => 'text', 'content' => $buffer];
+                                    $tokens[] = new TextToken($buffer);
                                     $buffer = '';
                                 }
                                 $state = State::TAG_OPEN;
                                 $this->currentPrefix = $prefix;
-                                $currentToken = [
-                                    'type' => 'tag_open',
-                                    'prefix' => $prefix,
-                                    'namespace' => $config['namespace'] ?? '',
-                                ];
+                                $currentToken = new TagOpenToken(
+                                    name: '',
+                                    prefix: $prefix,
+                                    namespace: $config['namespace'] ?? ''
+                                );
                                 $i += strlen($prefix) + 1;
                                 $foundPrefix = true;
                                 break;
@@ -127,16 +134,16 @@ class Parser
                             foreach ($this->prefixes as $prefix => $config) {
                                 if (substr($content, $i, strlen($prefix) + 2) === '</' . $prefix) {
                                     if (trim($buffer) !== '') {
-                                        $tokens[] = ['type' => 'text', 'content' => $buffer];
+                                        $tokens[] = new TextToken($buffer);
                                         $buffer = '';
                                     }
                                     $state = State::TAG_CLOSE;
                                     $this->currentPrefix = $prefix;
-                                    $currentToken = [
-                                        'type' => 'tag_close',
-                                        'prefix' => $prefix,
-                                        'namespace' => $config['namespace'] ?? '',
-                                    ];
+                                    $currentToken = new TagCloseToken(
+                                        name: '',
+                                        prefix: $prefix,
+                                        namespace: $config['namespace'] ?? ''
+                                    );
                                     $i += strlen($prefix) + 2;
                                     $foundPrefix = true;
                                     break;
@@ -159,7 +166,7 @@ class Parser
 
                 case State::TAG_OPEN:
                     if (preg_match('/^[a-zA-Z0-9-\.:]+/', substr($content, $i), $matches)) {
-                        $currentToken['name'] = $matches[0];
+                        $currentToken->name = $matches[0];
                         $tagStack[] = $matches[0];
                         $i += strlen($matches[0]);
                         $state = State::ATTRIBUTE_NAME;
@@ -170,7 +177,7 @@ class Parser
 
                 case State::TAG_CLOSE:
                     if (preg_match('/^[a-zA-Z0-9-\.:]+/', substr($content, $i), $matches)) {
-                        $currentToken['name'] = $matches[0];
+                        $currentToken->name = $matches[0];
                         array_pop($tagStack);
                         $i += strlen($matches[0]);
                         if ($i < $len && $content[$i] === '>') {
@@ -191,7 +198,13 @@ class Parser
                         $state = State::TEXT;
                         $i++;
                     } elseif ($char === '/' && $i + 1 < $len && $content[$i + 1] === '>' && $this->isTagEndMarker($content, $i)) {
-                        $currentToken['type'] = 'tag_self_close';
+                        // Convert TagOpenToken to TagSelfCloseToken
+                        $currentToken = new TagSelfCloseToken(
+                            name: $currentToken->name,
+                            prefix: $currentToken->prefix,
+                            namespace: $currentToken->namespace,
+                            attributes: $currentToken->attributes
+                        );
                         array_pop($tagStack);
                         $tokens[] = $currentToken;
                         $state = State::TEXT;
@@ -239,7 +252,7 @@ class Parser
                             $i++;
                         }
 
-                        $currentToken['attributes'] = trim($attrString);
+                        $currentToken->attributes = trim($attrString);
                         $state = State::ATTRIBUTE_NAME;
                     }
                     break;
@@ -248,7 +261,7 @@ class Parser
                     if ($char === ' ') {
                         $i++;
                     } elseif (preg_match('/^name="([^"]+)"/', substr($content, $i), $matches)) {
-                        $currentToken['name'] = $matches[1];
+                        $currentToken->name = $matches[1];
                         $i += strlen($matches[0]);
                         $state = State::ATTRIBUTE_NAME;
                     } elseif ($char === '>') {
@@ -262,7 +275,7 @@ class Parser
 
                 case State::SLOT_CLOSE:
                     if (preg_match('/^:[a-zA-Z0-9-]+/', substr($content, $i), $matches)) {
-                        $currentToken['name'] = substr($matches[0], 1); // Remove the colon
+                        $currentToken->name = substr($matches[0], 1); // Remove the colon
                         $i += strlen($matches[0]);
                     }
 
@@ -277,7 +290,7 @@ class Parser
 
                 case State::SHORT_SLOT:
                     if (preg_match('/^[a-zA-Z0-9-]+/', substr($content, $i), $matches)) {
-                        $currentToken['name'] = $matches[0];
+                        $currentToken->name = $matches[0];
                         $i += strlen($matches[0]);
 
                         // Now collect attributes if they exist
@@ -288,7 +301,7 @@ class Parser
                         }
 
                         if (trim($attrBuffer) !== '') {
-                            $currentToken['attributes'] = trim($attrBuffer);
+                            $currentToken->attributes = trim($attrBuffer);
                         }
 
                         if ($i < $len && $content[$i] === '>') {
@@ -304,7 +317,7 @@ class Parser
         }
 
         if (trim($buffer) !== '') {
-            $tokens[] = ['type' => 'text', 'content' => $buffer];
+            $tokens[] = new TextToken($buffer);
         }
 
         return $tokens;
@@ -317,61 +330,49 @@ class Parser
         $currentNode = &$ast;
 
         foreach ($tokens as $token) {
-            switch ($token['type']) {
-                case 'tag_open':
-                    $node = new TagNode(
-                        name: ($token['namespace'] ?? '') . $token['name'],
-                        prefix: $token['prefix'] ?? $this->prefixes[0],
-                        attributes: $token['attributes'] ?? '',
-                        children: [],
-                        selfClosing: false
+            if ($token instanceof TagOpenToken) {
+                $node = new TagNode(
+                    name: $token->namespace . $token->name,
+                    prefix: $token->prefix,
+                    attributes: $token->attributes,
+                    children: [],
+                    selfClosing: false
+                );
+
+                $currentNode[] = $node;
+                $stack[] = &$currentNode;
+                $currentNode = &$currentNode[array_key_last($currentNode)]->children;
+            } elseif ($token instanceof TagSelfCloseToken) {
+                $currentNode[] = new TagNode(
+                    name: $token->namespace . $token->name,
+                    prefix: $token->prefix,
+                    attributes: $token->attributes,
+                    children: [],
+                    selfClosing: true
+                );
+            } elseif ($token instanceof TagCloseToken) {
+                $currentNode = &$stack[array_key_last($stack)];
+                array_pop($stack);
+            } elseif ($token instanceof SlotOpenToken) {
+                $node = new SlotNode(
+                    name: $token->name ?? '',
+                    attributes: $token->attributes,
+                    slotStyle: $token->slotStyle,
+                    children: []
+                );
+
+                $currentNode[] = $node;
+                $stack[] = &$currentNode;
+                $currentNode = &$currentNode[array_key_last($currentNode)]->children;
+            } elseif ($token instanceof SlotCloseToken) {
+                $currentNode = &$stack[array_key_last($stack)];
+                array_pop($stack);
+            } elseif ($token instanceof TextToken) {
+                if (trim($token->content) !== '') {
+                    $currentNode[] = new TextNode(
+                        content: $token->content
                     );
-
-                    $currentNode[] = $node;
-                    $stack[] = &$currentNode;
-                    $currentNode = &$currentNode[array_key_last($currentNode)]->children;
-                    break;
-
-                case 'tag_self_close':
-                    $currentNode[] = new TagNode(
-                        name: ($token['namespace'] ?? '') . $token['name'],
-                        prefix: $token['prefix'] ?? $this->prefixes[0],
-                        attributes: $token['attributes'] ?? '',
-                        children: [],
-                        selfClosing: true
-                    );
-                    break;
-
-                case 'tag_close':
-                    $currentNode = &$stack[array_key_last($stack)];
-                    array_pop($stack);
-                    break;
-
-                case 'slot_open':
-                    $node = new SlotNode(
-                        name: $token['name'],
-                        attributes: $token['attributes'] ?? '',
-                        slotStyle: $token['slot_style'] ?? 'standard',
-                        children: []
-                    );
-
-                    $currentNode[] = $node;
-                    $stack[] = &$currentNode;
-                    $currentNode = &$currentNode[array_key_last($currentNode)]->children;
-                    break;
-
-                case 'slot_close':
-                    $currentNode = &$stack[array_key_last($stack)];
-                    array_pop($stack);
-                    break;
-
-                case 'text':
-                    if (trim($token['content']) !== '') {
-                        $currentNode[] = new TextNode(
-                            content: $token['content']
-                        );
-                    }
-                    break;
+                }
             }
         }
 
