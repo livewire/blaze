@@ -13,14 +13,28 @@ Here's the general flow:
 1. Hook into precompilation
 2. Parse template into tokens
 3. Assemble tokens into AST (abstract syntax tree)
-4. Walk AST and pre-render elligable blade components
+4. Walk AST and pre-render eligible blade components
 5. Assemble AST back into Blade source
 
-Let's dig deeper into each of the above steps.
+Let's dig deeper into each of the above steps to understand how they work together to achieve the code-folding optimization.
 
 ## Step 1) Hook into precompilation
 
+Because Blaze optimizes Blade source, it needs to run before Blade actually compiles a file's source.
 
+Fortunately, there is a convenient hook provided by Laravel:
+
+```php
+Blade::precompiler(function (string $input) {
+    $output = Blaze::compile($input);
+
+    return $output;
+});
+```
+
+Now, Blaze sits right in front of Blade compilation and can make any optimizations it needs _just in time_.
+
+> **Note**: While this approach seems straightforward, there are actually several technical hurdles that make this more complex in practice. We'll cover the simplified version here for clarity, but see the "[Precompilation hook timing](#precompilation-hook-timing)" section later for the full implementation details.
 
 ## Step 2) Parse template into tokens
 
@@ -91,8 +105,6 @@ Internally those tokens are constructed using the following parser states as the
 'STATE_SHORT_SLOT' // Parsing short slot syntax (like <x-slot:name>)...
 ```
 
-Question: should our tokens be "dumber"? and for example reflect the individual pieces of a tag like attribute name, value, etc... rather than using states to progressively collect more intelligent info about a token and create smarter tokens. It seems fine, but I'm unsure of the tradeoffs.
-
 ## Step 3) Assemble tokens into AST (abstract syntax tree)
 
 After the tokens are collected, they can be assembled into a more structured AST.
@@ -144,9 +156,11 @@ array:2 [
 
 Now that we have an AST that tells us more about the structure of the template, we can analyze the template more intelligently to identify static portions.
 
-## Step 4) Walk AST and pre-render (fold) elligable blade components
+## Step 4) Walk AST and pre-render (fold) eligible blade components
 
-To intelligently fold elligible nodes, we need to walk the AST in two passes. The first is a pre-order traversal (the tree is walked left-to-right meaning parent nodes are encountered before their children). The second is post-order (right-to-left meaning children are encountered before their parents).o
+This is the most complex step in the process, as it involves the core optimization logic. We need to intelligently determine which components can be safely folded and then perform the actual folding operation.
+
+To intelligently fold eligible nodes, we need to walk the AST in two passes. The first is a pre-order traversal (the tree is walked left-to-right meaning parent nodes are encountered before their children). The second is post-order (right-to-left meaning children are encountered before their parents).
 
 The first, pre-order, walk is used to collect information about each component and which attributes are being passed into them. The second, post-order, walk is used to actually perform the folding.
 
@@ -157,7 +171,7 @@ A) Walk tree left to right (parents first, pre-order)
     * Identify deal-breakers in source and metadata that disqualify a component as being unfoldable
 B) Walk tree right to left (children first, post-order)
     * Skip unfoldable nodes
-    * Fold elligible nodes
+    * Fold eligible nodes
 
 Let's first look at the pre-order traversal phase:
 
@@ -168,7 +182,9 @@ The primary goal during this phase is to collect information about the component
 Here's a list of what we need to learn about a given component:
 * A list of attributes being passed in
 * Information about the source: filename, filemtime, etc...
-* Weather or not the component contains any forbidden, unfoldable, strings (like using `$errors` or `@aware`)
+* Whether or not the component contains any forbidden, unfoldable, strings (like using `$errors` or `@aware`)
+
+> **Note**: The `@aware` directive allows components to inherit prop values from distant parent components. This creates runtime dependencies that make compile-time folding impossible. See the "[Supporting the @aware directive](#supporting-the-aware-directive)" section for a detailed explanation.
 
 The secondary goal during this phase is constructing an attribute tree that we can use to maintain support for `@aware` remaining compatible with folded components (more on this later).
 
@@ -199,7 +215,7 @@ Then we will render the Blade with the placeholders:
 Then, we ensure that the placeholders exist and are untampered with in the rendered output, and replace them back with the original dynamic expression:
 
 ```php
-<button type="button" class="btn">{{ $btn }}</button>
+<button type="button" class="btn">{{ $cta }}</button>
 ```
 
 THAT is code-folding.
@@ -244,8 +260,8 @@ $ast = $this->walk($ast, function ($node) {
             return $this->newTextNode($rendered);
         }
     } finally {
-        // If the node was deemed unelligable or there was any kind of error, return the original node...
-        return $node
+        // If the node was deemed uneligible or there was any kind of error, return the original node...
+        return $node;
     }
 });
 ```
@@ -256,7 +272,7 @@ This process is simple enough and works quite well.
 
 Now that the AST has been transformed, we can re-assemble it back into Blade source.
 
-The exact algorithm to do so is fairly simple and deterministic, and therefore irrelevant to a writeup like this, but to help you grasp how it all fits together, here's a simplified version of this system's `compile` method:
+This step reverses the parsing process, walking the modified AST and generating the optimized Blade template. Here's a simplified version of this system's `compile` method to show how all the steps work together:
 
 ```php
 public function compile(string $content): string
@@ -267,7 +283,7 @@ public function compile(string $content): string
 
     [$ast, $metadata] = $this->walkTreePreOrderAndConstructMetadata($ast);
 
-    $ast = $this->walkTreePostOrderAndFoldEligableComponents($ast, $metadata);
+    $ast = $this->walkTreePostOrderAndFoldEligibleComponents($ast, $metadata);
 
     return $this->tokenizer->render($ast);
 }
@@ -275,7 +291,7 @@ public function compile(string $content): string
 
 ## Finer points
 
-Now that you have a broad overview of how this system works. Let's explore a few of the finer points in detail.
+Now that you have a broad overview of how this system works, let's explore the practical implementation challenges. While the algorithm above describes the core logic, there are several real-world complications that need to be addressed for a production system.
 
 ### Precompilation hook timing
 
@@ -289,7 +305,7 @@ Blade::precompiler(function (string $input) {
 });
 ```
 
-In theory, this would work perfectly for a tool like Blaze, however there are two hurdles:
+In theory, this would work perfectly for a tool like Blaze, however there are three hurdles:
 
 **Hurdle #1: Hook order**
 
@@ -313,7 +329,7 @@ Therefore, we need to use the lesser-known `$this->prepareStringsForCompilationU
 
 Laravel Volt uses `$this->prepareStringsForCompilationUsing` hooks to parse its single-file components.
 
-This would normally not be a problem, however, it's compiler is greedy and strips away things like raw php `<?php ... ?>` blocks, causing all sorts of issues for Blaze.
+This would normally not be a problem, however, its compiler is greedy and strips away things like raw php `<?php ... ?>` blocks, causing all sorts of issues for Blaze.
 
 To overcome this hurdle, we need to mutate the array of hooks to ensure Blaze's hooks are the very first hook to be run, even within the `$this->prepareStringsForCompilationUsing` hooks array.
 
@@ -323,7 +339,7 @@ Consider the following massively-paired-down code snippet:
 
 ```php
 Blade::prepareStringsForCompilationUsing(function ($input) {
-    return $this->foldEligableComponents($input, function ($bladeSourceOfSingleComponent) {
+    return $this->foldEligibleComponents($input, function ($bladeSourceOfSingleComponent) {
         return Blade::render($bladeSourceOfSingleComponent);
     })
 })
@@ -331,7 +347,7 @@ Blade::prepareStringsForCompilationUsing(function ($input) {
 
 Because Blaze uses code-folding, it must identify Blade components that can be pre-rendered into the compiled output.
 
-If we render those static components directly inside the compile hook, we end up creating a situtation that Blade is not used to: compiling within an existing compilation.
+If we render those static components directly inside the compile hook, we end up creating a situation that Blade is not used to: compiling within an existing compilation.
 
 The problems occur because Blade uses temporary compiler properties/variables to track things like extracted raw blocks, the current path of the compiling view, etc...
 
@@ -339,7 +355,7 @@ Therefore, we end up with lots of bad results when compiling a string within a c
 
 There are two strategies around this:
 
-A) Defering Blaze's compilation until after Laravel finishes compiling the file.
+A) Deferring Blaze's compilation until after Laravel finishes compiling the file.
 B) Creating a sandboxed compilation environment to avoid global compiler property conflicts
 
 _A_ seems possible using a similar strategy to "raw blocks" where we would replace parts of the templates with markers, let Blade finish compiling, then go back and replace the markers.
@@ -348,7 +364,7 @@ _B_ is also possible by storing the current value of the global properties, wipi
 
 B is not ideal because we might end up in situations where a new property is added that we haven't accounted for, causing surprising behavior.
 
-A is not ideal because we may end up in situtaions where markers aren't properly cleaned up and such.
+A is not ideal because we may end up in situations where markers aren't properly cleaned up and such.
 
 Also A will make the AST manipulation step more complicated because we will have to track markers and replacements and such.
 
@@ -380,7 +396,7 @@ However, if the `x-button` component was code-folded away and rendered directly 
 
 There would only be a single compiled file and Laravel would have no idea if the original source code for the button component was "stale" or invalid.
 
-To solve this problem, our system must introduce a system for noting all code-folded components and their source filemtimes so that they can be invalidated at runtime.
+To solve this problem, we need to track all code-folded components and their source filemtimes so that they can be invalidated at runtime.
 
 The solution to this problem requires two additions:
 A) A compile-time system to embed folded filemtimes in the compiled view
@@ -390,7 +406,7 @@ Let's cover each of these systems briefly:
 
 **System A:**
 
-Every time we code-fold a component, we will need to add it's source metadata to a global list. Then when finished transforming the AST and compiling it back into Blade source we will need to embed that metadata into the header of the compiled output like so:
+Every time we code-fold a component, we will need to add its source metadata to a global list. Then when finished transforming the AST and compiling it back into Blade source we will need to embed that metadata into the header of the compiled output like so:
 
 ```php
 <!-- [Folded]:button:12345674 -->
@@ -402,7 +418,7 @@ Every time we code-fold a component, we will need to add it's source metadata to
 
 **System B:**
 
-Unfortunately there is no hook into Blade's compiler at the time of source-file cache invalidation so we need to hack our own using the nearest Blade event:
+Unfortunately there is no hook into Blade's compiler at the time of source-file cache invalidation so we need to implement our own using the nearest Blade event:
 
 ```php
 Event::listen('composing:*', function ($event, $params) use ($invalidator) {
@@ -412,9 +428,9 @@ Event::listen('composing:*', function ($event, $params) use ($invalidator) {
         return;
     }
 
-    // Examine header for folded dependancies and their filemtimes...
+    // Examine header for folded dependencies and their filemtimes...
     if ($this->hasExpiredFoldedDependency($view)) {
-        // Trigger a re-compile of this file if any of it's children are stale...
+        // Trigger a re-compile of this file if any of its children are stale...
         $view->getEngine()->getCompiler()->compile($view->getPath());
     }
 });
@@ -422,9 +438,11 @@ Event::listen('composing:*', function ($event, $params) use ($invalidator) {
 
 ### Supporting the @aware directive
 
-As a quick recap, Blade supports a directive called `@aware` that allows a component to be "aware" of distant parent component attributes.
+The `@aware` directive presents unique challenges for code-folding because it creates runtime dependencies between parent and child components that can't be resolved at compile-time.
 
-For example, consider this template:
+#### Quick @aware recap
+
+Here's a simple example of the problem `@aware` solves:
 
 ```php
 <x-button.group variant="primary">
@@ -432,147 +450,44 @@ For example, consider this template:
 </x-button.group>
 ```
 
-As you can see, the `variant` attribute is being passed into `button.group`. Presumably the button group component uses this attribute/parameter to change the styling of the group.
-
-The `button.group` component might have source code that looks like this:
+The `button.group` component receives the `variant` prop, but the nested `button` component doesn't. Rather than manually passing `variant` down to every child, `@aware` allows the child component to automatically inherit it:
 
 ```php
-@props([
-    'variant' => null,
-])
-
-<div class="{{ $variant === 'primary' ? 'btn-group-primary' : 'btn-group-outline' }}">
-    {{ $slot }}
-</div>
-```
-
-And because `variant="primary"` is passed into it, it will render properly.
-
-However, consider the child `button`'s source looks similarly:
-
-```php
-@props([
-    'variant' => null,
-])
-
-<button type="button" class="{{ $variant === 'primary' ? 'btn-primary' : 'btn-outline' }}">
-    {{ $slot }}
-</button>
-```
-
-Because the `variant="primary"` prop isn't passed into the child as well, it will render in the outline style.
-
-Rather than requiring `variant` to be passed into both components, Blade provides an `@aware` directive that will allow a component to inherit a prop value from a distant parent.
-
-Here's how we can fix the problem in the `button` component source using `@aware`:
-
-```php
+{{-- button component --}}
 @aware(['variant'])
 
-@props([
-    'variant' => null,
-])
+@props(['variant' => 'outline'])
 
-<button type="button" class="{{ $variant === 'primary' ? 'btn-primary' : 'btn-outline' }}">
-    {{ $slot }}
-</button>
+<button class="btn btn-{{ $variant }}">{{ $slot }}</button>
 ```
 
-Now that `@aware` is at the top, it will look up the component tree at runtime and use the first `variant` prop it finds and use that value.
+#### The code-folding challenge
 
-#### The problem @aware presents
+This creates two problems for Blaze:
 
-Now that we understand what `@aware` does, we can understand how it might break down in a code-folded scenario.
+1. **Children with `@aware` can't be folded** - We can't know at compile-time what parent attributes will be available at runtime
+2. **Folded parents break `@aware` chains** - When a parent component is folded away, it no longer pushes its attributes onto Laravel's component stack for children to consume
 
-There are two problems with code-folding and `@aware`:
-1) Child components that use `@aware` cannot be code-folded because we can't fully know at compile-time what parent values will be used at runtime.
-2) Parent components that have been code-folded no longer provide attributes to children to be aware of
+#### The solution
 
-The first problem has a simple solution: don't code-fold components that use `@aware`. There are sophisticated things that could be done to partially make them work, but it may not be worth the complexity. Disqualifying components that use `@aware` is likely the right approach.
+For problem #1, the solution is simple: **don't fold components that use `@aware`**. This is a reasonable trade-off since these components have runtime dependencies by design.
 
-The second problem has a slightly more complex solution, but to understand the solution, we have to first understand how Blade implements `@aware` in the first place.
-
-**Understanding @aware's implementation:**
-
-Consider the following template:
+For problem #2, we need to ensure folded components still contribute to the `@aware` chain. When folding a component, we wrap the folded output with PHP that maintains the component stack:
 
 ```php
-<x-button foo="bar">...</x-button>
-```
-
-When Blade compiles this template, the compiled output will contain the following two lines of code;
-
-```php
-<?php $component = Illuminate\View\AnonymousComponent::resolve(['view' => 'components.button','data' => ['foo' => 'bar']]); ?>
-<?php $__env->startComponent($component->resolveView(), $component->data()); ?>
-```
-
-This tells Laravel's global Blade compiler to "start" a component and push it on to its internal component stack.
-
-Here's the internal source of `startComponent` from Laravel's source so that you can see a glimpse of this system:
-
-```php
-public function startComponent($view, array $data = [])
-{
-    if (ob_start()) {
-        $this->componentStack[] = $view;
-
-        $this->componentData[$this->currentComponent()] = $data;
-
-        $this->slots[$this->currentComponent()] = [];
-    }
-}
-```
-
-Now later if a deeply nested component used something like `@aware(['foo'])`, the compiled source of that directive in their source would be:
-
-```php
-$foo = $__env->getConsumableComponentData('foo');
-```
-
-Here's a glimpse of the `getConsumableComponentData` method in Laravel's source (refactored for brevity):
-
-```php
-public function getConsumableComponentData($key)
-{
-    $currentComponent = count($this->componentStack);
-
-    for ($i = $currentComponent - 1; $i >= 0; $i--) {
-        $data = $this->componentData[$i] ?? [];
-
-        if (array_key_exists($key, $data)) {
-            return $data[$key];
-        }
-    }
-
-    return null;
-}
-```
-
-As you can see, when using `@aware`, Laravel will look up the component data stack until it finds a matching key, then returns and assigns its associated value.
-
-**Re-iterating the problem:**
-
-Now that you understand the aware system better, you can see that if a component is naively folded away it will never have pushed it's data onto the component stack for deeply nested children to consume.
-
-**The solution:**
-
-The solution to this problem is: when folding a component away to append a bit of PHP that soley exists to push any attributes onto the component data stack.
-
-Something like this would suffice:
-
-```php
-<?php $__env->pushConsumableComponentData(['foo' => 'bar']); ?>
-<?php // Folded parent component.... ?>
+<?php $__env->pushConsumableComponentData(['variant' => 'primary']); ?>
+<!-- Folded component output here -->
+<div class="btn-group btn-group-primary">...</div>
 <?php $__env->popConsumableComponentData(); ?>
 ```
 
-Unfortunately, those two methods don't exist in Laravel's source, but we can add a macro to accomplish this:
+#### Implementation details
+
+Since Laravel doesn't provide `pushConsumableComponentData` and `popConsumableComponentData` methods, we add them via macros:
 
 ```php
 $this->app->make('view')->macro('pushConsumableComponentData', function ($data) {
     $this->componentStack[] = new \Illuminate\Support\HtmlString('');
-
     $this->componentData[$this->currentComponent()] = $data;
 });
 
@@ -581,6 +496,243 @@ $this->app->make('view')->macro('popConsumableComponentData', function () {
 });
 ```
 
-With these macros we can _fake_ a folded component and associated data in the component stack so that deep children can consume the provided attributes at runtime.
+This approach "fakes" a component on the stack so that deeply nested children can still consume parent attributes via `@aware`, even when the parent has been folded away.
 
-This adds slight performance overhead to folded components, but it's fairly neglegible.
+The performance overhead is minimal since we're only manipulating arrays, and this only affects components that have children using `@aware`.
+
+### Folding deal-breakers
+
+Not all components are safe to fold. Consider a link component that seems simple on the surface:
+
+```php
+<x-link href="/">Home</x-link>
+```
+
+Here's what the component source might look like:
+
+```php
+@props(['href'])
+
+<a href="{{ $href }}" class="link {{ request()->is($href) ? 'link-current' : '' }}">
+    {{ $slot }}
+</a>
+```
+
+This appears to be a straightforward component that could easily be code-folded. However, if this component were folded, it would evaluate `request()->is(...)` at compile-time rather than runtime.
+
+The result would be a link that never updates to reflect the current page state—the "active" styling would be frozen based on whatever URL was active during compilation.
+
+#### Detection challenges
+
+We could attempt to intelligently detect whether a component is safe to fold by scanning for common runtime dependencies:
+
+- `request()`
+- `$errors`
+- `@aware`
+- `now()`
+- Session helpers
+- Authentication checks
+
+However, this approach has fundamental problems:
+
+1. **Incomplete detection** - Any scanning logic will miss edge cases and alternative syntax patterns
+2. **Silent failures** - When detection fails, components will exhibit mysterious runtime behavior that's extremely difficult to debug
+
+A developer would see their link component simply never change state, with no indication that code-folding was the culprit.
+
+#### The opt-in approach
+
+There are two viable strategies:
+
+**A) Intelligent detection** - Attempt to automatically identify foldable components
+**B) Explicit opt-in** - Require developers to mark components as foldable
+
+Option A is problematic because failed detection leads to silent, hard-to-debug issues. When a component stops working due to undetected runtime dependencies, developers will have no clear indication of the cause.
+
+Option B provides clear developer intent and prevents mysterious failures. Developers must consciously opt-in to folding, making them aware of the constraints.
+
+#### Proposed syntax
+
+The most straightforward approach is a `@pure` directive placed at the top of component files:
+
+```php
+@pure
+
+@props(['title'])
+
+<h1 class="text-2xl font-bold">{{ $title }}</h1>
+```
+
+This clearly signals that the component has no runtime dependencies and is safe to fold.
+
+**Alternative considerations:**
+- A `@blaze` directive would tie more directly to this project
+- Global configuration could enable automatic detection for those who prefer it
+- Directory-based opt-in could reduce per-component boilerplate
+
+However, `@pure` is the clearest option—it's self-documenting and doesn't create dependencies on specific tooling names. Since Blade may eventually become a deeper dependency of Laravel itself, tool-agnostic naming is preferable.
+
+### Error handling and debugging
+
+Blaze uses a fail-safe approach: when folding encounters any issues, it falls back to normal Blade compilation, ensuring the application never breaks due to optimization attempts.
+
+#### The folding validation process
+
+When Blaze identifies a `@pure` component as foldable, it follows this validation process:
+
+1. **Replace dynamic content with placeholders** - Dynamic attributes and slots are temporarily replaced with unique placeholder strings
+2. **Attempt rendering** - The component is rendered with placeholders in place
+3. **Validate placeholder integrity** - All placeholders must be present and unmodified in the output
+4. **Restore or abort** - If validation passes, placeholders are replaced with original dynamic content; otherwise, folding is skipped
+
+#### Example: Successful folding
+
+Given this component usage:
+
+```php
+<x-button :suffix="$suffix">{{ $name }}</x-button>
+```
+
+Blaze generates placeholders:
+
+```php
+<x-button suffix="__PLACEHOLDER1__">__PLACEHOLDER2__</x-button>
+```
+
+If the rendered output preserves both placeholders:
+
+```php
+<button type="button" class="btn">__PLACEHOLDER2__ __PLACEHOLDER1__</button>
+```
+
+Blaze successfully replaces them with the original expressions:
+
+```php
+<button type="button" class="btn">{{ $name }} {{ $suffix }}</button>
+```
+
+#### Example: Failed folding
+
+However, if the component modifies placeholder content (e.g., forcing lowercase):
+
+```php
+<button type="button" class="btn">__PLACEHOLDER2__ __placeholder1__</button>
+```
+
+Blaze detects the corrupted placeholder (`__placeholder1__` vs `__PLACEHOLDER1__`) and abandons folding for this component.
+
+#### Common failure scenarios
+
+Folding will be skipped when:
+
+- **Rendering exceptions** - Any error during component rendering
+- **Placeholder corruption** - Component logic modifies placeholder strings
+- **Missing placeholders** - Placeholders are stripped or filtered out
+- **Context-dependent rendering** - Component behavior changes based on runtime state
+
+#### Disallowed folding
+
+Even when a component is marked with `@pure`, Blaze should perform static analysis to detect runtime dependencies that would make folding unsafe. When such patterns are found, Blaze should throw clear compilation errors rather than silently producing broken behavior.
+
+#### Detected unsafe patterns
+
+During the pre-order traversal phase, Blaze scans component source code for these problematic patterns:
+
+**CSRF tokens:**
+```php
+@pure  <!-- ❌ Error: CSRF tokens require runtime generation -->
+
+<form method="POST">
+    @csrf
+    <button type="submit">Submit</button>
+</form>
+```
+
+**Session access:**
+```php
+@pure  <!-- ❌ Error: Session data is runtime-dependent -->
+
+<div>Welcome back, {{ session('username') }}</div>
+```
+
+**Authentication checks:**
+```php
+@pure  <!-- ❌ Error: Authentication state changes at runtime -->
+
+@auth
+    <p>You are logged in</p>
+@endauth
+```
+
+**Error bag access:**
+```php
+@pure  <!-- ❌ Error: Validation errors are request-specific -->
+
+@if($errors->has('email'))
+    <span class="error">{{ $errors->first('email') }}</span>
+@endif
+```
+
+**Request data:**
+```php
+@pure  <!-- ❌ Error: Request data varies per request -->
+
+<input type="hidden" value="{{ request()->ip() }}">
+```
+
+#### Error messages
+
+When unsafe patterns are detected, Blaze should provide actionable error messages:
+
+```
+Blaze Compilation Error: Component 'form-component' is marked @pure but contains runtime dependencies.
+
+Found: @csrf directive on line 4
+Reason: CSRF tokens must be generated at runtime for security
+
+Solution: Remove @pure directive or extract CSRF handling to parent component
+
+Component: resources/views/components/form-component.blade.php:1
+```
+
+#### Comprehensive pattern detection
+
+Blaze should detect these categories of unsafe patterns:
+
+**Directives:**
+- `@csrf`, `@method`
+- `@auth`, `@guest`, `@can`, `@cannot`
+- `@error`, `@enderror`
+
+**Function calls:**
+- `session()`, `request()`, `auth()`
+- `old()`, `csrf_token()`, `method_field()`
+- `now()`, `today()`, `Carbon::*`
+
+**Variable access:**
+- `$errors` (error bag)
+- `$user` (if injected by auth middleware)
+
+**Laravel helpers:**
+- `url()->current()`, `url()->previous()`
+- `route()` with current route parameters
+
+#### Implementation strategy
+
+The detection system should:
+
+1. **Parse component source** during metadata collection phase
+2. **Use regex patterns** for common unsafe function calls and directives
+3. **Provide specific line numbers** and explanations for each violation
+4. **Suggest alternatives** where possible (e.g., move CSRF to parent component)
+5. **Allow configuration** to disable certain checks if needed for advanced use cases
+
+This approach prevents developers from accidentally creating broken components while providing clear guidance on how to fix the issues.
+
+### String escaping and other security considerations
+
+[todo: do some experimenting to see show stack traces react.]
+
+### Stack trace preservation
+
+[todo: do some experimenting to see show stack traces react.]
