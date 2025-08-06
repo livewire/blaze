@@ -3,6 +3,10 @@
 namespace Livewire\Blaze\Parser;
 
 use Livewire\Blaze\Parser\State;
+use Livewire\Blaze\Parser\Nodes\Node;
+use Livewire\Blaze\Parser\Nodes\TagNode;
+use Livewire\Blaze\Parser\Nodes\TextNode;
+use Livewire\Blaze\Parser\Nodes\SlotNode;
 
 class Parser
 {
@@ -315,28 +319,27 @@ class Parser
         foreach ($tokens as $token) {
             switch ($token['type']) {
                 case 'tag_open':
-                    $node = [
-                        'type' => 'tag',
-                        'name' => ($token['namespace'] ?? '') . $token['name'],
-                        'prefix' => $token['prefix'] ?? $this->prefixes[0],
-                        'attributes' => $token['attributes'] ?? '',
-                        'children' => [],
-                    ];
+                    $node = new TagNode(
+                        name: ($token['namespace'] ?? '') . $token['name'],
+                        prefix: $token['prefix'] ?? $this->prefixes[0],
+                        attributes: $token['attributes'] ?? '',
+                        children: [],
+                        selfClosing: false
+                    );
 
                     $currentNode[] = $node;
                     $stack[] = &$currentNode;
-                    $currentNode = &$currentNode[array_key_last($currentNode)]['children'];
+                    $currentNode = &$currentNode[array_key_last($currentNode)]->children;
                     break;
 
                 case 'tag_self_close':
-                    $currentNode[] = [
-                        'type' => 'tag',
-                        'name' => ($token['namespace'] ?? '') . $token['name'],
-                        'prefix' => $token['prefix'] ?? $this->prefixes[0],
-                        'attributes' => $token['attributes'] ?? '',
-                        'children' => [],
-                        'self_closing' => true,
-                    ];
+                    $currentNode[] = new TagNode(
+                        name: ($token['namespace'] ?? '') . $token['name'],
+                        prefix: $token['prefix'] ?? $this->prefixes[0],
+                        attributes: $token['attributes'] ?? '',
+                        children: [],
+                        selfClosing: true
+                    );
                     break;
 
                 case 'tag_close':
@@ -345,17 +348,16 @@ class Parser
                     break;
 
                 case 'slot_open':
-                    $node = [
-                        'type' => 'slot',
-                        'name' => $token['name'],
-                        'attributes' => $token['attributes'] ?? '',
-                        'slot_style' => $token['slot_style'] ?? 'standard',
-                        'children' => [],
-                    ];
+                    $node = new SlotNode(
+                        name: $token['name'],
+                        attributes: $token['attributes'] ?? '',
+                        slotStyle: $token['slot_style'] ?? 'standard',
+                        children: []
+                    );
 
                     $currentNode[] = $node;
                     $stack[] = &$currentNode;
-                    $currentNode = &$currentNode[array_key_last($currentNode)]['children'];
+                    $currentNode = &$currentNode[array_key_last($currentNode)]->children;
                     break;
 
                 case 'slot_close':
@@ -365,10 +367,9 @@ class Parser
 
                 case 'text':
                     if (trim($token['content']) !== '') {
-                        $currentNode[] = [
-                            'type' => 'text',
-                            'content' => $token['content'],
-                        ];
+                        $currentNode[] = new TextNode(
+                            content: $token['content']
+                        );
                     }
                     break;
             }
@@ -380,22 +381,22 @@ class Parser
     public function transform(array $ast, callable $callback, bool $postOrder = false): array
     {
         $transformNode = function ($node, $tagLevel = 0) use ($callback, $postOrder, &$transformNode) {
-            if (!is_array($node)) return $node;
+            if (!($node instanceof Node)) return $node;
 
             // Pre-order traversal: transform parent before children
             if (!$postOrder) {
                 $transformed = $callback($node, $tagLevel);
                 if ($transformed === null) return null;
-                if (!is_array($transformed)) return $transformed;
+                if (!($transformed instanceof Node)) return $transformed;
                 $node = $transformed;
             }
 
             // Transform children
-            if (isset($node['children'])) {
-                $node['children'] = array_filter(
+            if (($node instanceof TagNode || $node instanceof SlotNode) && !empty($node->children)) {
+                $node->children = array_filter(
                     array_map(
-                        fn($child) => $transformNode($child, $node['type'] === 'tag' ? $tagLevel + 1 : $tagLevel),
-                        $node['children']
+                        fn($child) => $transformNode($child, $node instanceof TagNode ? $tagLevel + 1 : $tagLevel),
+                        $node->children
                     ),
                     fn($child) => $child !== null
                 );
@@ -405,7 +406,7 @@ class Parser
             if ($postOrder) {
                 $transformed = $callback($node, $tagLevel);
                 if ($transformed === null) return null;
-                if (!is_array($transformed)) return $transformed;
+                if (!($transformed instanceof Node)) return $transformed;
                 $node = $transformed;
             }
 
@@ -423,89 +424,83 @@ class Parser
         $output = '';
 
         foreach ($ast as $node) {
-            switch ($node['type']) {
-                case 'tag':
-                    $prefix = $node['prefix'] ?? $this->prefixes[0];
-                    // Strip namespace from name when rendering
-                    $name = $node['name'];
-                    if (isset($this->prefixes[$prefix]['namespace']) && str_starts_with($name, $this->prefixes[$prefix]['namespace'])) {
-                        $name = substr($name, strlen($this->prefixes[$prefix]['namespace']));
+            if ($node instanceof TagNode) {
+                $prefix = $node->prefix ?? $this->prefixes[0];
+                // Strip namespace from name when rendering
+                $name = $node->name;
+                if (isset($this->prefixes[$prefix]['namespace']) && str_starts_with($name, $this->prefixes[$prefix]['namespace'])) {
+                    $name = substr($name, strlen($this->prefixes[$prefix]['namespace']));
+                }
+                $output .= "<{$prefix}{$name}";
+
+                // Render attributes as a string if present
+                if (!empty($node->attributes)) {
+                    $output .= " {$node->attributes}";
+                }
+
+                if ($node->selfClosing) {
+                    $output .= " />";
+                } else {
+                    $output .= ">";
+                    $output .= $this->render($node->children);
+                    $output .= "</{$prefix}{$name}>";
+                }
+            } elseif ($node instanceof SlotNode) {
+                if ($node->slotStyle === 'short') {
+                    // Use short slot syntax
+                    $output .= "<{$this->currentSlotPrefix}:{$node->name}";
+
+                    // Add attributes if present
+                    if (!empty($node->attributes)) {
+                        $output .= " {$node->attributes}";
                     }
-                    $output .= "<{$prefix}{$name}";
 
-                    // Render attributes as a string if present
-                    if (!empty($node['attributes'])) {
-                        $output .= " {$node['attributes']}";
-                    }
+                    $output .= ">";
+                    $output .= $this->render($node->children);
+                    $output .= "</{$this->currentSlotPrefix}:{$node->name}>";
+                } else {
+                    // Use standard slot syntax
+                    $output .= "<{$this->currentSlotPrefix} name=\"{$node->name}\"";
 
-                    if (isset($node['self_closing']) && $node['self_closing']) {
-                        $output .= " />";
-                    } else {
-                        $output .= ">";
-                        $output .= $this->render($node['children']);
-                        $output .= "</{$prefix}{$name}>";
-                    }
-                    break;
-
-                case 'slot':
-                    if (isset($node['slot_style']) && $node['slot_style'] === 'short') {
-                        // Use short slot syntax
-                        $output .= "<{$this->currentSlotPrefix}:{$node['name']}";
-
-                        // Add attributes if present
-                        if (!empty($node['attributes'])) {
-                            $output .= " {$node['attributes']}";
+                    // Add other attributes if present (excluding the name which we've already added)
+                    if (!empty($node->attributes)) {
+                        // Since we're using name="value" syntax explicitly, we need to avoid duplicating name attribute
+                        if (preg_match('/^class="([^"]*)"/', $node->attributes, $matches)) {
+                            $output .= " class=\"{$matches[1]}\"";
+                        } else if (trim($node->attributes) !== '') {
+                            $output .= " " . $node->attributes;
                         }
-
-                        $output .= ">";
-                        $output .= $this->render($node['children']);
-                        $output .= "</{$this->currentSlotPrefix}:{$node['name']}>";
-                    } else {
-                        // Use standard slot syntax
-                        $output .= "<{$this->currentSlotPrefix} name=\"{$node['name']}\"";
-
-                        // Add other attributes if present (excluding the name which we've already added)
-                        if (!empty($node['attributes'])) {
-                            // Since we're using name="value" syntax explicitly, we need to avoid duplicating name attribute
-                            if (preg_match('/^class="([^"]*)"/', $node['attributes'], $matches)) {
-                                $output .= " class=\"{$matches[1]}\"";
-                            } else if (trim($node['attributes']) !== '') {
-                                $output .= " " . $node['attributes'];
-                            }
-                        }
-
-                        $output .= ">";
-                        $output .= $this->render($node['children']);
-                        $output .= "</{$this->currentSlotPrefix}>";
                     }
-                    break;
 
-                case 'text':
-                    $output .= $node['content'];
-                    break;
+                    $output .= ">";
+                    $output .= $this->render($node->children);
+                    $output .= "</{$this->currentSlotPrefix}>";
+                }
+            } elseif ($node instanceof TextNode) {
+                $output .= $node->content;
             }
         }
 
         return $output;
     }
 
-    public function isStaticNode(array $node): bool
+    public function isStaticNode(Node $node): bool
     {
-        if ($node['type'] !== 'tag') {
+        if (!($node instanceof TagNode)) {
             return false;
         }
 
         // Check if attributes contain dynamic expressions
-        if (!empty($node['attributes'])) {
+        if (!empty($node->attributes)) {
             // Check if attributes string contains : attribute or {{ expressions
-            if (preg_match('/(^|\s):[a-zA-Z]/', $node['attributes']) || str_contains($node['attributes'], '{'.'{')) {
+            if (preg_match('/(^|\s):[a-zA-Z]/', $node->attributes) || str_contains($node->attributes, '{'.'{')) {
                 return false;
             }
         }
 
         // Check that all children are text nodes
-        foreach ($node['children'] ?? [] as $child) {
-            if ($child['type'] !== 'text') {
+        foreach ($node->children as $child) {
+            if (!($child instanceof TextNode)) {
                 return false;
             }
         }
