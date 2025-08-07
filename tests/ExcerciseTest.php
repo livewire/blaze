@@ -1,12 +1,11 @@
 <?php
 
-describe('exercise the parser', function () {
+describe('exercise without folding', function () {
     function compileBlade(string $input): string {
-        $parser = app('blaze')->parser();
-
-        return $parser->parse($input, function ($ast) {
-            return $ast;
-        });
+        $tokens = app('blaze')->tokenizer()->tokenize($input);
+        $ast = app('blaze')->parser()->parse($tokens);
+        $output = app('blaze')->renderer()->render($ast);
+        return $output;
     }
 
     it('simple component with static attributes', function () {

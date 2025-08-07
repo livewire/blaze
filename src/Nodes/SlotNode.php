@@ -1,6 +1,6 @@
 <?php
 
-namespace Livewire\Blaze\Parser\Nodes;
+namespace Livewire\Blaze\Nodes;
 
 class SlotNode extends Node
 {

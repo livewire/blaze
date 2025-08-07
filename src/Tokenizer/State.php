@@ -1,6 +1,6 @@
 <?php
 
-namespace Livewire\Blaze\Parser;
+namespace Livewire\Blaze\Tokenizer;
 
 enum State: string
 {

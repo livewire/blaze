@@ -1,18 +1,19 @@
 <?php
 
-namespace Livewire\Blaze\Parser\Tokens;
+namespace Livewire\Blaze\Tokenizer\Tokens;
 
-class SlotOpenToken extends Token
+class TagSelfCloseToken extends Token
 {
     public function __construct(
-        public ?string $name = null,
+        public string $name,
+        public string $prefix,
+        public string $namespace = '',
         public string $attributes = '',
-        public string $slotStyle = 'standard',
     ) {}
 
     public function getType(): string
     {
-        return 'slot_open';
+        return 'tag_self_close';
     }
 
     public function toArray(): array
@@ -20,8 +21,9 @@ class SlotOpenToken extends Token
         return [
             'type' => $this->getType(),
             'name' => $this->name,
+            'prefix' => $this->prefix,
+            'namespace' => $this->namespace,
             'attributes' => $this->attributes,
-            'slot_style' => $this->slotStyle,
         ];
     }
 }

@@ -2,9 +2,9 @@
 
 namespace Livewire\Blaze\Parser;
 
-use Livewire\Blaze\Parser\Nodes\Node;
-use Livewire\Blaze\Parser\Nodes\TagNode;
-use Livewire\Blaze\Parser\Nodes\SlotNode;
+use Livewire\Blaze\Nodes\Node;
+use Livewire\Blaze\Nodes\TagNode;
+use Livewire\Blaze\Nodes\SlotNode;
 
 class ParseStack
 {

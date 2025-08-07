@@ -1,6 +1,10 @@
 <?php
 
 describe('fold elligable nodes', function () {
+    beforeEach(function () {
+        app('blade.compiler')->anonymousComponentPath(__DIR__ . '/fixtures/components');
+    });
+
     function compile(string $input): string {
         return app('blaze')->compile($input);
     }

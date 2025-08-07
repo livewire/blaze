@@ -2,17 +2,26 @@
 
 namespace Livewire\Blaze;
 
-use Illuminate\Support\ServiceProvider;
-use Livewire\Blaze\Compiler\Compiler;
+use Livewire\Blaze\Walker\Walker;
+use Livewire\Blaze\Tokenizer\Tokenizer;
+use Livewire\Blaze\Renderer\Renderer;
 use Livewire\Blaze\Parser\Parser;
+use Livewire\Blaze\Folder\Folder;
+use Illuminate\Support\ServiceProvider;
 
 class BlazeServiceProvider extends ServiceProvider
 {
     public function register(): void
     {
         $this->app->singleton(BlazeManager::class, fn () => new BlazeManager(
-            new Compiler,
-            new Parser,
+            $tokenizer = new Tokenizer,
+            $parser = new Parser,
+            $renderer = new Renderer,
+            $walker = new Walker,
+            $folder = new Folder(
+                fn ($blade) => (new BladeHacker)->render($blade),
+                fn ($node) => $renderer->renderNode($node),
+            ),
         ));
 
         $this->app->alias(BlazeManager::class, Blaze::class);

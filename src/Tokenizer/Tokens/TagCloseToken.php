@@ -1,6 +1,6 @@
 <?php
 
-namespace Livewire\Blaze\Parser\Tokens;
+namespace Livewire\Blaze\Tokenizer\Tokens;
 
 class TagCloseToken extends Token
 {

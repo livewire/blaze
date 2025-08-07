@@ -1,23 +1,23 @@
 <?php
 
-namespace Livewire\Blaze\Parser\Nodes;
+namespace Livewire\Blaze\Tokenizer\Tokens;
 
-class TextNode extends Node
+class SlotCloseToken extends Token
 {
     public function __construct(
-        public string $content,
+        public ?string $name = null,
     ) {}
 
     public function getType(): string
     {
-        return 'text';
+        return 'slot_close';
     }
 
     public function toArray(): array
     {
         return [
             'type' => $this->getType(),
-            'content' => $this->content,
+            'name' => $this->name,
         ];
     }
 }

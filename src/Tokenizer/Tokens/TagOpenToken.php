@@ -1,8 +1,8 @@
 <?php
 
-namespace Livewire\Blaze\Parser\Tokens;
+namespace Livewire\Blaze\Tokenizer\Tokens;
 
-class TagSelfCloseToken extends Token
+class TagOpenToken extends Token
 {
     public function __construct(
         public string $name,
@@ -13,7 +13,7 @@ class TagSelfCloseToken extends Token
 
     public function getType(): string
     {
-        return 'tag_self_close';
+        return 'tag_open';
     }
 
     public function toArray(): array
