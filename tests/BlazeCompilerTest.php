@@ -4,12 +4,14 @@ describe('exercise the compiler', function () {
     function compileBlade(string $input): string {
         $parser = app('blaze')->parser();
 
-        return $parser->parse($input, fn ($ast) => $ast);
+        return $parser->parse($input, function ($ast) {
+            return $ast;
+        });
     }
 
     it('simple component with static attributes', function () {
         $input = '<x-button size="lg" color="blue">Click Me</x-button>';
-        expect(dd(compileBlade($input)))->toBe($input);
+        expect(compileBlade($input))->toBe($input);
     });
 
     it('self-closing components', function () {
