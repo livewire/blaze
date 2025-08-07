@@ -42,13 +42,13 @@ class Parser
     protected string $currentPrefix = '';
     protected string $currentSlotPrefix = '';
 
-    public function parse(string $template, callable $callback): string
+    public function transform(string $template, callable $callback): string
     {
         $tokens = $this->tokenize($template);
 
         $ast = $this->assemble($tokens);
 
-        $ast = $this->transform($ast, $callback);
+        $ast = $callback($ast);
 
         return $this->render($ast);
     }
@@ -99,13 +99,6 @@ class Parser
     public function render(array $ast): string
     {
         return implode('', array_map([$this, 'renderNode'], $ast));
-    }
-
-    public function transform(array $ast, callable $callback, bool $postOrder = false): array
-    {
-        // Apply callback to the entire AST (for simple transformations)
-        // If callback expects individual nodes, we can change this later
-        return $callback($ast);
     }
 
     public function isStaticNode(Node $node): bool

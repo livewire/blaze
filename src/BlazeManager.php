@@ -14,8 +14,8 @@ class BlazeManager
 
     public function compile(string $template): string
     {
-        return $this->parser->parse($template, function ($ast) {
-            return $ast;
+        return $this->parser->transform($template, function ($ast) {
+            return $this->compiler->fold($ast);
         });
     }
 

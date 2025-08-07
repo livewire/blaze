@@ -1,6 +1,6 @@
 <?php
 
-describe('exercise the compiler', function () {
+describe('exercise the parser', function () {
     function compileBlade(string $input): string {
         $parser = app('blaze')->parser();
 
