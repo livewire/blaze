@@ -1,31 +1,27 @@
 <?php
 
 describe('exercise the compiler', function () {
-    
     function compileBlade(string $input): string {
-        $compiler = app('blaze')->compiler();
-        
-        $tokens = $compiler->tokenize($input);
-        $ast = $compiler->parse($tokens);
-        
-        return $compiler->render($ast);
+        $parser = app('blaze')->parser();
+
+        return $parser->parse($input, fn ($ast) => $ast);
     }
-    
+
     it('simple component with static attributes', function () {
         $input = '<x-button size="lg" color="blue">Click Me</x-button>';
-        expect(compileBlade($input))->toBe($input);
+        expect(dd(compileBlade($input)))->toBe($input);
     });
-    
+
     it('self-closing components', function () {
         $input = '<x-icon name="home" size="sm" />';
         expect(compileBlade($input))->toBe($input);
     });
-    
+
     it('nested components', function () {
         $input = '<x-card><x-button>Save</x-button><x-button>Cancel</x-button></x-card>';
         expect(compileBlade($input))->toBe($input);
     });
-    
+
     it('components with complex nesting and text', function () {
         $input = '<x-layout title="Dashboard">
     <x-header>
@@ -44,17 +40,17 @@ describe('exercise the compiler', function () {
 </x-layout>';
         expect(compileBlade($input))->toBe($input);
     });
-    
+
     it('components with various attribute formats', function () {
         $input = '<x-button type="submit" disabled class="btn-primary" data-test="login-btn">Login</x-button>';
         expect(compileBlade($input))->toBe($input);
     });
-    
+
     it('components with quoted attributes containing spaces', function () {
         $input = '<x-alert message="This is a long message with spaces" type="warning" />';
         expect(compileBlade($input))->toBe($input);
     });
-    
+
     it('mixed regular HTML and components', function () {
         $input = '<div class="container">
     <h1>Page Title</h1>
@@ -64,17 +60,17 @@ describe('exercise the compiler', function () {
 </div>';
         expect(compileBlade($input))->toBe($input);
     });
-    
+
     it('flux namespace components', function () {
         $input = '<flux:button variant="primary">Flux Button</flux:button>';
         expect(compileBlade($input))->toBe($input);
     });
-    
+
     it('flux self-closing components', function () {
         $input = '<flux:input type="email" placeholder="Enter email" />';
         expect(compileBlade($input))->toBe($input);
     });
-    
+
     it('x: namespace components', function () {
         $input = '<x:modal title="Confirm Action">
     <x:button type="danger">Delete</x:button>
@@ -82,7 +78,7 @@ describe('exercise the compiler', function () {
 </x:modal>';
         expect(compileBlade($input))->toBe($input);
     });
-    
+
     it('standard slot syntax', function () {
         $input = '<x-modal>
     <x-slot name="header">
@@ -95,7 +91,7 @@ describe('exercise the compiler', function () {
 </x-modal>';
         expect(compileBlade($input))->toBe($input);
     });
-    
+
     it('short slot syntax', function () {
         $input = '<x-card>
     <x-slot:header>
@@ -108,7 +104,7 @@ describe('exercise the compiler', function () {
 </x-card>';
         expect(compileBlade($input))->toBe($input);
     });
-    
+
     it('mixed slot syntaxes', function () {
         $input = '<x-layout>
     <x-slot name="title">Page Title</x-slot>
@@ -120,7 +116,7 @@ describe('exercise the compiler', function () {
 </x-layout>';
         expect(compileBlade($input))->toBe($input);
     });
-    
+
     it('slots with attributes', function () {
         $input = '<x-modal>
     <x-slot name="header" class="bg-gray-100 p-4">
@@ -133,7 +129,7 @@ describe('exercise the compiler', function () {
 </x-modal>';
         expect(compileBlade($input))->toBe($input);
     });
-    
+
     it('deeply nested components and slots', function () {
         $input = '<x-page-layout>
     <x-slot:header>
@@ -144,7 +140,7 @@ describe('exercise the compiler', function () {
             </x-nav-group>
         </x-navigation>
     </x-slot:header>
-    
+
     <x-content-area>
         <x-card>
             <x-card-header>
@@ -171,7 +167,7 @@ describe('exercise the compiler', function () {
 </x-page-layout>';
         expect(compileBlade($input))->toBe($input);
     });
-    
+
     it('components with complex attribute values', function () {
         $input = '<x-form method="POST" action="/users/create" :validation-rules="[\'name\' => \'required\', \'email\' => \'required|email\']" class="space-y-4 max-w-md mx-auto" data-turbo="false">
     <x-input name="name" placeholder="Enter your name" />
@@ -180,20 +176,20 @@ describe('exercise the compiler', function () {
 </x-form>';
         expect(compileBlade($input))->toBe($input);
     });
-    
+
     it('empty components', function () {
         $input = '<x-divider></x-divider>';
         expect(compileBlade($input))->toBe($input);
     });
-    
+
     it('components with only whitespace content', function () {
         $input = '<x-container>
-    
-    
+
+
 </x-container>';
         expect(compileBlade($input))->toBe($input);
     });
-    
+
     it('special characters in text content', function () {
         $input = '<x-code-block>
 if (condition && other_condition) {
@@ -203,7 +199,7 @@ if (condition && other_condition) {
 </x-code-block>';
         expect(compileBlade($input))->toBe($input);
     });
-    
+
     it('components with hyphenated names', function () {
         $input = '<x-user-profile>
     <x-avatar-image src="/avatar.jpg" />
@@ -214,7 +210,7 @@ if (condition && other_condition) {
 </x-user-profile>';
         expect(compileBlade($input))->toBe($input);
     });
-    
+
     it('components with dots in names', function () {
         $input = '<x-forms.input type="text" name="username" />
 <x-forms.select name="country">
@@ -223,7 +219,7 @@ if (condition && other_condition) {
 </x-forms.select>';
         expect(compileBlade($input))->toBe($input);
     });
-    
+
     it('mixed component prefixes in same template', function () {
         $input = '<x-layout>
     <flux:header>
@@ -240,17 +236,17 @@ if (condition && other_condition) {
 </x-layout>';
         expect(compileBlade($input))->toBe($input);
     });
-    
+
     it('preserve exact whitespace and formatting', function () {
         $input = '<x-pre-formatted>   This   has   lots   of   spaces   </x-pre-formatted>';
         expect(compileBlade($input))->toBe($input);
     });
-    
+
     it('attributes with single quotes', function () {
         $input = "<x-component attr='single quoted value' mixed=\"double quoted\">Content</x-component>";
         expect(compileBlade($input))->toBe($input);
     });
-    
+
     it('attributes with nested quotes', function () {
         $input = '<x-tooltip message="Click the \'Save\' button to continue">Hover me</x-tooltip>';
         expect(compileBlade($input))->toBe($input);

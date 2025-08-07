@@ -11,9 +11,8 @@ class BlazeServiceProvider extends ServiceProvider
     public function register(): void
     {
         $this->app->singleton(BlazeManager::class, fn () => new BlazeManager(
-            new Compiler(
-                new Parser,
-            ),
+            new Compiler,
+            new Parser,
         ));
 
         $this->app->alias(BlazeManager::class, Blaze::class);

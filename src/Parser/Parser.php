@@ -42,6 +42,17 @@ class Parser
     protected string $currentPrefix = '';
     protected string $currentSlotPrefix = '';
 
+    public function parse(string $template, callable $callback): string
+    {
+        $tokens = $this->tokenize($template);
+
+        $ast = $this->assemble($tokens);
+
+        $ast = $this->transform($ast, $callback);
+
+        return $this->render($ast);
+    }
+
     public function tokenize(string $content): array
     {
         $this->resetTokenizer($content);
@@ -66,7 +77,7 @@ class Parser
         return $this->tokens;
     }
 
-    public function parse(array $tokens): array
+    public function assemble(array $tokens): array
     {
         $stack = new ParseStack();
 
