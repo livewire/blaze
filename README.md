@@ -34,7 +34,7 @@ When you use this component in your templates:
 
 ```blade
 <x-button variant="secondary">
-    Click me
+    Save
 </x-button>
 ```
 
