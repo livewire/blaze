@@ -107,4 +107,9 @@ class BlazeManager
     {
         return $this->inspector;
     }
+
+    public function folder(): Folder
+    {
+        return $this->folder;
+    }
 }

@@ -6,6 +6,7 @@ use Livewire\Blaze\Nodes\TextNode;
 use Livewire\Blaze\Nodes\Node;
 use Livewire\Blaze\Nodes\ComponentNode;
 use Livewire\Blaze\Events\ComponentFolded;
+use Livewire\Blaze\Exceptions\InvalidPureUsageException;
 use Illuminate\Support\Facades\Event;
 
 class Folder
@@ -55,6 +56,10 @@ class Folder
             // Dispatch event for component folding
             $componentPath = ($this->componentNameToPath)($node->name);
             if (file_exists($componentPath)) {
+                // Validate @pure usage before folding
+                $source = file_get_contents($componentPath);
+                $this->validatePureComponent($source, $componentPath);
+                
                 Event::dispatch(new ComponentFolded(
                     name: $node->name,
                     path: $componentPath,
@@ -82,6 +87,9 @@ class Folder
             // Return a TextNode containing the folded HTML
             return new TextNode($finalHtml);
 
+        } catch (InvalidPureUsageException $e) {
+            // Re-throw validation exceptions
+            throw $e;
         } catch (\Exception $e) {
             // If folding fails for any reason, return the original node
             return $node;
@@ -218,5 +226,25 @@ class Folder
         }
 
         return $html;
+    }
+
+    protected function validatePureComponent(string $source, string $componentPath): void
+    {
+        $problematicPatterns = [
+            '@aware' => 'forAware',
+            '\\$errors' => 'forErrors',
+            'session\\(' => 'forSession',
+            '@error\\(' => 'forError',
+            '@csrf' => 'forCsrf',
+            'auth\\(\\)' => 'forAuth',
+            'request\\(\\)' => 'forRequest',
+            'old\\(' => 'forOld',
+        ];
+
+        foreach ($problematicPatterns as $pattern => $factoryMethod) {
+            if (preg_match('/' . $pattern . '/', $source)) {
+                throw InvalidPureUsageException::{$factoryMethod}($componentPath);
+            }
+        }
     }
 }
