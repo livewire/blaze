@@ -126,10 +126,8 @@ class Folder
 
     protected function parseDynamicAttributes(string $attributesString, array &$attributePlaceholders): string
     {
-        // Simple pattern to match :attribute="value" syntax
-        $pattern = '/(\s*):([a-zA-Z0-9_-]+)\s*=\s*("[^"]*"|\$[a-zA-Z0-9_]+)/';
-        
-        return preg_replace_callback($pattern, function ($matches) use (&$attributePlaceholders) {
+        // Handle :attribute="value" and :$variable syntax
+        $attributesString = preg_replace_callback('/(\s*):([a-zA-Z0-9_-]+)\s*=\s*("[^"]*"|\$[a-zA-Z0-9_]+)/', function ($matches) use (&$attributePlaceholders) {
             $whitespace = $matches[1];
             $attributeName = $matches[2];
             $attributeValue = $matches[3];
@@ -142,6 +140,40 @@ class Folder
             // Return the attribute with placeholder value
             return $whitespace . $attributeName . '=' . $placeholder;
         }, $attributesString);
+        
+        // Handle short syntax :$variable (extract attribute name from variable name)
+        $attributesString = preg_replace_callback('/(\s*):(\$[a-zA-Z0-9_]+)/', function ($matches) use (&$attributePlaceholders) {
+            $whitespace = $matches[1];
+            $variable = $matches[2]; // e.g., "$type"
+            
+            // Extract attribute name from variable name (remove $)
+            $attributeName = ltrim($variable, '$');
+            
+            // Create placeholder for the dynamic value
+            $placeholderKey = 'ATTR_PLACEHOLDER_' . count($attributePlaceholders);
+            $placeholder = '"' . $placeholderKey . '"';
+            $attributePlaceholders[$placeholderKey] = '"' . $variable . '"';
+            
+            // Return the attribute with placeholder value
+            return $whitespace . $attributeName . '=' . $placeholder;
+        }, $attributesString);
+        
+        // Handle attributes containing {{ }} expressions (echo attributes)
+        $attributesString = preg_replace_callback('/(\s*)([a-zA-Z0-9_-]+)\s*=\s*("(?:[^"\\\\]|\\\\.)*\{\{[^}]*\}\}(?:[^"\\\\]|\\\\.)*")/', function ($matches) use (&$attributePlaceholders) {
+            $whitespace = $matches[1];
+            $attributeName = $matches[2];
+            $attributeValue = $matches[3]; // includes quotes and {{ }} content
+            
+            // Create placeholder for the dynamic value
+            $placeholderKey = 'ATTR_PLACEHOLDER_' . count($attributePlaceholders);
+            $placeholder = '"' . $placeholderKey . '"';
+            $attributePlaceholders[$placeholderKey] = $attributeValue;
+            
+            // Return the attribute with placeholder value
+            return $whitespace . $attributeName . '=' . $placeholder;
+        }, $attributesString);
+        
+        return $attributesString;
     }
 
     protected function restoreSlotPlaceholders(string $html, array $slotPlaceholders): string
@@ -160,9 +192,13 @@ class Folder
             $restoredValue = $originalValue;
             
             // If it's a simple variable like "$type", convert to "{{ $type }}"
-            if (preg_match('/^\$[a-zA-Z0-9_]+$/', trim($originalValue, '"'))) {
+            if (preg_match('/^"\$[a-zA-Z0-9_]+"$/', $originalValue)) {
                 $variable = trim($originalValue, '"');
                 $restoredValue = '"{{ ' . $variable . ' }}"';
+            }
+            // If it's already a quoted string with {{ }} expressions, use as-is
+            elseif (preg_match('/^".*\{\{.*\}\}.*"$/', $originalValue)) {
+                $restoredValue = $originalValue;
             }
             
             // Remove quotes from placeholder when replacing, since HTML attributes are already quoted

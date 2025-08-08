@@ -44,6 +44,13 @@ describe('fold elligable components', function () {
         expect(compile($input))->toBe($output);
     });
 
+    it('dynamic echo attributes', function () {
+        $input = '<x-button type="foo {{ $type }}">Save</x-button>';
+        $output = '<button type="foo {{ $type }}">Save</button>';
+
+        expect(compile($input))->toBe($output);
+    });
+
     it('dynamic slot with unfoldable component', function () {
         $input = '<x-button><x-impure-button>{{ $name }}</x-impure-button></x-button>';
         $output = '<button type="button"><x-impure-button>{{ $name }}</x-impure-button></button>';
@@ -61,10 +68,10 @@ describe('fold elligable components', function () {
 
         $output = <<<'HTML'
         <div class="card">
-
+            
             <button type="button">Edit</button>
             <button type="button">Delete</button>
-
+        
         </div>
         HTML;
 
@@ -82,11 +89,11 @@ describe('fold elligable components', function () {
 
         $output = <<<'HTML'
         <div class="card">
-
+            
             <div class="alert">
                 <button type="button">Save</button>
             </div>
-
+        
         </div>
         HTML;
 
