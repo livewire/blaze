@@ -7,6 +7,7 @@ use Livewire\Blaze\Tokenizer\Tokenizer;
 use Livewire\Blaze\Renderer\Renderer;
 use Livewire\Blaze\Parser\Parser;
 use Livewire\Blaze\Folder\Folder;
+use Livewire\Blaze\Inspector\Inspector;
 
 class BlazeManager
 {
@@ -15,6 +16,7 @@ class BlazeManager
         protected Parser $parser,
         protected Renderer $renderer,
         protected Walker $walker,
+        protected Inspector $inspector,
         protected Folder $folder,
     ) {}
 
@@ -23,6 +25,10 @@ class BlazeManager
         $tokens = $this->tokenizer->tokenize($template);
 
         $ast = $this->parser->parse($tokens);
+
+        $ast = $this->walker->walkPre($ast, function ($node) {
+            return $this->inspector->inspect($node);
+        });
 
         $ast = $this->walker->walkPost($ast, function ($node) {
             return $this->folder->fold($node);
@@ -46,5 +52,10 @@ class BlazeManager
     public function renderer(): Renderer
     {
         return $this->renderer;
+    }
+
+    public function inspector(): Inspector
+    {
+        return $this->inspector;
     }
 }

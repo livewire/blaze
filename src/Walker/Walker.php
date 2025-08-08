@@ -5,7 +5,6 @@ namespace Livewire\Blaze\Walker;
 use Livewire\Blaze\Nodes\Node;
 use Livewire\Blaze\Nodes\TagNode;
 use Livewire\Blaze\Nodes\SlotNode;
-use Livewire\Blaze\Nodes\TextNode;
 
 class Walker
 {
