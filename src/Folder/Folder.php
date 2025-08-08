@@ -2,9 +2,11 @@
 
 namespace Livewire\Blaze\Folder;
 
-use Livewire\Blaze\Nodes\ComponentNode;
 use Livewire\Blaze\Nodes\TextNode;
 use Livewire\Blaze\Nodes\Node;
+use Livewire\Blaze\Nodes\ComponentNode;
+use Livewire\Blaze\Events\ComponentFolded;
+use Illuminate\Support\Facades\Event;
 
 class Folder
 {
@@ -50,10 +52,20 @@ class Folder
         }
 
         try {
+            // Dispatch event for component folding
+            $componentPath = ($this->componentNameToPath)($node->name);
+            if (file_exists($componentPath)) {
+                Event::dispatch(new ComponentFolded(
+                    name: $node->name,
+                    path: $componentPath,
+                    filemtime: filemtime($componentPath)
+                ));
+            }
+
             // Extract slot content and replace with placeholders
             $slotPlaceholders = [];
             $attributePlaceholders = [];
-            
+
             $processedNode = $this->replaceSlotContentWithPlaceholders($node, $slotPlaceholders);
             $processedNode = $this->replaceDynamicAttributesWithPlaceholders($processedNode, $attributePlaceholders);
 
@@ -131,48 +143,48 @@ class Folder
             $whitespace = $matches[1];
             $attributeName = $matches[2];
             $attributeValue = $matches[3];
-            
+
             // Create placeholder for the dynamic value
             $placeholderKey = 'ATTR_PLACEHOLDER_' . count($attributePlaceholders);
             $placeholder = '"' . $placeholderKey . '"';
             $attributePlaceholders[$placeholderKey] = $attributeValue;
-            
+
             // Return the attribute with placeholder value
             return $whitespace . $attributeName . '=' . $placeholder;
         }, $attributesString);
-        
+
         // Handle short syntax :$variable (extract attribute name from variable name)
         $attributesString = preg_replace_callback('/(\s*):(\$[a-zA-Z0-9_]+)/', function ($matches) use (&$attributePlaceholders) {
             $whitespace = $matches[1];
             $variable = $matches[2]; // e.g., "$type"
-            
+
             // Extract attribute name from variable name (remove $)
             $attributeName = ltrim($variable, '$');
-            
+
             // Create placeholder for the dynamic value
             $placeholderKey = 'ATTR_PLACEHOLDER_' . count($attributePlaceholders);
             $placeholder = '"' . $placeholderKey . '"';
             $attributePlaceholders[$placeholderKey] = '"' . $variable . '"';
-            
+
             // Return the attribute with placeholder value
             return $whitespace . $attributeName . '=' . $placeholder;
         }, $attributesString);
-        
+
         // Handle attributes containing {{ }} expressions (echo attributes)
         $attributesString = preg_replace_callback('/(\s*)([a-zA-Z0-9_-]+)\s*=\s*("(?:[^"\\\\]|\\\\.)*\{\{[^}]*\}\}(?:[^"\\\\]|\\\\.)*")/', function ($matches) use (&$attributePlaceholders) {
             $whitespace = $matches[1];
             $attributeName = $matches[2];
             $attributeValue = $matches[3]; // includes quotes and {{ }} content
-            
+
             // Create placeholder for the dynamic value
             $placeholderKey = 'ATTR_PLACEHOLDER_' . count($attributePlaceholders);
             $placeholder = '"' . $placeholderKey . '"';
             $attributePlaceholders[$placeholderKey] = $attributeValue;
-            
+
             // Return the attribute with placeholder value
             return $whitespace . $attributeName . '=' . $placeholder;
         }, $attributesString);
-        
+
         return $attributesString;
     }
 
@@ -190,7 +202,7 @@ class Folder
         foreach ($attributePlaceholders as $placeholder => $originalValue) {
             // Convert back to Blade syntax - remove quotes and wrap variables in {{ }}
             $restoredValue = $originalValue;
-            
+
             // If it's a simple variable like "$type", convert to "{{ $type }}"
             if (preg_match('/^"\$[a-zA-Z0-9_]+"$/', $originalValue)) {
                 $variable = trim($originalValue, '"');
@@ -200,7 +212,7 @@ class Folder
             elseif (preg_match('/^".*\{\{.*\}\}.*"$/', $originalValue)) {
                 $restoredValue = $originalValue;
             }
-            
+
             // Remove quotes from placeholder when replacing, since HTML attributes are already quoted
             $html = str_replace('"' . $placeholder . '"', $restoredValue, $html);
         }

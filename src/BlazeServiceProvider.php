@@ -33,6 +33,20 @@ class BlazeServiceProvider extends ServiceProvider
         $this->app->bind('blaze', fn ($app) => $app->make(BlazeManager::class));
 
         Blade::directive('pure', fn () => '');
+
+        (new BladeHacker)->earliestPreCompilationHook(function ($input) {
+            if ((new BladeHacker)->containsLaravelExceptionView($input)) return $input;
+
+            app('blaze')->collectAndAppendFrontMatter($input, function ($input) {
+                return app('blaze')->compile($input);
+            });
+        });
+
+        (new BladeHacker)->viewCacheInvalidationHook(function ($view, $invalidate) {
+            if (app('blaze')->viewContainsExpiredFrontMatter($view)) {
+                $invalidate();
+            }
+        });
     }
 
     public function boot(): void

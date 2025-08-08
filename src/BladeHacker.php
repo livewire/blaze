@@ -2,6 +2,7 @@
 
 namespace Livewire\Blaze;
 
+use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Blade;
 
 class BladeHacker
@@ -9,6 +10,45 @@ class BladeHacker
     public function render(string $template): string
     {
         return Blade::render($template);
+    }
+
+    public function containsLaravelExceptionView(string $input): bool
+    {
+        return str_contains($input, 'laravel-exceptions');
+    }
+
+    public function earliestPreCompilationHook(callable $callback)
+    {
+        app()->booted(function () use ($callback) {
+            app('blade.compiler')->prepareStringsForCompilationUsing(function ($input) use ($callback) {
+                $compiler = app('blade.compiler');
+
+                $reflection = new \ReflectionClass($compiler);
+                $storeVerbatimBlocks = $reflection->getMethod('storeVerbatimBlocks');
+                $storeVerbatimBlocks->setAccessible(true);
+
+                $output = $storeVerbatimBlocks->invoke($compiler, $input);
+
+                $output = $callback($input);
+
+                return $output;
+            });
+        });
+    }
+
+    public function viewCacheInvalidationHook(callable $callback)
+    {
+        Event::listen('composing:*', function ($event, $params) use ($callback) {
+            $view = $params[0];
+
+            if (! $view instanceof \Illuminate\View\View) {
+                return;
+            }
+
+            $invalidate = fn () => $view->getEngine()->getCompiler()->compile($view->getPath());
+
+            $callback($view, $invalidate);
+        });
     }
 
     public function componentNameToPath($name): string
