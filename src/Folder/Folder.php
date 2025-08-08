@@ -10,16 +10,36 @@ class Folder
 {
     protected $renderBlade;
     protected $renderNode;
+    protected $componentNameToPath;
 
-    public function __construct(callable $renderBlade, callable $renderNode)
+    public function __construct(callable $renderBlade, callable $renderNode, callable $componentNameToPath)
     {
         $this->renderBlade = $renderBlade;
         $this->renderNode = $renderNode;
+        $this->componentNameToPath = $componentNameToPath;
     }
 
     public function isFoldable(Node $node): bool
     {
-        return $node instanceof ComponentNode;
+        if (!$node instanceof ComponentNode) {
+            return false;
+        }
+
+        try {
+            $componentPath = ($this->componentNameToPath)($node->name);
+
+            if (empty($componentPath) || !file_exists($componentPath)) {
+                return false;
+            }
+
+            $source = file_get_contents($componentPath);
+
+            // Check for @pure directive at the top of the file (allowing for whitespace and comments)
+            return (bool) preg_match('/^\s*(?:\/\*.*?\*\/\s*)*@pure/s', $source);
+
+        } catch (\Exception $e) {
+            return false;
+        }
     }
 
     public function fold(Node $node): Node

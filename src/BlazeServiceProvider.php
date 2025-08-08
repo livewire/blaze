@@ -6,9 +6,10 @@ use Livewire\Blaze\Walker\Walker;
 use Livewire\Blaze\Tokenizer\Tokenizer;
 use Livewire\Blaze\Renderer\Renderer;
 use Livewire\Blaze\Parser\Parser;
-use Livewire\Blaze\Folder\Folder;
 use Livewire\Blaze\Inspector\Inspector;
+use Livewire\Blaze\Folder\Folder;
 use Illuminate\Support\ServiceProvider;
+use Illuminate\Support\Facades\Blade;
 
 class BlazeServiceProvider extends ServiceProvider
 {
@@ -23,12 +24,15 @@ class BlazeServiceProvider extends ServiceProvider
             new Folder(
                 renderBlade: fn ($blade) => (new BladeHacker)->render($blade),
                 renderNode: fn ($node) => (new Renderer)->renderNode($node),
+                componentNameToPath: fn ($name) => (new BladeHacker)->componentNameToPath($name),
             ),
         ));
 
         $this->app->alias(BlazeManager::class, Blaze::class);
 
         $this->app->bind('blaze', fn ($app) => $app->make(BlazeManager::class));
+
+        Blade::directive('pure', fn () => '');
     }
 
     public function boot(): void
