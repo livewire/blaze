@@ -1,3 +1,3 @@
-@props(['size' => 'md', 'color' => 'gray'])
+@props(['type' => 'button'])
 
-<button type="button" class="btn btn-{{ $size }} btn-{{ $color }}">{{ $slot }}</button>
+<button type="{{ $type }}">{{ $slot }}</button>
