@@ -20,6 +20,7 @@ To optimize a Blade component for performance, simply add the `@pure` directive 
 
 ```blade
 {{-- resources/views/components/button.blade.php --}}
+
 @pure
 
 @props(['variant' => 'primary'])
