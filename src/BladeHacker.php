@@ -2,6 +2,7 @@
 
 namespace Livewire\Blaze;
 
+use ReflectionClass;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Blade;
 
@@ -9,7 +10,35 @@ class BladeHacker
 {
     public function render(string $template): string
     {
-        return Blade::render($template);
+        $compiler = app('blade.compiler');
+
+        // This prevents the compiler from calling itself recursively...
+
+        $factory = app('view');
+
+        [$factory, $restoreFactory] = $this->freezeObjectProperties($factory, [
+            'componentStack' => [],
+            'componentData' => [],
+            'currentComponentData' => [],
+            'slots' => [],
+            'slotStack' => [],
+            'renderCount' => 0,
+        ]);
+
+        [$compiler, $restore] = $this->freezeObjectProperties($compiler, [
+            'rawBlocks',
+            'prepareStringsForCompilationUsing' => [],
+            'path' => null,
+        ]);
+
+        try {
+            $result = $compiler->render($template);
+        } finally {
+            $restore();
+            $restoreFactory();
+        }
+
+        return $result;
     }
 
     public function containsLaravelExceptionView(string $input): bool
@@ -152,5 +181,37 @@ class BladeHacker
         } catch (\Exception $e) {
             return '';
         }
+    }
+
+    protected function freezeObjectProperties(object $object, array $properties)
+    {
+        $reflection = new ReflectionClass($object);
+
+        $frozen = [];
+
+        foreach ($properties as $key => $value) {
+            $name = is_numeric($key) ? $value : $key;
+
+            $property = $reflection->getProperty($name);
+
+            $property->setAccessible(true);
+
+            $frozen[$name] = $property->getValue($object);
+
+            if (! is_numeric($key)) {
+                $property->setValue($object, $value);
+            }
+        }
+
+        return [
+            $object,
+            function () use ($reflection, $object, $frozen) {
+                foreach ($frozen as $name => $value) {
+                    $property = $reflection->getProperty($name);
+                    $property->setAccessible(true);
+                    $property->setValue($object, $value);
+                }
+            },
+        ];
     }
 }

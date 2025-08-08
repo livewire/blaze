@@ -2,4 +2,4 @@
 
 @props(['type' => 'button'])
 
-<button type="{{ $type }}">{{ $slot }}</button>
+<button {{ $attributes->merge(['type' => $type]) }}>{{ $slot }}</button>

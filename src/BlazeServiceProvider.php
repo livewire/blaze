@@ -37,7 +37,7 @@ class BlazeServiceProvider extends ServiceProvider
         (new BladeHacker)->earliestPreCompilationHook(function ($input) {
             if ((new BladeHacker)->containsLaravelExceptionView($input)) return $input;
 
-            app('blaze')->collectAndAppendFrontMatter($input, function ($input) {
+            return app('blaze')->collectAndAppendFrontMatter($input, function ($input) {
                 return app('blaze')->compile($input);
             });
         });
