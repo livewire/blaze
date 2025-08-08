@@ -23,6 +23,20 @@ describe('fold elligable components', function () {
         expect(compile($input))->toBe($output);
     });
 
+    it('dynamic slot', function () {
+        $input = '<x-button>{{ $name }}</x-button>';
+        $output = '<button type="button">{{ $name }}</button>';
+
+        expect(compile($input))->toBe($output);
+    });
+
+    it('dynamic slot with unfoldable component', function () {
+        $input = '<x-button><x-impure-button>{{ $name }}</x-impure-button></x-button>';
+        $output = '<button type="button"><x-impure-button>{{ $name }}</x-impure-button></button>';
+
+        expect(compile($input))->toBe($output);
+    });
+
     it('nested components', function () {
         $input = <<<'HTML'
         <x-card>
@@ -33,8 +47,10 @@ describe('fold elligable components', function () {
 
         $output = <<<'HTML'
         <div class="card">
+            
             <button type="button">Edit</button>
             <button type="button">Delete</button>
+        
         </div>
         HTML;
 
@@ -52,7 +68,9 @@ describe('fold elligable components', function () {
 
         $output = <<<'HTML'
         <div class="card">
-            <div class="alert"><button type="button">Save</button></div>
+    
+        <div class="alert"><button type="button">Save</button></div>
+
         </div>
         HTML;
 
@@ -62,6 +80,13 @@ describe('fold elligable components', function () {
     it('self-closing component', function () {
         $input = '<x-alert message="Success!" />';
         $output = '<div class="alert">Success!</div>';
+
+        expect(compile($input))->toBe($output);
+    });
+
+    it('component without @pure is not folded', function () {
+        $input = '<x-impure-button>Save</x-impure-button>';
+        $output = '<x-impure-button>Save</x-impure-button>';
 
         expect(compile($input))->toBe($output);
     });

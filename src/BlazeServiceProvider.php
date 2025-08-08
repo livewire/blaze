@@ -23,7 +23,7 @@ class BlazeServiceProvider extends ServiceProvider
             new Inspector,
             new Folder(
                 renderBlade: fn ($blade) => (new BladeHacker)->render($blade),
-                renderNode: fn ($node) => (new Renderer)->renderNode($node),
+                renderNodes: fn ($nodes) => (new Renderer)->render($nodes),
                 componentNameToPath: fn ($name) => (new BladeHacker)->componentNameToPath($name),
             ),
         ));
