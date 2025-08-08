@@ -1,4 +1,4 @@
-# Laravel Blaze
+# 🔥 Blaze
 
 Speed up your Laravel app by optimizing Blade component rendering performance.
 
