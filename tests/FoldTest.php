@@ -47,10 +47,10 @@ describe('fold elligable components', function () {
 
         $output = <<<'HTML'
         <div class="card">
-            
+
             <button type="button">Edit</button>
             <button type="button">Delete</button>
-        
+
         </div>
         HTML;
 
@@ -68,11 +68,11 @@ describe('fold elligable components', function () {
 
         $output = <<<'HTML'
         <div class="card">
-            
+
             <div class="alert">
                 <button type="button">Save</button>
             </div>
-        
+
         </div>
         HTML;
 
