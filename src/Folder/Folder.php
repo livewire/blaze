@@ -52,7 +52,10 @@ class Folder
         try {
             // Extract slot content and replace with placeholders
             $slotPlaceholders = [];
+            $attributePlaceholders = [];
+            
             $processedNode = $this->replaceSlotContentWithPlaceholders($node, $slotPlaceholders);
+            $processedNode = $this->replaceDynamicAttributesWithPlaceholders($processedNode, $attributePlaceholders);
 
             // Convert the processed node back to Blade source
             $bladeSource = ($this->renderNodes)([$processedNode]);
@@ -60,8 +63,9 @@ class Folder
             // Render the Blade source through Blade's renderer
             $renderedHtml = ($this->renderBlade)($bladeSource);
 
-            // Restore slot placeholders back to original content
+            // Restore placeholders back to original content
             $finalHtml = $this->restoreSlotPlaceholders($renderedHtml, $slotPlaceholders);
+            $finalHtml = $this->restoreAttributePlaceholders($finalHtml, $attributePlaceholders);
 
             // Return a TextNode containing the folded HTML
             return new TextNode($finalHtml);
@@ -101,10 +105,68 @@ class Folder
         return $processedNode;
     }
 
+    protected function replaceDynamicAttributesWithPlaceholders(ComponentNode $node, array &$attributePlaceholders): ComponentNode
+    {
+        // If no attributes, return as-is
+        if (empty($node->attributes)) {
+            return $node;
+        }
+
+        $attributes = $this->parseDynamicAttributes($node->attributes, $attributePlaceholders);
+
+        // Return new node with processed attributes
+        return new ComponentNode(
+            name: $node->name,
+            prefix: $node->prefix,
+            attributes: $attributes,
+            children: $node->children,
+            selfClosing: $node->selfClosing
+        );
+    }
+
+    protected function parseDynamicAttributes(string $attributesString, array &$attributePlaceholders): string
+    {
+        // Simple pattern to match :attribute="value" syntax
+        $pattern = '/(\s*):([a-zA-Z0-9_-]+)\s*=\s*("[^"]*"|\$[a-zA-Z0-9_]+)/';
+        
+        return preg_replace_callback($pattern, function ($matches) use (&$attributePlaceholders) {
+            $whitespace = $matches[1];
+            $attributeName = $matches[2];
+            $attributeValue = $matches[3];
+            
+            // Create placeholder for the dynamic value
+            $placeholderKey = 'ATTR_PLACEHOLDER_' . count($attributePlaceholders);
+            $placeholder = '"' . $placeholderKey . '"';
+            $attributePlaceholders[$placeholderKey] = $attributeValue;
+            
+            // Return the attribute with placeholder value
+            return $whitespace . $attributeName . '=' . $placeholder;
+        }, $attributesString);
+    }
+
     protected function restoreSlotPlaceholders(string $html, array $slotPlaceholders): string
     {
         foreach ($slotPlaceholders as $placeholder => $originalContent) {
             $html = str_replace($placeholder, $originalContent, $html);
+        }
+
+        return $html;
+    }
+
+    protected function restoreAttributePlaceholders(string $html, array $attributePlaceholders): string
+    {
+        foreach ($attributePlaceholders as $placeholder => $originalValue) {
+            // Convert back to Blade syntax - remove quotes and wrap variables in {{ }}
+            $restoredValue = $originalValue;
+            
+            // If it's a simple variable like "$type", convert to "{{ $type }}"
+            if (preg_match('/^\$[a-zA-Z0-9_]+$/', trim($originalValue, '"'))) {
+                $variable = trim($originalValue, '"');
+                $restoredValue = '"{{ ' . $variable . ' }}"';
+            }
+            
+            // Remove quotes from placeholder when replacing, since HTML attributes are already quoted
+            $html = str_replace('"' . $placeholder . '"', $restoredValue, $html);
         }
 
         return $html;

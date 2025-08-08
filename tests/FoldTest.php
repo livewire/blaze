@@ -30,6 +30,20 @@ describe('fold elligable components', function () {
         expect(compile($input))->toBe($output);
     });
 
+    it('dynamic attributes', function () {
+        $input = '<x-button :type="$type">Save</x-button>';
+        $output = '<button type="{{ $type }}">Save</button>';
+
+        expect(compile($input))->toBe($output);
+    });
+
+    it('dynamic short attributes', function () {
+        $input = '<x-button :$type>Save</x-button>';
+        $output = '<button type="{{ $type }}">Save</button>';
+
+        expect(compile($input))->toBe($output);
+    });
+
     it('dynamic slot with unfoldable component', function () {
         $input = '<x-button><x-impure-button>{{ $name }}</x-impure-button></x-button>';
         $output = '<button type="button"><x-impure-button>{{ $name }}</x-impure-button></button>';
