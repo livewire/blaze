@@ -3,7 +3,7 @@
 namespace Livewire\Blaze\Parser;
 
 use Livewire\Blaze\Nodes\Node;
-use Livewire\Blaze\Nodes\TagNode;
+use Livewire\Blaze\Nodes\ComponentNode;
 use Livewire\Blaze\Nodes\TextNode;
 use Livewire\Blaze\Nodes\SlotNode;
 use Livewire\Blaze\Tokenizer\Tokens\Token;
@@ -37,7 +37,7 @@ class Parser
 
     protected function handleTagOpen(TagOpenToken $token, ParseStack $stack): void
     {
-        $node = new TagNode(
+        $node = new ComponentNode(
             name: $token->namespace . $token->name,
             prefix: $token->prefix,
             attributes: $token->attributes,
@@ -50,7 +50,7 @@ class Parser
 
     protected function handleTagSelfClose(TagSelfCloseToken $token, ParseStack $stack): void
     {
-        $node = new TagNode(
+        $node = new ComponentNode(
             name: $token->namespace . $token->name,
             prefix: $token->prefix,
             attributes: $token->attributes,

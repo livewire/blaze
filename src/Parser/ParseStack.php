@@ -3,7 +3,7 @@
 namespace Livewire\Blaze\Parser;
 
 use Livewire\Blaze\Nodes\Node;
-use Livewire\Blaze\Nodes\TagNode;
+use Livewire\Blaze\Nodes\ComponentNode;
 use Livewire\Blaze\Nodes\SlotNode;
 
 class ParseStack

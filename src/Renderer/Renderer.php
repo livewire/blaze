@@ -3,7 +3,7 @@
 namespace Livewire\Blaze\Renderer;
 
 use Livewire\Blaze\Nodes\Node;
-use Livewire\Blaze\Nodes\TagNode;
+use Livewire\Blaze\Nodes\ComponentNode;
 use Livewire\Blaze\Nodes\TextNode;
 use Livewire\Blaze\Nodes\SlotNode;
 
@@ -34,14 +34,14 @@ class Renderer
     public function renderNode(Node $node): string
     {
         return match(get_class($node)) {
-            TagNode::class => $this->renderTag($node),
+            ComponentNode::class => $this->renderComponent($node),
             SlotNode::class => $this->renderSlot($node),
             TextNode::class => $node->content,
             default => throw new \RuntimeException('Unknown node type: ' . get_class($node))
         };
     }
 
-    protected function renderTag(TagNode $node): string
+    protected function renderComponent(ComponentNode $node): string
     {
         $output = $this->buildOpeningTag($node);
 
@@ -68,7 +68,7 @@ class Renderer
         return $this->renderStandardSlot($node);
     }
 
-    protected function buildOpeningTag(TagNode $node): string
+    protected function buildOpeningTag(ComponentNode $node): string
     {
         $prefix = $node->prefix;
         $name = $this->stripNamespaceFromName($node->name, $prefix);
@@ -82,7 +82,7 @@ class Renderer
         return $output;
     }
 
-    protected function buildClosingTag(TagNode $node): string
+    protected function buildClosingTag(ComponentNode $node): string
     {
         $prefix = $node->prefix;
         $name = $this->stripNamespaceFromName($node->name, $prefix);

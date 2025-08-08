@@ -2,7 +2,7 @@
 
 namespace Livewire\Blaze\Folder;
 
-use Livewire\Blaze\Nodes\TagNode;
+use Livewire\Blaze\Nodes\ComponentNode;
 use Livewire\Blaze\Nodes\TextNode;
 use Livewire\Blaze\Nodes\Node;
 
@@ -19,7 +19,7 @@ class Folder
 
     public function isFoldable(Node $node): bool
     {
-        return $node instanceof TagNode;
+        return $node instanceof ComponentNode;
     }
 
     public function fold(Node $node): Node

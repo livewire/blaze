@@ -2,7 +2,7 @@
 
 namespace Livewire\Blaze\Nodes;
 
-class TagNode extends Node
+class ComponentNode extends Node
 {
     public function __construct(
         public string $name,
@@ -14,7 +14,7 @@ class TagNode extends Node
 
     public function getType(): string
     {
-        return 'tag';
+        return 'component';
     }
 
     public function toArray(): array
