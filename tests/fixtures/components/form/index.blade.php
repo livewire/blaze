@@ -1,0 +1,3 @@
+@props([])
+
+<form>{{ $slot }}</form>
