@@ -87,11 +87,11 @@ class Tokenizer
                 $this->currentSlotPrefix = $slotInfo['prefix'];
 
                 if ($slotInfo['isShort']) {
-                    $this->currentToken = new SlotOpenToken(slotStyle: 'short');
+                    $this->currentToken = new SlotOpenToken(slotStyle: 'short', prefix: $slotInfo['prefix']);
                     $this->advance(strlen('<' . $slotInfo['prefix'] . ':'));
                     return State::SHORT_SLOT;
                 } else {
-                    $this->currentToken = new SlotOpenToken(slotStyle: 'standard');
+                    $this->currentToken = new SlotOpenToken(slotStyle: 'standard', prefix: $slotInfo['prefix']);
                     $this->advance(strlen('<' . $slotInfo['prefix']));
                     return State::SLOT;
                 }

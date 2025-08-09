@@ -6,6 +6,7 @@ class SlotCloseToken extends Token
 {
     public function __construct(
         public ?string $name = null,
+        public string $prefix = 'x-',
     ) {}
 
     public function getType(): string

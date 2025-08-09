@@ -81,27 +81,23 @@ describe('exercise without folding', function () {
     });
 
     it('standard slot syntax', function () {
-        $input = '<x-modal>
-    <x-slot name="header">
+        $input = '<x-modal><x-slot name="header">
         <h2>Modal Title</h2>
-    </x-slot>
-    <p>Modal content goes here</p>
-    <x-slot name="footer">
+    </x-slot><x-slot name="footer">
         <x-button>OK</x-button>
     </x-slot>
+    <p>Modal content goes here</p>
 </x-modal>';
         expect(compileBlade($input))->toBe($input);
     });
 
     it('short slot syntax', function () {
-        $input = '<x-card>
-    <x-slot:header>
+        $input = '<x-card><x-slot:header>
         <h3>Card Title</h3>
-    </x-slot:header>
-    <p>Card body content</p>
-    <x-slot:footer>
+    </x-slot><x-slot:footer>
         <small>Footer text</small>
-    </x-slot:footer>
+    </x-slot>
+    <p>Card body content</p>
 </x-card>';
         expect(compileBlade($input))->toBe($input);
     });

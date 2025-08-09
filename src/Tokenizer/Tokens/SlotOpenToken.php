@@ -8,6 +8,7 @@ class SlotOpenToken extends Token
         public ?string $name = null,
         public string $attributes = '',
         public string $slotStyle = 'standard',
+        public string $prefix = 'x-',
     ) {}
 
     public function getType(): string

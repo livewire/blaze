@@ -2,11 +2,9 @@
 
 namespace Livewire\Blaze\Parser;
 
-use Livewire\Blaze\Nodes\Node;
 use Livewire\Blaze\Nodes\ComponentNode;
 use Livewire\Blaze\Nodes\TextNode;
 use Livewire\Blaze\Nodes\SlotNode;
-use Livewire\Blaze\Tokenizer\Tokens\Token;
 use Livewire\Blaze\Tokenizer\Tokens\TagOpenToken;
 use Livewire\Blaze\Tokenizer\Tokens\TagSelfCloseToken;
 use Livewire\Blaze\Tokenizer\Tokens\TagCloseToken;
@@ -72,7 +70,9 @@ class Parser
             name: $token->name ?? '',
             attributes: $token->attributes,
             slotStyle: $token->slotStyle,
-            children: []
+            children: [],
+            prefix: $token->prefix,
+            closeHasName: false,
         );
 
         $stack->pushContainer($node);
@@ -80,7 +80,13 @@ class Parser
 
     protected function handleSlotClose(SlotCloseToken $token, ParseStack $stack): void
     {
-        $stack->popContainer();
+        $closed = $stack->popContainer();
+        if ($closed instanceof SlotNode && $closed->slotStyle === 'short') {
+            // If tokenizer captured a :name on the close tag, mark it
+            if (!empty($token->name)) {
+                $closed->closeHasName = true;
+            }
+        }
     }
 
     protected function handleText(TextToken $token, ParseStack $stack): void

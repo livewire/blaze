@@ -20,4 +20,9 @@ class TextNode extends Node
             'content' => $this->content,
         ];
     }
+
+    public function render(): string
+    {
+        return $this->content;
+    }
 }

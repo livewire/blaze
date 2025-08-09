@@ -5,6 +5,8 @@ namespace Livewire\Blaze\Walker;
 use Livewire\Blaze\Nodes\Node;
 use Livewire\Blaze\Nodes\ComponentNode;
 use Livewire\Blaze\Nodes\SlotNode;
+use Livewire\Blaze\Nodes\NamedSlotNode;
+use Livewire\Blaze\Nodes\DefaultSlotNode;
 
 class Walker
 {
@@ -26,7 +28,7 @@ class Walker
             }
 
             // Transform children for nodes that have children
-            if (($node instanceof ComponentNode || $node instanceof SlotNode) && !empty($node->children)) {
+            if (($node instanceof ComponentNode || $node instanceof SlotNode || $node instanceof NamedSlotNode || $node instanceof DefaultSlotNode) && !empty($node->children)) {
                 $node->children = array_filter(
                     array_map(
                         fn($child) => $transformNode($child, $node instanceof ComponentNode ? $tagLevel + 1 : $tagLevel),
