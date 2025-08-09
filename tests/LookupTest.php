@@ -1,6 +1,6 @@
 <?php
 
-use Livewire\Blaze\BladeHacker;
+use Livewire\Blaze\BladeService;
 
 describe('lookup component paths', function () {
     beforeEach(function () {
@@ -9,49 +9,49 @@ describe('lookup component paths', function () {
     });
 
     it('anonymous component', function () {
-        $path = (new BladeHacker)->componentNameToPath('button');
+        $path = (new BladeService)->componentNameToPath('button');
 
         expect($path)->toBe(__DIR__ . '/fixtures/components/button.blade.php');
     });
 
     it('namespaced anonymous component', function () {
-        $path = (new BladeHacker)->componentNameToPath('pages::dashboard');
+        $path = (new BladeService)->componentNameToPath('pages::dashboard');
 
         expect($path)->toBe(__DIR__ . '/fixtures/pages/dashboard.blade.php');
     });
 
     it('sub-component', function () {
-        $path = (new BladeHacker)->componentNameToPath('form.input');
+        $path = (new BladeService)->componentNameToPath('form.input');
 
         expect($path)->toBe(__DIR__ . '/fixtures/components/form/input.blade.php');
     });
 
     it('nested sub-component', function () {
-        $path = (new BladeHacker)->componentNameToPath('form.fields.text');
+        $path = (new BladeService)->componentNameToPath('form.fields.text');
 
         expect($path)->toBe(__DIR__ . '/fixtures/components/form/fields/text.blade.php');
     });
 
     it('root component with index file', function () {
-        $path = (new BladeHacker)->componentNameToPath('form');
+        $path = (new BladeService)->componentNameToPath('form');
 
         expect($path)->toBe(__DIR__ . '/fixtures/components/form/index.blade.php');
     });
 
     it('root component with same-name file', function () {
-        $path = (new BladeHacker)->componentNameToPath('panel');
+        $path = (new BladeService)->componentNameToPath('panel');
 
         expect($path)->toBe(__DIR__ . '/fixtures/components/panel/panel.blade.php');
     });
 
     it('namespaced sub-component', function () {
-        $path = (new BladeHacker)->componentNameToPath('pages::auth.login');
+        $path = (new BladeService)->componentNameToPath('pages::auth.login');
 
         expect($path)->toBe(__DIR__ . '/fixtures/pages/auth/login.blade.php');
     });
 
     it('namespaced root component', function () {
-        $path = (new BladeHacker)->componentNameToPath('pages::auth');
+        $path = (new BladeService)->componentNameToPath('pages::auth');
 
         expect($path)->toBe(__DIR__ . '/fixtures/pages/auth/index.blade.php');
     });
