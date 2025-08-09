@@ -128,4 +128,16 @@ describe('fold elligable components', function () {
             expect($e->getProblematicPattern())->toBe('\\$errors');
         }
     });
+
+    it('named slots', function () {
+        $input = '<x-modal><x-slot name="header">Modal Title</x-slot><x-slot name="footer">Footer Content</x-slot>Main content</x-modal>';
+        
+        $output = '<div class="modal">
+    <div class="modal-header">Modal Title</div>
+    <div class="modal-body">Main content</div>
+    <div class="modal-footer">Footer Content</div>
+</div>';
+
+        expect(compile($input))->toBe($output);
+    });
 });

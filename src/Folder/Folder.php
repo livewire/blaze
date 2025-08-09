@@ -5,6 +5,7 @@ namespace Livewire\Blaze\Folder;
 use Livewire\Blaze\Nodes\TextNode;
 use Livewire\Blaze\Nodes\Node;
 use Livewire\Blaze\Nodes\ComponentNode;
+use Livewire\Blaze\Nodes\SlotNode;
 use Livewire\Blaze\Events\ComponentFolded;
 use Livewire\Blaze\Exceptions\InvalidPureUsageException;
 use Illuminate\Support\Facades\Event;
@@ -52,6 +53,7 @@ class Folder
             return $node;
         }
 
+
         try {
             // Dispatch event for component folding
             $componentPath = ($this->componentNameToPath)($node->name);
@@ -74,8 +76,22 @@ class Folder
             $processedNode = $this->replaceSlotContentWithPlaceholders($node, $slotPlaceholders);
             $processedNode = $this->replaceDynamicAttributesWithPlaceholders($processedNode, $attributePlaceholders);
 
+            // Get the component template and pre-process named slots
+            $componentPath = ($this->componentNameToPath)($node->name);
+            $templateSource = file_get_contents($componentPath);
+            
+            // Replace named slot variables in the template with placeholders before rendering
+            $templateWithPlaceholders = $this->replaceNamedSlotVariables($templateSource, $slotPlaceholders);
+            
             // Convert the processed node back to Blade source
             $bladeSource = ($this->renderNodes)([$processedNode]);
+
+            // Replace the component tag with the pre-processed template  
+            $childContent = '';
+            if (!empty($processedNode->children) && $processedNode->children[0] instanceof TextNode) {
+                $childContent = $processedNode->children[0]->content;
+            }
+            $bladeSource = str_replace('<x-' . $node->name . '>' . $childContent . '</x-' . $node->name . '>', $templateWithPlaceholders, $bladeSource);
 
             // Render the Blade source through Blade's renderer
             $renderedHtml = ($this->renderBlade)($bladeSource);
@@ -112,17 +128,69 @@ class Folder
             return $processedNode;
         }
 
-        // Render all children as slot content using renderNodes
-        $slotContent = ($this->renderNodes)($node->children);
+        // Separate named slots from default slot content
+        $namedSlots = [];
+        $defaultSlotChildren = [];
 
-        // Create single placeholder for entire slot content
-        $placeholder = 'SLOT_PLACEHOLDER_' . count($slotPlaceholders);
-        $slotPlaceholders[$placeholder] = $slotContent;
+        foreach ($node->children as $child) {
+            if ($child instanceof SlotNode) {
+                // SlotNode represents <x-slot> elements
+                $slotName = $child->name; // SlotNode has a name property
+                if ($slotName && $slotName !== 'slot') {
+                    // Named slot - render its content
+                    $slotContent = ($this->renderNodes)($child->children);
+                    $namedSlots[$slotName] = $slotContent;
+                } else {
+                    // Default slot - treat as default slot content
+                    $defaultSlotChildren[] = $child;
+                }
+            } else {
+                // Regular content - part of default slot
+                $defaultSlotChildren[] = $child;
+            }
+        }
 
-        // Replace with a single text placeholder
-        $processedNode->children[] = new TextNode($placeholder);
+        // Store named slots in a special format that the restore function can handle
+        foreach ($namedSlots as $slotName => $content) {
+            $slotPlaceholders['NAMED_SLOT_' . $slotName] = $content;
+        }
+
+        // Handle default slot content (including any remaining children)
+        if (!empty($defaultSlotChildren)) {
+            $slotContent = ($this->renderNodes)($defaultSlotChildren);
+            $placeholder = 'SLOT_PLACEHOLDER_' . count($slotPlaceholders);
+            $slotPlaceholders[$placeholder] = $slotContent;
+            $processedNode->children[] = new TextNode($placeholder);
+        } else {
+            // Even if no default content, add empty placeholder to maintain structure
+            $processedNode->children[] = new TextNode('');
+        }
 
         return $processedNode;
+    }
+
+    protected function extractSlotName(string $attributes): ?string
+    {
+        // Extract name attribute from slot attributes
+        if (preg_match('/name\s*=\s*["\']([^"\']+)["\']/', $attributes, $matches)) {
+            return $matches[1];
+        }
+        return null;
+    }
+
+    protected function replaceNamedSlotVariables(string $templateSource, array $slotPlaceholders): string
+    {
+        foreach ($slotPlaceholders as $placeholder => $content) {
+            if (str_starts_with($placeholder, 'NAMED_SLOT_')) {
+                $slotName = strtolower(str_replace('NAMED_SLOT_', '', $placeholder));
+                // Replace the variable reference in the template with the placeholder
+                $templateSource = str_replace('{{ $' . $slotName . ' }}', $placeholder, $templateSource);
+            } else {
+                // This is a regular slot placeholder - replace {{ $slot }} with it
+                $templateSource = str_replace('{{ $slot }}', $placeholder, $templateSource);
+            }
+        }
+        return $templateSource;
     }
 
     protected function replaceDynamicAttributesWithPlaceholders(ComponentNode $node, array &$attributePlaceholders): ComponentNode
@@ -199,6 +267,7 @@ class Folder
     protected function restoreSlotPlaceholders(string $html, array $slotPlaceholders): string
     {
         foreach ($slotPlaceholders as $placeholder => $originalContent) {
+            // Replace all placeholders (both named slot and regular slot placeholders) with their content
             $html = str_replace($placeholder, $originalContent, $html);
         }
 
