@@ -5,6 +5,7 @@ namespace Livewire\Blaze\Exceptions;
 class InvalidPureUsageException extends \Exception
 {
     protected string $componentPath;
+
     protected string $problematicPattern;
 
     protected function __construct(string $componentPath, string $problematicPattern, string $reason)

@@ -358,7 +358,7 @@ There are two strategies around this:
 **Strategy A: Deferred compilation**
 Replace parts of the templates with markers, let Blade finish compiling, then go back and replace the markers. This follows a similar pattern to how Blade handles "raw blocks".
 
-**Strategy B: Sandboxed compilation** 
+**Strategy B: Sandboxed compilation**
 Store the current value of the global compiler properties, wipe them clean, perform the nested compilation, then restore all the properties back to their original values.
 
 #### Chosen approach: Strategy B (Sandboxed compilation)

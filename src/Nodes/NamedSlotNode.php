@@ -28,10 +28,13 @@ class NamedSlotNode extends Node
     public function render(): string
     {
         $output = "<{$this->prefix} name=\"{$this->name}\">";
+
         foreach ($this->children as $child) {
             $output .= $child instanceof Node ? $child->render() : (string) $child;
         }
+
         $output .= "</{$this->prefix}>";
+
         return $output;
     }
 }

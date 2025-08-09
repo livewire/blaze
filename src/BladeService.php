@@ -162,7 +162,7 @@ class BladeService
             }
         }
 
-        // Fallback to standard components namespace
+        // Fallback to standard components namespace...
         try {
             return $viewFinder->find("components.{$name}");
         } catch (\Exception $e) {

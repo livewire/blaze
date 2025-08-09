@@ -31,6 +31,7 @@ class FrontMatter
 
         foreach ($foldedComponents as $match) {
             $componentPath = $match[2];
+
             $storedFilemtime = (int) $match[3];
 
             if (! file_exists($componentPath)) {

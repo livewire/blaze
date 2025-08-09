@@ -24,9 +24,11 @@ class DefaultSlotNode extends Node
     public function render(): string
     {
         $output = '';
+
         foreach ($this->children as $child) {
             $output .= $child instanceof Node ? $child->render() : (string) $child;
         }
+
         return $output;
     }
 }

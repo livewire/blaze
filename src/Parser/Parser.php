@@ -2,15 +2,15 @@
 
 namespace Livewire\Blaze\Parser;
 
+use Livewire\Blaze\Tokenizer\Tokens\TagSelfCloseToken;
+use Livewire\Blaze\Tokenizer\Tokens\SlotCloseToken;
+use Livewire\Blaze\Tokenizer\Tokens\TagCloseToken;
+use Livewire\Blaze\Tokenizer\Tokens\SlotOpenToken;
+use Livewire\Blaze\Tokenizer\Tokens\TagOpenToken;
+use Livewire\Blaze\Tokenizer\Tokens\TextToken;
 use Livewire\Blaze\Nodes\ComponentNode;
 use Livewire\Blaze\Nodes\TextNode;
 use Livewire\Blaze\Nodes\SlotNode;
-use Livewire\Blaze\Tokenizer\Tokens\TagOpenToken;
-use Livewire\Blaze\Tokenizer\Tokens\TagSelfCloseToken;
-use Livewire\Blaze\Tokenizer\Tokens\TagCloseToken;
-use Livewire\Blaze\Tokenizer\Tokens\SlotOpenToken;
-use Livewire\Blaze\Tokenizer\Tokens\SlotCloseToken;
-use Livewire\Blaze\Tokenizer\Tokens\TextToken;
 
 class Parser
 {
@@ -83,7 +83,7 @@ class Parser
         $closed = $stack->popContainer();
         if ($closed instanceof SlotNode && $closed->slotStyle === 'short') {
             // If tokenizer captured a :name on the close tag, mark it
-            if (!empty($token->name)) {
+            if (! empty($token->name)) {
                 $closed->closeHasName = true;
             }
         }
@@ -91,8 +91,9 @@ class Parser
 
     protected function handleText(TextToken $token, ParseStack $stack): void
     {
-        // Always preserve text content, including whitespace
+        // Always preserve text content, including whitespace...
         $node = new TextNode(content: $token->content);
+
         $stack->addToRoot($node);
     }
 }
