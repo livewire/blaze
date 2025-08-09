@@ -17,6 +17,8 @@ class BlazeManager
 
     protected $enabled = true;
 
+    protected $expiredMemo = [];
+
     public function __construct(
         protected Tokenizer $tokenizer,
         protected Parser $parser,
@@ -56,17 +58,25 @@ class BlazeManager
     {
         $path = $view->getPath();
 
+        if (isset($this->expiredMemo[$path])) {
+            return $this->expiredMemo[$path];
+        }
+
         $compiler = $view->getEngine()->getCompiler();
         $compiled = $compiler->getCompiledPath($path);
         $expired = $compiler->isExpired($path);
 
+        $isExpired = false;
+
         if (! $expired) {
             $contents = file_get_contents($compiled);
 
-            return (new FrontMatter)->sourceContainsExpiredFoldedDependencies($contents);
+            $isExpired = (new FrontMatter)->sourceContainsExpiredFoldedDependencies($contents);
         }
 
-        return false;
+        $this->expiredMemo[$path] = $isExpired;
+
+        return $isExpired;
     }
 
     public function compile(string $template): string
