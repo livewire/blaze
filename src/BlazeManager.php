@@ -2,18 +2,20 @@
 
 namespace Livewire\Blaze;
 
-use Livewire\Blaze\Walker\Walker;
-use Livewire\Blaze\Tokenizer\Tokenizer;
-use Livewire\Blaze\Renderer\Renderer;
-use Livewire\Blaze\Parser\Parser;
-use Livewire\Blaze\Inspector\Inspector;
-use Livewire\Blaze\Folder\Folder;
 use Livewire\Blaze\Events\ComponentFolded;
+use Livewire\Blaze\Tokenizer\Tokenizer;
+use Livewire\Blaze\Inspector\Inspector;
+use Livewire\Blaze\Renderer\Renderer;
 use Illuminate\Support\Facades\Event;
+use Livewire\Blaze\Walker\Walker;
+use Livewire\Blaze\Parser\Parser;
+use Livewire\Blaze\Folder\Folder;
 
 class BlazeManager
 {
     protected $foldedEvents = [];
+
+    protected $enabled = true;
 
     public function __construct(
         protected Tokenizer $tokenizer,
@@ -23,7 +25,7 @@ class BlazeManager
         protected Inspector $inspector,
         protected Folder $folder,
     ) {
-        Event::listen(ComponentFolded::class, function ($event) {
+        Event::listen(ComponentFolded::class, function (ComponentFolded $event) {
             $this->foldedEvents[] = $event;
         });
     }
@@ -53,8 +55,6 @@ class BlazeManager
     public function viewContainsExpiredFrontMatter($view): bool
     {
         $path = $view->getPath();
-
-        $hasExpired = false;
 
         $compiler = $view->getEngine()->getCompiler();
         $compiled = $compiler->getCompiledPath($path);
@@ -86,6 +86,26 @@ class BlazeManager
         $output = $this->renderer->render($ast);
 
         return $output;
+    }
+
+    public function isEnabled()
+    {
+        return $this->enabled;
+    }
+
+    public function isDisabled()
+    {
+        return ! $this->enabled;
+    }
+
+    public function enable()
+    {
+        $this->enabled = true;
+    }
+
+    public function disable()
+    {
+        $this->enabled = false;
     }
 
     public function tokenizer(): Tokenizer
