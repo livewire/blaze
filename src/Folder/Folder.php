@@ -53,7 +53,6 @@ class Folder
             return $node;
         }
 
-
         try {
             // Dispatch event for component folding
             $componentPath = ($this->componentNameToPath)($node->name);
@@ -61,7 +60,7 @@ class Folder
                 // Validate @pure usage before folding
                 $source = file_get_contents($componentPath);
                 $this->validatePureComponent($source, $componentPath);
-                
+
                 Event::dispatch(new ComponentFolded(
                     name: $node->name,
                     path: $componentPath,
@@ -79,14 +78,14 @@ class Folder
             // Get the component template and pre-process named slots
             $componentPath = ($this->componentNameToPath)($node->name);
             $templateSource = file_get_contents($componentPath);
-            
+
             // Replace named slot variables in the template with placeholders before rendering
             $templateWithPlaceholders = $this->replaceNamedSlotVariables($templateSource, $slotPlaceholders);
-            
+
             // Convert the processed node back to Blade source
             $bladeSource = ($this->renderNodes)([$processedNode]);
 
-            // Replace the component tag with the pre-processed template  
+            // Replace the component tag with the pre-processed template
             $childContent = '';
             if (!empty($processedNode->children) && $processedNode->children[0] instanceof TextNode) {
                 $childContent = $processedNode->children[0]->content;
