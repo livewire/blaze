@@ -23,16 +23,19 @@ class BlazeServiceProvider extends ServiceProvider
 
     protected function registerBlazeManager(): void
     {
+        $bladeService = new BladeService;
+        $renderer = new Renderer;
+
         $this->app->singleton(BlazeManager::class, fn () => new BlazeManager(
             new Tokenizer,
             new Parser,
-            new Renderer,
+            $renderer,
             new Walker,
             new Inspector,
             new Folder(
-                renderBlade: fn ($blade) => (new BladeService)->isolatedRender($blade),
-                renderNodes: fn ($nodes) => (new Renderer)->render($nodes),
-                componentNameToPath: fn ($name) => (new BladeService)->componentNameToPath($name),
+                renderBlade: fn ($blade) => $bladeService->isolatedRender($blade),
+                renderNodes: fn ($nodes) => $renderer->render($nodes),
+                componentNameToPath: fn ($name) => $bladeService->componentNameToPath($name),
             ),
         ));
 
@@ -48,23 +51,27 @@ class BlazeServiceProvider extends ServiceProvider
 
     protected function interceptBladeCompilation(): void
     {
-        (new BladeService)->earliestPreCompilationHook(function ($input) {
-            if (app('blaze')->isDisabled()) return $input;
+        $blaze = app(BlazeManager::class);
+
+        (new BladeService)->earliestPreCompilationHook(function ($input) use ($blaze) {
+            if ($blaze->isDisabled()) return $input;
 
             if ((new BladeService)->containsLaravelExceptionView($input)) return $input;
 
-            return app('blaze')->collectAndAppendFrontMatter($input, function ($input) {
-                return app('blaze')->compile($input);
+            return $blaze->collectAndAppendFrontMatter($input, function ($input) use ($blaze) {
+                return $blaze->compile($input);
             });
         });
     }
 
     protected function interceptViewCacheInvalidation(): void
     {
-        (new BladeService)->viewCacheInvalidationHook(function ($view, $invalidate) {
-            if (app('blaze')->isDisabled()) return;
+        $blaze = app(BlazeManager::class);
 
-            if (app('blaze')->viewContainsExpiredFrontMatter($view)) {
+        (new BladeService)->viewCacheInvalidationHook(function ($view, $invalidate) use ($blaze) {
+            if ($blaze->isDisabled()) return;
+
+            if ($blaze->viewContainsExpiredFrontMatter($view)) {
                 $invalidate();
             }
         });
