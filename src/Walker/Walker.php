@@ -13,11 +13,6 @@ class Walker
         return $this->walk($ast, $callback, true);
     }
 
-    public function walkPre(array $ast, callable $callback): array
-    {
-        return $this->walk($ast, $callback, false);
-    }
-
     public function walk(array $ast, callable $callback, bool $postOrder = false): array
     {
         $transformNode = function ($node, $tagLevel = 0) use ($callback, $postOrder, &$transformNode) {

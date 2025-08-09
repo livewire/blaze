@@ -23,6 +23,13 @@ describe('fold elligable components', function () {
         expect(compile($input))->toBe($output);
     });
 
+    it('with static props containing dynamic characters like dollar signs', function () {
+        $input = '<x-button wire:click="$refresh" />';
+        $output = '<button type="button" wire:click="$refresh"></button>';
+
+        expect(compile($input))->toBe($output);
+    })->skip();
+
     it('dynamic slot', function () {
         $input = '<x-button>{{ $name }}</x-button>';
         $output = '<button type="button">{{ $name }}</button>';
@@ -66,12 +73,11 @@ describe('fold elligable components', function () {
         </x-card>
         HTML;
 
-        $output = <<<'HTML'
+        $output = <<<HTML
         <div class="card">
-            
-            <button type="button">Edit</button>
+            \n    <button type="button">Edit</button>
             <button type="button">Delete</button>
-        
+
         </div>
         HTML;
 
@@ -87,13 +93,12 @@ describe('fold elligable components', function () {
         </x-card>
         HTML;
 
-        $output = <<<'HTML'
+        $output = <<<HTML
         <div class="card">
-            
-            <div class="alert">
+            \n    <div class="alert">
                 <button type="button">Save</button>
             </div>
-        
+
         </div>
         HTML;
 
@@ -118,7 +123,7 @@ describe('fold elligable components', function () {
         // Test the folder validation directly
         $folder = app('blaze')->folder();
         $componentNode = new \Livewire\Blaze\Nodes\ComponentNode('invalid-pure', 'x', '', [], false);
-        
+
         try {
             $folder->fold($componentNode);
             expect(false)->toBeTrue('Exception should have been thrown');
@@ -131,7 +136,7 @@ describe('fold elligable components', function () {
 
     it('named slots', function () {
         $input = '<x-modal><x-slot name="header">Modal Title</x-slot><x-slot name="footer">Footer Content</x-slot>Main content</x-modal>';
-        
+
         $output = '<div class="modal">
     <div class="modal-header">Modal Title</div>
     <div class="modal-body">Main content</div>

@@ -3,7 +3,6 @@
 namespace Livewire\Blaze;
 
 use Livewire\Blaze\Tokenizer\Tokenizer;
-use Livewire\Blaze\Inspector\Inspector;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Support\Facades\Blade;
 use Livewire\Blaze\Renderer\Renderer;
@@ -31,7 +30,6 @@ class BlazeServiceProvider extends ServiceProvider
             new Parser,
             $renderer,
             new Walker,
-            new Inspector,
             new Folder(
                 renderBlade: fn ($blade) => $bladeService->isolatedRender($blade),
                 renderNodes: fn ($nodes) => $renderer->render($nodes),

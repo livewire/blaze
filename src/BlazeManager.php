@@ -4,7 +4,6 @@ namespace Livewire\Blaze;
 
 use Livewire\Blaze\Events\ComponentFolded;
 use Livewire\Blaze\Tokenizer\Tokenizer;
-use Livewire\Blaze\Inspector\Inspector;
 use Livewire\Blaze\Renderer\Renderer;
 use Illuminate\Support\Facades\Event;
 use Livewire\Blaze\Walker\Walker;
@@ -24,7 +23,6 @@ class BlazeManager
         protected Parser $parser,
         protected Renderer $renderer,
         protected Walker $walker,
-        protected Inspector $inspector,
         protected Folder $folder,
     ) {
         Event::listen(ComponentFolded::class, function (ComponentFolded $event) {
@@ -85,10 +83,6 @@ class BlazeManager
 
         $ast = $this->parser->parse($tokens);
 
-        $ast = $this->walker->walkPre($ast, function ($node) {
-            return $this->inspector->inspect($node);
-        });
-
         $ast = $this->walker->walkPost($ast, function ($node) {
             return $this->folder->fold($node);
         });
@@ -131,11 +125,6 @@ class BlazeManager
     public function renderer(): Renderer
     {
         return $this->renderer;
-    }
-
-    public function inspector(): Inspector
-    {
-        return $this->inspector;
     }
 
     public function folder(): Folder
