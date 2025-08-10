@@ -2,59 +2,26 @@
 
 namespace Livewire\Blaze\Walker;
 
-use Livewire\Blaze\Nodes\DefaultSlotNode;
-use Livewire\Blaze\Nodes\NamedSlotNode;
 use Livewire\Blaze\Nodes\ComponentNode;
 use Livewire\Blaze\Nodes\SlotNode;
-use Livewire\Blaze\Nodes\Node;
 
 class Walker
 {
-    public function walkPost(array $ast, callable $callback): array
+    public function walkPost(array $nodes, callable $callback): array
     {
-        return $this->walk($ast, $callback, true);
-    }
+        $result = [];
 
-    public function walk(array $ast, callable $callback, bool $postOrder = false): array
-    {
-        $transformNode = function ($node, $tagLevel = 0) use ($callback, $postOrder, &$transformNode) {
-            if (! ($node instanceof Node)) return $node;
-
-            // Pre-order traversal: transform parent before children...
-            if (! $postOrder) {
-                $transformed = $callback($node, $tagLevel);
-
-                if ($transformed === null) return null;
-
-                if ($transformed !== $node) return $transformed;
+        foreach ($nodes as $node) {
+            // Recurse into children for relevant container nodes
+            if (($node instanceof ComponentNode || $node instanceof SlotNode) && !empty($node->children)) {
+                $node->children = $this->walkPost($node->children, $callback);
             }
 
-            // Transform children for nodes that have children...
-            if (($node instanceof ComponentNode || $node instanceof SlotNode || $node instanceof NamedSlotNode || $node instanceof DefaultSlotNode) && !empty($node->children)) {
-                $node->children = array_filter(
-                    array_map(
-                        fn ($child) => $transformNode($child, $node instanceof ComponentNode ? $tagLevel + 1 : $tagLevel),
-                        $node->children
-                    ),
-                    fn ($child) => $child !== null
-                );
-            }
+            $processed = $callback($node);
 
-            // Post-order traversal: transform parent after children...
-            if ($postOrder) {
-                $transformed = $callback($node, $tagLevel);
+            $result[] = $processed ?? $node;
+        }
 
-                if ($transformed === null) return null;
-
-                return $transformed;
-            }
-
-            return $node;
-        };
-
-        return array_filter(
-            array_map(fn ($node) => $transformNode($node, 0), $ast),
-            fn ($node) => $node !== null
-        );
+        return $result;
     }
 }

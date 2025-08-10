@@ -2,8 +2,6 @@
 
 namespace Livewire\Blaze\Nodes;
 
-use Livewire\Blaze\Nodes\NamedSlotNode;
-use Livewire\Blaze\Nodes\DefaultSlotNode;
 use Livewire\Blaze\Nodes\SlotNode;
 use Livewire\Blaze\Nodes\TextNode;
 use Livewire\Blaze\Support\AttributeParser;
@@ -79,16 +77,7 @@ class ComponentNode extends Node
         $namedSlotNames = [];
 
         foreach ($this->children as $child) {
-            if ($child instanceof NamedSlotNode) {
-                $slotName = $child->name;
-                $slotContent = $renderNodes($child->children);
-                $slotPlaceholders['NAMED_SLOT_' . $slotName] = $slotContent;
-                $namedSlotNames[] = $slotName;
-            } elseif ($child instanceof DefaultSlotNode) {
-                foreach ($child->children as $grandChild) {
-                    $defaultSlotChildren[] = $grandChild;
-                }
-            } elseif ($child instanceof SlotNode) {
+            if ($child instanceof SlotNode) {
                 $slotName = $child->name;
                 if (!empty($slotName) && $slotName !== 'slot') {
                     $slotContent = $renderNodes($child->children);
