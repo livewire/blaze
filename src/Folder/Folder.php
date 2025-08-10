@@ -167,10 +167,8 @@ class Folder
         foreach ($children as $child) {
             if ($child instanceof ComponentNode) {
                 $path = ($this->componentNameToPath)($child->name);
-                fwrite(STDOUT, "[aware-scan] child={$child->name} path=".$path."\n");
                 if ($path && file_exists($path)) {
                     $source = file_get_contents($path);
-                    fwrite(STDOUT, "[aware-scan] hasAware=".(preg_match('/@aware/', $source) ? 'yes' : 'no')."\n");
                     if (preg_match('/@aware/', $source)) {
                         return true;
                     }
