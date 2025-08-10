@@ -28,7 +28,7 @@ describe('fold elligable components', function () {
         $output = '<button type="button" wire:click="$refresh"></button>';
 
         expect(compile($input))->toBe($output);
-    })->skip();
+    });
 
     it('dynamic slot', function () {
         $input = '<x-button>{{ $name }}</x-button>';
