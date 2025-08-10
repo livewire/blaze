@@ -77,6 +77,9 @@ class BlazeManager
 
     public function compile(string $template): string
     {
+        // Protect verbatim blocks before tokenization
+        $template = (new BladeService)->preStoreVerbatimBlocks($template);
+
         $tokens = $this->tokenizer->tokenize($template);
 
         $ast = $this->parser->parse($tokens);

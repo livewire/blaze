@@ -180,4 +180,25 @@ describe('fold elligable components', function () {
 
         expect($rendered)->toBe($output);
     });
+
+    it('supports verbatim blocks', function () {
+        $input = <<<'BLADE'
+@verbatim
+<x-card>
+    <x-button>Save</x-button>
+</x-card>
+@endverbatim
+BLADE;
+
+        $output = <<<'BLADE'
+<x-card>
+    <x-button>Save</x-button>
+</x-card>
+
+BLADE;
+
+        $rendered = \Illuminate\Support\Facades\Blade::render($input);
+
+        expect($rendered)->toBe($output);
+    });
 });

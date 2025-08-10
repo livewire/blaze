@@ -47,19 +47,34 @@ class BladeService
     {
         app()->booted(function () use ($callback) {
             app('blade.compiler')->prepareStringsForCompilationUsing(function ($input) use ($callback) {
-                $compiler = app('blade.compiler');
-
-                $reflection = new \ReflectionClass($compiler);
-                $storeVerbatimBlocks = $reflection->getMethod('storeVerbatimBlocks');
-                $storeVerbatimBlocks->setAccessible(true);
-
-                $output = $storeVerbatimBlocks->invoke($compiler, $input);
-
+                // Let Blaze do its work; verbatim protection is handled inside BlazeManager::compile()
                 $output = $callback($input);
 
                 return $output;
             });
         });
+    }
+
+    public function preStoreVerbatimBlocks(string $input): string
+    {
+        $compiler = app('blade.compiler');
+
+        $reflection = new \ReflectionClass($compiler);
+        $storeVerbatimBlocks = $reflection->getMethod('storeVerbatimBlocks');
+        $storeVerbatimBlocks->setAccessible(true);
+
+        return $storeVerbatimBlocks->invoke($compiler, $input);
+    }
+
+    public function restoreVerbatimBlocks(string $input): string
+    {
+        $compiler = app('blade.compiler');
+
+        $reflection = new \ReflectionClass($compiler);
+        $restoreRawBlocks = $reflection->getMethod('restoreRawBlocks');
+        $restoreRawBlocks->setAccessible(true);
+
+        return $restoreRawBlocks->invoke($compiler, $input);
     }
 
     public function viewCacheInvalidationHook(callable $callback)
@@ -71,7 +86,7 @@ class BladeService
                 return;
             }
 
-            $invalidate = fn () => $view->getEngine()->getCompiler()->compile($view->getPath());
+            $invalidate = fn () => app('blade.compiler')->compile($view->getPath());
 
             $callback($view, $invalidate);
         });
