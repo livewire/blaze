@@ -56,7 +56,6 @@ class Folder
             return $node;
         }
 
-        /** @var ComponentNode $component */
         $component = $node;
 
         try {
