@@ -4,7 +4,6 @@ namespace Livewire\Blaze;
 
 use Livewire\Blaze\Events\ComponentFolded;
 use Livewire\Blaze\Tokenizer\Tokenizer;
-use Livewire\Blaze\Renderer\Renderer;
 use Illuminate\Support\Facades\Event;
 use Livewire\Blaze\Walker\Walker;
 use Livewire\Blaze\Parser\Parser;
@@ -21,7 +20,6 @@ class BlazeManager
     public function __construct(
         protected Tokenizer $tokenizer,
         protected Parser $parser,
-        protected Renderer $renderer,
         protected Walker $walker,
         protected Folder $folder,
     ) {
@@ -87,9 +85,14 @@ class BlazeManager
             return $this->folder->fold($node);
         });
 
-        $output = $this->renderer->render($ast);
+        $output = $this->render($ast);
 
         return $output;
+    }
+
+    public function render(array $nodes): string
+    {
+        return implode('', array_map(fn ($n) => $n->render(), $nodes));
     }
 
     public function isEnabled()
@@ -120,11 +123,6 @@ class BlazeManager
     public function parser(): Parser
     {
         return $this->parser;
-    }
-
-    public function renderer(): Renderer
-    {
-        return $this->renderer;
     }
 
     public function folder(): Folder

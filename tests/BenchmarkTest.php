@@ -14,7 +14,7 @@ class BenchmarkTest extends TestCase
 
     /**
      * Run performance benchmarks and output results.
-     * 
+     *
      * Usage: vendor/bin/pest --filter=benchmark_component_performance
      */
     public function benchmark_component_performance()
@@ -24,10 +24,10 @@ class BenchmarkTest extends TestCase
 
         // Test 1: Single component rendering
         $this->benchmarkSingleComponent();
-        
+
         // Test 2: Page with heavy component usage
         $this->benchmarkHeavyComponentPage();
-        
+
         // Test 3: Mixed scenarios
         $this->benchmarkMixedScenarios();
 
@@ -53,13 +53,13 @@ class BenchmarkTest extends TestCase
 
         // Benchmark without Blaze (disable the package temporarily)
         $timeWithoutBlaze = $this->benchmarkRender($template, 1000, false);
-        
+
         // Clear compiled views to measure first run compile time
         $this->clearCompiledViews();
-        
+
         // Benchmark with Blaze - first run (includes compile time)
         $timeFirstRun = $this->benchmarkRender($template, 1000, true);
-        
+
         // Benchmark with Blaze - second run (cached)
         $timeSecondRun = $this->benchmarkRender($template, 1000, true);
 
@@ -114,7 +114,7 @@ class BenchmarkTest extends TestCase
 
         // Benchmark scenarios
         $timeWithoutBlaze = $this->benchmarkRender($template, $iterations, false);
-        
+
         $this->clearCompiledViews();
         $timeFirstRun = $this->benchmarkRender($template, $iterations, true);
         $timeSecondRun = $this->benchmarkRender($template, $iterations, true);
@@ -154,7 +154,7 @@ class BenchmarkTest extends TestCase
         $iterations = 1000;
 
         $timeWithoutBlaze = $this->benchmarkRender($template, $iterations, false);
-        
+
         $this->clearCompiledViews();
         $timeFirstRun = $this->benchmarkRender($template, $iterations, true);
         $timeSecondRun = $this->benchmarkRender($template, $iterations, true);
@@ -176,7 +176,7 @@ class BenchmarkTest extends TestCase
         }
 
         $endTime = microtime(true);
-        
+
         return ($endTime - $startTime) * 1000; // Convert to milliseconds
     }
 
@@ -184,37 +184,37 @@ class BenchmarkTest extends TestCase
     {
         $improvement = $withoutBlaze / $secondRun;
         $compileTime = $firstRun - $secondRun;
-        
+
         echo "Scenario: {$scenario}\n";
         echo "Iterations: " . number_format($iterations) . "\n\n";
-        
-        echo "Without Blaze:  " . number_format($withoutBlaze, 1) . "ms (" . 
+
+        echo "Without Blaze:  " . number_format($withoutBlaze, 1) . "ms (" .
              number_format($withoutBlaze / $iterations, 3) . "ms per iteration)\n";
-        
+
         echo "With Blaze:\n";
-        echo "  First run:    " . number_format($firstRun, 1) . "ms (" . 
+        echo "  First run:    " . number_format($firstRun, 1) . "ms (" .
              number_format($secondRun, 1) . "ms + " . number_format($compileTime, 1) . "ms compile time)\n";
-        echo "  Second run:   " . number_format($secondRun, 1) . "ms (" . 
+        echo "  Second run:   " . number_format($secondRun, 1) . "ms (" .
              number_format($secondRun / $iterations, 3) . "ms per iteration)\n\n";
-        
+
         echo "Improvement: ~" . number_format($improvement, 1) . "x faster after compilation\n\n";
     }
 
     private function createComponent(string $name, string $content): void
     {
         $path = base_path("benchmarks/fixtures/components/{$name}.blade.php");
-        
+
         if (!is_dir(dirname($path))) {
             mkdir(dirname($path), 0755, true);
         }
-        
+
         file_put_contents($path, $content);
     }
 
     private function clearCompiledViews(): void
     {
         $compiledPath = storage_path('framework/views');
-        
+
         if (is_dir($compiledPath)) {
             $files = glob($compiledPath . '/*');
             foreach ($files as $file) {

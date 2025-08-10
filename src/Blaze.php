@@ -14,7 +14,6 @@ use Illuminate\Support\Facades\Facade;
  * @method static \Livewire\Blaze\BlazeManager isDisabled()
  * @method static \Livewire\Blaze\BlazeManager tokenizer()
  * @method static \Livewire\Blaze\BlazeManager parser()
- * @method static \Livewire\Blaze\BlazeManager renderer()
  * @method static \Livewire\Blaze\BlazeManager walker()
  * @method static \Livewire\Blaze\BlazeManager inspector()
  * @method static \Livewire\Blaze\BlazeManager folder()

@@ -12,7 +12,6 @@ class Walker
         $result = [];
 
         foreach ($nodes as $node) {
-            // Recurse into children for relevant container nodes
             if (($node instanceof ComponentNode || $node instanceof SlotNode) && !empty($node->children)) {
                 $node->children = $this->walkPost($node->children, $callback);
             }

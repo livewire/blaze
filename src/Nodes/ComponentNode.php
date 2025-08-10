@@ -2,9 +2,9 @@
 
 namespace Livewire\Blaze\Nodes;
 
+use Livewire\Blaze\Support\AttributeParser;
 use Livewire\Blaze\Nodes\SlotNode;
 use Livewire\Blaze\Nodes\TextNode;
-use Livewire\Blaze\Support\AttributeParser;
 
 class ComponentNode extends Node
 {
@@ -93,7 +93,7 @@ class ComponentNode extends Node
             }
         }
 
-        // Emit real <x-slot> placeholder nodes for named slots and separate with zero-output PHP
+        // Emit real <x-slot> placeholder nodes for named slots and separate with zero-output PHP...
         $count = count($namedSlotNames);
         foreach ($namedSlotNames as $index => $name) {
             if ($index > 0) {
@@ -111,7 +111,7 @@ class ComponentNode extends Node
         $defaultPlaceholder = null;
         if (!empty($defaultSlotChildren)) {
             if ($count > 0) {
-                // Separate last named slot from default content with zero-output PHP
+                // Separate last named slot from default content with zero-output PHP...
                 $processedNode->children[] = new TextNode('<?php /*blaze_sep*/ ?>');
             }
             $defaultPlaceholder = 'SLOT_PLACEHOLDER_' . count($slotPlaceholders);
@@ -123,17 +123,17 @@ class ComponentNode extends Node
         }
 
         $restore = function (string $renderedHtml) use ($slotPlaceholders, $attributePlaceholders, $defaultPlaceholder): string {
-            // Replace slot placeholders first
+            // Replace slot placeholders first...
             foreach ($slotPlaceholders as $placeholder => $content) {
                 if ($placeholder === $defaultPlaceholder) {
-                    // Trim whitespace immediately around the default placeholder position
+                    // Trim whitespace immediately around the default placeholder position...
                     $pattern = '/>\s*' . preg_quote($placeholder, '/') . '\s*</';
                     $renderedHtml = preg_replace($pattern, '>'.$content.'<', $renderedHtml);
                 } else {
                     $renderedHtml = str_replace($placeholder, $content, $renderedHtml);
                 }
             }
-            // Restore attribute placeholders
+            // Restore attribute placeholders...
             foreach ($attributePlaceholders as $placeholder => $original) {
                 $renderedHtml = str_replace($placeholder, $original, $renderedHtml);
             }

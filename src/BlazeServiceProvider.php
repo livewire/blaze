@@ -5,7 +5,6 @@ namespace Livewire\Blaze;
 use Livewire\Blaze\Tokenizer\Tokenizer;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Support\Facades\Blade;
-use Livewire\Blaze\Renderer\Renderer;
 use Livewire\Blaze\Walker\Walker;
 use Livewire\Blaze\Parser\Parser;
 use Livewire\Blaze\Folder\Folder;
@@ -23,16 +22,14 @@ class BlazeServiceProvider extends ServiceProvider
     protected function registerBlazeManager(): void
     {
         $bladeService = new BladeService;
-        $renderer = new Renderer;
 
         $this->app->singleton(BlazeManager::class, fn () => new BlazeManager(
             new Tokenizer,
             new Parser,
-            $renderer,
             new Walker,
             new Folder(
                 renderBlade: fn ($blade) => $bladeService->isolatedRender($blade),
-                renderNodes: fn ($nodes) => $renderer->render($nodes),
+                renderNodes: fn ($nodes) => implode('', array_map(fn ($n) => $n->render(), $nodes)),
                 componentNameToPath: fn ($name) => $bladeService->componentNameToPath($name),
             ),
         ));

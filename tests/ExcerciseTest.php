@@ -4,7 +4,7 @@ describe('exercise without folding', function () {
     function compileBlade(string $input): string {
         $tokens = app('blaze')->tokenizer()->tokenize($input);
         $ast = app('blaze')->parser()->parse($tokens);
-        $output = app('blaze')->renderer()->render($ast);
+        $output = implode('', array_map(fn ($n) => $n->render(), $ast));
         return $output;
     }
 

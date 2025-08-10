@@ -74,18 +74,17 @@ class Folder
                 ));
             }
 
-            // Let the ComponentNode prepare placeholders and a processed usage node
             [$processedNode, $slotPlaceholders, $restore] = $component->replaceDynamicPortionsWithPlaceholders(
                 renderNodes: fn (array $nodes) => ($this->renderNodes)($nodes)
             );
 
-            // Convert the processed node (component usage) back to a Blade tag string
+            // Convert the processed node (component usage) back to a Blade tag string...
             $usageBlade = ($this->renderNodes)([$processedNode]);
 
-            // Render the Blade usage through Blade's renderer (sandboxed externally)
+            // Render the Blade usage through Blade's renderer (sandboxed externally)...
             $renderedHtml = ($this->renderBlade)($usageBlade);
 
-            // Restore placeholders back to original content
+            // Restore placeholders back to original content...
             $finalHtml = $restore($renderedHtml);
 
             // Return a TextNode containing the folded HTML...
@@ -95,8 +94,7 @@ class Folder
             // Re-throw validation exceptions...
             throw $e;
         } catch (\Exception $e) {
-            throw $e;
-            // return $component;
+            return $component;
         }
     }
 

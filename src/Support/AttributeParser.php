@@ -15,7 +15,7 @@ class AttributeParser
         array &$attributePlaceholders,
         array &$attributeNameToPlaceholder
     ): string {
-        // Early exit unless bound syntax or echo present (support start or whitespace before colon)
+        // Early exit unless bound syntax or echo present (support start or whitespace before colon)...
         $hasBound = (bool) preg_match('/(^|\s):[A-Za-z$]/', $attributesString);
         if (! $hasBound && strpos($attributesString, '{{') === false) {
             return $attributesString;
