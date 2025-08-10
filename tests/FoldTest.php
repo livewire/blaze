@@ -147,4 +147,37 @@ describe('fold elligable components', function () {
 
         expect(compile($input))->toBe($output);
     });
+
+    it('supports aware across folded parent', function () {
+        $input = '<x-group variant="primary"><x-item /></x-group>';
+
+        $output = '<div class="group group-primary" data-test="foo"><div class="item item-primary"></div></div>';
+
+        $compiled = compile($input);
+        $rendered = \Illuminate\Support\Facades\Blade::render($compiled);
+
+        expect($rendered)->toBe($output);
+    });
+
+    it('supports aware across folded parent with hyphenated attributes', function () {
+        $input = '<x-group variant="primary" second-variant="secondary"><x-item /></x-group>';
+
+        $output = '<div class="group group-primary" data-test="foo" data-second-variant="secondary"><div class="item item-primary item-secondary"></div></div>';
+
+        $compiled = compile($input);
+        $rendered = \Illuminate\Support\Facades\Blade::render($compiled);
+
+        expect($rendered)->toBe($output);
+    });
+
+    it('supports aware across folded parent with dynamic attributes', function () {
+        $input = '<?php $result = "bar"; ?> <x-group variant="primary" :data-test="$result"><x-item /></x-group>';
+
+        $output = '<div class="group group-primary" data-test="bar"><div class="item item-primary"></div></div>';
+
+        $compiled = compile($input);
+        $rendered = \Illuminate\Support\Facades\Blade::render($compiled);
+
+        expect($rendered)->toBe($output);
+    });
 });

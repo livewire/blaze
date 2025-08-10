@@ -15,6 +15,7 @@ class BlazeServiceProvider extends ServiceProvider
     {
         $this->registerBlazeManager();
         $this->registerPureDirectiveFallback();
+        $this->registerBladeMacros();
         $this->interceptBladeCompilation();
         $this->interceptViewCacheInvalidation();
     }
@@ -42,6 +43,19 @@ class BlazeServiceProvider extends ServiceProvider
     protected function registerPureDirectiveFallback(): void
     {
         Blade::directive('pure', fn () => '');
+    }
+
+    protected function registerBladeMacros(): void
+    {
+        $this->app->make('view')->macro('pushConsumableComponentData', function ($data) {
+            $this->componentStack[] = new \Illuminate\Support\HtmlString('');
+
+            $this->componentData[$this->currentComponent()] = $data;
+        });
+
+        $this->app->make('view')->macro('popConsumableComponentData', function () {
+            array_pop($this->componentStack);
+        });
     }
 
     protected function interceptBladeCompilation(): void

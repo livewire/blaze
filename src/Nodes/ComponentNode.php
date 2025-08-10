@@ -64,6 +64,14 @@ class ComponentNode extends Node
             $attributeNameToPlaceholder
         );
 
+        // Map attribute name => original dynamic content (if dynamic)
+        $attributeNameToOriginal = [];
+        foreach ($attributeNameToPlaceholder as $name => $placeholder) {
+            if (isset($attributePlaceholders[$placeholder])) {
+                $attributeNameToOriginal[$name] = $attributePlaceholders[$placeholder];
+            }
+        }
+
         $processedNode = new self(
             name: $this->name,
             prefix: $this->prefix,
@@ -140,7 +148,7 @@ class ComponentNode extends Node
             return $renderedHtml;
         };
 
-        return [$processedNode, $slotPlaceholders, $restore, $attributeNameToPlaceholder];
+        return [$processedNode, $slotPlaceholders, $restore, $attributeNameToPlaceholder, $attributeNameToOriginal, $this->attributes];
     }
 
     protected function stripNamespaceFromName(string $name, string $prefix): string
