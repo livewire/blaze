@@ -75,9 +75,8 @@ describe('fold elligable components', function () {
 
         $output = <<<HTML
         <div class="card">
-            \n    <button type="button">Edit</button>
+            <button type="button">Edit</button>
             <button type="button">Delete</button>
-
         </div>
         HTML;
 
@@ -95,10 +94,9 @@ describe('fold elligable components', function () {
 
         $output = <<<HTML
         <div class="card">
-            \n    <div class="alert">
+            <div class="alert">
                 <button type="button">Save</button>
             </div>
-
         </div>
         HTML;
 
@@ -135,7 +133,11 @@ describe('fold elligable components', function () {
     });
 
     it('named slots', function () {
-        $input = '<x-modal><x-slot name="header">Modal Title</x-slot><x-slot name="footer">Footer Content</x-slot>Main content</x-modal>';
+        $input = '<x-modal>
+    <x-slot name="header">Modal Title</x-slot>
+    <x-slot name="footer">Footer Content</x-slot>
+    Main content
+</x-modal>';
 
         $output = '<div class="modal">
     <div class="modal-header">Modal Title</div>

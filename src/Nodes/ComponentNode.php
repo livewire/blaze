@@ -76,12 +76,14 @@ class ComponentNode extends Node
 
         $slotPlaceholders = [];
         $defaultSlotChildren = [];
+        $namedSlotNames = [];
 
         foreach ($this->children as $child) {
             if ($child instanceof NamedSlotNode) {
                 $slotName = $child->name;
                 $slotContent = $renderNodes($child->children);
                 $slotPlaceholders['NAMED_SLOT_' . $slotName] = $slotContent;
+                $namedSlotNames[] = $slotName;
             } elseif ($child instanceof DefaultSlotNode) {
                 foreach ($child->children as $grandChild) {
                     $defaultSlotChildren[] = $grandChild;
@@ -91,6 +93,7 @@ class ComponentNode extends Node
                 if (!empty($slotName) && $slotName !== 'slot') {
                     $slotContent = $renderNodes($child->children);
                     $slotPlaceholders['NAMED_SLOT_' . $slotName] = $slotContent;
+                    $namedSlotNames[] = $slotName;
                 } else {
                     foreach ($child->children as $grandChild) {
                         $defaultSlotChildren[] = $grandChild;
@@ -101,18 +104,47 @@ class ComponentNode extends Node
             }
         }
 
+        // Emit real <x-slot> placeholder nodes for named slots and separate with zero-output PHP
+        $count = count($namedSlotNames);
+        foreach ($namedSlotNames as $index => $name) {
+            if ($index > 0) {
+                $processedNode->children[] = new TextNode('<?php /*blaze_sep*/ ?>');
+            }
+            $processedNode->children[] = new SlotNode(
+                name: $name,
+                attributes: '',
+                slotStyle: 'standard',
+                children: [new TextNode('NAMED_SLOT_' . $name)],
+                prefix: 'x-slot',
+            );
+        }
+
+        $defaultPlaceholder = null;
         if (!empty($defaultSlotChildren)) {
-            $placeholder = 'SLOT_PLACEHOLDER_' . count($slotPlaceholders);
-            $slotPlaceholders[$placeholder] = $renderNodes($defaultSlotChildren);
-            $processedNode->children[] = new TextNode($placeholder);
+            if ($count > 0) {
+                // Separate last named slot from default content with zero-output PHP
+                $processedNode->children[] = new TextNode('<?php /*blaze_sep*/ ?>');
+            }
+            $defaultPlaceholder = 'SLOT_PLACEHOLDER_' . count($slotPlaceholders);
+            $renderedDefault = $renderNodes($defaultSlotChildren);
+            $slotPlaceholders[$defaultPlaceholder] = ($count > 0) ? trim($renderedDefault) : $renderedDefault;
+            $processedNode->children[] = new TextNode($defaultPlaceholder);
         } else {
             $processedNode->children[] = new TextNode('');
         }
 
-        $restore = function (string $renderedHtml) use ($slotPlaceholders, $attributePlaceholders): string {
+        $restore = function (string $renderedHtml) use ($slotPlaceholders, $attributePlaceholders, $defaultPlaceholder): string {
+            // Replace slot placeholders first
             foreach ($slotPlaceholders as $placeholder => $content) {
-                $renderedHtml = str_replace($placeholder, $content, $renderedHtml);
+                if ($placeholder === $defaultPlaceholder) {
+                    // Trim whitespace immediately around the default placeholder position
+                    $pattern = '/>\s*' . preg_quote($placeholder, '/') . '\s*</';
+                    $renderedHtml = preg_replace($pattern, '>'.$content.'<', $renderedHtml);
+                } else {
+                    $renderedHtml = str_replace($placeholder, $content, $renderedHtml);
+                }
             }
+            // Restore attribute placeholders
             foreach ($attributePlaceholders as $placeholder => $original) {
                 $renderedHtml = str_replace($placeholder, $original, $renderedHtml);
             }

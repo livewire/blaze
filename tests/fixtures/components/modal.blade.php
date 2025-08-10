@@ -1,6 +1,9 @@
 @pure
 
-@props([])
+@props([
+    'header' => '',
+    'footer' => '',
+])
 
 <div class="modal">
     <div class="modal-header">{{ $header }}</div>
