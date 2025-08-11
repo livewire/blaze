@@ -57,7 +57,6 @@ Blaze will automatically optimize it during compilation, pre-rendering the stati
 
 - [Performance expectations](#performance-expectations)
 - [When to use @pure](#when-to-use-pure)
-- [Pro tips](#-pro-tips)
 - [Error detection](#error-detection)
 - [Performance benchmarks](#performance)
 - [AI assistant integration](#ai-assistant-integration)
