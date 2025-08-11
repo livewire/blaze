@@ -2,6 +2,15 @@
 
 Speed up your Laravel app by optimizing Blade component rendering performance.
 
+**Rendering 25,000 simple button components:**
+
+```
+Without Blaze  ████████████████████████████████████████  750ms
+With Blaze     ██                                         45ms
+
+                                                          ~17x faster
+```
+
 ## Introduction
 
 Blaze is a Laravel package that dramatically improves the rendering performance of your Blade components through compile-time optimization. It identifies static portions of your templates and pre-renders them, removing much of Blade's runtime overhead.
