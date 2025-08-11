@@ -1,7 +1,0 @@
-# Temporary benchmark files
-views/
-cache/
-
-# Generated during benchmarks  
-*.tmp
-*.cache

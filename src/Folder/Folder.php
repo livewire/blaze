@@ -2,14 +2,14 @@
 
 namespace Livewire\Blaze\Folder;
 
-use Livewire\Blaze\Nodes\TextNode;
-use Livewire\Blaze\Nodes\Node;
-use Livewire\Blaze\Nodes\ComponentNode;
-use Livewire\Blaze\Nodes\SlotNode;
-use Livewire\Blaze\Events\ComponentFolded;
-use Livewire\Blaze\Exceptions\InvalidPureUsageException;
 use Livewire\Blaze\Exceptions\LeftoverPlaceholdersException;
+use Livewire\Blaze\Exceptions\InvalidPureUsageException;
+use Livewire\Blaze\Events\ComponentFolded;
+use Livewire\Blaze\Nodes\ComponentNode;
 use Illuminate\Support\Facades\Event;
+use Livewire\Blaze\Nodes\TextNode;
+use Livewire\Blaze\Nodes\SlotNode;
+use Livewire\Blaze\Nodes\Node;
 
 class Folder
 {
@@ -30,7 +30,6 @@ class Folder
             return false;
         }
 
-        // Force-fold when the component usage includes a `fold` or `blaze:fold` attribute
         if ($this->shouldForceFold($node)) {
             return true;
         }
@@ -57,7 +56,6 @@ class Folder
             return $node;
         }
 
-        // Respect isFoldable which includes force-fold
         if (! $this->isFoldable($node)) {
             return $node;
         }
@@ -69,8 +67,10 @@ class Folder
 
         try {
             $componentPath = ($this->componentNameToPath)($component->name);
+
             if (! $isForced && file_exists($componentPath)) {
                 $source = file_get_contents($componentPath);
+
                 $this->validatePureComponent($source, $componentPath);
 
                 Event::dispatch(new ComponentFolded(
@@ -84,7 +84,6 @@ class Folder
                 renderNodes: fn (array $nodes) => ($this->renderNodes)($nodes)
             );
 
-            // If forced, strip the force attribute(s) from the usage before rendering
             if ($isForced) {
                 $processedNode->attributes = $this->removeForceFoldAttributes($processedNode->attributes);
             }
@@ -99,14 +98,15 @@ class Folder
 
             if ($shouldInjectAwareMacros) {
                 $dataArrayLiteral = $this->buildRuntimeDataArray($attributeNameToOriginal, $rawAttributes);
+
                 if ($dataArrayLiteral !== '[]') {
                     $finalHtml = '<?php $__env->pushConsumableComponentData(' . $dataArrayLiteral . '); ?>' . $finalHtml . '<?php $__env->popConsumableComponentData(); ?>';
                 }
             }
 
-            // Guardrail: detect leftover Blaze placeholders in final output
             if ($this->containsLeftoverPlaceholders($finalHtml)) {
                 $summary = $this->summarizeLeftoverPlaceholders($finalHtml);
+
                 throw new LeftoverPlaceholdersException($component->name, $summary, substr($finalHtml, 0, 2000));
             }
 
@@ -143,9 +143,10 @@ class Folder
     {
         $pairs = [];
 
-        // Dynamic attributes -> original expressions
+        // Dynamic attributes -> original expressions...
         foreach ($attributeNameToOriginal as $name => $original) {
             $key = $this->toCamelCase($name);
+
             if (preg_match('/\{\{\s*\$([a-zA-Z0-9_]+)\s*\}\}/', $original, $m)) {
                 $pairs[$key] = '$' . $m[1];
             } else {
@@ -153,7 +154,7 @@ class Folder
             }
         }
 
-        // Static attributes from the original attribute string
+        // Static attributes from the original attribute string...
         if (! empty($rawAttributes)) {
             if (preg_match_all('/\b([a-zA-Z0-9_-]+)="([^"]*)"/', $rawAttributes, $matches, PREG_SET_ORDER)) {
                 foreach ($matches as $m) {
@@ -180,6 +181,7 @@ class Folder
     protected function hasAwareDescendant(Node $node): bool
     {
         $children = [];
+
         if ($node instanceof ComponentNode || $node instanceof SlotNode) {
             $children = $node->children;
         }
@@ -187,12 +189,15 @@ class Folder
         foreach ($children as $child) {
             if ($child instanceof ComponentNode) {
                 $path = ($this->componentNameToPath)($child->name);
+
                 if ($path && file_exists($path)) {
                     $source = file_get_contents($path);
+
                     if (preg_match('/@aware/', $source)) {
                         return true;
                     }
                 }
+
                 if ($this->hasAwareDescendant($child)) {
                     return true;
                 }
@@ -209,8 +214,11 @@ class Folder
     protected function toCamelCase(string $name): string
     {
         $name = str_replace(['-', '_'], ' ', $name);
+
         $name = ucwords($name);
+
         $name = str_replace(' ', '', $name);
+
         return lcfirst($name);
     }
 
@@ -222,28 +230,34 @@ class Folder
     protected function summarizeLeftoverPlaceholders(string $html): string
     {
         preg_match_all('/\b(SLOT_PLACEHOLDER_\d+|ATTR_PLACEHOLDER_\d+|NAMED_SLOT_[A-Za-z0-9_-]+)\b/', $html, $matches);
+
         $counts = array_count_values($matches[1] ?? []);
+
         $parts = [];
+
         foreach ($counts as $placeholder => $count) {
             $parts[] = $placeholder . ' x' . $count;
         }
+
         return implode(', ', $parts);
     }
 
     protected function shouldForceFold(ComponentNode $node): bool
     {
         $attrs = $node->attributes ?? '';
+
         if ($attrs === '') return false;
+
         return (bool) preg_match('/(^|\s)(?:blaze:fold|fold)(\s|=|$)/', $attrs);
     }
 
     protected function removeForceFoldAttributes(string $attributes): string
     {
-        // Remove standalone or valued `fold` / `blaze:fold` occurrences
         $result = preg_replace('/(^|\s)(?:blaze:fold|fold)(\s*=\s*("[^\"]*"|\'[^\']*\'|[^\s"\'=<>
 `]+))?(?=\s|$)/', '$1', $attributes);
-        // Collapse multiple spaces
+
         $result = trim(preg_replace('/\s+/', ' ', $result ?? ''));
+
         return $result;
     }
 }

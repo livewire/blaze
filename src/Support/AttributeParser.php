@@ -4,12 +4,6 @@ namespace Livewire\Blaze\Support;
 
 class AttributeParser
 {
-    /**
-     * Parse attributes and replace dynamic parts with placeholders.
-     * Returns the processed attribute string, and fills the two maps:
-     * - $attributePlaceholders: placeholder => original dynamic fragment (e.g. {{ $type }})
-     * - $attributeNameToPlaceholder: attributeName => placeholder token
-     */
     public function parseAndReplaceDynamics(
         string $attributesString,
         array &$attributePlaceholders,

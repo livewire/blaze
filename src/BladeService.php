@@ -47,7 +47,6 @@ class BladeService
     {
         app()->booted(function () use ($callback) {
             app('blade.compiler')->prepareStringsForCompilationUsing(function ($input) use ($callback) {
-                // Let Blaze do its work; verbatim protection is handled inside BlazeManager::compile()
                 $output = $callback($input);
 
                 return $output;

@@ -246,6 +246,19 @@ Blaze delivers significant performance improvements by eliminating the overhead 
 - **Dashboard/admin interfaces** with many repeated components
 - **Design systems** with consistent, pure UI components
 
+## AI Assistant Integration
+
+This repository includes an [`AGENTS.md`](AGENTS.md) file specifically designed for AI assistants (like GitHub Copilot, Cursor, or Claude). If you're using an AI tool to help with your Laravel project:
+
+1. **Point your AI assistant to the AGENTS.md file** when asking about Blaze optimization
+2. **The file contains detailed guidance** for analyzing components and determining `@pure` eligibility
+3. **Use it for automated analysis** - AI assistants can help audit your entire component library
+
+Example prompts for AI assistants:
+- "Using the AGENTS.md file, analyze my components and tell me which can use @pure"
+- "Help me add @pure to all eligible components following the AGENTS.md guidelines"
+- "Check if this component is safe for @pure based on AGENTS.md"
+
 ## License
 
 The MIT License (MIT). Please see [License File](LICENSE) for more information.

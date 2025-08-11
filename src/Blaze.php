@@ -5,19 +5,18 @@ namespace Livewire\Blaze;
 use Illuminate\Support\Facades\Facade;
 
 /**
- * @method static \Livewire\Blaze\BlazeManager collectAndAppendFrontMatter(string $template, callable $callback)
- * @method static \Livewire\Blaze\BlazeManager viewContainsExpiredFrontMatter(string $view)
- * @method static \Livewire\Blaze\BlazeManager compile(string $template)
- * @method static \Livewire\Blaze\BlazeManager enable()
- * @method static \Livewire\Blaze\BlazeManager disable()
- * @method static \Livewire\Blaze\BlazeManager debug()
- * @method static \Livewire\Blaze\BlazeManager isEnabled()
- * @method static \Livewire\Blaze\BlazeManager isDisabled()
- * @method static \Livewire\Blaze\BlazeManager tokenizer()
- * @method static \Livewire\Blaze\BlazeManager parser()
- * @method static \Livewire\Blaze\BlazeManager walker()
- * @method static \Livewire\Blaze\BlazeManager inspector()
- * @method static \Livewire\Blaze\BlazeManager folder()
+ * @method static string collectAndAppendFrontMatter(string $template, callable $callback)
+ * @method static bool viewContainsExpiredFrontMatter(\Illuminate\View\View $view)
+ * @method static string compile(string $template)
+ * @method static string render(array $nodes)
+ * @method static void enable()
+ * @method static void disable()
+ * @method static bool isEnabled()
+ * @method static bool isDisabled()
+ * @method static \Livewire\Blaze\Tokenizer\Tokenizer tokenizer()
+ * @method static \Livewire\Blaze\Parser\Parser parser()
+ * @method static \Livewire\Blaze\Folder\Folder folder()
+ * @method static array flushFoldedEvents()
  * @see \Livewire\Blaze\BlazeManager
  */
 class Blaze extends Facade
