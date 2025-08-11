@@ -52,6 +52,7 @@ These components are good candidates for optimization:
 
 ```blade
 {{-- Static UI components --}}
+
 @pure
 
 <div class="card p-4 rounded shadow">
@@ -61,6 +62,7 @@ These components are good candidates for optimization:
 
 ```blade
 {{-- Components that only depend on passed props --}}
+
 @pure
 
 @props(['size' => 'md', 'color' => 'blue'])
@@ -72,6 +74,7 @@ These components are good candidates for optimization:
 
 ```blade
 {{-- Simple formatting components --}}
+
 @pure
 
 @props(['date'])
@@ -87,6 +90,7 @@ Avoid `@pure` for components that have runtime dependencies:
 
 ```blade
 {{-- CSRF tokens change per request --}}
+
 <form method="POST">
     @csrf <!-- ❌ Don't use @pure -->
     <button type="submit">Submit</button>
@@ -95,6 +99,7 @@ Avoid `@pure` for components that have runtime dependencies:
 
 ```blade
 {{-- Authentication state changes at runtime --}}
+
 @auth <!-- ❌ Don't use @pure -->
     <p>Welcome back!</p>
 @endauth
@@ -102,7 +107,9 @@ Avoid `@pure` for components that have runtime dependencies:
 
 ```blade
 {{-- Request data varies per request --}}
+
 @props(['href'])
+
 <a href="{{ $href }}" @class(['active' => request()->is($href)])> <!-- ❌ Don't use @pure -->
     {{ $slot }}
 </a>
@@ -110,6 +117,7 @@ Avoid `@pure` for components that have runtime dependencies:
 
 ```blade
 {{-- Error bags are request-specific --}}
+
 @if($errors->has('email')) <!-- ❌ Don't use @pure -->
     <span class="error">{{ $errors->first('email') }}</span>
 @endif
@@ -117,11 +125,13 @@ Avoid `@pure` for components that have runtime dependencies:
 
 ```blade
 {{-- Session data changes at runtime --}}
+
 <div>Welcome, {{ session('username') }}</div> <!-- ❌ Don't use @pure -->
 ```
 
 ```blade
 {{-- Components using @aware --}}
+
 @aware(['theme']) <!-- ❌ Don't use @pure -->
 
 @props(['theme' => 'light'])
@@ -131,6 +141,7 @@ Avoid `@pure` for components that have runtime dependencies:
 
 ```blade
 {{-- Pagination components --}}
+
 @props(['paginator']) <!-- ❌ Don't use @pure -->
 
 <div class="pagination">
@@ -140,6 +151,7 @@ Avoid `@pure` for components that have runtime dependencies:
 
 ```blade
 {{-- Components containing non-pure children --}}
+
 @pure <!-- ❌ WRONG: This table contains pagination which is dynamic -->
 
 @props(['items'])
@@ -148,7 +160,7 @@ Avoid `@pure` for components that have runtime dependencies:
     @foreach($items as $item)
         <tr><td>{{ $item->name }}</td></tr>
     @endforeach
-    
+
     <x-table-pagination :paginator="$items" />
 </table>
 ```
@@ -175,17 +187,21 @@ Be careful with these patterns that might seem safe but can cause issues:
 </div>
 ```
 
-**Important**: A component marked with `@pure` must not directly render any non-pure child components in its template. However, dynamic content passed through slots is fine - Blaze handles slot content separately. 
+**Important**: A component marked with `@pure` must not directly render any non-pure child components in its template. However, dynamic content passed through slots is fine - Blaze handles slot content separately.
 
 ```blade
 {{-- ✅ OK: Dynamic content passed via slot --}}
+
 @pure
+
 <div class="card">
     {{ $slot }} <!-- Can contain any content, including non-pure components -->
 </div>
 
 {{-- ❌ NOT OK: Non-pure component hardcoded in template --}}
+
 @pure
+
 <div class="card">
     <x-user-avatar /> <!-- If this uses auth(), the card can't be @pure -->
     {{ $slot }}
@@ -216,7 +232,7 @@ Testing a simple button component rendered 1,000 times:
 
 ```
 Without Blaze:  125ms  (0.125ms per component)
-With Blaze:     
+With Blaze:
   First run:    13ms   (8ms + 5ms compile time)
   Second run:   8ms    (0.008ms per component)
 
@@ -228,7 +244,7 @@ A dashboard page rendering 50 different components, each used multiple times:
 
 ```
 Without Blaze:  89ms   (mixed foldable/non-foldable)
-With Blaze:     
+With Blaze:
   First run:    48ms   (23ms + 25ms compile time)
   Second run:   23ms   (foldable components optimized)
 
@@ -248,7 +264,7 @@ Improvement: ~8.7x faster
 
 **Mixed Components (60% foldable, 40% runtime-dependent):**
 ```
-Components:     25 unique, 200 total instances  
+Components:     25 unique, 200 total instances
 Without Blaze:  156ms
 With Blaze:     67ms
 
