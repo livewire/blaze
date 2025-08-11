@@ -210,8 +210,6 @@ BLADE;
     });
 
     it('can fold static props that get formatted', function () {
-        app('blaze')->debug();
-
         $input = '<x-date date="2025-07-11 13:22:41 UTC" />';
         $output = '<div>Date is: Fri, Jul 11</div>';
 
