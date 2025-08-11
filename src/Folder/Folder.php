@@ -30,6 +30,11 @@ class Folder
             return false;
         }
 
+        // Force-fold when the component usage includes a `fold` attribute
+        if ($this->shouldForceFold($node)) {
+            return true;
+        }
+
         try {
             $componentPath = ($this->componentNameToPath)($node->name);
 
@@ -52,6 +57,7 @@ class Folder
             return $node;
         }
 
+        // Respect isFoldable which includes force-fold
         if (! $this->isFoldable($node)) {
             return $node;
         }
@@ -59,9 +65,11 @@ class Folder
         /** @var ComponentNode $component */
         $component = $node;
 
+        $isForced = $this->shouldForceFold($component);
+
         try {
             $componentPath = ($this->componentNameToPath)($component->name);
-            if (file_exists($componentPath)) {
+            if (! $isForced && file_exists($componentPath)) {
                 $source = file_get_contents($componentPath);
                 $this->validatePureComponent($source, $componentPath);
 
@@ -75,6 +83,11 @@ class Folder
             [$processedNode, $slotPlaceholders, $restore, $attributeNameToPlaceholder, $attributeNameToOriginal, $rawAttributes] = $component->replaceDynamicPortionsWithPlaceholders(
                 renderNodes: fn (array $nodes) => ($this->renderNodes)($nodes)
             );
+
+            // If forced, strip the `fold` attribute from the usage before rendering
+            if ($isForced) {
+                $processedNode->attributes = $this->removeFoldAttribute($processedNode->attributes);
+            }
 
             $usageBlade = ($this->renderNodes)([$processedNode]);
 
@@ -101,12 +114,6 @@ class Folder
 
         } catch (InvalidPureUsageException $e) {
             throw $e;
-        } catch (LeftoverPlaceholdersException $e) {
-            if (app('blaze')->isDebugging()) {
-                throw $e;
-            }
-
-            return $component;
         } catch (\Exception $e) {
             return $component;
         }
@@ -221,5 +228,22 @@ class Folder
             $parts[] = $placeholder . ' x' . $count;
         }
         return implode(', ', $parts);
+    }
+
+    protected function shouldForceFold(ComponentNode $node): bool
+    {
+        $attrs = $node->attributes ?? '';
+        if ($attrs === '') return false;
+        return (bool) preg_match('/(^|\s)fold(\s|=|$)/', $attrs);
+    }
+
+    protected function removeFoldAttribute(string $attributes): string
+    {
+        // Remove standalone `fold` or `fold=...` with minimal disruption
+        $result = preg_replace('/(^|\s)fold(\s*=\s*("[^\"]*"|\'[^\']*\'|[^\s"\'=<>
+`]+))?(?=\s|$)/', '$1', $attributes);
+        // Collapse multiple spaces
+        $result = trim(preg_replace('/\s+/', ' ', $result ?? ''));
+        return $result;
     }
 }
