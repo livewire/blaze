@@ -202,8 +202,23 @@ Be careful with these patterns that might seem safe but can cause issues:
 <div class="card">
     <x-user-avatar /> <!-- If this uses auth(), the card can't be @pure -->
     {{ $slot }}
-</div>
 ```
+
+### Understanding When Components Get Folded
+
+Even with `@pure`, Blaze only folds components when it can safely pre-render them at compile-time:
+
+```blade
+{{-- ✅ CAN be folded - static date value --}}
+<x-date-formatter :date="Carbon\Carbon::parse('2024-01-15')" />
+
+{{-- ❌ CANNOT be folded - dynamic date variable --}}
+<x-date-formatter :date="$user->created_at" />
+```
+
+**Why?** Blaze needs actual values at compile-time to pre-render. When you pass dynamic variables (like `$user->created_at`), Blaze doesn't know their values during compilation, so it skips folding and renders normally at runtime. This happens automatically - your component still works, it just won't be optimized.
+
+**Note**: If your `@pure` component isn't being folded, check if you're passing dynamic variables to it. The component itself is fine - it's the dynamic data preventing optimization.
 
 ### 💡 Pro Tips
 
@@ -215,6 +230,7 @@ Be careful with these patterns that might seem safe but can cause issues:
 ### Error Detection
 
 When you add `@pure` to a component with runtime dependencies, Blaze will detect common unsafe patterns and show helpful error messages during compilation. This prevents broken components and guides you toward the correct implementation.
+
 
 ## Performance
 
