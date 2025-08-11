@@ -5,8 +5,8 @@ Speed up your Laravel app by optimizing Blade component rendering performance.
 ```
 Rendering 25,000 simple button components:
 
-Without Blaze  ████████████████████████████████████████  750ms
-With Blaze     ██                                         45ms
+Without Blaze  ████████████████████████████████████████  ~750ms
+With Blaze     ██                                         ~45ms
 
                                                           ~17x faster
 ```
