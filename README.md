@@ -44,6 +44,8 @@ Blaze will automatically optimize it during compilation, pre-rendering the stati
 
 The `@pure` directive tells Blaze that a component has no runtime dependencies and can be safely optimized. Only add it to components that render the same way every time they're compiled.
 
+**For developers familiar with functional programming**: Think of `@pure` components like pure functions - they always produce the same output for the same input, with no side effects or dependencies on external state (like request data, auth state, or time).
+
 ### ✅ Safe for @pure
 
 These components are good candidates for optimization:
