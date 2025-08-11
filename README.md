@@ -2,6 +2,8 @@
 
 Speed up your Laravel app by optimizing Blade component rendering performance.
 
+> ⚠️ **Experimental package** - This is an early-stage, experimental package. APIs may change, and it's not recommended for production use yet. Please test thoroughly and report any issues!
+
 ```
 Rendering 25,000 simple button components:
 
@@ -26,6 +28,8 @@ composer require livewire/blaze
 ## Usage
 
 To optimize a Blade component for performance, simply add the `@pure` directive at the top of your component file:
+
+> **Using Flux?** All eligible Flux components are already marked with `@pure` - you don't need to do anything! Just install Blaze and enjoy the performance boost.
 
 ```blade
 {{-- resources/views/components/button.blade.php --}}
