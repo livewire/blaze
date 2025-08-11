@@ -235,33 +235,13 @@ Be careful with these patterns that might seem safe but can cause issues:
 </div>
 ```
 
-**Important**: A component marked with `@pure` must not directly render any non-pure child components in its template. However, dynamic content passed through slots is fine - Blaze handles slot content separately.
-
-```blade
-{{-- ✅ OK: Dynamic content passed via slot --}}
-
-@pure
-
-<div class="card">
-    {{ $slot }} <!-- Can contain any content, including non-pure components -->
-</div>
-
-{{-- ❌ NOT OK: Non-pure component hardcoded in template --}}
-
-@pure
-
-<div class="card">
-    <x-user-avatar /> <!-- If this uses auth(), the card can't be @pure -->
-    {{ $slot }}
-```
-
-### Understanding when components get folded
+### Why isn't Blaze optimizing my component?
 
 Even with `@pure`, Blaze only folds components when it can safely pre-render them at compile-time:
 
 ```blade
 {{-- ✅ CAN be folded - static date value --}}
-<x-date-formatter :date="Carbon\Carbon::parse('2024-01-15')" />
+<x-date-formatter date="2024-01-15" />
 
 {{-- ❌ CANNOT be folded - dynamic date variable --}}
 <x-date-formatter :date="$user->created_at" />
