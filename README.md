@@ -57,10 +57,6 @@ Blaze will automatically optimize it during compilation, pre-rendering the stati
 
 - [Performance expectations](#performance-expectations)
 - [When to use @pure](#when-to-use-pure)
-  - [The @pure litmus test](#the-pure-litmus-test)
-  - [Safe for @pure](#-safe-for-pure)
-  - [Never use @pure with](#-never-use-pure-with)
-  - [Understanding when components get folded](#understanding-when-components-get-folded)
 - [Pro tips](#-pro-tips)
 - [Error detection](#error-detection)
 - [Performance benchmarks](#performance)
