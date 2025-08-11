@@ -81,18 +81,6 @@ These components are good candidates for optimization:
 </button>
 ```
 
-```blade
-{{-- Simple formatting components --}}
-
-@pure
-
-@props(['date'])
-
-<time datetime="{{ $date->toISOString() }}">
-    {{ $date->format('M j, Y') }}
-</time>
-```
-
 ### ❌ Never use @pure with
 
 Avoid `@pure` for components that have runtime dependencies:

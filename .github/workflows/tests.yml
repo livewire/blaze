@@ -26,7 +26,18 @@ jobs:
           coverage: none
           extensions: mbstring, dom, curl, json, libxml, xml, xmlwriter, simplexml, tokenizer, pdo, sqlite3
           ini-values: error_reporting=E_ALL, display_errors=On, log_errors=Off
-          cache: composer
+
+      - name: Determine composer cache directory
+        id: composer-cache
+        run: echo "dir=$(composer config cache-files-dir)" >> $GITHUB_OUTPUT
+
+      - name: Cache composer
+        uses: actions/cache@v3
+        with:
+          path: ${{ steps.composer-cache.outputs.dir }}
+          key: ${{ runner.os }}-composer-${{ hashFiles('**/composer.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-composer-
 
       - name: Validate composer.json
         run: composer validate --no-check-publish
