@@ -202,8 +202,8 @@ BLADE;
         expect($rendered)->toBe($output);
     });
 
-    it('can force fold via fold attribute on non-pure component', function () {
-        $input = '<x-impure-button fold type="submit">Go</x-impure-button>';
+    it('can force fold via blaze:fold attribute', function () {
+        $input = '<x-impure-button blaze:fold type="submit">Go</x-impure-button>';
         $output = '<button type="submit">Go</button>';
 
         expect(compile($input))->toBe($output);

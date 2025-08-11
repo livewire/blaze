@@ -30,7 +30,7 @@ class Folder
             return false;
         }
 
-        // Force-fold when the component usage includes a `fold` attribute
+        // Force-fold when the component usage includes a `fold` or `blaze:fold` attribute
         if ($this->shouldForceFold($node)) {
             return true;
         }
@@ -84,9 +84,9 @@ class Folder
                 renderNodes: fn (array $nodes) => ($this->renderNodes)($nodes)
             );
 
-            // If forced, strip the `fold` attribute from the usage before rendering
+            // If forced, strip the force attribute(s) from the usage before rendering
             if ($isForced) {
-                $processedNode->attributes = $this->removeFoldAttribute($processedNode->attributes);
+                $processedNode->attributes = $this->removeForceFoldAttributes($processedNode->attributes);
             }
 
             $usageBlade = ($this->renderNodes)([$processedNode]);
@@ -234,13 +234,13 @@ class Folder
     {
         $attrs = $node->attributes ?? '';
         if ($attrs === '') return false;
-        return (bool) preg_match('/(^|\s)fold(\s|=|$)/', $attrs);
+        return (bool) preg_match('/(^|\s)(?:blaze:fold|fold)(\s|=|$)/', $attrs);
     }
 
-    protected function removeFoldAttribute(string $attributes): string
+    protected function removeForceFoldAttributes(string $attributes): string
     {
-        // Remove standalone `fold` or `fold=...` with minimal disruption
-        $result = preg_replace('/(^|\s)fold(\s*=\s*("[^\"]*"|\'[^\']*\'|[^\s"\'=<>
+        // Remove standalone or valued `fold` / `blaze:fold` occurrences
+        $result = preg_replace('/(^|\s)(?:blaze:fold|fold)(\s*=\s*("[^\"]*"|\'[^\']*\'|[^\s"\'=<>
 `]+))?(?=\s|$)/', '$1', $attributes);
         // Collapse multiple spaces
         $result = trim(preg_replace('/\s+/', ' ', $result ?? ''));
