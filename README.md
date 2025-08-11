@@ -53,11 +53,50 @@ When you use this component in your templates:
 
 Blaze will automatically optimize it during compilation, pre-rendering the static parts while preserving dynamic content.
 
+## Performance expectations
+
+While our benchmark shows up to 17x improvement for rendering thousands of components, real-world gains are more nuanced:
+
+### Typical improvements
+
+**Most pages**: 10-30ms faster rendering
+- Reasonably sized pages with a few hundred components will see modest but meaningful improvements
+
+**Heavy component pages**: 50-100ms+ faster
+- Data tables with dozens/hundreds of rows
+- Select dropdowns with many options
+- Dashboard grids with repeated cards
+- Any page with significant component repetition
+
 ## When to use @pure
 
 The `@pure` directive tells Blaze that a component has no runtime dependencies and can be safely optimized. Only add it to components that render the same way every time they're compiled.
 
-**For developers familiar with functional programming**: Think of `@pure` components like pure functions - they always produce the same output for the same input, with no side effects or dependencies on external state (like request data, auth state, or time).
+### The @pure litmus test
+
+Ask yourself these questions about your component:
+
+1. **Does it work the same for all users?** (no auth checks, no user-specific content)
+2. **Does it work the same on every request?** (no request data, no CSRF tokens)
+3. **Does it work the same at any time?** (no timestamps, no "time ago" formatting)
+4. **Does it only use the props you pass in?** (no session data, no database queries)
+5. **Are all child components it renders also pure?** (no dynamic components hardcoded inside)
+
+**If you answered YES to all questions → Add `@pure`**
+**If you answered NO to any question → Don't add `@pure`**
+
+### Quick mental model
+
+Think of `@pure` components as **"design system" components** - they're the building blocks that:
+- Look the same for everyone
+- Only change based on props you explicitly pass
+- Could be shown in a component library or Storybook without any application context
+
+Examples: buttons, cards, badges, icons, layout grids, typography components
+
+**Not** pure: anything that's "smart" or "connected" - forms (CSRF), navigation (active states), user avatars (auth), timestamps (time), paginated tables (request state).
+
+**For developers familiar with functional programming**: Think of `@pure` components like pure functions - they always produce the same output for the same input, with no side effects or dependencies on external state.
 
 ### ✅ Safe for @pure
 
