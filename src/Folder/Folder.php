@@ -72,12 +72,6 @@ class Folder
                 $source = file_get_contents($componentPath);
 
                 $this->validatePureComponent($source, $componentPath);
-
-                Event::dispatch(new ComponentFolded(
-                    name: $component->name,
-                    path: $componentPath,
-                    filemtime: filemtime($componentPath)
-                ));
             }
 
             [$processedNode, $slotPlaceholders, $restore, $attributeNameToPlaceholder, $attributeNameToOriginal, $rawAttributes] = $component->replaceDynamicPortionsWithPlaceholders(
@@ -110,11 +104,21 @@ class Folder
                 throw new LeftoverPlaceholdersException($component->name, $summary, substr($finalHtml, 0, 2000));
             }
 
+            Event::dispatch(new ComponentFolded(
+                name: $component->name,
+                path: $componentPath,
+                filemtime: filemtime($componentPath)
+            ));
+
             return new TextNode($finalHtml);
 
         } catch (InvalidPureUsageException $e) {
             throw $e;
         } catch (\Exception $e) {
+            if (app('blaze')->isDebugging()) {
+                throw $e;
+            }
+
             return $component;
         }
     }

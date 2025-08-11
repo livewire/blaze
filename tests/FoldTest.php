@@ -208,4 +208,18 @@ BLADE;
 
         expect(compile($input))->toBe($output);
     });
+
+    it('can fold static props that get formatted', function () {
+        $input = '<x-date date="2025-07-11 13:22:41" />';
+        $output = '<div>Date is: Fri, Jul 11</div>';
+
+        expect(compile($input))->toBe($output);
+    });
+
+    it('cant fold dynamic props that get formatted', function () {
+        $input = '<?php $date = "2025-07-11 13:22:41"; ?> <x-date :date="$date" />';
+        $output = '<?php $date = "2025-07-11 13:22:41"; ?> <x-date :date="$date" />';
+
+        expect(compile($input))->toBe($output);
+    });
 });
