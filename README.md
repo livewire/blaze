@@ -58,8 +58,8 @@ Blaze will automatically optimize it during compilation, pre-rendering the stati
 - [Performance expectations](#performance-expectations)
 - [When to use @pure](#when-to-use-pure)
 - [Error detection](#error-detection)
-- [Performance benchmarks](#performance)
 - [Debugging](#debugging)
+- [Performance benchmarks](#performance)
 - [AI assistant integration](#ai-assistant-integration)
 
 ## Performance expectations
@@ -263,6 +263,23 @@ Even with `@pure`, Blaze only folds components when it can safely pre-render the
 
 When you add `@pure` to a component with runtime dependencies, Blaze will detect common unsafe patterns and show helpful error messages during compilation. This prevents broken components and guides you toward the correct implementation.
 
+## Debugging
+
+Blaze is designed to fail gracefully - when it encounters an error during component folding, it automatically falls back to normal Blade rendering. This ensures your application never breaks due to optimization attempts.
+
+However, when debugging why a component isn't being optimized, you might want to see the actual error that's causing Blaze to skip folding:
+
+```php
+// In a service provider or debug environment
+app('blaze')->debug();
+```
+
+When debug mode is enabled:
+- Blaze will **not** fall back gracefully
+- Instead, it will throw the actual exception that occurred during folding
+- This helps you identify issues like:
+  - Invalid prop types (e.g., passing a string to a date formatter expecting a Carbon instance)
+  - Missing required props
 
 ## Performance
 
@@ -281,24 +298,6 @@ Blaze delivers significant performance improvements by eliminating the overhead 
 - **High-traffic sites** where every millisecond of render time matters
 - **Dashboard/admin interfaces** with many repeated components
 - **Design systems** with consistent, pure UI components
-
-## Debugging
-
-Blaze is designed to fail gracefully - when it encounters an error during component folding, it automatically falls back to normal Blade rendering. This ensures your application never breaks due to optimization attempts.
-
-However, when debugging why a component isn't being optimized, you might want to see the actual error that's causing Blaze to skip folding:
-
-```php
-// In a service provider or debug environment
-app('blaze')->debug();
-```
-
-When debug mode is enabled:
-- Blaze will **not** fall back gracefully
-- Instead, it will throw the actual exception that occurred during folding
-- This helps you identify issues like:
-  - Invalid prop types (e.g., passing a string to a date formatter expecting a Carbon instance)
-  - Missing required props
 
 ## AI assistant integration
 
