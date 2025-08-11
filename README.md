@@ -49,7 +49,7 @@ When you use this component in your templates:
 
 Blaze will automatically optimize it during compilation, pre-rendering the static parts while preserving dynamic content.
 
-## When to Use @pure
+## When to use @pure
 
 The `@pure` directive tells Blaze that a component has no runtime dependencies and can be safely optimized. Only add it to components that render the same way every time they're compiled.
 
@@ -204,7 +204,7 @@ Be careful with these patterns that might seem safe but can cause issues:
     {{ $slot }}
 ```
 
-### Understanding When Components Get Folded
+### Understanding when components get folded
 
 Even with `@pure`, Blaze only folds components when it can safely pre-render them at compile-time:
 
@@ -227,7 +227,7 @@ Even with `@pure`, Blaze only folds components when it can safely pre-render the
 - **Test thoroughly**: After adding `@pure`, verify the component still works correctly across different requests
 - **Blaze is forgiving**: If a component can't be optimized, Blaze will automatically fall back to normal rendering
 
-### Error Detection
+### Error detection
 
 When you add `@pure` to a component with runtime dependencies, Blaze will detect common unsafe patterns and show helpful error messages during compilation. This prevents broken components and guides you toward the correct implementation.
 
@@ -236,21 +236,21 @@ When you add `@pure` to a component with runtime dependencies, Blaze will detect
 
 Blaze delivers significant performance improvements by eliminating the overhead of component rendering, prop parsing, and slot handling at runtime.
 
-### Performance Characteristics
+### Performance characteristics
 
 - **Compilation overhead**: Minimal (~2-5ms per foldable component during first compile)
 - **Memory usage**: Reduced at runtime (pre-rendered HTML uses less memory than component objects)
 - **Cache efficiency**: Better template cache utilization due to fewer dynamic parts
 - **Scaling**: Performance gains increase with component usage frequency
 
-### When You'll See the Biggest Impact
+### When you'll see the biggest impact
 
 - **Component-heavy applications** with lots of reusable UI elements
 - **High-traffic sites** where every millisecond of render time matters
 - **Dashboard/admin interfaces** with many repeated components
 - **Design systems** with consistent, pure UI components
 
-## AI Assistant Integration
+## AI assistant integration
 
 This repository includes an [`AGENTS.md`](AGENTS.md) file specifically designed for AI assistants (like GitHub Copilot, Cursor, or Claude). If you're using an AI tool to help with your Laravel project:
 
