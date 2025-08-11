@@ -210,15 +210,15 @@ BLADE;
     });
 
     it('can fold static props that get formatted', function () {
-        $input = '<x-date date="2025-07-11 13:22:41" />';
+        $input = '<x-date date="2025-07-11 13:22:41 UTC" />';
         $output = '<div>Date is: Fri, Jul 11</div>';
 
         expect(compile($input))->toBe($output);
     });
 
     it('cant fold dynamic props that get formatted', function () {
-        $input = '<?php $date = "2025-07-11 13:22:41"; ?> <x-date :date="$date" />';
-        $output = '<?php $date = "2025-07-11 13:22:41"; ?> <x-date :date="$date" />';
+        $input = '<?php $date = "2025-07-11 13:22:41 UTC"; ?> <x-date :date="$date" />';
+        $output = '<?php $date = "2025-07-11 13:22:41 UTC"; ?> <x-date :date="$date" />';
 
         expect(compile($input))->toBe($output);
     });
