@@ -1,5 +1,3 @@
-@pure
+@blaze
 
-@props([])
-
-<input {{ $attributes }} />
+<input type="text" />

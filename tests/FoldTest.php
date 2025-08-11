@@ -110,14 +110,14 @@ describe('fold elligable components', function () {
         expect(compile($input))->toBe($output);
     });
 
-    it('component without @pure is not folded', function () {
+    it('component without @blaze is not folded', function () {
         $input = '<x-impure-button>Save</x-impure-button>';
         $output = '<x-impure-button>Save</x-impure-button>';
 
         expect(compile($input))->toBe($output);
     });
 
-    it('throws exception for invalid @pure usage', function () {
+    it('throws exception for invalid @blaze usage', function () {
         // Test the folder validation directly
         $folder = app('blaze')->folder();
         $componentNode = new \Livewire\Blaze\Nodes\ComponentNode('invalid-pure', 'x', '', [], false);
@@ -126,7 +126,7 @@ describe('fold elligable components', function () {
             $folder->fold($componentNode);
             expect(false)->toBeTrue('Exception should have been thrown');
         } catch (\Livewire\Blaze\Exceptions\InvalidPureUsageException $e) {
-            expect($e->getMessage())->toContain('Invalid @pure usage');
+            expect($e->getMessage())->toContain('Invalid @blaze usage');
             expect($e->getComponentPath())->toContain('invalid-pure.blade.php');
             expect($e->getProblematicPattern())->toBe('\\$errors');
         }

@@ -14,7 +14,7 @@ class BlazeServiceProvider extends ServiceProvider
     public function register(): void
     {
         $this->registerBlazeManager();
-        $this->registerPureDirectiveFallback();
+        $this->registerBlazeDirectiveFallback();
         $this->registerBladeMacros();
         $this->interceptBladeCompilation();
         $this->interceptViewCacheInvalidation();
@@ -40,9 +40,9 @@ class BlazeServiceProvider extends ServiceProvider
         $this->app->bind('blaze', fn ($app) => $app->make(BlazeManager::class));
     }
 
-    protected function registerPureDirectiveFallback(): void
+    protected function registerBlazeDirectiveFallback(): void
     {
-        Blade::directive('pure', fn () => '');
+        Blade::directive('blaze', fn () => '');
     }
 
     protected function registerBladeMacros(): void

@@ -5,8 +5,7 @@
     "license": "MIT",
     "authors": [
         {
-            "name": "Livewire",
-            "email": "contact@livewire-framework.com"
+            "name": "Caleb Porzio",
         }
     ],
     "require": {

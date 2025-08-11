@@ -1,4 +1,5 @@
-@pure
-<div class="{{ $errors->has('name') ? 'error' : '' }}">
-    {{ $slot }}
-</div>
+@blaze
+
+@props([])
+
+<div>{{ $errors->first('email') }}</div>
