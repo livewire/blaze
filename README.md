@@ -246,8 +246,6 @@ Blaze delivers significant performance improvements by eliminating the overhead 
 - **Dashboard/admin interfaces** with many repeated components
 - **Design systems** with consistent, pure UI components
 
-**Note**: Benchmarks measured on PHP 8.2, Laravel 11, with OPcache enabled. Your results may vary based on component complexity and server configuration.
-
 ## License
 
 The MIT License (MIT). Please see [License File](LICENSE) for more information.
