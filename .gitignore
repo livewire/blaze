@@ -3,6 +3,7 @@
 /.phpunit.cache/
 /.idea/
 /.vscode/
+/.claude/
 .DS_Store
 composer.lock
 phpunit.xml.dist

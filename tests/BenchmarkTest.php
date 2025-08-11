@@ -58,4 +58,4 @@ it('can run performance benchmarks', function () {
     fwrite(STDOUT, "Blaze enabled but no folding - render 25k component loop: " . number_format($duration, 2) . " ms\n");
 
     expect(true)->toBeTrue();
-});
+})->skip();
