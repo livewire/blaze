@@ -1,0 +1,8 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Ask a Question
+    url: https://github.com/livewire/blaze/discussions
+    about: Ask questions and discuss with other community members
+  - name: Documentation
+    url: https://github.com/livewire/blaze#readme
+    about: Check the README for usage instructions
