@@ -10,6 +10,7 @@ use Illuminate\Support\Facades\Facade;
  * @method static \Livewire\Blaze\BlazeManager compile(string $template)
  * @method static \Livewire\Blaze\BlazeManager enable()
  * @method static \Livewire\Blaze\BlazeManager disable()
+ * @method static \Livewire\Blaze\BlazeManager debug()
  * @method static \Livewire\Blaze\BlazeManager isEnabled()
  * @method static \Livewire\Blaze\BlazeManager isDisabled()
  * @method static \Livewire\Blaze\BlazeManager tokenizer()

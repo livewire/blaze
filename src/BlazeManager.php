@@ -15,6 +15,8 @@ class BlazeManager
 
     protected $enabled = true;
 
+    protected $debug = false;
+
     protected $expiredMemo = [];
 
     public function __construct(
@@ -116,6 +118,16 @@ class BlazeManager
     public function disable()
     {
         $this->enabled = false;
+    }
+
+    public function debug()
+    {
+        $this->debug = true;
+    }
+
+    public function isDebugging()
+    {
+        return $this->debug;
     }
 
     public function tokenizer(): Tokenizer

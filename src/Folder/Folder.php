@@ -8,6 +8,7 @@ use Livewire\Blaze\Nodes\ComponentNode;
 use Livewire\Blaze\Nodes\SlotNode;
 use Livewire\Blaze\Events\ComponentFolded;
 use Livewire\Blaze\Exceptions\InvalidPureUsageException;
+use Livewire\Blaze\Exceptions\LeftoverPlaceholdersException;
 use Illuminate\Support\Facades\Event;
 
 class Folder
@@ -90,10 +91,22 @@ class Folder
                 }
             }
 
+            // Guardrail: detect leftover Blaze placeholders in final output
+            if ($this->containsLeftoverPlaceholders($finalHtml)) {
+                $summary = $this->summarizeLeftoverPlaceholders($finalHtml);
+                throw new LeftoverPlaceholdersException($component->name, $summary, substr($finalHtml, 0, 2000));
+            }
+
             return new TextNode($finalHtml);
 
         } catch (InvalidPureUsageException $e) {
             throw $e;
+        } catch (LeftoverPlaceholdersException $e) {
+            if (app('blaze')->isDebugging()) {
+                throw $e;
+            }
+
+            return $component;
         } catch (\Exception $e) {
             return $component;
         }
@@ -192,5 +205,21 @@ class Folder
         $name = ucwords($name);
         $name = str_replace(' ', '', $name);
         return lcfirst($name);
+    }
+
+    protected function containsLeftoverPlaceholders(string $html): bool
+    {
+        return (bool) preg_match('/\b(SLOT_PLACEHOLDER_\d+|ATTR_PLACEHOLDER_\d+|NAMED_SLOT_[A-Za-z0-9_-]+)\b/', $html);
+    }
+
+    protected function summarizeLeftoverPlaceholders(string $html): string
+    {
+        preg_match_all('/\b(SLOT_PLACEHOLDER_\d+|ATTR_PLACEHOLDER_\d+|NAMED_SLOT_[A-Za-z0-9_-]+)\b/', $html, $matches);
+        $counts = array_count_values($matches[1] ?? []);
+        $parts = [];
+        foreach ($counts as $placeholder => $count) {
+            $parts[] = $placeholder . ' x' . $count;
+        }
+        return implode(', ', $parts);
     }
 }

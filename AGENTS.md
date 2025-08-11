@@ -101,14 +101,46 @@ Examples:
 - `@aware` directive
 - Components that inherit parent props
 
+**Pagination:**
+- `$paginator->links()`, `$paginator->render()`
+- Any pagination-related methods or properties
+- Components that display pagination controls
+- Data tables with pagination
+
+**Nested Non-Pure Components:**
+- Components that contain other components which use runtime data
+- Parent components can't be `@pure` if any child component is dynamic
+- Watch for `<x-*>` tags inside the component that might be non-pure
+
 ### 4. Analysis Process
 
 When analyzing a component:
 
 1. **Scan for unsafe patterns** using the lists above
-2. **Check for indirect dependencies** - props that might contain dynamic data
-3. **Consider context** - how the component is typically used
-4. **Test edge cases** - what happens with different prop values
+2. **Check for child components** - look for any `<x-*>` tags and verify they are also pure
+3. **Check for indirect dependencies** - props that might contain dynamic data (like paginator objects)
+4. **Consider context** - how the component is typically used
+5. **Test edge cases** - what happens with different prop values
+
+#### Special Case: Nested Components
+
+When a component directly renders other Blade components in its template (not via slots), verify those are also pure:
+
+```blade
+{{-- Parent component --}}
+@pure <!-- ⚠️ Only safe if directly rendered child components are pure -->
+
+<div class="data-table">
+    <x-table-header /> <!-- Must be pure -->
+    {{ $slot }} <!-- ✅ Slot content is handled separately, can be dynamic -->
+    <x-table-footer /> <!-- Must be pure -->
+    <x-table-pagination /> <!-- ❌ If this uses paginator, parent can't be @pure -->
+</div>
+```
+
+**Key distinction**: 
+- Components **hardcoded in the template** must be pure for the parent to be @pure
+- Content **passed through slots** is handled separately and can be dynamic
 
 ### 5. Making Recommendations
 
@@ -140,7 +172,7 @@ This component might be safe for @pure, but consider if [specific concern]. Test
 
 1. Find all component files (`resources/views/components/**/*.blade.php`)
 2. Analyze each component individually
-3. Add `@pure` only to safe components
+3. Add `@pure` only to safe components (include a line break after `@pure` )
 4. Report which components were modified and which were skipped with reasons
 
 ### "Optimize my Blade components"

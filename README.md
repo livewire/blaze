@@ -127,6 +127,30 @@ Avoid `@pure` for components that have runtime dependencies:
 <div class="theme-{{ $theme }}">{{ $slot }}</div>
 ```
 
+```blade
+{{-- Pagination components --}}
+@props(['paginator']) <!-- ❌ Don't use @pure -->
+
+<div class="pagination">
+    {{ $paginator->links() }}
+</div>
+```
+
+```blade
+{{-- Components containing non-pure children --}}
+@pure <!-- ❌ WRONG: This table contains pagination which is dynamic -->
+
+@props(['items'])
+
+<table class="table">
+    @foreach($items as $item)
+        <tr><td>{{ $item->name }}</td></tr>
+    @endforeach
+    
+    <x-table-pagination :paginator="$items" />
+</table>
+```
+
 ### 🔍 Watch out for
 
 Be careful with these patterns that might seem safe but can cause issues:
@@ -140,6 +164,30 @@ Be careful with these patterns that might seem safe but can cause issues:
 
 {{-- Environment-dependent values --}}
 <script src="{{ config('app.cdn_url') }}/app.js"></script> <!-- Might change -->
+
+{{-- Components that CONTAIN other non-pure components --}}
+@pure <!-- ❌ May break if child components are dynamic -->
+
+<div class="wrapper">
+    <x-user-greeting /> <!-- If this uses auth(), the parent can't be @pure -->
+</div>
+```
+
+**Important**: A component marked with `@pure` must not directly render any non-pure child components in its template. However, dynamic content passed through slots is fine - Blaze handles slot content separately. 
+
+```blade
+{{-- ✅ OK: Dynamic content passed via slot --}}
+@pure
+<div class="card">
+    {{ $slot }} <!-- Can contain any content, including non-pure components -->
+</div>
+
+{{-- ❌ NOT OK: Non-pure component hardcoded in template --}}
+@pure
+<div class="card">
+    <x-user-avatar /> <!-- If this uses auth(), the card can't be @pure -->
+    {{ $slot }}
+</div>
 ```
 
 ### 💡 Pro Tips
