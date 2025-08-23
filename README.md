@@ -2,7 +2,7 @@
 
 Speed up your Laravel app by optimizing Blade component rendering performance.
 
-> ⚠️ **Experimental package** - This is an early-stage, experimental package. APIs may change, and it's not recommended for production use yet. Please test thoroughly and report any issues!
+> ⚠️ **Early stages** - This is an early-stage perimental package. APIs may change, and edge cases have yet to be worked out. Please test thoroughly and report any issues!
 
 ```
 Rendering 25,000 simple button components:
