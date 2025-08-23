@@ -30,7 +30,6 @@ class Folder
             return false;
         }
 
-        // Force-fold when the component usage includes a `fold` or `blaze:fold` attribute
         if ($this->shouldForceFold($node)) {
             return true;
         }
@@ -44,8 +43,7 @@ class Folder
 
             $source = file_get_contents($componentPath);
 
-            // Look for @blaze directive
-            return (bool) preg_match('/^\s*(?:\/\*.*?\*\/\s*)*@blaze/s', $source);
+            return (bool) preg_match('/^\s*(?:\/\*.*?\*\/\s*)*@pure/s', $source);
 
         } catch (\Exception $e) {
             return false;

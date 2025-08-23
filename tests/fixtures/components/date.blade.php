@@ -1,4 +1,4 @@
-@blaze
+@pure
 
 @props(['date'])
 

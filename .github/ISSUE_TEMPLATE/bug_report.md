@@ -16,7 +16,7 @@ A clear and concise description of what the bug is.
 ```
 
 **Expected behavior**
-What you expected to happen when using `@blaze`.
+What you expected to happen when using `@pure`.
 
 **Actual behavior**
 What actually happened instead.

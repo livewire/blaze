@@ -13,7 +13,7 @@ class InvalidPureUsageException extends \Exception
         $this->componentPath = $componentPath;
         $this->problematicPattern = $problematicPattern;
 
-        $message = "Invalid @blaze usage in component '{$componentPath}': {$reason}";
+        $message = "Invalid @pure usage in component '{$componentPath}': {$reason}";
 
         parent::__construct($message);
     }
@@ -33,7 +33,7 @@ class InvalidPureUsageException extends \Exception
         return new self(
             $componentPath,
             '@aware',
-            'Components with @aware should not use @blaze as they depend on parent component state'
+            'Components with @aware should not use @pure as they depend on parent component state'
         );
     }
 
@@ -42,7 +42,7 @@ class InvalidPureUsageException extends \Exception
         return new self(
             $componentPath,
             '\\$errors',
-            'Components accessing $errors should not use @blaze as errors are request-specific'
+            'Components accessing $errors should not use @pure as errors are request-specific'
         );
     }
 
@@ -51,7 +51,7 @@ class InvalidPureUsageException extends \Exception
         return new self(
             $componentPath,
             'session\\(',
-            'Components using session() should not use @blaze as session data can change'
+            'Components using session() should not use @pure as session data can change'
         );
     }
 
@@ -60,7 +60,7 @@ class InvalidPureUsageException extends \Exception
         return new self(
             $componentPath,
             '@error\\(',
-            'Components with @error directives should not use @blaze as errors are request-specific'
+            'Components with @error directives should not use @pure as errors are request-specific'
         );
     }
 
@@ -69,7 +69,7 @@ class InvalidPureUsageException extends \Exception
         return new self(
             $componentPath,
             '@csrf',
-            'Components with @csrf should not use @blaze as CSRF tokens are request-specific'
+            'Components with @csrf should not use @pure as CSRF tokens are request-specific'
         );
     }
 
@@ -78,7 +78,7 @@ class InvalidPureUsageException extends \Exception
         return new self(
             $componentPath,
             'auth\\(\\)',
-            'Components using auth() should not use @blaze as authentication state can change'
+            'Components using auth() should not use @pure as authentication state can change'
         );
     }
 
@@ -87,7 +87,7 @@ class InvalidPureUsageException extends \Exception
         return new self(
             $componentPath,
             'request\\(\\)',
-            'Components using request() should not use @blaze as request data varies'
+            'Components using request() should not use @pure as request data varies'
         );
     }
 
@@ -96,7 +96,7 @@ class InvalidPureUsageException extends \Exception
         return new self(
             $componentPath,
             'old\\(',
-            'Components using old() should not use @blaze as old input is request-specific'
+            'Components using old() should not use @pure as old input is request-specific'
         );
     }
 

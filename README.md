@@ -27,14 +27,14 @@ composer require livewire/blaze
 
 ## Usage
 
-To optimize a Blade component for performance, simply add the `@blaze` directive at the top of your component file:
+To optimize a Blade component for performance, simply add the `@pure` directive at the top of your component file:
 
-> **Using Flux?** All eligible Flux components are already marked with `@blaze` - you don't need to do anything! Just install Blaze and enjoy the performance boost.
+> **Using Flux?** All eligible Flux components are already marked with `@pure` - you don't need to do anything! Just install Blaze and enjoy the performance boost.
 
 ```blade
 {{-- resources/views/components/button.blade.php --}}
 
-@blaze
+@pure
 
 @props(['variant' => 'primary'])
 
@@ -55,18 +55,18 @@ Blaze will automatically optimize it during compilation, pre-rendering the stati
 
 ## Table of contents
 
-- [When to use @blaze](#when-to-use-blaze)
+- [When to use @pure](#when-to-use-pure)
 - [Performance expectations](#performance-expectations)
 - [Error detection](#error-detection)
 - [Debugging](#debugging)
 - [Performance benchmarks](#performance)
 - [AI assistant integration](#ai-assistant-integration)
 
-## When to use @blaze
+## When to use @pure
 
-The `@blaze` directive tells Blaze that a component has no runtime dependencies and can be safely optimized. Only add it to components that render the same way every time they're compiled.
+The `@pure` directive tells Blaze that a component has no runtime dependencies and can be safely optimized. Only add it to components that render the same way every time they're compiled.
 
-### The @blaze litmus test
+### The @pure litmus test
 
 Ask yourself these questions about your component:
 
@@ -76,12 +76,12 @@ Ask yourself these questions about your component:
 4. **Does it only use the props you pass in?** (no session data, no database queries)
 5. **Are all child components it renders also pure?** (no dynamic components hardcoded inside)
 
-**If you answered YES to all questions → Add `@blaze`**
-**If you answered NO to any question → Don't add `@blaze`**
+**If you answered YES to all questions → Add `@pure`**
+**If you answered NO to any question → Don't add `@pure`**
 
 ### Quick mental model
 
-Think of `@blaze` components as **"design system" components** - they're the building blocks that:
+Think of `@pure` components as **"design system" components** - they're the building blocks that:
 - Look the same for everyone
 - Only change based on props you explicitly pass
 - Could be shown in a component library or Storybook without any application context
@@ -90,16 +90,16 @@ Examples: buttons, cards, badges, icons, layout grids, typography components
 
 **Not** pure: anything that's "smart" or "connected" - forms (CSRF), navigation (active states), user avatars (auth), timestamps (time), paginated tables (request state).
 
-**For developers familiar with functional programming**: Think of `@blaze` components like pure functions - they always produce the same output for the same input, with no side effects or dependencies on external state.
+**For developers familiar with functional programming**: Think of `@pure` components like pure functions - they always produce the same output for the same input, with no side effects or dependencies on external state.
 
-### ✅ Safe for @blaze
+### ✅ Safe for @pure
 
 These components are good candidates for optimization:
 
 ```blade
 {{-- Static UI components --}}
 
-@blaze
+@pure
 
 <div class="card p-4 rounded shadow">
     {{ $slot }}
@@ -109,7 +109,7 @@ These components are good candidates for optimization:
 ```blade
 {{-- Components that only depend on passed props --}}
 
-@blaze
+@pure
 
 @props(['size' => 'md', 'color' => 'blue'])
 
@@ -118,15 +118,15 @@ These components are good candidates for optimization:
 </button>
 ```
 
-### ❌ Never use @blaze with
+### ❌ Never use @pure with
 
-Avoid `@blaze` for components that have runtime dependencies:
+Avoid `@pure` for components that have runtime dependencies:
 
 ```blade
 {{-- CSRF tokens change per request --}}
 
 <form method="POST">
-    @csrf <!-- ❌ Don't use @blaze -->
+    @csrf <!-- ❌ Don't use @pure -->
     <button type="submit">Submit</button>
 </form>
 ```
@@ -134,7 +134,7 @@ Avoid `@blaze` for components that have runtime dependencies:
 ```blade
 {{-- Authentication state changes at runtime --}}
 
-@auth <!-- ❌ Don't use @blaze -->
+@auth <!-- ❌ Don't use @pure -->
     <p>Welcome back!</p>
 @endauth
 ```
@@ -144,7 +144,7 @@ Avoid `@blaze` for components that have runtime dependencies:
 
 @props(['href'])
 
-<a href="{{ $href }}" @class(['active' => request()->is($href)])> <!-- ❌ Don't use @blaze -->
+<a href="{{ $href }}" @class(['active' => request()->is($href)])> <!-- ❌ Don't use @pure -->
     {{ $slot }}
 </a>
 ```
@@ -152,7 +152,7 @@ Avoid `@blaze` for components that have runtime dependencies:
 ```blade
 {{-- Error bags are request-specific --}}
 
-@if($errors->has('email')) <!-- ❌ Don't use @blaze -->
+@if($errors->has('email')) <!-- ❌ Don't use @pure -->
     <span class="error">{{ $errors->first('email') }}</span>
 @endif
 ```
@@ -160,13 +160,13 @@ Avoid `@blaze` for components that have runtime dependencies:
 ```blade
 {{-- Session data changes at runtime --}}
 
-<div>Welcome, {{ session('username') }}</div> <!-- ❌ Don't use @blaze -->
+<div>Welcome, {{ session('username') }}</div> <!-- ❌ Don't use @pure -->
 ```
 
 ```blade
 {{-- Components using @aware --}}
 
-@aware(['theme']) <!-- ❌ Don't use @blaze -->
+@aware(['theme']) <!-- ❌ Don't use @pure -->
 
 @props(['theme' => 'light'])
 
@@ -176,7 +176,7 @@ Avoid `@blaze` for components that have runtime dependencies:
 ```blade
 {{-- Pagination components --}}
 
-@props(['paginator']) <!-- ❌ Don't use @blaze -->
+@props(['paginator']) <!-- ❌ Don't use @pure -->
 
 <div class="pagination">
     {{ $paginator->links() }}
@@ -186,7 +186,7 @@ Avoid `@blaze` for components that have runtime dependencies:
 ```blade
 {{-- Components containing non-pure children --}}
 
-@blaze <!-- ❌ WRONG: This table contains pagination which is dynamic -->
+@pure <!-- ❌ WRONG: This table contains pagination which is dynamic -->
 
 @props(['items'])
 
@@ -214,16 +214,16 @@ Be careful with these patterns that might seem safe but can cause issues:
 <script src="{{ config('app.cdn_url') }}/app.js"></script> <!-- Might change -->
 
 {{-- Components that CONTAIN other non-pure components --}}
-@blaze <!-- ❌ May break if child components are dynamic -->
+@pure <!-- ❌ May break if child components are dynamic -->
 
 <div class="wrapper">
-    <x-user-greeting /> <!-- If this uses auth(), the parent can't be @blaze -->
+    <x-user-greeting /> <!-- If this uses auth(), the parent can't be @pure -->
 </div>
 ```
 
 ### Why isn't Blaze optimizing my component?
 
-Even with `@blaze`, Blaze only folds components when it can safely pre-render them at compile-time:
+Even with `@pure`, Blaze only folds components when it can safely pre-render them at compile-time:
 
 ```blade
 {{-- ✅ CAN be folded - static date value --}}
@@ -235,13 +235,13 @@ Even with `@blaze`, Blaze only folds components when it can safely pre-render th
 
 **Why?** Blaze needs actual values at compile-time to pre-render. When you pass dynamic variables (like `$user->created_at`), Blaze doesn't know their values during compilation, so it skips folding and renders normally at runtime. This happens automatically - your component still works, it just won't be optimized.
 
-**Note**: If your `@blaze` component isn't being folded, check if you're passing dynamic variables to it. The component itself is fine - it's the dynamic data preventing optimization.
+**Note**: If your `@pure` component isn't being folded, check if you're passing dynamic variables to it. The component itself is fine - it's the dynamic data preventing optimization.
 
 ### 💡 Pro Tips
 
 - **Start with simple components**: Begin with basic UI components like buttons, cards, and badges
 - **Check your dependencies**: If your component uses any Laravel helpers or global variables, think twice
-- **Test thoroughly**: After adding `@blaze`, verify the component still works correctly across different requests
+- **Test thoroughly**: After adding `@pure`, verify the component still works correctly across different requests
 - **Blaze is forgiving**: If a component can't be optimized, Blaze will automatically fall back to normal rendering
 
 
@@ -262,7 +262,7 @@ While our benchmark shows up to 17x improvement for rendering thousands of compo
 
 ### Error detection
 
-When you add `@blaze` to a component with runtime dependencies, Blaze will detect common unsafe patterns and show helpful error messages during compilation. This prevents broken components and guides you toward the correct implementation.
+When you add `@pure` to a component with runtime dependencies, Blaze will detect common unsafe patterns and show helpful error messages during compilation. This prevents broken components and guides you toward the correct implementation.
 
 ## Debugging
 
@@ -305,13 +305,13 @@ Blaze delivers significant performance improvements by eliminating the overhead 
 This repository includes an [`AGENTS.md`](AGENTS.md) file specifically designed for AI assistants (like GitHub Copilot, Cursor, or Claude). If you're using an AI tool to help with your Laravel project:
 
 1. **Point your AI assistant to the AGENTS.md file** when asking about Blaze optimization
-2. **The file contains detailed guidance** for analyzing components and determining `@blaze` eligibility
+2. **The file contains detailed guidance** for analyzing components and determining `@pure` eligibility
 3. **Use it for automated analysis** - AI assistants can help audit your entire component library
 
 Example prompts for AI assistants:
-- "Using the AGENTS.md file, analyze my components and tell me which can use @blaze"
-- "Help me add @blaze to all eligible components following the AGENTS.md guidelines"
-- "Check if this component is safe for @blaze based on AGENTS.md"
+- "Using the AGENTS.md file, analyze my components and tell me which can use @pure"
+- "Help me add @pure to all eligible components following the AGENTS.md guidelines"
+- "Check if this component is safe for @pure based on AGENTS.md"
 
 ## License
 

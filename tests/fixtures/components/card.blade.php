@@ -1,6 +1,6 @@
-@blaze
+@pure
 
-@props(['title' => null])
+@props([])
 
 <div class="card">
     {{ $slot }}
