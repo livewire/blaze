@@ -55,27 +55,12 @@ Blaze will automatically optimize it during compilation, pre-rendering the stati
 
 ## Table of contents
 
-- [Performance expectations](#performance-expectations)
 - [When to use @blaze](#when-to-use-blaze)
+- [Performance expectations](#performance-expectations)
 - [Error detection](#error-detection)
 - [Debugging](#debugging)
 - [Performance benchmarks](#performance)
 - [AI assistant integration](#ai-assistant-integration)
-
-## Performance expectations
-
-While our benchmark shows up to 17x improvement for rendering thousands of components, real-world gains are more nuanced:
-
-### Typical improvements
-
-**Most pages**: 10-30ms faster rendering
-- Reasonably sized pages with a few hundred components will see modest but meaningful improvements
-
-**Heavy component pages**: 50-100ms+ faster
-- Data tables with dozens/hundreds of rows
-- Select dropdowns with many options
-- Dashboard grids with repeated cards
-- Any page with significant component repetition
 
 ## When to use @blaze
 
@@ -258,6 +243,22 @@ Even with `@blaze`, Blaze only folds components when it can safely pre-render th
 - **Check your dependencies**: If your component uses any Laravel helpers or global variables, think twice
 - **Test thoroughly**: After adding `@blaze`, verify the component still works correctly across different requests
 - **Blaze is forgiving**: If a component can't be optimized, Blaze will automatically fall back to normal rendering
+
+
+## Performance expectations
+
+While our benchmark shows up to 17x improvement for rendering thousands of components, real-world gains are more nuanced:
+
+### Typical improvements
+
+**Most pages**: 10-30ms faster rendering
+- Reasonably sized pages with a few hundred components will see modest but meaningful improvements
+
+**Heavy component pages**: 50-100ms+ faster
+- Data tables with dozens/hundreds of rows
+- Select dropdowns with many options
+- Dashboard grids with repeated cards
+- Any page with significant component repetition
 
 ### Error detection
 
