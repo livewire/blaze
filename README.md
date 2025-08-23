@@ -59,9 +59,7 @@ Blaze will automatically optimize it during compilation, pre-rendering the stati
 
 - [When to use @pure](#when-to-use-pure)
 - [Performance expectations](#performance-expectations)
-- [Error detection](#error-detection)
 - [Debugging](#debugging)
-- [Performance benchmarks](#performance)
 - [AI assistant integration](#ai-assistant-integration)
 
 ## When to use @pure
@@ -86,11 +84,11 @@ Ask yourself these questions about your component:
 Think of `@pure` components as **"design system" components** - they're the building blocks that:
 - Look the same for everyone
 - Only change based on props you explicitly pass
-- Could be shown in a component library or Storybook without any application context
+- Could be shown in a component library without any application context
 
 Examples: buttons, cards, badges, icons, layout grids, typography components
 
-**Not** pure: anything that's "smart" or "connected" - forms (CSRF), navigation (active states), user avatars (auth), timestamps (time), paginated tables (request state).
+**Not pure** : anything that's "smart" or "connected" - forms (CSRF), navigation (active states), user avatars (auth), timestamps (time), paginated tables (request state).
 
 **For developers familiar with functional programming**: Think of `@pure` components like pure functions - they always produce the same output for the same input, with no side effects or dependencies on external state.
 
@@ -262,10 +260,6 @@ While our benchmark shows up to 17x improvement for rendering thousands of compo
 - Dashboard grids with repeated cards
 - Any page with significant component repetition
 
-### Error detection
-
-When you add `@pure` to a component with runtime dependencies, Blaze will detect common unsafe patterns and show helpful error messages during compilation. This prevents broken components and guides you toward the correct implementation.
-
 ## Debugging
 
 Blaze is designed to fail gracefully - when it encounters an error during component folding, it automatically falls back to normal Blade rendering. This ensures your application never breaks due to optimization attempts.
@@ -273,7 +267,8 @@ Blaze is designed to fail gracefully - when it encounters an error during compon
 However, when debugging why a component isn't being optimized, you might want to see the actual error that's causing Blaze to skip folding:
 
 ```php
-// In a service provider or debug environment
+// In a service provider or debug environment...
+
 app('blaze')->debug();
 ```
 
@@ -283,24 +278,6 @@ When debug mode is enabled:
 - This helps you identify issues like:
   - Invalid prop types (e.g., passing a string to a date formatter expecting a Carbon instance)
   - Missing required props
-
-## Performance
-
-Blaze delivers significant performance improvements by eliminating the overhead of component rendering, prop parsing, and slot handling at runtime.
-
-### Performance characteristics
-
-- **Compilation overhead**: Minimal (~2-5ms per foldable component during first compile)
-- **Memory usage**: Reduced at runtime (pre-rendered HTML uses less memory than component objects)
-- **Cache efficiency**: Better template cache utilization due to fewer dynamic parts
-- **Scaling**: Performance gains increase with component usage frequency
-
-### When you'll see the biggest impact
-
-- **Component-heavy applications** with lots of reusable UI elements
-- **High-traffic sites** where every millisecond of render time matters
-- **Dashboard/admin interfaces** with many repeated components
-- **Design systems** with consistent, pure UI components
 
 ## AI assistant integration
 
