@@ -1,7 +1,5 @@
 <?php
 
-use Illuminate\Support\Facades\View;
-
 describe('infinite recursion bugs', function () {
     beforeEach(function () {
         // Configure Blade to find our test components and views
@@ -11,10 +9,10 @@ describe('infinite recursion bugs', function () {
 
     it('should handle dynamic attributes without infinite recursion', function () {
         $template = '<x-button type="submit" class="btn-primary">Submit</x-button>';
-        
+
         // This should complete without hanging or crashing
         $rendered = \Illuminate\Support\Facades\Blade::render($template);
-        
+
         expect($rendered)->toContain('<button');
         expect($rendered)->toContain('type="submit"');
         expect($rendered)->toContain('class="btn-primary"');
@@ -24,10 +22,10 @@ describe('infinite recursion bugs', function () {
 
     it('should handle nested pure components without infinite recursion', function () {
         $template = '<x-card><x-alert message="Nested alert!" /></x-card>';
-        
+
         // This should complete without hanging or crashing
         $rendered = \Illuminate\Support\Facades\Blade::render($template);
-        
+
         expect($rendered)->toContain('<div class="card">');
         expect($rendered)->toContain('<div class="alert">');
         expect($rendered)->toContain('Nested alert!');
@@ -42,10 +40,10 @@ describe('infinite recursion bugs', function () {
             <x-alert message="Alert in card" />
             <x-button type="submit" class="secondary">Button 2</x-button>
         </x-card>';
-        
+
         // This should complete without hanging or crashing  
         $rendered = \Illuminate\Support\Facades\Blade::render($template);
-        
+
         expect($rendered)->toContain('<div class="card">');
         expect($rendered)->toContain('Button 1');
         expect($rendered)->toContain('Button 2');
@@ -69,10 +67,10 @@ describe('infinite recursion bugs', function () {
                 <x-button type="submit">Outer Button</x-button>
             </x-card>
         </div>';
-        
+
         // This should complete without hanging or crashing
         $rendered = \Illuminate\Support\Facades\Blade::render($template);
-        
+
         expect($rendered)->toContain('<div class="wrapper">');
         expect($rendered)->toContain('<h1>Outer Card</h1>');
         expect($rendered)->toContain('<h2>Inner Card</h2>');
@@ -94,10 +92,10 @@ describe('infinite recursion bugs', function () {
             aria-label="Save changes">
             Save Changes
         </x-button>';
-        
+
         // This should complete without hanging or crashing
         $rendered = \Illuminate\Support\Facades\Blade::render($template);
-        
+
         expect($rendered)->toContain('<button');
         expect($rendered)->toContain('type="submit"');
         expect($rendered)->toContain('class="btn-primary btn-large"');
@@ -110,10 +108,10 @@ describe('infinite recursion bugs', function () {
     it('should handle edge case with quotes and special characters', function () {
         // Test edge case that might trigger recursion issues
         $template = '<x-button class="btn \'quoted\' &amp; escaped" data-test=\'{"key": "value"}\'>Complex</x-button>';
-        
+
         // This should complete without hanging or crashing
         $rendered = \Illuminate\Support\Facades\Blade::render($template);
-        
+
         expect($rendered)->toContain('<button');
         expect($rendered)->toContain('Complex');
         expect($rendered)->not->toContain('<x-button');
