@@ -127,6 +127,7 @@ class Folder
     {
         $problematicPatterns = [
             '@aware' => 'forAware',
+            '@once' => 'forOnce',
             '\\$errors' => 'forErrors',
             'session\\(' => 'forSession',
             '@error\\(' => 'forError',

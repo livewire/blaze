@@ -117,20 +117,31 @@ describe('fold elligable components', function () {
         expect(compile($input))->toBe($output);
     });
 
-    it('throws exception for invalid @pure usage', function () {
-        // Test the folder validation directly
+    it('throws exception for invalid pure usage with $pattern', function (string $pattern, string $expectedPattern) {
         $folder = app('blaze')->folder();
-        $componentNode = new \Livewire\Blaze\Nodes\ComponentNode('invalid-pure', 'x', '', [], false);
+        $componentNode = new \Livewire\Blaze\Nodes\ComponentNode("invalid-pure.{$pattern}", 'x', '', [], false);
+
+        expect(fn() => $folder->fold($componentNode))
+            ->toThrow(\Livewire\Blaze\Exceptions\InvalidPureUsageException::class);
 
         try {
             $folder->fold($componentNode);
-            expect(false)->toBeTrue('Exception should have been thrown');
         } catch (\Livewire\Blaze\Exceptions\InvalidPureUsageException $e) {
             expect($e->getMessage())->toContain('Invalid @pure usage');
-            expect($e->getComponentPath())->toContain('invalid-pure.blade.php');
-            expect($e->getProblematicPattern())->toBe('\\$errors');
+            expect($e->getComponentPath())->toContain("invalid-pure/{$pattern}.blade.php");
+            expect($e->getProblematicPattern())->toBe($expectedPattern);
         }
-    });
+    })->with([
+        ['aware', '@aware'],
+        ['errors', '\\$errors'],
+        ['session', 'session\\('],
+        ['error', '@error\\('],
+        ['csrf', '@csrf'],
+        ['auth', 'auth\\(\\)'],
+        ['request', 'request\\(\\)'],
+        ['old', 'old\\('],
+        ['once', '@once'],
+    ]);
 
     it('named slots', function () {
         $input = '<x-modal>
@@ -222,4 +233,5 @@ BLADE;
 
         expect(compile($input))->toBe($output);
     });
+
 });
