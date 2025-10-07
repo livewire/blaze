@@ -100,4 +100,13 @@ class InvalidPureUsageException extends \Exception
         );
     }
 
+    public static function forOnce(string $componentPath): self
+    {
+        return new self(
+            $componentPath,
+            '@once',
+            'Components with @once should not use @pure as @once maintains runtime state'
+        );
+    }
+
 }

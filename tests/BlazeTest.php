@@ -51,7 +51,7 @@ describe('blaze integration', function () {
     });
 
     it('throws exception for components with invalid pure usage', function () {
-        expect(fn() => \Illuminate\Support\Facades\Blade::render('<x-invalid-pure>Test</x-invalid-pure>'))
+        expect(fn() => \Illuminate\Support\Facades\Blade::render('<x-invalid-pure.errors>Test</x-invalid-pure.errors>'))
             ->toThrow(\Livewire\Blaze\Exceptions\InvalidPureUsageException::class);
     });
 
