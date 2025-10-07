@@ -1,8 +1,6 @@
 <?php
 
 use Illuminate\Support\Facades\View;
-use Illuminate\Support\Facades\Blade;
-use Illuminate\Support\Facades\Artisan;
 
 beforeEach(function () {
     // Register anonymous components used by the benchmark
@@ -58,4 +56,4 @@ it('can run performance benchmarks', function () {
     fwrite(STDOUT, "Blaze enabled but no folding - render 25k component loop: " . number_format($duration, 2) . " ms\n");
 
     expect(true)->toBeTrue();
-})->skip();
+});
