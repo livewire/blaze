@@ -16,6 +16,19 @@ describe('fold elligable components', function () {
         expect(compile($input))->toBe($output);
     });
 
+    it('strips double quotes from attributes with string literals', function () {
+        $input = '<x-avatar :name="\'Hi\'" :src="\'there\'" />';
+
+        expect(compile($input))->not->toContain('src=""');
+        expect(compile($input))->not->toContain('alt=""');
+    });
+
+    it('strips double quotes from complex dynamic attributes', function () {
+        $input = '<x-avatar :name="$foo->bar" :src="$baz->qux" />';
+
+        expect(compile($input))->toContain('src="{{ $baz->qux }}" alt="{{ $foo->bar }}"');
+    });
+
     it('with static props', function () {
         $input = '<x-alert message="Success!" />';
         $output = '<div class="alert">Success!</div>';

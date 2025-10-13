@@ -21,6 +21,9 @@ class AttributeParser
             $attributeName = $matches[2];
             $attributeValue = $matches[3];
 
+            // Strip double quotes from attribute value...
+            $attributeValue = trim($attributeValue, '"');
+
             $placeholder = 'ATTR_PLACEHOLDER_' . count($attributePlaceholders);
             if (preg_match('/^"\$([a-zA-Z0-9_]+)"$/', $attributeValue, $m)) {
                 $attributePlaceholders[$placeholder] = '{{ $' . $m[1] . ' }}';
