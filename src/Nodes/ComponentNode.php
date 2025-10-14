@@ -135,8 +135,8 @@ class ComponentNode extends Node
             foreach ($slotPlaceholders as $placeholder => $content) {
                 if ($placeholder === $defaultPlaceholder) {
                     // Trim whitespace immediately around the default placeholder position...
-                    $pattern = '/>\s*' . preg_quote($placeholder, '/') . '\s*</';
-                    $renderedHtml = preg_replace($pattern, '>'.$content.'<', $renderedHtml);
+                    $pattern = '/\s*' . preg_quote($placeholder, '/') . '\s*/';
+                    $renderedHtml = preg_replace($pattern, $content, $renderedHtml);
                 } else {
                     $renderedHtml = str_replace($placeholder, $content, $renderedHtml);
                 }
