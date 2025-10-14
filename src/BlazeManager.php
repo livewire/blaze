@@ -3,8 +3,10 @@
 namespace Livewire\Blaze;
 
 use Livewire\Blaze\Events\ComponentFolded;
+use Livewire\Blaze\Nodes\ComponentNode;
 use Livewire\Blaze\Tokenizer\Tokenizer;
 use Illuminate\Support\Facades\Event;
+use Livewire\Blaze\Nodes\SlotNode;
 use Livewire\Blaze\Walker\Walker;
 use Livewire\Blaze\Parser\Parser;
 use Livewire\Blaze\Folder\Folder;
@@ -86,9 +88,29 @@ class BlazeManager
 
         $ast = $this->parser->parse($tokens);
 
-        $ast = $this->walker->walkPost($ast, function ($node) {
-            return $this->folder->fold($node);
-        });
+        $dataStack = [];
+
+        $ast = $this->walker->walk(
+            nodes: $ast,
+            preCallback: function ($node) use (&$dataStack) {
+                if ($node instanceof ComponentNode || $node instanceof SlotNode) {
+                    $node->parentAttributes = $dataStack;
+                }
+
+                if (($node instanceof ComponentNode || $node instanceof SlotNode) && !empty($node->children)) {
+                    array_push($dataStack, $node->attributes);
+                }
+
+                return $node;
+            },
+            postCallback: function ($node) use (&$dataStack) {
+                if (($node instanceof ComponentNode || $node instanceof SlotNode) && !empty($node->children)) {
+                    array_pop($dataStack);
+                }
+
+                return $this->folder->fold($node);
+            },
+        );
 
         $output = $this->render($ast);
 

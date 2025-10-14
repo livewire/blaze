@@ -14,6 +14,7 @@ class ComponentNode extends Node
         public string $attributes = '',
         public array $children = [],
         public bool $selfClosing = false,
+        public array $parentAttributes = [],
     ) {}
 
     public function getType(): string
@@ -30,6 +31,7 @@ class ComponentNode extends Node
             'attributes' => $this->attributes,
             'children' => array_map(fn($child) => $child instanceof Node ? $child->toArray() : $child, $this->children),
             'self_closing' => $this->selfClosing,
+            'parent_attributes' => $this->parentAttributes,
         ];
 
         return $array;

@@ -4,6 +4,7 @@ namespace Livewire\Blaze\Folder;
 
 use Livewire\Blaze\Exceptions\LeftoverPlaceholdersException;
 use Livewire\Blaze\Exceptions\InvalidPureUsageException;
+use Livewire\Blaze\Support\AttributeParser;
 use Livewire\Blaze\Events\ComponentFolded;
 use Livewire\Blaze\Nodes\ComponentNode;
 use Illuminate\Support\Facades\Event;
@@ -68,10 +69,18 @@ class Folder
         try {
             $componentPath = ($this->componentNameToPath)($component->name);
 
-            if (! $isForced && file_exists($componentPath)) {
+            if (file_exists($componentPath)) {
                 $source = file_get_contents($componentPath);
 
-                $this->validatePureComponent($source, $componentPath);
+                if (! $isForced) {
+                    $this->validatePureComponent($source, $componentPath);
+                }
+
+                $awareAttributes = $this->getAwareAttributes($source);
+
+                if (! empty($awareAttributes)) {
+                    $node->attributes = $this->mergeAwareAttributes($node->attributes, $node->parentAttributes, $awareAttributes);
+                }
             }
 
             [$processedNode, $slotPlaceholders, $restore, $attributeNameToPlaceholder, $attributeNameToOriginal, $rawAttributes] = $component->replaceDynamicPortionsWithPlaceholders(
@@ -126,7 +135,6 @@ class Folder
     protected function validatePureComponent(string $source, string $componentPath): void
     {
         $problematicPatterns = [
-            '@aware' => 'forAware',
             '@once' => 'forOnce',
             '\\$errors' => 'forErrors',
             'session\\(' => 'forSession',
@@ -181,6 +189,62 @@ class Folder
         }
 
         return '[' . implode(', ', $parts) . ']';
+    }
+
+    protected function getAwareAttributes(string $source): array
+    {
+        preg_match('/@aware\(\[(.*?)\]\)/s', $source, $matches);
+
+        if (empty($matches[1])) {
+            return [];
+        }
+
+        $attributeParser = new AttributeParser();
+
+        return $attributeParser->parseArrayString($matches[1]);
+    }
+
+    protected function mergeAwareAttributes(string $attributes, $parentsAttributes, array $attributesToMerge): string
+    {
+        $attributeParser = new AttributeParser();
+
+        $parsedAttributes = $attributeParser->parseToArray($attributes);
+
+        $parsedParentsAttributes = [];
+
+        foreach ($parentsAttributes as $parentAttributes) {
+            $parsedParentsAttributes[] = $attributeParser->parseToArray($parentAttributes);
+        }
+
+        foreach ($attributesToMerge as $attributeName => $attributeValue) {
+            if (is_int($attributeName)) {
+                $name = $attributeValue;
+            } else {
+                $name = $attributeName;
+            }
+
+            if (isset($parsedAttributes[$name])) {
+                continue;
+            }
+
+            foreach ($parsedParentsAttributes as $parsedParentAttributes) {
+                if (isset($parsedParentAttributes[$name])) {
+                    $parsedAttributes[$name] = $parsedParentAttributes[$name];
+                    break;
+                }
+            }
+
+            // If the attribute is not set then fall back to using the aware value...
+            if (! isset($parsedAttributes[$name]) && ! is_int($attributeName)) {
+                $parsedAttributes[$name] = [
+                    'isDynamic' => false,
+                    'value' => $attributeValue,
+                    'original' => $name . '="' . $attributeValue . '"',
+                ];
+            }
+        }
+
+        return $attributeParser->parseToString($parsedAttributes);
     }
 
     protected function hasAwareDescendant(Node $node): bool
