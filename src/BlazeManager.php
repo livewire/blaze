@@ -2,14 +2,15 @@
 
 namespace Livewire\Blaze;
 
-use Livewire\Blaze\Events\ComponentFolded;
-use Livewire\Blaze\Nodes\ComponentNode;
-use Livewire\Blaze\Tokenizer\Tokenizer;
-use Illuminate\Support\Facades\Event;
-use Livewire\Blaze\Nodes\SlotNode;
 use Livewire\Blaze\Walker\Walker;
+use Livewire\Blaze\Tokenizer\Tokenizer;
 use Livewire\Blaze\Parser\Parser;
+use Livewire\Blaze\Nodes\SlotNode;
+use Livewire\Blaze\Nodes\ComponentNode;
+use Livewire\Blaze\Memoizer\Memoizer;
 use Livewire\Blaze\Folder\Folder;
+use Livewire\Blaze\Events\ComponentFolded;
+use Illuminate\Support\Facades\Event;
 
 class BlazeManager
 {
@@ -26,6 +27,7 @@ class BlazeManager
         protected Parser $parser,
         protected Walker $walker,
         protected Folder $folder,
+        protected Memoizer $memoizer,
     ) {
         Event::listen(ComponentFolded::class, function (ComponentFolded $event) {
             $this->foldedEvents[] = $event;
@@ -108,7 +110,7 @@ class BlazeManager
                     array_pop($dataStack);
                 }
 
-                return $this->folder->fold($node);
+                return $this->memoizer->memoize($this->folder->fold($node));
             },
         );
 

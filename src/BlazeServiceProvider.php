@@ -2,19 +2,20 @@
 
 namespace Livewire\Blaze;
 
+use Livewire\Blaze\Walker\Walker;
 use Livewire\Blaze\Tokenizer\Tokenizer;
+use Livewire\Blaze\Parser\Parser;
+use Livewire\Blaze\Memoizer\Memoizer;
+use Livewire\Blaze\Folder\Folder;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Support\Facades\Blade;
-use Livewire\Blaze\Walker\Walker;
-use Livewire\Blaze\Parser\Parser;
-use Livewire\Blaze\Folder\Folder;
 
 class BlazeServiceProvider extends ServiceProvider
 {
     public function register(): void
     {
         $this->registerBlazeManager();
-        $this->registerPureDirectiveFallback();
+        $this->registerDirectiveFallbacks();
         $this->registerBladeMacros();
         $this->interceptBladeCompilation();
         $this->interceptViewCacheInvalidation();
@@ -33,6 +34,11 @@ class BlazeServiceProvider extends ServiceProvider
                 renderNodes: fn ($nodes) => implode('', array_map(fn ($n) => $n->render(), $nodes)),
                 componentNameToPath: fn ($name) => $bladeService->componentNameToPath($name),
             ),
+            new Memoizer(
+                renderBlade: fn ($blade) => $bladeService->isolatedRender($blade),
+                renderNodes: fn ($nodes) => implode('', array_map(fn ($n) => $n->render(), $nodes)),
+                componentNameToPath: fn ($name) => $bladeService->componentNameToPath($name),
+            ),
         ));
 
         $this->app->alias(BlazeManager::class, Blaze::class);
@@ -40,9 +46,10 @@ class BlazeServiceProvider extends ServiceProvider
         $this->app->bind('blaze', fn ($app) => $app->make(BlazeManager::class));
     }
 
-    protected function registerPureDirectiveFallback(): void
+    protected function registerDirectiveFallbacks(): void
     {
         Blade::directive('pure', fn () => '');
+        Blade::directive('memoize', fn () => '');
     }
 
     protected function registerBladeMacros(): void

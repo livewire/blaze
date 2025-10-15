@@ -56,6 +56,49 @@ class ComponentNode extends Node
         return $output;
     }
 
+    public function getAttributesAsRuntimeArrayString(): string
+    {
+        $arrayOfAttributes = (new AttributeParser())->parseToArray($this->attributes);
+
+        // $arrayOfAttributes =
+        // [
+        //     "foo" => array:3 [
+        //         "isDynamic" => false
+        //         "value" => "bar"
+        //         "original" => "foo="bar""
+        //     ]
+        // ]
+
+        // Now turn this into a runtime array string like this:
+        // "['foo' => 'bar']"
+
+        $arrayParts = [];
+
+        foreach ($arrayOfAttributes as $attributeName => $attributeData) {
+            if ($attributeData['isDynamic']) {
+                $arrayParts[] = "'" . addslashes($attributeName) . "' => " . $attributeData['value'];
+                continue;
+            }
+
+            $value = $attributeData['value'];
+
+            // Handle different value types
+            if (is_bool($value)) {
+                $valueString = $value ? 'true' : 'false';
+            } elseif (is_string($value)) {
+                $valueString = "'" . addslashes($value) . "'";
+            } elseif (is_null($value)) {
+                $valueString = 'null';
+            } else {
+                $valueString = (string) $value;
+            }
+
+            $arrayParts[] = "'" . addslashes($attributeName) . "' => " . $valueString;
+        }
+
+        return '[' . implode(', ', $arrayParts) . ']';
+    }
+
     public function replaceDynamicPortionsWithPlaceholders(callable $renderNodes): array
     {
         $attributePlaceholders = [];
