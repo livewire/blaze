@@ -47,7 +47,6 @@ class BlazeServiceProvider extends ServiceProvider
     protected function registerDirectiveFallbacks(): void
     {
         Blade::directive('pure', fn () => '');
-        Blade::directive('memoize', fn () => '');
     }
 
     protected function registerBladeMacros(): void
