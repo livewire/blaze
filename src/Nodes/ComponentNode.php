@@ -36,7 +36,7 @@ class ComponentNode extends Node
             'attributes' => $this->attributes,
             'children' => array_map(fn($child) => $child instanceof Node ? $child->toArray() : $child, $this->children),
             'self_closing' => $this->selfClosing,
-            'parent_attributes' => $this->parentsAttributes,
+            'parents_attributes' => $this->parentsAttributes,
         ];
 
         return $array;
