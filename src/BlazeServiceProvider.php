@@ -35,8 +35,6 @@ class BlazeServiceProvider extends ServiceProvider
                 componentNameToPath: fn ($name) => $bladeService->componentNameToPath($name),
             ),
             new Memoizer(
-                renderBlade: fn ($blade) => $bladeService->isolatedRender($blade),
-                renderNodes: fn ($nodes) => implode('', array_map(fn ($n) => $n->render(), $nodes)),
                 componentNameToPath: fn ($name) => $bladeService->componentNameToPath($name),
             ),
         ));

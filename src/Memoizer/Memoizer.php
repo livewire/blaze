@@ -9,14 +9,10 @@ use Livewire\Blaze\Pure\Pure;
 
 class Memoizer
 {
-    protected $renderBlade;
-    protected $renderNodes;
     protected $componentNameToPath;
 
-    public function __construct(callable $renderBlade, callable $renderNodes, callable $componentNameToPath)
+    public function __construct(callable $componentNameToPath)
     {
-        $this->renderBlade = $renderBlade;
-        $this->renderNodes = $renderNodes;
         $this->componentNameToPath = $componentNameToPath;
     }
 
