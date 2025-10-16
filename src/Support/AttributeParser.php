@@ -237,7 +237,7 @@ class AttributeParser
      * will be parsed into the string:
      * `foo="bar" :name="$name" :$baz searchable`
      */
-    public function parseAttributesArrayToString(array $attributes): string
+    public function parseAttributesArrayToPropString(array $attributes): string
     {
         $attributesString = '';
 

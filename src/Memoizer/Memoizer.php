@@ -53,10 +53,6 @@ class Memoizer
             return $node;
         }
 
-        if ($node->name === 'flux::editor.toolbar') {
-            $foo = 'bar';
-        }
-
         if (! $node->selfClosing) {
             return $node;
         }

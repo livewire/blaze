@@ -267,7 +267,7 @@ class ComponentNode extends Node
 
         // Convert the parsed attributes back to a string with the original format:
         // `name1="value1" name2="value2" name3="value3"`
-        $this->attributes = $attributeParser->parseAttributesArrayToString($attributes);
+        $this->attributes = $attributeParser->parseAttributesArrayToPropString($attributes);
     }
 
     protected function stripNamespaceFromName(string $name, string $prefix): string

@@ -169,7 +169,7 @@ describe('parse attributes', function () {
 
         $output = 'foo="bar" :name="$name" :$baz searchable';
 
-        $attributes = (new AttributeParser())->parseAttributesArrayToString($input);
+        $attributes = (new AttributeParser())->parseAttributesArrayToPropString($input);
 
         expect($attributes)->toBe($output);
     });

@@ -58,7 +58,6 @@ class Folder
         }
 
         if (! $this->isFoldable($node)) {
-
             return $node;
         }
 
