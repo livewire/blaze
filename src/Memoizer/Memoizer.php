@@ -2,15 +2,10 @@
 
 namespace Livewire\Blaze\Memoizer;
 
-use Livewire\Blaze\Exceptions\LeftoverPlaceholdersException;
-use Livewire\Blaze\Exceptions\InvalidPureUsageException;
-use Livewire\Blaze\Support\AttributeParser;
-use Livewire\Blaze\Events\ComponentFolded;
 use Livewire\Blaze\Nodes\ComponentNode;
-use Illuminate\Support\Facades\Event;
 use Livewire\Blaze\Nodes\TextNode;
-use Livewire\Blaze\Nodes\SlotNode;
 use Livewire\Blaze\Nodes\Node;
+use Livewire\Blaze\Pure\Pure;
 
 class Memoizer
 {
@@ -40,7 +35,14 @@ class Memoizer
 
             $source = file_get_contents($componentPath);
 
-            return (bool) preg_match('/^\s*(?:\/\*.*?\*\/\s*)*@pure/s', $source);
+            $pureParameters = Pure::getParameters($source);
+
+            if (is_null($pureParameters)) {
+                return false;
+            }
+
+            // Default to true if memo parameter is not specified
+            return $pureParameters['memo'] ?? true;
 
         } catch (\Exception $e) {
             return false;

@@ -11,6 +11,7 @@ use Illuminate\Support\Facades\Event;
 use Livewire\Blaze\Nodes\TextNode;
 use Livewire\Blaze\Nodes\SlotNode;
 use Livewire\Blaze\Nodes\Node;
+use Livewire\Blaze\Pure\Pure;
 
 class Folder
 {
@@ -44,7 +45,14 @@ class Folder
 
             $source = file_get_contents($componentPath);
 
-            return (bool) preg_match('/^\s*(?:\/\*.*?\*\/\s*)*@pure/s', $source);
+            $pureParameters = Pure::getParameters($source);
+
+            if (is_null($pureParameters)) {
+                return false;
+            }
+
+            // Default to true if fold parameter is not specified
+            return $pureParameters['fold'] ?? true;
 
         } catch (\Exception $e) {
             return false;
@@ -76,11 +84,16 @@ class Folder
                     $this->validatePureComponent($source, $componentPath);
                 }
 
-                $awareAttributes = $this->getAwareDirectiveAttributes($source);
+                $pureParameters = Pure::getParameters($source);
 
-                if (! empty($awareAttributes)) {
-                    $component->mergeAwareAttributes($awareAttributes);
-                }
+                // Default to true if aware parameter is not specified
+                if ($pureParameters['aware'] ?? true) {
+                    $awareAttributes = $this->getAwareDirectiveAttributes($source);
+
+                    if (! empty($awareAttributes)) {
+                        $component->mergeAwareAttributes($awareAttributes);
+                    }
+                }                
             }
 
             [$processedNode, $slotPlaceholders, $restore, $attributeNameToPlaceholder, $attributeNameToOriginal, $rawAttributes] = $component->replaceDynamicPortionsWithPlaceholders(

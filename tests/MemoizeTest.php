@@ -37,6 +37,10 @@ describe('memoization', function () {
     });
 
     it('memoization only works on self-closing components', function () {
-        //
+        $renderedA = app('blade.compiler')->render('<x-memoize foo="bar"></x-memoize>');
+        $renderedB = app('blade.compiler')->render('<x-memoize foo="bar"></x-memoize>');
+
+        expect($renderedA)->toContain('<div>');
+        expect($renderedA)->not->toBe($renderedB);
     });
 });
