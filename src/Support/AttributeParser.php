@@ -64,7 +64,37 @@ class AttributeParser
         return $attributesString;
     }
 
-    public function parseToArray(string $attributesString): array
+    /**
+     * Parse an attribute string into an array of attributes.
+     *
+     * For example, the string:
+     * `foo="bar" :name="$name" :$baz searchable`
+     *
+     * will be parsed into the array:
+     * [
+     *     'foo' => [
+     *         'isDynamic' => false,
+     *         'value' => 'bar',
+     *         'original' => 'foo="bar"',
+     *     ],
+     *     'name' => [
+     *         'isDynamic' => true,
+     *         'value' => '$name',
+     *         'original' => ':name="$name"',
+     *     ],
+     *     'baz' => [
+     *         'isDynamic' => true,
+     *         'value' => '$baz',
+     *         'original' => ':$baz',
+     *     ],
+     *     'searchable' => [
+     *         'isDynamic' => false,
+     *         'value' => true,
+     *         'original' => 'searchable',
+     *     ],
+     * ]
+     */
+    public function parseAttributeStringToArray(string $attributesString): array
     {
         $attributes = [];
         $processedPositions = [];
@@ -177,7 +207,37 @@ class AttributeParser
         return $attributes;
     }
 
-    public function parseToString(array $attributes): string
+    /**
+     * Parse an array of attributes into an attributes string.
+     *
+     * For example, the array:
+     * [
+     *     'foo' => [
+     *         'isDynamic' => false,
+     *         'value' => 'bar',
+     *         'original' => 'foo="bar"',
+     *     ],
+     *     'name' => [
+     *         'isDynamic' => true,
+     *         'value' => '$name',
+     *         'original' => ':name="$name"',
+     *     ],
+     *     'baz' => [
+     *         'isDynamic' => true,
+     *         'value' => '$baz',
+     *         'original' => ':$baz',
+     *     ],
+     *     'searchable' => [
+     *         'isDynamic' => false,
+     *         'value' => true,
+     *         'original' => 'searchable',
+     *     ],
+     * ]
+     *
+     * will be parsed into the string:
+     * `foo="bar" :name="$name" :$baz searchable`
+     */
+    public function parseAttributesArrayToString(array $attributes): string
     {
         $attributesString = '';
 
@@ -189,17 +249,18 @@ class AttributeParser
     }
 
     /**
-     * Parse PHP array string syntax into a PHP array.
+     * Parse PHP array string syntax (typically used in `@aware` or `@props` directives) into a PHP array.
+     * 
+     * For example, the string:
+     * `['foo', 'bar' => 'baz']`
      *
-     * Supports formats:
-     * - ['variant', 'secondVariant' => null]
-     * - ["variant", "secondVariant" => null]
-     * - [\n    'variant',\n    'secondVariant' => null\n]
-     *
-     * @param string $arrayString
-     * @return array
+     * will be parsed into the array:
+     * [
+     *     'foo',
+     *     'bar' => 'baz',
+     * ]
      */
-    public function parseArrayString(string $arrayString): array
+    public function parseArrayStringIntoArray(string $arrayString): array
     {
         // Remove any leading/trailing whitespace and newlines
         $arrayString = trim($arrayString);
