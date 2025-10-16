@@ -248,6 +248,67 @@ class AttributeParser
         return trim($attributesString);
     }
 
+
+    /**
+     * 
+     * Parse an array of attributes into a runtime array string.
+     * 
+     * For example, the array:
+     * [
+     *     'foo' => [
+     *         'isDynamic' => false,
+     *         'value' => 'bar',
+     *         'original' => 'foo="bar"',
+     *     ],
+     *     'name' => [
+     *         'isDynamic' => true,
+     *         'value' => '$name',
+     *         'original' => ':name="$name"',
+     *     ],
+     *     'baz' => [
+     *         'isDynamic' => true,
+     *         'value' => '$baz',
+     *         'original' => ':$baz',
+     *     ],
+     *     'searchable' => [
+     *         'isDynamic' => false,
+     *         'value' => true,
+     *         'original' => 'searchable',
+     *     ],
+     * ]
+     * 
+     * will be parsed into the string:
+     * `['foo' => 'bar', 'name' => $name, 'baz' => $baz, 'searchable' => true]`
+     */
+    public function parseAttributesArrayToRuntimeArrayString(array $attributes): string
+    {
+        $arrayParts = [];
+
+        foreach ($attributes as $attributeName => $attributeData) {
+            if ($attributeData['isDynamic']) {
+                $arrayParts[] = "'" . addslashes($attributeName) . "' => " . $attributeData['value'];
+                continue;
+            }
+
+            $value = $attributeData['value'];
+
+            // Handle different value types
+            if (is_bool($value)) {
+                $valueString = $value ? 'true' : 'false';
+            } elseif (is_string($value)) {
+                $valueString = "'" . addslashes($value) . "'";
+            } elseif (is_null($value)) {
+                $valueString = 'null';
+            } else {
+                $valueString = (string) $value;
+            }
+
+            $arrayParts[] = "'" . addslashes($attributeName) . "' => " . $valueString;
+        }
+
+        return '[' . implode(', ', $arrayParts) . ']';
+    }
+
     /**
      * Parse PHP array string syntax (typically used in `@aware` or `@props` directives) into a PHP array.
      * 
