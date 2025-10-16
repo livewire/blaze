@@ -11,7 +11,6 @@ class SlotNode extends Node
         public array $children = [],
         public string $prefix = 'x-slot',
         public bool $closeHasName = false,
-        public array $parentAttributes = [],
     ) {}
 
     public function getType(): string
@@ -28,7 +27,6 @@ class SlotNode extends Node
             'slot_style' => $this->slotStyle,
             'prefix' => $this->prefix,
             'close_has_name' => $this->closeHasName,
-            'parent_attributes' => $this->parentAttributes,
             'children' => array_map(fn($child) => $child instanceof Node ? $child->toArray() : $child, $this->children),
         ];
     }

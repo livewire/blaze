@@ -185,6 +185,14 @@ describe('fold elligable components', function () {
         expect(compile($input))->toBe($output);
     });
 
+    it('supports folding aware components with two wrapping components both with the same prop the closest one wins', function () {
+        $input = '<x-group variant="primary"><x-group variant="secondary"><x-pure-item /></x-group></x-group>';
+        // The pure-item should render the `secondary` variant because it is the closest one to the pure-item...
+        $output = '<div class="group group-primary" data-test="foo"><div class="group group-secondary" data-test="foo"><div class="item item-secondary"></div></div></div>';
+
+        expect(compile($input))->toBe($output);
+    });
+
     it('supports aware on unfoldable components from folded parent with single word attributes', function () {
         $input = '<x-group variant="primary"><x-item /></x-group>';
 

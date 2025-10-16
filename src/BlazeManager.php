@@ -95,18 +95,18 @@ class BlazeManager
         $ast = $this->walker->walk(
             nodes: $ast,
             preCallback: function ($node) use (&$dataStack) {
-                if ($node instanceof ComponentNode || $node instanceof SlotNode) {
-                    $node->parentAttributes = $dataStack;
+                if ($node instanceof ComponentNode) {
+                    $node->setParentsAttributes($dataStack);
                 }
 
-                if (($node instanceof ComponentNode || $node instanceof SlotNode) && !empty($node->children)) {
+                if (($node instanceof ComponentNode) && !empty($node->children)) {
                     array_push($dataStack, $node->attributes);
                 }
 
                 return $node;
             },
             postCallback: function ($node) use (&$dataStack) {
-                if (($node instanceof ComponentNode || $node instanceof SlotNode) && !empty($node->children)) {
+                if (($node instanceof ComponentNode) && !empty($node->children)) {
                     array_pop($dataStack);
                 }
 

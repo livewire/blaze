@@ -77,10 +77,10 @@ class Folder
                     $this->validatePureComponent($source, $componentPath);
                 }
 
-                $awareAttributes = $this->getAwareAttributes($source);
+                $awareAttributes = $this->getAwareDirectiveAttributes($source);
 
                 if (! empty($awareAttributes)) {
-                    $node->attributes = $this->mergeAwareAttributes($node->attributes, $node->parentAttributes, $awareAttributes);
+                    $component->mergeAwareAttributes($awareAttributes);
                 }
             }
 
@@ -192,7 +192,7 @@ class Folder
         return '[' . implode(', ', $parts) . ']';
     }
 
-    protected function getAwareAttributes(string $source): array
+    protected function getAwareDirectiveAttributes(string $source): array
     {
         preg_match('/@aware\(\[(.*?)\]\)/s', $source, $matches);
 
@@ -202,50 +202,7 @@ class Folder
 
         $attributeParser = new AttributeParser();
 
-        return $attributeParser->parseArrayString($matches[1]);
-    }
-
-    protected function mergeAwareAttributes(string $attributes, $parentsAttributes, array $attributesToMerge): string
-    {
-        $attributeParser = new AttributeParser();
-
-        $parsedAttributes = $attributeParser->parseToArray($attributes);
-
-        $parsedParentsAttributes = [];
-
-        foreach ($parentsAttributes as $parentAttributes) {
-            $parsedParentsAttributes[] = $attributeParser->parseToArray($parentAttributes);
-        }
-
-        foreach ($attributesToMerge as $attributeName => $attributeValue) {
-            if (is_int($attributeName)) {
-                $name = $attributeValue;
-            } else {
-                $name = $attributeName;
-            }
-
-            if (isset($parsedAttributes[$name])) {
-                continue;
-            }
-
-            foreach ($parsedParentsAttributes as $parsedParentAttributes) {
-                if (isset($parsedParentAttributes[$name])) {
-                    $parsedAttributes[$name] = $parsedParentAttributes[$name];
-                    break;
-                }
-            }
-
-            // If the attribute is not set then fall back to using the aware value...
-            if (! isset($parsedAttributes[$name]) && ! is_int($attributeName)) {
-                $parsedAttributes[$name] = [
-                    'isDynamic' => false,
-                    'value' => $attributeValue,
-                    'original' => $name . '="' . $attributeValue . '"',
-                ];
-            }
-        }
-
-        return $attributeParser->parseToString($parsedAttributes);
+        return $attributeParser->parseArrayStringIntoArray($matches[1]);
     }
 
     protected function hasAwareDescendant(Node $node): bool

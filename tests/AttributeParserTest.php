@@ -18,7 +18,7 @@ describe('parse attributes', function () {
             ],
         ];
 
-        $attributes = (new AttributeParser())->parseToArray($input);
+        $attributes = (new AttributeParser())->parseAttributeStringToArray($input);
 
         expect($attributes)->toBe($output);
     });
@@ -38,7 +38,7 @@ describe('parse attributes', function () {
             ],
         ];
 
-        $attributes = (new AttributeParser())->parseToArray($input);
+        $attributes = (new AttributeParser())->parseAttributeStringToArray($input);
 
         expect($attributes)->toBe($output);
     });
@@ -53,7 +53,7 @@ describe('parse attributes', function () {
             ],
         ];
 
-        $attributes = (new AttributeParser())->parseToArray($input);
+        $attributes = (new AttributeParser())->parseAttributeStringToArray($input);
 
         expect($attributes)->toBe($output);
     });
@@ -68,7 +68,7 @@ describe('parse attributes', function () {
             ],
         ];
 
-        $attributes = (new AttributeParser())->parseToArray($input);
+        $attributes = (new AttributeParser())->parseAttributeStringToArray($input);
 
         expect($attributes)->toBe($output);
     });
@@ -83,7 +83,7 @@ describe('parse attributes', function () {
             ],
         ];
 
-        $attributes = (new AttributeParser())->parseToArray($input);
+        $attributes = (new AttributeParser())->parseAttributeStringToArray($input);
 
         expect($attributes)->toBe($output);
     });
@@ -103,7 +103,7 @@ describe('parse attributes', function () {
             ],
         ];
 
-        $attributes = (new AttributeParser())->parseToArray($input);
+        $attributes = (new AttributeParser())->parseAttributeStringToArray($input);
 
         expect($attributes)->toBe($output);
     });
@@ -123,7 +123,7 @@ describe('parse attributes', function () {
             ],
         ];
 
-        $attributes = (new AttributeParser())->parseToArray($input);
+        $attributes = (new AttributeParser())->parseAttributeStringToArray($input);
 
         expect($attributes)->toBe($output);
     });
@@ -138,7 +138,38 @@ describe('parse attributes', function () {
             ],
         ];
 
-        $attributes = (new AttributeParser())->parseToArray($input);
+        $attributes = (new AttributeParser())->parseAttributeStringToArray($input);
+
+        expect($attributes)->toBe($output);
+    });
+
+    it('parses an attributes array and converts it to an attributes string', function () {
+        $input = [
+            'foo' => [
+                'isDynamic' => false,
+                'value' => 'bar',
+                'original' => 'foo="bar"',
+            ],
+            'name' => [
+                'isDynamic' => true,
+                'value' => '$name',
+                'original' => ':name="$name"',
+            ],
+            'baz' => [
+                'isDynamic' => true,
+                'value' => '$baz',
+                'original' => ':$baz',
+            ],
+            'searchable' => [
+                'isDynamic' => false,
+                'value' => true,
+                'original' => 'searchable',
+            ],
+        ];
+
+        $output = 'foo="bar" :name="$name" :$baz searchable';
+
+        $attributes = (new AttributeParser())->parseAttributesArrayToString($input);
 
         expect($attributes)->toBe($output);
     });
@@ -150,7 +181,7 @@ describe('parse attributes', function () {
             'secondVariant' => null,
         ];
 
-        $attributes = (new AttributeParser())->parseArrayString($input);
+        $attributes = (new AttributeParser())->parseArrayStringIntoArray($input);
 
         expect($attributes)->toBe($output);
     });
@@ -165,7 +196,7 @@ describe('parse attributes', function () {
             'secondVariant' => null,
         ];
 
-        $attributes = (new AttributeParser())->parseArrayString($input);
+        $attributes = (new AttributeParser())->parseArrayStringIntoArray($input);
 
         expect($attributes)->toBe($output);
     });
@@ -177,7 +208,7 @@ describe('parse attributes', function () {
             'secondVariant' => null,
         ];
 
-        $attributes = (new AttributeParser())->parseArrayString($input);
+        $attributes = (new AttributeParser())->parseArrayStringIntoArray($input);
 
         expect($attributes)->toBe($output);
     });
