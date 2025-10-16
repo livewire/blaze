@@ -2,15 +2,14 @@
 
 namespace Livewire\Blaze;
 
-use Livewire\Blaze\Walker\Walker;
-use Livewire\Blaze\Tokenizer\Tokenizer;
-use Livewire\Blaze\Parser\Parser;
-use Livewire\Blaze\Nodes\SlotNode;
-use Livewire\Blaze\Nodes\ComponentNode;
-use Livewire\Blaze\Memoizer\Memoizer;
-use Livewire\Blaze\Folder\Folder;
 use Livewire\Blaze\Events\ComponentFolded;
+use Livewire\Blaze\Nodes\ComponentNode;
+use Livewire\Blaze\Tokenizer\Tokenizer;
 use Illuminate\Support\Facades\Event;
+use Livewire\Blaze\Memoizer\Memoizer;
+use Livewire\Blaze\Walker\Walker;
+use Livewire\Blaze\Parser\Parser;
+use Livewire\Blaze\Folder\Folder;
 
 class BlazeManager
 {
