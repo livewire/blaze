@@ -2,13 +2,13 @@
 
 namespace Livewire\Blaze;
 
-use Livewire\Blaze\Walker\Walker;
 use Livewire\Blaze\Tokenizer\Tokenizer;
-use Livewire\Blaze\Parser\Parser;
-use Livewire\Blaze\Memoizer\Memoizer;
-use Livewire\Blaze\Folder\Folder;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Support\Facades\Blade;
+use Livewire\Blaze\Memoizer\Memoizer;
+use Livewire\Blaze\Walker\Walker;
+use Livewire\Blaze\Parser\Parser;
+use Livewire\Blaze\Folder\Folder;
 
 class BlazeServiceProvider extends ServiceProvider
 {
