@@ -2,7 +2,7 @@
 
 Speed up your Laravel app by optimizing Blade component rendering performance.
 
-> ⚠️ **Early stages** - This is an early-stage perimental package. APIs may change, and edge cases have yet to be worked out. Please test thoroughly and report any issues!
+> ⚠️ **Early stages** - This is an early-stage experimental package. APIs may change, and edge cases have yet to be worked out. Please test thoroughly and report any issues!
 
 ```
 Rendering 25,000 pure button components:
@@ -44,6 +44,33 @@ The `@pure` directive signals that your component is "pure" - meaning it has no 
     {{ $slot }}
 </button>
 ```
+
+The `@pure` directive supports optional parameters to control different optimization strategies:
+
+```blade
+{{-- All optimizations enabled (default) --}}
+@pure
+
+{{-- Explicitly enable all optimizations --}}
+@pure(fold: true, memo: true, aware: true)
+
+{{-- Disable specific optimizations --}}
+@pure(fold: false, memo: true, aware: false)
+```
+
+**Parameters:**
+- `fold: true/false` - Enable compile-time code folding (default: true)
+- `memo: true/false` - Enable runtime memoization (default: true)
+- `aware: true/false` - Enable `@aware` directive support (default: true)
+
+### How Optimization Works
+
+Blaze uses a two-tier optimization approach:
+
+1. **Compile-time folding** - Pre-renders static components during Blade compilation
+2. **Runtime memoization** - Caches component output when folding isn't possible
+
+If a component can't be folded (due to dynamic content), Blaze automatically falls back to memoization, caching the rendered output based on the component name and props to avoid re-rendering identical components.
 
 When you use this component in your templates:
 
@@ -164,16 +191,6 @@ Avoid `@pure` for components that have runtime dependencies:
 ```
 
 ```blade
-{{-- Components using @aware --}}
-
-@aware(['theme']) <!-- ❌ Don't use @pure -->
-
-@props(['theme' => 'light'])
-
-<div class="theme-{{ $theme }}">{{ $slot }}</div>
-```
-
-```blade
 {{-- Pagination components --}}
 
 @props(['paginator']) <!-- ❌ Don't use @pure -->
@@ -236,6 +253,29 @@ Even with `@pure`, Blaze only folds components when it can safely pre-render the
 **Why?** Blaze needs actual values at compile-time to pre-render. When you pass dynamic variables (like `$user->created_at`), Blaze doesn't know their values during compilation, so it skips folding and renders normally at runtime. This happens automatically - your component still works, it just won't be optimized.
 
 **Note**: If your `@pure` component isn't being folded, check if you're passing dynamic variables to it. The component itself is fine - it's the dynamic data preventing optimization.
+
+### Runtime Memoization
+
+When a component can't be folded due to dynamic content, Blaze automatically falls back to **runtime memoization**. This caches the rendered output based on the component name and props, so identical components don't need to be re-rendered.
+
+```blade
+{{-- This component can't be folded but will be memoized --}}
+
+@pure
+
+@props(['user'])
+
+<div class="user-card">
+    <h3>{{ $user->name }}</h3>
+    <p>Joined {{ $user->created_at->format('M Y') }}</p>
+</div>
+```
+
+**Benefits of memoization:**
+- Caches identical component renders
+- Reduces CPU usage for repeated components
+- Works with any `@pure` component, even with dynamic props
+- Automatic fallback when folding isn't possible
 
 ### 💡 Pro Tips
 

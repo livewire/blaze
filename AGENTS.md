@@ -25,6 +25,24 @@ The `@pure` directive tells Blaze that a component has no runtime dependencies a
 <h1 class="text-2xl font-bold">{{ $title }}</h1>
 ```
 
+The `@pure` directive supports optional parameters to control different optimization strategies:
+
+```blade
+{{-- All optimizations enabled (default) --}}
+@pure
+
+{{-- Explicitly enable all optimizations --}}
+@pure(fold: true, memo: true, aware: true)
+
+{{-- Disable specific optimizations --}}
+@pure(fold: false, memo: true, aware: false)
+```
+
+**Parameters:**
+- `fold: true/false` - Enable compile-time code folding (default: true)
+- `memo: true/false` - Enable runtime memoization (default: true)
+- `aware: true/false` - Enable `@aware` directive support (default: true)
+
 ### Code Folding Process
 
 When a `@pure` component is encountered, Blaze:
@@ -33,6 +51,10 @@ When a `@pure` component is encountered, Blaze:
 3. Validates that placeholders are preserved
 4. Replaces placeholders with original dynamic content
 5. Outputs the optimized HTML directly into the parent template
+
+### Runtime Memoization
+
+When a component can't be folded (due to dynamic content), Blaze automatically falls back to runtime memoization. This caches the rendered output based on the component name and props, so identical components don't need to be re-rendered.
 
 ## Helping Users Analyze Components
 
@@ -67,6 +89,12 @@ Examples:
 @pure
 @props(['price'])
 <span class="font-mono">${{ number_format($price, 2) }}</span>
+
+{{-- Components using @aware --}}
+@pure
+@aware(['theme'])
+@props(['theme' => 'light'])
+<div class="theme-{{ $theme }}">{{ $slot }}</div>
 ```
 
 ### 3. Unsafe Patterns (Never @pure)
@@ -98,8 +126,7 @@ Examples:
 - Any directive that depends on request context
 
 **Component Dependencies:**
-- `@aware` directive
-- Components that inherit parent props
+- Components that inherit parent props (except when using `@aware`)
 
 **Pagination:**
 - `$paginator->links()`, `$paginator->render()`
@@ -138,7 +165,7 @@ When a component directly renders other Blade components in its template (not vi
 </div>
 ```
 
-**Key distinction**: 
+**Key distinction**:
 - Components **hardcoded in the template** must be pure for the parent to be @pure
 - Content **passed through slots** is handled separately and can be dynamic
 
@@ -156,7 +183,7 @@ This component cannot use @pure because it contains [specific pattern]. The [pat
 
 **For borderline cases:**
 ```
-This component might be safe for @pure, but consider if [specific concern]. Test thoroughly after adding @pure to ensure it behaves correctly across different requests.
+This component might be safe for @pure, but consider if [specific concern]. Test thoroughly after adding @pure to ensure it behaves correctly across different requests. If folding isn't possible, memoization will still provide performance benefits.
 ```
 
 ## Common User Requests
