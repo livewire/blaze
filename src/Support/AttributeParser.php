@@ -100,14 +100,14 @@ class AttributeParser
         $processedPositions = [];
 
         // Handle :name="..." or :name=$var syntax
-        preg_match_all('/(\s*):([a-zA-Z0-9_-]+)\s*=\s*("[^"]*"|\$[a-zA-Z0-9_]+)/', $attributesString, $matches, PREG_SET_ORDER | PREG_OFFSET_CAPTURE);
+        preg_match_all('/(?:^|\s):([a-zA-Z0-9_:-]+)\s*=\s*("[^"]*"|\$[a-zA-Z0-9_]+)/', $attributesString, $matches, PREG_SET_ORDER | PREG_OFFSET_CAPTURE);
         foreach ($matches as $match) {
             $start = $match[0][1];
             $end = $start + strlen($match[0][0]);
             $processedPositions[] = [$start, $end];
 
-            $attributeName = str($match[2][0])->camel()->toString();
-            $attributeValue = trim($match[3][0], '"');
+            $attributeName = str($match[1][0])->camel()->toString();
+            $attributeValue = trim($match[2][0], '"');
             $original = trim($match[0][0]);
 
             $attributes[$attributeName] = [
@@ -118,7 +118,7 @@ class AttributeParser
         }
 
         // Handle short :$var syntax (expands to :var="$var")
-        preg_match_all('/(\s*):\$([a-zA-Z0-9_-]+)(?=\s|$)/', $attributesString, $matches, PREG_SET_ORDER | PREG_OFFSET_CAPTURE);
+        preg_match_all('/(?:^|\s):\$([a-zA-Z0-9_:-]+)(?=\s|$)/', $attributesString, $matches, PREG_SET_ORDER | PREG_OFFSET_CAPTURE);
         foreach ($matches as $match) {
             $start = $match[0][1];
             $end = $start + strlen($match[0][0]);
@@ -135,8 +135,8 @@ class AttributeParser
 
             $processedPositions[] = [$start, $end];
 
-            $attributeName = str($match[2][0])->camel()->toString();
-            $attributeValue = '$' . $match[2][0];
+            $attributeName = str($match[1][0])->camel()->toString();
+            $attributeValue = '$' . $match[1][0];
             $original = trim($match[0][0]);
 
             $attributes[$attributeName] = [
@@ -147,7 +147,7 @@ class AttributeParser
         }
 
         // Handle regular name="value" syntax
-        preg_match_all('/(\s*)([a-zA-Z0-9_-]+)\s*=\s*("[^"]*")/', $attributesString, $matches, PREG_SET_ORDER | PREG_OFFSET_CAPTURE);
+        preg_match_all('/(\s*)([a-zA-Z0-9_:-]+)\s*=\s*("[^"]*")/', $attributesString, $matches, PREG_SET_ORDER | PREG_OFFSET_CAPTURE);
         foreach ($matches as $match) {
             $start = $match[0][1];
             $end = $start + strlen($match[0][0]);
@@ -176,7 +176,7 @@ class AttributeParser
         }
 
         // Handle boolean attributes (single words without values)
-        preg_match_all('/(\s*)([a-zA-Z0-9_-]+)(?=\s|$)/', $attributesString, $matches, PREG_SET_ORDER | PREG_OFFSET_CAPTURE);
+        preg_match_all('/(\s*)([a-zA-Z0-9_:-]+)(?=\s|$)/', $attributesString, $matches, PREG_SET_ORDER | PREG_OFFSET_CAPTURE);
         foreach ($matches as $match) {
             $start = $match[0][1];
             $end = $start + strlen($match[0][0]);
@@ -250,9 +250,9 @@ class AttributeParser
 
 
     /**
-     * 
+     *
      * Parse an array of attributes into a runtime array string.
-     * 
+     *
      * For example, the array:
      * [
      *     'foo' => [
@@ -276,7 +276,7 @@ class AttributeParser
      *         'original' => 'searchable',
      *     ],
      * ]
-     * 
+     *
      * will be parsed into the string:
      * `['foo' => 'bar', 'name' => $name, 'baz' => $baz, 'searchable' => true]`
      */
@@ -311,7 +311,7 @@ class AttributeParser
 
     /**
      * Parse PHP array string syntax (typically used in `@aware` or `@props` directives) into a PHP array.
-     * 
+     *
      * For example, the string:
      * `['foo', 'bar' => 'baz']`
      *

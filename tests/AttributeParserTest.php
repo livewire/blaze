@@ -143,6 +143,21 @@ describe('parse attributes', function () {
         expect($attributes)->toBe($output);
     });
 
+    it('parses static attributes which contain colons', function () {
+        $input = 'wire:sort:item="{{ $id }}"';
+        $output = [
+            'wire:sort:item' => [
+                'isDynamic' => false,
+                'value' => '{{ $id }}',
+                'original' => 'wire:sort:item="{{ $id }}"',
+            ],
+        ];
+
+        $attributes = (new AttributeParser())->parseAttributeStringToArray($input);
+
+        expect($attributes)->toBe($output);
+    });
+
     it('parses an attributes array and converts it to an attributes string', function () {
         $input = [
             'foo' => [
