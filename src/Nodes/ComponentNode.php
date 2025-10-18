@@ -61,6 +61,15 @@ class ComponentNode extends Node
         return $output;
     }
 
+    public function getAttributesAsRuntimeArrayString(): string
+    {
+        $attributeParser = new AttributeParser();
+
+        $attributesArray = $attributeParser->parseAttributeStringToArray($this->attributes);
+
+        return $attributeParser->parseAttributesArrayToRuntimeArrayString($attributesArray);
+    }
+
     public function replaceDynamicPortionsWithPlaceholders(callable $renderNodes): array
     {
         $attributePlaceholders = [];
@@ -224,7 +233,7 @@ class ComponentNode extends Node
 
         // Convert the parsed attributes back to a string with the original format:
         // `name1="value1" name2="value2" name3="value3"`
-        $this->attributes = $attributeParser->parseAttributesArrayToString($attributes);
+        $this->attributes = $attributeParser->parseAttributesArrayToPropString($attributes);
     }
 
     protected function stripNamespaceFromName(string $name, string $prefix): string

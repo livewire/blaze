@@ -100,14 +100,14 @@ class AttributeParser
         $processedPositions = [];
 
         // Handle :name="..." or :name=$var syntax
-        preg_match_all('/(\s*):([a-zA-Z0-9_-]+)\s*=\s*("[^"]*"|\$[a-zA-Z0-9_]+)/', $attributesString, $matches, PREG_SET_ORDER | PREG_OFFSET_CAPTURE);
+        preg_match_all('/(?:^|\s):([a-zA-Z0-9_:-]+)\s*=\s*("[^"]*"|\$[a-zA-Z0-9_]+)/', $attributesString, $matches, PREG_SET_ORDER | PREG_OFFSET_CAPTURE);
         foreach ($matches as $match) {
             $start = $match[0][1];
             $end = $start + strlen($match[0][0]);
             $processedPositions[] = [$start, $end];
 
-            $attributeName = str($match[2][0])->camel()->toString();
-            $attributeValue = trim($match[3][0], '"');
+            $attributeName = str($match[1][0])->camel()->toString();
+            $attributeValue = trim($match[2][0], '"');
             $original = trim($match[0][0]);
 
             $attributes[$attributeName] = [
@@ -118,7 +118,7 @@ class AttributeParser
         }
 
         // Handle short :$var syntax (expands to :var="$var")
-        preg_match_all('/(\s*):\$([a-zA-Z0-9_-]+)(?=\s|$)/', $attributesString, $matches, PREG_SET_ORDER | PREG_OFFSET_CAPTURE);
+        preg_match_all('/(?:^|\s):\$([a-zA-Z0-9_:-]+)(?=\s|$)/', $attributesString, $matches, PREG_SET_ORDER | PREG_OFFSET_CAPTURE);
         foreach ($matches as $match) {
             $start = $match[0][1];
             $end = $start + strlen($match[0][0]);
@@ -135,8 +135,8 @@ class AttributeParser
 
             $processedPositions[] = [$start, $end];
 
-            $attributeName = str($match[2][0])->camel()->toString();
-            $attributeValue = '$' . $match[2][0];
+            $attributeName = str($match[1][0])->camel()->toString();
+            $attributeValue = '$' . $match[1][0];
             $original = trim($match[0][0]);
 
             $attributes[$attributeName] = [
@@ -147,7 +147,7 @@ class AttributeParser
         }
 
         // Handle regular name="value" syntax
-        preg_match_all('/(\s*)([a-zA-Z0-9_-]+)\s*=\s*("[^"]*")/', $attributesString, $matches, PREG_SET_ORDER | PREG_OFFSET_CAPTURE);
+        preg_match_all('/(\s*)([a-zA-Z0-9_:-]+)\s*=\s*("[^"]*")/', $attributesString, $matches, PREG_SET_ORDER | PREG_OFFSET_CAPTURE);
         foreach ($matches as $match) {
             $start = $match[0][1];
             $end = $start + strlen($match[0][0]);
@@ -176,7 +176,7 @@ class AttributeParser
         }
 
         // Handle boolean attributes (single words without values)
-        preg_match_all('/(\s*)([a-zA-Z0-9_-]+)(?=\s|$)/', $attributesString, $matches, PREG_SET_ORDER | PREG_OFFSET_CAPTURE);
+        preg_match_all('/(\s*)([a-zA-Z0-9_:-]+)(?=\s|$)/', $attributesString, $matches, PREG_SET_ORDER | PREG_OFFSET_CAPTURE);
         foreach ($matches as $match) {
             $start = $match[0][1];
             $end = $start + strlen($match[0][0]);
@@ -237,7 +237,7 @@ class AttributeParser
      * will be parsed into the string:
      * `foo="bar" :name="$name" :$baz searchable`
      */
-    public function parseAttributesArrayToString(array $attributes): string
+    public function parseAttributesArrayToPropString(array $attributes): string
     {
         $attributesString = '';
 
@@ -248,9 +248,70 @@ class AttributeParser
         return trim($attributesString);
     }
 
+
+    /**
+     *
+     * Parse an array of attributes into a runtime array string.
+     *
+     * For example, the array:
+     * [
+     *     'foo' => [
+     *         'isDynamic' => false,
+     *         'value' => 'bar',
+     *         'original' => 'foo="bar"',
+     *     ],
+     *     'name' => [
+     *         'isDynamic' => true,
+     *         'value' => '$name',
+     *         'original' => ':name="$name"',
+     *     ],
+     *     'baz' => [
+     *         'isDynamic' => true,
+     *         'value' => '$baz',
+     *         'original' => ':$baz',
+     *     ],
+     *     'searchable' => [
+     *         'isDynamic' => false,
+     *         'value' => true,
+     *         'original' => 'searchable',
+     *     ],
+     * ]
+     *
+     * will be parsed into the string:
+     * `['foo' => 'bar', 'name' => $name, 'baz' => $baz, 'searchable' => true]`
+     */
+    public function parseAttributesArrayToRuntimeArrayString(array $attributes): string
+    {
+        $arrayParts = [];
+
+        foreach ($attributes as $attributeName => $attributeData) {
+            if ($attributeData['isDynamic']) {
+                $arrayParts[] = "'" . addslashes($attributeName) . "' => " . $attributeData['value'];
+                continue;
+            }
+
+            $value = $attributeData['value'];
+
+            // Handle different value types
+            if (is_bool($value)) {
+                $valueString = $value ? 'true' : 'false';
+            } elseif (is_string($value)) {
+                $valueString = "'" . addslashes($value) . "'";
+            } elseif (is_null($value)) {
+                $valueString = 'null';
+            } else {
+                $valueString = (string) $value;
+            }
+
+            $arrayParts[] = "'" . addslashes($attributeName) . "' => " . $valueString;
+        }
+
+        return '[' . implode(', ', $arrayParts) . ']';
+    }
+
     /**
      * Parse PHP array string syntax (typically used in `@aware` or `@props` directives) into a PHP array.
-     * 
+     *
      * For example, the string:
      * `['foo', 'bar' => 'baz']`
      *

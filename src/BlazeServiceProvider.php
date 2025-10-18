@@ -5,6 +5,7 @@ namespace Livewire\Blaze;
 use Livewire\Blaze\Tokenizer\Tokenizer;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Support\Facades\Blade;
+use Livewire\Blaze\Memoizer\Memoizer;
 use Livewire\Blaze\Walker\Walker;
 use Livewire\Blaze\Parser\Parser;
 use Livewire\Blaze\Folder\Folder;
@@ -31,6 +32,9 @@ class BlazeServiceProvider extends ServiceProvider
             new Folder(
                 renderBlade: fn ($blade) => $bladeService->isolatedRender($blade),
                 renderNodes: fn ($nodes) => implode('', array_map(fn ($n) => $n->render(), $nodes)),
+                componentNameToPath: fn ($name) => $bladeService->componentNameToPath($name),
+            ),
+            new Memoizer(
                 componentNameToPath: fn ($name) => $bladeService->componentNameToPath($name),
             ),
         ));
