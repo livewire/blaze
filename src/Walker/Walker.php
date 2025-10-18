@@ -7,16 +7,18 @@ use Livewire\Blaze\Nodes\SlotNode;
 
 class Walker
 {
-    public function walkPost(array $nodes, callable $callback): array
+    public function walk(array $nodes, callable $preCallback, callable $postCallback): array
     {
         $result = [];
 
         foreach ($nodes as $node) {
+            $processed = $preCallback($node);
+
             if (($node instanceof ComponentNode || $node instanceof SlotNode) && !empty($node->children)) {
-                $node->children = $this->walkPost($node->children, $callback);
+                $node->children = $this->walk($node->children, $preCallback, $postCallback);
             }
 
-            $processed = $callback($node);
+            $processed = $postCallback($node);
 
             $result[] = $processed ?? $node;
         }

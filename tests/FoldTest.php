@@ -145,7 +145,6 @@ describe('fold elligable components', function () {
             expect($e->getProblematicPattern())->toBe($expectedPattern);
         }
     })->with([
-        ['aware', '@aware'],
         ['errors', '\\$errors'],
         ['session', 'session\\('],
         ['error', '@error\\('],
@@ -172,7 +171,29 @@ describe('fold elligable components', function () {
         expect(compile($input))->toBe($output);
     });
 
-    it('supports aware across folded parent', function () {
+    it('supports folding aware components with single word attributes', function () {
+        $input = '<x-group variant="primary"><x-pure-item /></x-group>';
+        $output = '<div class="group group-primary" data-test="foo"><div class="item item-primary"></div></div>';
+
+        expect(compile($input))->toBe($output);
+    });
+
+    it('supports folding aware components with hyphenated attributes', function () {
+        $input = '<x-group variant="primary" second-variant="secondary"><x-pure-item /></x-group>';
+        $output = '<div class="group group-primary" data-test="foo" data-second-variant="secondary"><div class="item item-primary item-secondary"></div></div>';
+
+        expect(compile($input))->toBe($output);
+    });
+
+    it('supports folding aware components with two wrapping components both with the same prop the closest one wins', function () {
+        $input = '<x-group variant="primary"><x-group variant="secondary"><x-pure-item /></x-group></x-group>';
+        // The pure-item should render the `secondary` variant because it is the closest one to the pure-item...
+        $output = '<div class="group group-primary" data-test="foo"><div class="group group-secondary" data-test="foo"><div class="item item-secondary"></div></div></div>';
+
+        expect(compile($input))->toBe($output);
+    });
+
+    it('supports aware on unfoldable components from folded parent with single word attributes', function () {
         $input = '<x-group variant="primary"><x-item /></x-group>';
 
         $output = '<div class="group group-primary" data-test="foo"><div class="item item-primary"></div></div>';
@@ -183,7 +204,7 @@ describe('fold elligable components', function () {
         expect($rendered)->toBe($output);
     });
 
-    it('supports aware across folded parent with hyphenated attributes', function () {
+    it('supports aware on unfoldable components from folded parent with hyphenated attributes', function () {
         $input = '<x-group variant="primary" second-variant="secondary"><x-item /></x-group>';
 
         $output = '<div class="group group-primary" data-test="foo" data-second-variant="secondary"><div class="item item-primary item-secondary"></div></div>';
@@ -194,7 +215,7 @@ describe('fold elligable components', function () {
         expect($rendered)->toBe($output);
     });
 
-    it('supports aware across folded parent with dynamic attributes', function () {
+    it('supports aware on unfoldable components from folded parent with dynamic attributes', function () {
         $input = '<?php $result = "bar"; ?> <x-group variant="primary" :data-test="$result"><x-item /></x-group>';
 
         $output = '<div class="group group-primary" data-test="bar"><div class="item item-primary"></div></div>';
@@ -246,5 +267,4 @@ BLADE;
 
         expect(compile($input))->toBe($output);
     });
-
 });

@@ -14,11 +14,17 @@ class ComponentNode extends Node
         public string $attributes = '',
         public array $children = [],
         public bool $selfClosing = false,
+        public array $parentsAttributes = [],
     ) {}
 
     public function getType(): string
     {
         return 'component';
+    }
+
+    public function setParentsAttributes(array $parentsAttributes): void
+    {
+        $this->parentsAttributes = $parentsAttributes;
     }
 
     public function toArray(): array
@@ -30,6 +36,7 @@ class ComponentNode extends Node
             'attributes' => $this->attributes,
             'children' => array_map(fn($child) => $child instanceof Node ? $child->toArray() : $child, $this->children),
             'self_closing' => $this->selfClosing,
+            'parents_attributes' => $this->parentsAttributes,
         ];
 
         return $array;
@@ -135,8 +142,8 @@ class ComponentNode extends Node
             foreach ($slotPlaceholders as $placeholder => $content) {
                 if ($placeholder === $defaultPlaceholder) {
                     // Trim whitespace immediately around the default placeholder position...
-                    $pattern = '/>\s*' . preg_quote($placeholder, '/') . '\s*</';
-                    $renderedHtml = preg_replace($pattern, '>'.$content.'<', $renderedHtml);
+                    $pattern = '/\s*' . preg_quote($placeholder, '/') . '\s*/';
+                    $renderedHtml = preg_replace($pattern, $content, $renderedHtml);
                 } else {
                     $renderedHtml = str_replace($placeholder, $content, $renderedHtml);
                 }
@@ -149,6 +156,75 @@ class ComponentNode extends Node
         };
 
         return [$processedNode, $slotPlaceholders, $restore, $attributeNameToPlaceholder, $attributeNameToOriginal, $this->attributes];
+    }
+
+    public function mergeAwareAttributes(array $awareAttributes): void
+    {
+        $attributeParser = new AttributeParser();
+
+        // Attributes are a string of attributes in the format:
+        // `name1="value1" name2="value2" name3="value3"`
+        // So we need to convert that attributes string to an array of attributes with the format:
+        // [
+        //     'name' => [
+        //         'isDynamic' => true,
+        //         'value' => '$name',
+        //         'original' => ':name="$name"',
+        //     ],
+        // ]
+        $attributes = $attributeParser->parseAttributeStringToArray($this->attributes);
+
+        $parentsAttributes = [];
+
+        // Parents attributes are an array of attributes strings in the same format 
+        // as above so we also need to convert them to an array of attributes...
+        foreach ($this->parentsAttributes as $parentAttributes) {
+            $parentsAttributes[] = $attributeParser->parseAttributeStringToArray($parentAttributes);
+        }
+
+        // Now we can take the aware attributes and merge them with the components attributes...
+        foreach ($awareAttributes as $key => $value) {
+            // As `$awareAttributes` is an array of attributes, which can either have just
+            // a value, which is the attribute name, or a key-value pair, which is the
+            // attribute name and a default value...
+            if (is_int($key)) {
+                $attributeName = $value;
+                $attributeValue = null;
+                $defaultValue = null;
+            } else {
+                $attributeName = $key;
+                $attributeValue = $value;
+                $defaultValue = [
+                    'isDynamic' => false,
+                    'value' => $attributeValue,
+                    'original' => $attributeName . '="' . $attributeValue . '"',
+                ];
+            }
+
+            if (isset($attributes[$attributeName])) {
+                continue;
+            }
+
+            // Loop through the parents attributes in reverse order so that the last parent
+            // attribute that matches the attribute name is used...
+            foreach (array_reverse($parentsAttributes) as $parsedParentAttributes) {
+                // If an attribute is found, then use it and stop searching...
+                if (isset($parsedParentAttributes[$attributeName])) {
+                    $attributes[$attributeName] = $parsedParentAttributes[$attributeName];
+                    break;
+                }
+            }
+
+            // If the attribute is not set then fall back to using the aware value.
+            // We need to add it in the same format as the other attributes...
+            if (! isset($attributes[$attributeName]) && $defaultValue !== null) {
+                $attributes[$attributeName] = $defaultValue;
+            }
+        }
+
+        // Convert the parsed attributes back to a string with the original format:
+        // `name1="value1" name2="value2" name3="value3"`
+        $this->attributes = $attributeParser->parseAttributesArrayToString($attributes);
     }
 
     protected function stripNamespaceFromName(string $name, string $prefix): string

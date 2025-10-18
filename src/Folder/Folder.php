@@ -4,6 +4,7 @@ namespace Livewire\Blaze\Folder;
 
 use Livewire\Blaze\Exceptions\LeftoverPlaceholdersException;
 use Livewire\Blaze\Exceptions\InvalidPureUsageException;
+use Livewire\Blaze\Support\AttributeParser;
 use Livewire\Blaze\Events\ComponentFolded;
 use Livewire\Blaze\Nodes\ComponentNode;
 use Illuminate\Support\Facades\Event;
@@ -68,10 +69,18 @@ class Folder
         try {
             $componentPath = ($this->componentNameToPath)($component->name);
 
-            if (! $isForced && file_exists($componentPath)) {
+            if (file_exists($componentPath)) {
                 $source = file_get_contents($componentPath);
 
-                $this->validatePureComponent($source, $componentPath);
+                if (! $isForced) {
+                    $this->validatePureComponent($source, $componentPath);
+                }
+
+                $awareAttributes = $this->getAwareDirectiveAttributes($source);
+
+                if (! empty($awareAttributes)) {
+                    $component->mergeAwareAttributes($awareAttributes);
+                }
             }
 
             [$processedNode, $slotPlaceholders, $restore, $attributeNameToPlaceholder, $attributeNameToOriginal, $rawAttributes] = $component->replaceDynamicPortionsWithPlaceholders(
@@ -126,7 +135,6 @@ class Folder
     protected function validatePureComponent(string $source, string $componentPath): void
     {
         $problematicPatterns = [
-            '@aware' => 'forAware',
             '@once' => 'forOnce',
             '\\$errors' => 'forErrors',
             'session\\(' => 'forSession',
@@ -181,6 +189,19 @@ class Folder
         }
 
         return '[' . implode(', ', $parts) . ']';
+    }
+
+    protected function getAwareDirectiveAttributes(string $source): array
+    {
+        preg_match('/@aware\(\[(.*?)\]\)/s', $source, $matches);
+
+        if (empty($matches[1])) {
+            return [];
+        }
+
+        $attributeParser = new AttributeParser();
+
+        return $attributeParser->parseArrayStringIntoArray($matches[1]);
     }
 
     protected function hasAwareDescendant(Node $node): bool
