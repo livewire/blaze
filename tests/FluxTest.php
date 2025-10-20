@@ -1,5 +1,7 @@
 <?php
 
+use Illuminate\Support\Facades\Route;
+
 describe('flux component integration', function () {
     beforeEach(function () {
         // Manually register Livewire and Flux providers for these tests
@@ -16,5 +18,15 @@ describe('flux component integration', function () {
         expect($output)->toContain('Hello World');
         expect($output)->toContain('data-flux-heading');
         expect($output)->not->toContain('flux:heading');
+    });
+
+    it('folds link component with dynamic route helper link', function() {
+        Route::get('/dashboard', fn() => 'dashboard')->name('dashboard');
+
+        $input = '<flux:link :href="route(\'dashboard\')">Dashboard</flux:link>';
+        $output = app('blaze')->compile($input);
+
+        expect($output)
+            ->toContain('<a href="{{ route(\'dashboard\') }}"');
     });
 });

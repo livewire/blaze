@@ -15,23 +15,14 @@ class AttributeParser
             return $attributesString;
         }
 
-        // :name="..." or :name=$var
-        $attributesString = preg_replace_callback('/(\s*):([a-zA-Z0-9_-]+)\s*=\s*("[^"]*"|\$[a-zA-Z0-9_]+)/', function ($matches) use (&$attributePlaceholders, &$attributeNameToPlaceholder) {
+        // :name="..."
+        $attributesString = preg_replace_callback('/(\s*):([a-zA-Z0-9_-]+)\s*=\s*"([^"]*)"/', function ($matches) use (&$attributePlaceholders, &$attributeNameToPlaceholder) {
             $whitespace = $matches[1];
             $attributeName = $matches[2];
             $attributeValue = $matches[3];
 
-            // Strip double quotes from attribute value...
-            $attributeValue = trim($attributeValue, '"');
-
             $placeholder = 'ATTR_PLACEHOLDER_' . count($attributePlaceholders);
-            if (preg_match('/^"\$([a-zA-Z0-9_]+)"$/', $attributeValue, $m)) {
-                $attributePlaceholders[$placeholder] = '{{ $' . $m[1] . ' }}';
-            } elseif ($attributeValue !== '' && $attributeValue[0] === '$') {
-                $attributePlaceholders[$placeholder] = '{{ ' . $attributeValue . ' }}';
-            } else {
-                $attributePlaceholders[$placeholder] = $attributeValue;
-            }
+            $attributePlaceholders[$placeholder] = '{{ ' . $attributeValue . ' }}';
             $attributeNameToPlaceholder[$attributeName] = $placeholder;
 
             return $whitespace . $attributeName . '="' . $placeholder . '"';
@@ -97,111 +88,58 @@ class AttributeParser
     public function parseAttributeStringToArray(string $attributesString): array
     {
         $attributes = [];
-        $processedPositions = [];
 
-        // Handle :name="..." or :name=$var syntax
-        preg_match_all('/(?:^|\s):([a-zA-Z0-9_:-]+)\s*=\s*("[^"]*"|\$[a-zA-Z0-9_]+)/', $attributesString, $matches, PREG_SET_ORDER | PREG_OFFSET_CAPTURE);
-        foreach ($matches as $match) {
-            $start = $match[0][1];
-            $end = $start + strlen($match[0][0]);
-            $processedPositions[] = [$start, $end];
-
-            $attributeName = str($match[1][0])->camel()->toString();
-            $attributeValue = trim($match[2][0], '"');
-            $original = trim($match[0][0]);
+        // Handle :name="..." syntax
+        preg_match_all('/(?:^|\s):([A-Za-z0-9_:-]+)\s*=\s*"([^"]*)"/', $attributesString, $matches, PREG_SET_ORDER);
+        foreach ($matches as $m) {
+            $attributeName = str($m[1])->camel()->toString();
+            if (isset($attributes[$attributeName])) continue;
 
             $attributes[$attributeName] = [
                 'isDynamic' => true,
-                'value' => $attributeValue,
-                'original' => $original,
+                'value' => $m[2],
+                'original' => trim($m[0]),
             ];
         }
 
         // Handle short :$var syntax (expands to :var="$var")
-        preg_match_all('/(?:^|\s):\$([a-zA-Z0-9_:-]+)(?=\s|$)/', $attributesString, $matches, PREG_SET_ORDER | PREG_OFFSET_CAPTURE);
-        foreach ($matches as $match) {
-            $start = $match[0][1];
-            $end = $start + strlen($match[0][0]);
-
-            // Skip if this position was already processed
-            $skip = false;
-            foreach ($processedPositions as [$procStart, $procEnd]) {
-                if ($start >= $procStart && $end <= $procEnd) {
-                    $skip = true;
-                    break;
-                }
-            }
-            if ($skip) continue;
-
-            $processedPositions[] = [$start, $end];
-
-            $attributeName = str($match[1][0])->camel()->toString();
-            $attributeValue = '$' . $match[1][0];
-            $original = trim($match[0][0]);
+        preg_match_all('/(?:^|\s):\$([A-Za-z0-9_:-]+)(?=\s|$)/', $attributesString, $matches, PREG_SET_ORDER);
+        foreach ($matches as $m) {
+            $raw = $m[1];
+            $attributeName = str($raw)->camel()->toString();
+            if (isset($attributes[$attributeName])) continue;
 
             $attributes[$attributeName] = [
                 'isDynamic' => true,
-                'value' => $attributeValue,
-                'original' => $original,
+                'value' => '$' . $raw,
+                'original' => trim($m[0]),
             ];
         }
 
         // Handle regular name="value" syntax
-        preg_match_all('/(\s*)([a-zA-Z0-9_:-]+)\s*=\s*("[^"]*")/', $attributesString, $matches, PREG_SET_ORDER | PREG_OFFSET_CAPTURE);
-        foreach ($matches as $match) {
-            $start = $match[0][1];
-            $end = $start + strlen($match[0][0]);
-
-            // Skip if this position was already processed
-            $skip = false;
-            foreach ($processedPositions as [$procStart, $procEnd]) {
-                if ($start >= $procStart && $end <= $procEnd) {
-                    $skip = true;
-                    break;
-                }
-            }
-            if ($skip) continue;
-
-            $processedPositions[] = [$start, $end];
-
-            $attributeName = str($match[2][0])->camel()->toString();
-            $attributeValue = trim($match[3][0], '"');
-            $original = trim($match[0][0]);
+        preg_match_all('/(?:^|\s)(?!:)([A-Za-z0-9_:-]+)\s*=\s*"([^"]*)"/', $attributesString, $matches, PREG_SET_ORDER);
+        foreach ($matches as $m) {
+            $attributeName = str($m[1])->camel()->toString();
+            if (isset($attributes[$attributeName])) continue;
 
             $attributes[$attributeName] = [
                 'isDynamic' => false,
-                'value' => $attributeValue,
-                'original' => $original,
+                'value' => $m[2],
+                'original' => trim($m[0]),
             ];
         }
 
         // Handle boolean attributes (single words without values)
-        preg_match_all('/(\s*)([a-zA-Z0-9_:-]+)(?=\s|$)/', $attributesString, $matches, PREG_SET_ORDER | PREG_OFFSET_CAPTURE);
-        foreach ($matches as $match) {
-            $start = $match[0][1];
-            $end = $start + strlen($match[0][0]);
+        preg_match_all('/(?:^|\s)([A-Za-z0-9_:-]+)(?=\s|$)/', $attributesString, $matches, PREG_SET_ORDER);
+        foreach ($matches as $m) {
+            $attributeName = str($m[1])->camel()->toString();
+            if (isset($attributes[$attributeName])) continue;
 
-            // Skip if this position was already processed
-            $skip = false;
-            foreach ($processedPositions as [$procStart, $procEnd]) {
-                if ($start >= $procStart && $end <= $procEnd) {
-                    $skip = true;
-                    break;
-                }
-            }
-            if ($skip) continue;
-
-            $attributeName = str($match[2][0])->camel()->toString();
-            $original = trim($match[0][0]);
-
-            // Only add if not already processed as a key-value pair
-            if (!array_key_exists($attributeName, $attributes)) {
-                $attributes[$attributeName] = [
-                    'isDynamic' => false,
-                    'value' => true,
-                    'original' => $original,
-                ];
-            }
+            $attributes[$attributeName] = [
+                'isDynamic' => false,
+                'value' => true,
+                'original' => trim($m[0]),
+            ];
         }
 
         return $attributes;
