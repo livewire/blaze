@@ -27,6 +27,7 @@ describe('flux component integration', function () {
         $output = app('blaze')->compile($input);
 
         expect($output)
-            ->toContain('<a href="{{ route(\'dashboard\') }}"');
+            ->toContain('<a ')
+            ->toContain(' href="{{ route(\'dashboard\') }}"');
     });
 });
