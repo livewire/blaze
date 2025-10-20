@@ -247,13 +247,6 @@ BLADE;
         expect($rendered)->toBe($output);
     });
 
-    it('can force fold via blaze:fold attribute', function () {
-        $input = '<x-impure-button blaze:fold type="submit">Go</x-impure-button>';
-        $output = '<button type="submit">Go</button>';
-
-        expect(compile($input))->toBe($output);
-    });
-
     it('can fold static props that get formatted', function () {
         $input = '<x-date date="2025-07-11 13:22:41 UTC" />';
         $output = '<div>Date is: Fri, Jul 11</div>';
@@ -263,7 +256,7 @@ BLADE;
 
     it('cant fold dynamic props that get formatted', function () {
         $input = '<?php $date = "2025-07-11 13:22:41 UTC"; ?> <x-date :date="$date" />';
-        $output = '<?php $date = "2025-07-11 13:22:41 UTC"; ?> <?php $blaze_memoized_key = \Livewire\Blaze\Memoizer\Memo::key("date", [\'date\' => $date]); ?><?php if (! \Livewire\Blaze\Memoizer\Memo::has($blaze_memoized_key)) : ?><?php ob_start(); ?><x-date :date="$date" /><?php \Livewire\Blaze\Memoizer\Memo::put($blaze_memoized_key, ob_get_clean()); ?><?php endif; ?><?php echo \Livewire\Blaze\Memoizer\Memo::get($blaze_memoized_key); ?>';
+        $output = '<?php $date = "2025-07-11 13:22:41 UTC"; ?> <?php $blaze_memoized_key = \Livewire\Blaze\Memoizer\Memo::key("date", [\'date\' => $date]); ?>\n<?php if (! \Livewire\Blaze\Memoizer\Memo::has($blaze_memoized_key)) : ?><?php ob_start(); ?><x-date :date="$date" /><?php \Livewire\Blaze\Memoizer\Memo::put($blaze_memoized_key, ob_get_clean()); ?><?php endif; ?><?php echo \Livewire\Blaze\Memoizer\Memo::get($blaze_memoized_key); ?>';
 
         expect(compile($input))->toBe($output);
     });

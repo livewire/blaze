@@ -32,10 +32,6 @@ class Folder
             return false;
         }
 
-        if ($this->shouldForceFold($node)) {
-            return true;
-        }
-
         try {
             $componentPath = ($this->componentNameToPath)($node->name);
 
@@ -72,17 +68,13 @@ class Folder
         /** @var ComponentNode $component */
         $component = $node;
 
-        $isForced = $this->shouldForceFold($component);
-
         try {
             $componentPath = ($this->componentNameToPath)($component->name);
 
             if (file_exists($componentPath)) {
                 $source = file_get_contents($componentPath);
 
-                if (! $isForced) {
                     $this->validatePureComponent($source, $componentPath);
-                }
 
                 $pureParameters = Pure::getParameters($source);
 
@@ -99,10 +91,6 @@ class Folder
             [$processedNode, $slotPlaceholders, $restore, $attributeNameToPlaceholder, $attributeNameToOriginal, $rawAttributes] = $component->replaceDynamicPortionsWithPlaceholders(
                 renderNodes: fn (array $nodes) => ($this->renderNodes)($nodes)
             );
-
-            if ($isForced) {
-                $processedNode->attributes = $this->removeForceFoldAttributes($processedNode->attributes);
-            }
 
             $usageBlade = ($this->renderNodes)([$processedNode]);
 
@@ -279,24 +267,5 @@ class Folder
         }
 
         return implode(', ', $parts);
-    }
-
-    protected function shouldForceFold(ComponentNode $node): bool
-    {
-        $attrs = $node->attributes ?? '';
-
-        if ($attrs === '') return false;
-
-        return (bool) preg_match('/(^|\s)(?:blaze:fold|fold)(\s|=|$)/', $attrs);
-    }
-
-    protected function removeForceFoldAttributes(string $attributes): string
-    {
-        $result = preg_replace('/(^|\s)(?:blaze:fold|fold)(\s*=\s*("[^\"]*"|\'[^\']*\'|[^\s"\'=<>
-`]+))?(?=\s|$)/', '$1', $attributes);
-
-        $result = trim(preg_replace('/\s+/', ' ', $result ?? ''));
-
-        return $result;
     }
 }
