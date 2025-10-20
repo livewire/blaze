@@ -3,6 +3,100 @@
 use Livewire\Blaze\Support\AttributeParser;
 
 describe('parse attributes', function () {
+    it('parses and replaces dynamic attributes with name and value syntax', function() {
+        $input = ':name="$foo"';
+        $output = 'name="ATTR_PLACEHOLDER_0"';
+
+        $attributePlaceholders = [];
+        $attributeNameToPlaceholder = [];
+
+        $result = (new AttributeParser)->parseAndReplaceDynamics($input, $attributePlaceholders, $attributeNameToPlaceholder);
+
+        expect($result)->toBe($output);
+
+        expect($attributePlaceholders)->toBe([
+            'ATTR_PLACEHOLDER_0' => '{{ $foo }}',
+        ]);
+
+        expect($attributeNameToPlaceholder)->toBe([
+            'name' => 'ATTR_PLACEHOLDER_0',
+        ]);
+    });
+
+    it('parses and replaces dynamic attributes with short syntax', function() {
+        $input = ':$name';
+        $output = 'name="ATTR_PLACEHOLDER_0"';
+
+        $attributePlaceholders = [];
+        $attributeNameToPlaceholder = [];
+
+        $result = (new AttributeParser)->parseAndReplaceDynamics($input, $attributePlaceholders, $attributeNameToPlaceholder);
+
+        expect($result)->toBe($output);
+
+        expect($attributePlaceholders)->toBe([
+            'ATTR_PLACEHOLDER_0' => '{{ $name }}',
+        ]);
+
+        expect($attributeNameToPlaceholder)->toBe([
+            'name' => 'ATTR_PLACEHOLDER_0',
+        ]);
+    });
+
+    it('parses and replaces dynamic attributes echoed within a value', function() {
+        $input = 'name="foo {{ $type }}"';
+        $output = 'name="foo ATTR_PLACEHOLDER_0"';
+
+        $attributePlaceholders = [];
+        $attributeNameToPlaceholder = [];
+
+        $result = (new AttributeParser)->parseAndReplaceDynamics($input, $attributePlaceholders, $attributeNameToPlaceholder);
+
+        expect($result)->toBe($output);
+
+        expect($attributePlaceholders)->toBe([
+            'ATTR_PLACEHOLDER_0' => '{{ $type }}',
+        ]);
+
+        expect($attributeNameToPlaceholder)->toBe([]);
+    });
+
+    it('does not parse static attributes with colon in the name when used alone', function() {
+        $input = 'icon:trailing="chevrons-up-down"';
+        $output = 'icon:trailing="chevrons-up-down"';
+
+        $attributePlaceholders = [];
+        $attributeNameToPlaceholder = [];
+
+        $result = (new AttributeParser)->parseAndReplaceDynamics($input, $attributePlaceholders, $attributeNameToPlaceholder);
+
+        expect($result)->toBe($output);
+
+        expect($attributePlaceholders)->toBe([]);
+
+        expect($attributeNameToPlaceholder)->toBe([]);
+    });
+
+    it('does not parse static attributes with colon in the name when used with dynamic attributes', function() {
+        $input = ':name="$foo" icon:trailing="chevrons-up-down"';
+        $output = 'name="ATTR_PLACEHOLDER_0" icon:trailing="chevrons-up-down"';
+
+        $attributePlaceholders = [];
+        $attributeNameToPlaceholder = [];
+
+        $result = (new AttributeParser)->parseAndReplaceDynamics($input, $attributePlaceholders, $attributeNameToPlaceholder);
+
+        expect($result)->toBe($output);
+
+        expect($attributePlaceholders)->toBe([
+            'ATTR_PLACEHOLDER_0' => '{{ $foo }}',
+        ]);
+
+        expect($attributeNameToPlaceholder)->toBe([
+            'name' => 'ATTR_PLACEHOLDER_0',
+        ]);
+    });
+
     it('parses static attributes', function () {
         $input = 'name="Bob" searchable="true"';
         $output = [
@@ -144,8 +238,13 @@ describe('parse attributes', function () {
     });
 
     it('parses static attributes which contain colons', function () {
-        $input = 'wire:sort:item="{{ $id }}"';
+        $input = 'icon:trailing="chevrons-up-down" wire:sort:item="{{ $id }}"';
         $output = [
+            'icon:trailing' => [
+                'isDynamic' => false,
+                'value' => 'chevrons-up-down',
+                'original' => 'icon:trailing="chevrons-up-down"',
+            ],
             'wire:sort:item' => [
                 'isDynamic' => false,
                 'value' => '{{ $id }}',
