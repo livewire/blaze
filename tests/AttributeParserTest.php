@@ -61,6 +61,22 @@ describe('parse attributes', function () {
         expect($attributeNameToPlaceholder)->toBe([]);
     });
 
+    it('does not parse static attributes with colon in the name', function() {
+        $input = 'icon:trailing="chevrons-up-down"';
+        $output = 'icon:trailing="chevrons-up-down"';
+
+        $attributePlaceholders = [];
+        $attributeNameToPlaceholder = [];
+
+        $result = (new AttributeParser)->parseAndReplaceDynamics($input, $attributePlaceholders, $attributeNameToPlaceholder);
+
+        expect($result)->toBe($output);
+
+        expect($attributePlaceholders)->toBe([]);
+
+        expect($attributeNameToPlaceholder)->toBe([]);
+    });
+
     it('parses static attributes', function () {
         $input = 'name="Bob" searchable="true"';
         $output = [
@@ -202,8 +218,13 @@ describe('parse attributes', function () {
     });
 
     it('parses static attributes which contain colons', function () {
-        $input = 'wire:sort:item="{{ $id }}"';
+        $input = 'icon:trailing="chevrons-up-down" wire:sort:item="{{ $id }}"';
         $output = [
+            'icon:trailing' => [
+                'isDynamic' => false,
+                'value' => 'chevrons-up-down',
+                'original' => 'icon:trailing="chevrons-up-down"',
+            ],
             'wire:sort:item' => [
                 'isDynamic' => false,
                 'value' => '{{ $id }}',
