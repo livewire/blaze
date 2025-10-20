@@ -16,7 +16,7 @@ class AttributeParser
         }
 
         // :name="..."
-        $attributesString = preg_replace_callback('/(\s*):([a-zA-Z0-9_-]+)\s*=\s*"([^"]*)"/', function ($matches) use (&$attributePlaceholders, &$attributeNameToPlaceholder) {
+        $attributesString = preg_replace_callback('/(?<!\S)(\s*):([A-Za-z0-9_:-]+)\s*=\s*"([^"]*)"/', function ($matches) use (&$attributePlaceholders, &$attributeNameToPlaceholder) {
             $whitespace = $matches[1];
             $attributeName = $matches[2];
             $attributeValue = $matches[3];

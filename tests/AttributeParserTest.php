@@ -61,7 +61,7 @@ describe('parse attributes', function () {
         expect($attributeNameToPlaceholder)->toBe([]);
     });
 
-    it('does not parse static attributes with colon in the name', function() {
+    it('does not parse static attributes with colon in the name when used alone', function() {
         $input = 'icon:trailing="chevrons-up-down"';
         $output = 'icon:trailing="chevrons-up-down"';
 
@@ -75,6 +75,26 @@ describe('parse attributes', function () {
         expect($attributePlaceholders)->toBe([]);
 
         expect($attributeNameToPlaceholder)->toBe([]);
+    });
+
+    it('does not parse static attributes with colon in the name when used with dynamic attributes', function() {
+        $input = ':name="$foo" icon:trailing="chevrons-up-down"';
+        $output = 'name="ATTR_PLACEHOLDER_0" icon:trailing="chevrons-up-down"';
+
+        $attributePlaceholders = [];
+        $attributeNameToPlaceholder = [];
+
+        $result = (new AttributeParser)->parseAndReplaceDynamics($input, $attributePlaceholders, $attributeNameToPlaceholder);
+
+        expect($result)->toBe($output);
+
+        expect($attributePlaceholders)->toBe([
+            'ATTR_PLACEHOLDER_0' => '{{ $foo }}',
+        ]);
+
+        expect($attributeNameToPlaceholder)->toBe([
+            'name' => 'ATTR_PLACEHOLDER_0',
+        ]);
     });
 
     it('parses static attributes', function () {
