@@ -2,9 +2,9 @@
 
 namespace Livewire\Blaze;
 
+use Livewire\Blaze\Directive\BlazeDirective;
 use Livewire\Blaze\Tokenizer\Tokenizer;
 use Illuminate\Support\ServiceProvider;
-use Illuminate\Support\Facades\Blade;
 use Livewire\Blaze\Memoizer\Memoizer;
 use Livewire\Blaze\Walker\Walker;
 use Livewire\Blaze\Parser\Parser;
@@ -15,7 +15,7 @@ class BlazeServiceProvider extends ServiceProvider
     public function register(): void
     {
         $this->registerBlazeManager();
-        $this->registerPureDirectiveFallback();
+        $this->registerBlazeDirectiveFallback();
         $this->registerBladeMacros();
         $this->interceptBladeCompilation();
         $this->interceptViewCacheInvalidation();
@@ -44,9 +44,9 @@ class BlazeServiceProvider extends ServiceProvider
         $this->app->bind('blaze', fn ($app) => $app->make(BlazeManager::class));
     }
 
-    protected function registerPureDirectiveFallback(): void
+    protected function registerBlazeDirectiveFallback(): void
     {
-        Blade::directive('pure', fn () => '');
+        BlazeDirective::registerFallback();
     }
 
     protected function registerBladeMacros(): void

@@ -1,4 +1,4 @@
-@pure
+@blaze
 
 <form method="POST">
     @csrf

@@ -1,13 +1,20 @@
 <?php
 
-namespace Livewire\Blaze\Pure;
+namespace Livewire\Blaze\Directive;
 
-class Pure
+use Illuminate\Support\Facades\Blade;
+
+class BlazeDirective
 {
+    public static function registerFallback(): void
+    {
+        Blade::directive('blaze', fn () => '');
+    }
+
     public static function getParameters(string $source): ?array
     {
-        // If there is no @pure directive, return null
-        if (! preg_match('/^\s*(?:\/\*.*?\*\/\s*)*@pure(?:\s*\(([^)]+)\))?/s', $source, $matches)) {
+        // If there is no @blaze directive, return null
+        if (! preg_match('/^\s*(?:\/\*.*?\*\/\s*)*@blaze(?:\s*\(([^)]+)\))?/s', $source, $matches)) {
             return null;
         }
 
@@ -21,10 +28,10 @@ class Pure
 
     /**
      * Parse directive parameters
-     * 
+     *
      * For example, the string:
      * "fold: false"
-     * 
+     *
      * will be parsed into the array:
      * [
      *     'fold' => false,

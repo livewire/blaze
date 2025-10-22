@@ -579,10 +579,10 @@ Option B provides clear developer intent and prevents mysterious failures. Devel
 
 #### Proposed syntax
 
-The most straightforward approach is a `@pure` directive placed at the top of component files:
+The most straightforward approach is a `@blaze` directive placed at the top of component files:
 
 ```php
-@pure
+@blaze
 
 @props(['title'])
 
@@ -596,7 +596,7 @@ This clearly signals that the component has no runtime dependencies and is safe 
 - Global configuration could enable automatic detection for those who prefer it
 - Directory-based opt-in could reduce per-component boilerplate
 
-However, `@pure` is the clearest option—it's self-documenting and doesn't create dependencies on specific tooling names. Since Blade may eventually become a deeper dependency of Laravel itself, tool-agnostic naming is preferable.
+However, `@blaze` is the clearest option—it's self-documenting and doesn't create dependencies on specific tooling names. Since Blade may eventually become a deeper dependency of Laravel itself, tool-agnostic naming is preferable.
 
 ### Error handling and debugging
 
@@ -604,7 +604,7 @@ Blaze uses a fail-safe approach: when folding encounters any issues, it falls ba
 
 #### The folding validation process
 
-When Blaze identifies a `@pure` component as foldable, it follows this validation process:
+When Blaze identifies a `@blaze` component as foldable, it follows this validation process:
 
 1. **Replace dynamic content with placeholders** - Dynamic attributes and slots are temporarily replaced with unique placeholder strings
 2. **Attempt rendering** - The component is rendered with placeholders in place
@@ -658,7 +658,7 @@ Folding will be skipped when:
 
 #### Disallowed folding
 
-Even when a component is marked with `@pure`, Blaze should perform static analysis to detect runtime dependencies that would make folding unsafe. When such patterns are found, Blaze should throw clear compilation errors rather than silently producing broken behavior.
+Even when a component is marked with `@blaze`, Blaze should perform static analysis to detect runtime dependencies that would make folding unsafe. When such patterns are found, Blaze should throw clear compilation errors rather than silently producing broken behavior.
 
 #### Detected unsafe patterns
 
@@ -666,7 +666,7 @@ During the pre-order traversal phase, Blaze scans component source code for thes
 
 **CSRF tokens:**
 ```php
-@pure  <!-- ❌ Error: CSRF tokens require runtime generation -->
+@blaze  <!-- ❌ Error: CSRF tokens require runtime generation -->
 
 <form method="POST">
     @csrf
@@ -676,14 +676,14 @@ During the pre-order traversal phase, Blaze scans component source code for thes
 
 **Session access:**
 ```php
-@pure  <!-- ❌ Error: Session data is runtime-dependent -->
+@blaze  <!-- ❌ Error: Session data is runtime-dependent -->
 
 <div>Welcome back, {{ session('username') }}</div>
 ```
 
 **Authentication checks:**
 ```php
-@pure  <!-- ❌ Error: Authentication state changes at runtime -->
+@blaze  <!-- ❌ Error: Authentication state changes at runtime -->
 
 @auth
     <p>You are logged in</p>
@@ -692,7 +692,7 @@ During the pre-order traversal phase, Blaze scans component source code for thes
 
 **Error bag access:**
 ```php
-@pure  <!-- ❌ Error: Validation errors are request-specific -->
+@blaze  <!-- ❌ Error: Validation errors are request-specific -->
 
 @if($errors->has('email'))
     <span class="error">{{ $errors->first('email') }}</span>
@@ -701,7 +701,7 @@ During the pre-order traversal phase, Blaze scans component source code for thes
 
 **Request data:**
 ```php
-@pure  <!-- ❌ Error: Request data varies per request -->
+@blaze  <!-- ❌ Error: Request data varies per request -->
 
 <input type="hidden" value="{{ request()->ip() }}">
 ```
@@ -711,12 +711,12 @@ During the pre-order traversal phase, Blaze scans component source code for thes
 When unsafe patterns are detected, Blaze should provide actionable error messages:
 
 ```
-Blaze Compilation Error: Component 'form-component' is marked @pure but contains runtime dependencies.
+Blaze Compilation Error: Component 'form-component' is marked @blaze but contains runtime dependencies.
 
 Found: @csrf directive on line 4
 Reason: CSRF tokens must be generated at runtime for security
 
-Solution: Remove @pure directive or extract CSRF handling to parent component
+Solution: Remove @blaze directive or extract CSRF handling to parent component
 
 Component: resources/views/components/form-component.blade.php:1
 ```

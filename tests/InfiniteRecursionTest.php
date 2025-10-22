@@ -20,7 +20,7 @@ describe('infinite recursion bugs', function () {
         expect($rendered)->not->toContain('<x-button');
     });
 
-    it('should handle nested pure components without infinite recursion', function () {
+    it('should handle nested foldable components without infinite recursion', function () {
         $template = '<x-card><x-alert message="Nested alert!" /></x-card>';
 
         // This should complete without hanging or crashing
@@ -41,7 +41,7 @@ describe('infinite recursion bugs', function () {
             <x-button type="submit" class="secondary">Button 2</x-button>
         </x-card>';
 
-        // This should complete without hanging or crashing  
+        // This should complete without hanging or crashing
         $rendered = \Illuminate\Support\Facades\Blade::render($template);
 
         expect($rendered)->toContain('<div class="card">');
@@ -85,8 +85,8 @@ describe('infinite recursion bugs', function () {
     it('should handle components with variable attributes without infinite recursion', function () {
         // Test components with dynamic/variable attributes that might trigger edge cases
         $template = '
-        <x-button 
-            type="submit" 
+        <x-button
+            type="submit"
             class="btn-primary btn-large"
             data-action="save"
             aria-label="Save changes">
