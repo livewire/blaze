@@ -62,7 +62,7 @@ class Memoizer
         $name = $node->name;
         $attributes = $node->getAttributesAsRuntimeArrayString();
 
-        $output = '<' . '?php $blaze_memoized_key = \Livewire\Blaze\Memoizer\Memo::key("' . $name . '", ' . $attributes . '); ?>\n';
+        $output = '<' . '?php $blaze_memoized_key = \Livewire\Blaze\Memoizer\Memo::key("' . $name . '", ' . $attributes . '); ?>';
         $output .= '<' . '?php if (! \Livewire\Blaze\Memoizer\Memo::has($blaze_memoized_key)) : ?>';
         $output .= '<' . '?php ob_start(); ?>';
         $output .= $node->render();
