@@ -40,17 +40,8 @@ class Imprinter
         }
 
         // Look for IMPRINT_PLACEHOLDER throughout $node->content and capture the full string
-        $node->content = preg_replace_callback('/IMPRINT_PLACEHOLDER_\d+/i', function (array $matches) {
+        $node->content = preg_replace_callback('/IMPRINT_PLACEHOLDER_[a-zA-Z0-9]{10}/i', function (array $matches) {
             $imprintPlaceholder = $matches[0];
-
-            $key = str()->random(5);
-
-            $output = '';
-            $output .= '<'.'?php ';
-            $output .= '$blazeImprintData = \Livewire\Blaze\Blaze::imprinter()->getAttributes(\'' . $imprintPlaceholder . '\');';
-            $output .= ' extract($blazeImprintData, EXTR_PREFIX_ALL, \'' . $key . '\');';
-            $output .= ' unset($blazeImprintData);';
-            $output .= ' ?' . '>';
 
             $imprint = $this->imprintPlaceholders[$imprintPlaceholder];
             $attributes = $imprint['attributes'];
@@ -60,9 +51,7 @@ class Imprinter
                 $content = preg_replace('/\$'.$name.'(?![a-zA-Z0-9_])/', '\''.$value.'\'', $content);
             }
 
-            $output .= $content;
-
-            return $output;
+            return $content;
         }, $node->content);
 
         return $node;
@@ -107,7 +96,7 @@ class Imprinter
             $attributes = $matches[2][$index];
             $content = $matches[3][$index];
 
-            $placeholder = 'IMPRINT_PLACEHOLDER_' . $index;
+            $placeholder = 'IMPRINT_PLACEHOLDER_' . str()->random(10);
 
             $output = $whitespace;
             $output .= '<'.'?php \Livewire\Blaze\Blaze::imprinter()->storeAttributes(\'' . $placeholder . '\', ' . $attributes . '); ?'.'>';
