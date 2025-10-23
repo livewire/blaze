@@ -12,7 +12,7 @@ describe('blaze integration', function () {
         View::addLocation(__DIR__ . '/fixtures/pages');
     });
 
-    it('renders pure components as optimized html through blade facade', function () {
+    it('renders foldable components as optimized html through blade facade', function () {
         // This is still outside-in - we're using Laravel's Blade facade, not calling Blaze directly
         $template = '
         <div class="page">
@@ -25,7 +25,7 @@ describe('blaze integration', function () {
 
         $rendered = \Illuminate\Support\Facades\Blade::render($template);
 
-        // Pure components should be folded to optimized HTML
+        // Foldable components should be folded to optimized HTML
         expect($rendered)->toContain('<button type="button">Save Changes</button>');
         expect($rendered)->toContain('<div class="card">');
         expect($rendered)->toContain('<div class="alert">Success!</div>');
@@ -39,20 +39,20 @@ describe('blaze integration', function () {
         expect($rendered)->toContain('<h1>Integration Test</h1>');
     });
 
-    it('leaves non-pure components unchanged through blade facade', function () {
-        $template = '<div><x-impure-button>Test Button</x-impure-button></div>';
+    it('leaves unfoldable components unchanged through blade facade', function () {
+        $template = '<div><x-unfoldable-button>Test Button</x-unfoldable-button></div>';
         $rendered = \Illuminate\Support\Facades\Blade::render($template);
 
-        // Non-pure component should render normally (not folded)
+        // Unfoldable component should render normally (not folded)
         expect($rendered)->toContain('<button type="button">Test Button</button>');
-        expect($rendered)->not->toContain('<x-impure-button>');
+        expect($rendered)->not->toContain('<x-unfoldable-button>');
 
         // Just verify it renders normally
     });
 
-    it('throws exception for components with invalid pure usage', function () {
-        expect(fn() => \Illuminate\Support\Facades\Blade::render('<x-invalid-pure.errors>Test</x-invalid-pure.errors>'))
-            ->toThrow(\Livewire\Blaze\Exceptions\InvalidPureUsageException::class);
+    it('throws exception for components with invalid foldable usage', function () {
+        expect(fn() => \Illuminate\Support\Facades\Blade::render('<x-invalid-foldable.errors>Test</x-invalid-foldable.errors>'))
+            ->toThrow(\Livewire\Blaze\Exceptions\InvalidBlazeFoldUsageException::class);
     });
 
     it('preserves slot content when folding components', function () {

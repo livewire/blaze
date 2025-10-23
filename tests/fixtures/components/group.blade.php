@@ -1,4 +1,4 @@
-@pure
+@blaze
 
 @props(['variant' => '', 'dataTest' => 'foo', 'secondVariant' => null])
 

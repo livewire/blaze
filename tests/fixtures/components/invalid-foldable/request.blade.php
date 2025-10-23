@@ -1,4 +1,4 @@
-@pure
+@blaze
 
 <div>
     Current URL: {{ request()->url() }}

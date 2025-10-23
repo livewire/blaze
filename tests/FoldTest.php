@@ -72,8 +72,8 @@ describe('fold elligable components', function () {
     });
 
     it('dynamic slot with unfoldable component', function () {
-        $input = '<x-button><x-impure-button>{{ $name }}</x-impure-button></x-button>';
-        $output = '<button type="button"><x-impure-button>{{ $name }}</x-impure-button></button>';
+        $input = '<x-button><x-unfoldable-button>{{ $name }}</x-unfoldable-button></x-button>';
+        $output = '<button type="button"><x-unfoldable-button>{{ $name }}</x-unfoldable-button></button>';
 
         expect(compile($input))->toBe($output);
     });
@@ -123,25 +123,25 @@ describe('fold elligable components', function () {
         expect(compile($input))->toBe($output);
     });
 
-    it('component without @pure is not folded', function () {
-        $input = '<x-impure-button>Save</x-impure-button>';
-        $output = '<x-impure-button>Save</x-impure-button>';
+    it('component without @blaze is not folded', function () {
+        $input = '<x-unfoldable-button>Save</x-unfoldable-button>';
+        $output = '<x-unfoldable-button>Save</x-unfoldable-button>';
 
         expect(compile($input))->toBe($output);
     });
 
-    it('throws exception for invalid pure usage with $pattern', function (string $pattern, string $expectedPattern) {
+    it('throws exception for invalid foldable usage with $pattern', function (string $pattern, string $expectedPattern) {
         $folder = app('blaze')->folder();
-        $componentNode = new \Livewire\Blaze\Nodes\ComponentNode("invalid-pure.{$pattern}", 'x', '', [], false);
+        $componentNode = new \Livewire\Blaze\Nodes\ComponentNode("invalid-foldable.{$pattern}", 'x', '', [], false);
 
         expect(fn() => $folder->fold($componentNode))
-            ->toThrow(\Livewire\Blaze\Exceptions\InvalidPureUsageException::class);
+            ->toThrow(\Livewire\Blaze\Exceptions\InvalidBlazeFoldUsageException::class);
 
         try {
             $folder->fold($componentNode);
-        } catch (\Livewire\Blaze\Exceptions\InvalidPureUsageException $e) {
-            expect($e->getMessage())->toContain('Invalid @pure usage');
-            expect($e->getComponentPath())->toContain("invalid-pure/{$pattern}.blade.php");
+        } catch (\Livewire\Blaze\Exceptions\InvalidBlazeFoldUsageException $e) {
+            expect($e->getMessage())->toContain('Invalid @blaze fold usage');
+            expect($e->getComponentPath())->toContain("invalid-foldable/{$pattern}.blade.php");
             expect($e->getProblematicPattern())->toBe($expectedPattern);
         }
     })->with([
@@ -172,22 +172,22 @@ describe('fold elligable components', function () {
     });
 
     it('supports folding aware components with single word attributes', function () {
-        $input = '<x-group variant="primary"><x-pure-item /></x-group>';
+        $input = '<x-group variant="primary"><x-foldable-item /></x-group>';
         $output = '<div class="group group-primary" data-test="foo"><div class="item item-primary"></div></div>';
 
         expect(compile($input))->toBe($output);
     });
 
     it('supports folding aware components with hyphenated attributes', function () {
-        $input = '<x-group variant="primary" second-variant="secondary"><x-pure-item /></x-group>';
+        $input = '<x-group variant="primary" second-variant="secondary"><x-foldable-item /></x-group>';
         $output = '<div class="group group-primary" data-test="foo" data-second-variant="secondary"><div class="item item-primary item-secondary"></div></div>';
 
         expect(compile($input))->toBe($output);
     });
 
     it('supports folding aware components with two wrapping components both with the same prop the closest one wins', function () {
-        $input = '<x-group variant="primary"><x-group variant="secondary"><x-pure-item /></x-group></x-group>';
-        // The pure-item should render the `secondary` variant because it is the closest one to the pure-item...
+        $input = '<x-group variant="primary"><x-group variant="secondary"><x-foldable-item /></x-group></x-group>';
+        // The foldable-item should render the `secondary` variant because it is the closest one to the foldable-item...
         $output = '<div class="group group-primary" data-test="foo"><div class="group group-secondary" data-test="foo"><div class="item item-secondary"></div></div></div>';
 
         expect(compile($input))->toBe($output);
@@ -256,7 +256,7 @@ BLADE;
 
     it('cant fold dynamic props that get formatted', function () {
         $input = '<?php $date = "2025-07-11 13:22:41 UTC"; ?> <x-date :date="$date" />';
-        $output = '<?php $date = "2025-07-11 13:22:41 UTC"; ?> <?php $blaze_memoized_key = \Livewire\Blaze\Memoizer\Memo::key("date", [\'date\' => $date]); ?>\n<?php if (! \Livewire\Blaze\Memoizer\Memo::has($blaze_memoized_key)) : ?><?php ob_start(); ?><x-date :date="$date" /><?php \Livewire\Blaze\Memoizer\Memo::put($blaze_memoized_key, ob_get_clean()); ?><?php endif; ?><?php echo \Livewire\Blaze\Memoizer\Memo::get($blaze_memoized_key); ?>';
+        $output = '<?php $date = "2025-07-11 13:22:41 UTC"; ?> <?php $blaze_memoized_key = \Livewire\Blaze\Memoizer\Memo::key("date", [\'date\' => $date]); ?><?php if (! \Livewire\Blaze\Memoizer\Memo::has($blaze_memoized_key)) : ?><?php ob_start(); ?><x-date :date="$date" /><?php \Livewire\Blaze\Memoizer\Memo::put($blaze_memoized_key, ob_get_clean()); ?><?php endif; ?><?php echo \Livewire\Blaze\Memoizer\Memo::get($blaze_memoized_key); ?>';
 
         expect(compile($input))->toBe($output);
     });

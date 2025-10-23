@@ -5,7 +5,7 @@ namespace Livewire\Blaze\Memoizer;
 use Livewire\Blaze\Nodes\ComponentNode;
 use Livewire\Blaze\Nodes\TextNode;
 use Livewire\Blaze\Nodes\Node;
-use Livewire\Blaze\Pure\Pure;
+use Livewire\Blaze\Directive\BlazeDirective;
 
 class Memoizer
 {
@@ -31,14 +31,14 @@ class Memoizer
 
             $source = file_get_contents($componentPath);
 
-            $pureParameters = Pure::getParameters($source);
+            $directiveParameters = BlazeDirective::getParameters($source);
 
-            if (is_null($pureParameters)) {
+            if (is_null($directiveParameters)) {
                 return false;
             }
 
             // Default to true if memo parameter is not specified
-            return $pureParameters['memo'] ?? true;
+            return $directiveParameters['memo'] ?? true;
 
         } catch (\Exception $e) {
             return false;

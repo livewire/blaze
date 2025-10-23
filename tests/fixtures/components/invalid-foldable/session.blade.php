@@ -1,4 +1,4 @@
-@pure
+@blaze
 
 <div class="message">
     {{ session('message') }}

@@ -3,7 +3,7 @@
 namespace Livewire\Blaze\Folder;
 
 use Livewire\Blaze\Exceptions\LeftoverPlaceholdersException;
-use Livewire\Blaze\Exceptions\InvalidPureUsageException;
+use Livewire\Blaze\Exceptions\InvalidBlazeFoldUsageException;
 use Livewire\Blaze\Support\AttributeParser;
 use Livewire\Blaze\Events\ComponentFolded;
 use Livewire\Blaze\Nodes\ComponentNode;
@@ -11,7 +11,7 @@ use Illuminate\Support\Facades\Event;
 use Livewire\Blaze\Nodes\TextNode;
 use Livewire\Blaze\Nodes\SlotNode;
 use Livewire\Blaze\Nodes\Node;
-use Livewire\Blaze\Pure\Pure;
+use Livewire\Blaze\Directive\BlazeDirective;
 
 class Folder
 {
@@ -41,14 +41,14 @@ class Folder
 
             $source = file_get_contents($componentPath);
 
-            $pureParameters = Pure::getParameters($source);
+            $directiveParameters = BlazeDirective::getParameters($source);
 
-            if (is_null($pureParameters)) {
+            if (is_null($directiveParameters)) {
                 return false;
             }
 
             // Default to true if fold parameter is not specified
-            return $pureParameters['fold'] ?? true;
+            return $directiveParameters['fold'] ?? true;
 
         } catch (\Exception $e) {
             return false;
@@ -74,18 +74,18 @@ class Folder
             if (file_exists($componentPath)) {
                 $source = file_get_contents($componentPath);
 
-                    $this->validatePureComponent($source, $componentPath);
+                    $this->validateFoldableComponent($source, $componentPath);
 
-                $pureParameters = Pure::getParameters($source);
+                $directiveParameters = BlazeDirective::getParameters($source);
 
                 // Default to true if aware parameter is not specified
-                if ($pureParameters['aware'] ?? true) {
+                if ($directiveParameters['aware'] ?? true) {
                     $awareAttributes = $this->getAwareDirectiveAttributes($source);
 
                     if (! empty($awareAttributes)) {
                         $component->mergeAwareAttributes($awareAttributes);
                     }
-                }                
+                }
             }
 
             [$processedNode, $slotPlaceholders, $restore, $attributeNameToPlaceholder, $attributeNameToOriginal, $rawAttributes] = $component->replaceDynamicPortionsWithPlaceholders(
@@ -122,7 +122,7 @@ class Folder
 
             return new TextNode($finalHtml);
 
-        } catch (InvalidPureUsageException $e) {
+        } catch (InvalidBlazeFoldUsageException $e) {
             throw $e;
         } catch (\Exception $e) {
             if (app('blaze')->isDebugging()) {
@@ -133,7 +133,7 @@ class Folder
         }
     }
 
-    protected function validatePureComponent(string $source, string $componentPath): void
+    protected function validateFoldableComponent(string $source, string $componentPath): void
     {
         $problematicPatterns = [
             '@once' => 'forOnce',
@@ -148,7 +148,7 @@ class Folder
 
         foreach ($problematicPatterns as $pattern => $factoryMethod) {
             if (preg_match('/' . $pattern . '/', $source)) {
-                throw InvalidPureUsageException::{$factoryMethod}($componentPath);
+                throw InvalidBlazeFoldUsageException::{$factoryMethod}($componentPath);
             }
         }
     }

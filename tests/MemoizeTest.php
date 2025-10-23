@@ -12,7 +12,7 @@ describe('memoization', function () {
         Artisan::call('view:clear');
     });
 
-    it('can memoize an impure component', function () {
+    it('can memoize an unfoldable component', function () {
         $template = '<x-memoize />';
 
         $renderedA = app('blade.compiler')->render($template);

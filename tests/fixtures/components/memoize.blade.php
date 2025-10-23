@@ -1,3 +1,3 @@
-@pure(fold: false)
+@blaze(fold: false)
 
 <div>{{ str()->random() }}</div>
