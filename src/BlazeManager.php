@@ -4,6 +4,7 @@ namespace Livewire\Blaze;
 
 use Livewire\Blaze\Events\ComponentFolded;
 use Livewire\Blaze\Nodes\ComponentNode;
+use Livewire\Blaze\Imprinter\Imprinter;
 use Livewire\Blaze\Tokenizer\Tokenizer;
 use Illuminate\Support\Facades\Event;
 use Livewire\Blaze\Memoizer\Memoizer;
@@ -27,6 +28,7 @@ class BlazeManager
         protected Walker $walker,
         protected Folder $folder,
         protected Memoizer $memoizer,
+        protected Imprinter $imprinter,
     ) {
         Event::listen(ComponentFolded::class, function (ComponentFolded $event) {
             $this->foldedEvents[] = $event;
@@ -109,7 +111,16 @@ class BlazeManager
                     array_pop($dataStack);
                 }
 
-                return $this->memoizer->memoize($this->folder->fold($node));
+                foreach ([
+                    $this->imprinter->imprint(...),
+                    $this->folder->fold(...),
+                    $this->imprinter->restore(...),
+                    $this->memoizer->memoize(...),
+                ] as $process) {
+                    $node = $process($node);
+                }
+
+                return $node;
             },
         );
 
@@ -166,5 +177,10 @@ class BlazeManager
     public function folder(): Folder
     {
         return $this->folder;
+    }
+
+    public function imprinter(): Imprinter
+    {
+        return $this->imprinter;
     }
 }
