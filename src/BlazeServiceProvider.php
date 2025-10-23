@@ -3,6 +3,7 @@
 namespace Livewire\Blaze;
 
 use Livewire\Blaze\Directive\BlazeDirective;
+use Livewire\Blaze\Imprinter\Imprinter;
 use Livewire\Blaze\Tokenizer\Tokenizer;
 use Illuminate\Support\ServiceProvider;
 use Livewire\Blaze\Memoizer\Memoizer;
@@ -35,6 +36,9 @@ class BlazeServiceProvider extends ServiceProvider
                 componentNameToPath: fn ($name) => $bladeService->componentNameToPath($name),
             ),
             new Memoizer(
+                componentNameToPath: fn ($name) => $bladeService->componentNameToPath($name),
+            ),
+            new Imprinter(
                 componentNameToPath: fn ($name) => $bladeService->componentNameToPath($name),
             ),
         ));

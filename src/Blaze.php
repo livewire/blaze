@@ -16,6 +16,7 @@ use Illuminate\Support\Facades\Facade;
  * @method static \Livewire\Blaze\Tokenizer\Tokenizer tokenizer()
  * @method static \Livewire\Blaze\Parser\Parser parser()
  * @method static \Livewire\Blaze\Folder\Folder folder()
+ * @method static \Livewire\Blaze\Imprinter\Imprinter imprinter()
  * @method static array flushFoldedEvents()
  * @see \Livewire\Blaze\BlazeManager
  */
