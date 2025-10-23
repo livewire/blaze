@@ -2,13 +2,11 @@
 
 namespace Livewire\Blaze;
 
-use Illuminate\Process\Pipe;
 use Livewire\Blaze\Events\ComponentFolded;
 use Livewire\Blaze\Nodes\ComponentNode;
 use Livewire\Blaze\Imprinter\Imprinter;
 use Livewire\Blaze\Tokenizer\Tokenizer;
 use Illuminate\Support\Facades\Event;
-use Illuminate\Support\Facades\Pipeline;
 use Livewire\Blaze\Memoizer\Memoizer;
 use Livewire\Blaze\Walker\Walker;
 use Livewire\Blaze\Parser\Parser;
