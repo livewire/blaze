@@ -2,11 +2,13 @@
 
 namespace Livewire\Blaze;
 
+use Illuminate\Process\Pipe;
 use Livewire\Blaze\Events\ComponentFolded;
 use Livewire\Blaze\Nodes\ComponentNode;
 use Livewire\Blaze\Imprinter\Imprinter;
 use Livewire\Blaze\Tokenizer\Tokenizer;
 use Illuminate\Support\Facades\Event;
+use Illuminate\Support\Facades\Pipeline;
 use Livewire\Blaze\Memoizer\Memoizer;
 use Livewire\Blaze\Walker\Walker;
 use Livewire\Blaze\Parser\Parser;
@@ -111,15 +113,16 @@ class BlazeManager
                     array_pop($dataStack);
                 }
 
-                return $this->memoizer->memoize(
-                    $this->imprinter->restore(
-                        $this->folder->fold(
-                            $this->imprinter->imprint(
-                                $node
-                            ),
-                        ),
-                    ),
-                );
+                foreach ([
+                    $this->imprinter->imprint(...),
+                    $this->folder->fold(...),
+                    $this->imprinter->restore(...),
+                    $this->memoizer->memoize(...),
+                ] as $process) {
+                    $node = $process($node);
+                }
+
+                return $node;
             },
         );
 
