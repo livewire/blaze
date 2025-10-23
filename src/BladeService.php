@@ -3,6 +3,7 @@
 namespace Livewire\Blaze;
 
 use Illuminate\Support\Facades\Event;
+use Livewire\Blaze\Unblaze;
 use ReflectionClass;
 
 class BladeService
@@ -24,12 +25,22 @@ class BladeService
 
         [$compiler, $restore] = $this->freezeObjectProperties($compiler, [
             'rawBlocks',
-            'prepareStringsForCompilationUsing' => [],
+            'prepareStringsForCompilationUsing' => [
+                function ($input) {
+                    if (Unblaze::hasUnblaze($input)) {
+                        $input = Unblaze::processUnblazeDirectives($input);
+                    }
+
+                    return $input;
+                }
+            ],
             'path' => null,
         ]);
 
         try {
             $result = $compiler->render($template);
+
+            $result = Unblaze::replaceUnblazePrecompiledDirectives($result);
         } finally {
             $restore();
             $restoreFactory();

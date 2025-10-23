@@ -2,20 +2,21 @@
 
 namespace Livewire\Blaze;
 
-use Livewire\Blaze\Directive\BlazeDirective;
-use Livewire\Blaze\Tokenizer\Tokenizer;
-use Illuminate\Support\ServiceProvider;
-use Livewire\Blaze\Memoizer\Memoizer;
 use Livewire\Blaze\Walker\Walker;
+use Livewire\Blaze\Tokenizer\Tokenizer;
 use Livewire\Blaze\Parser\Parser;
+use Livewire\Blaze\Memoizer\Memoizer;
 use Livewire\Blaze\Folder\Folder;
+use Livewire\Blaze\Directive\BlazeDirective;
+use Illuminate\Support\ServiceProvider;
+use Illuminate\Support\Facades\Blade;
 
 class BlazeServiceProvider extends ServiceProvider
 {
     public function register(): void
     {
         $this->registerBlazeManager();
-        $this->registerBlazeDirectiveFallback();
+        $this->registerBlazeDirectiveFallbacks();
         $this->registerBladeMacros();
         $this->interceptBladeCompilation();
         $this->interceptViewCacheInvalidation();
@@ -44,8 +45,19 @@ class BlazeServiceProvider extends ServiceProvider
         $this->app->bind('blaze', fn ($app) => $app->make(BlazeManager::class));
     }
 
-    protected function registerBlazeDirectiveFallback(): void
+    protected function registerBlazeDirectiveFallbacks(): void
     {
+        Blade::directive('unblaze', function ($expression) {
+            return ''
+                . '<'.'?php $__getScope = fn($scope = []) => $scope; ?>'
+                . '<'.'?php if (isset($scope)) $__scope = $scope; ?>'
+                . '<'.'?php $scope = $__getScope('.$expression.'); ?>';
+        });
+
+        Blade::directive('endunblaze', function () {
+            return '<'.'?php if (isset($__scope)) { $scope = $__scope; unset($__scope); } ?>';
+        });
+
         BlazeDirective::registerFallback();
     }
 
