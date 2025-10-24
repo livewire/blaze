@@ -85,6 +85,7 @@ Blaze will automatically optimize it during compilation, pre-rendering the stati
 ## Table of contents
 
 - [When to use @blaze](#when-to-use-blaze)
+- [Making impure components Blaze-eligible with @unblaze](#making-impure-components-blaze-eligible-with-unblaze)
 - [Performance expectations](#performance-expectations)
 - [Debugging](#debugging)
 - [AI assistant integration](#ai-assistant-integration)
@@ -284,6 +285,141 @@ When a component can't be folded due to dynamic content, Blaze automatically fal
 - **Test thoroughly**: After adding `@blaze`, verify the component still works correctly across different requests
 - **Blaze is forgiving**: If a component can't be optimized, Blaze will automatically fall back to normal rendering
 
+## Making impure components Blaze-eligible with @unblaze
+
+Sometimes you have a component that's *mostly* static, but contains a small dynamic section that would normally prevent it from being folded (like `$errors`, `request()`, or `session()`). The `@unblaze` directive lets you "punch a hole" in an otherwise static component, keeping the static parts optimized while allowing specific sections to remain dynamic.
+
+### The problem
+
+Imagine a form input component that's perfect for `@blaze` - except it needs to show validation errors:
+
+```blade
+{{-- ❌ Can't use @blaze - $errors prevents optimization --}}
+
+<div>
+    <label>{{ $label }}</label>
+    <input type="text" name="{{ $name }}">
+
+    @if($errors->has($name))
+        <span>{{ $errors->first($name) }}</span>
+    @endif
+</div>
+```
+
+Without `@unblaze`, you have to choose: either skip `@blaze` entirely (losing all optimization), or remove the error handling (losing functionality).
+
+### The solution: @unblaze
+
+The `@unblaze` directive creates a dynamic section within a folded component:
+
+```blade
+{{-- ✅ Now we can use @blaze! --}}
+
+@blaze
+
+@props(['name', 'label'])
+
+<div>
+    <label>{{ $label }}</label>
+    <input type="text" name="{{ $name }}">
+
+    @unblaze
+        @if($errors->has($name))
+            <span>{{ $errors->first($name) }}</span>
+        @endif
+    @endunblaze
+</div>
+```
+
+**What happens:**
+- The `<div>`, `<label>`, and `<input>` are folded (pre-rendered at compile time)
+- The error handling inside `@unblaze` remains dynamic (evaluated at runtime)
+- You get the best of both worlds: optimization + dynamic functionality
+
+### Using scope to pass data into @unblaze
+
+Sometimes you need to pass component props into the `@unblaze` block. Use the `scope` parameter:
+
+```blade
+@blaze
+
+@props(['userId', 'showStatus' => true])
+
+<div>
+    <h2>User Profile</h2>
+    {{-- Lots of static markup here --}}
+
+    @unblaze(scope: ['userId' => $userId, 'showStatus' => $showStatus])
+        @if($scope['showStatus'])
+            <div>User #{{ $scope['userId'] }} - Last seen: {{ session('last_seen') }}</div>
+        @endif
+    @endunblaze
+</div>
+```
+
+**How scope works:**
+- Variables captured in `scope:` are encoded into the compiled view
+- Inside the `@unblaze` block, access them via `$scope['key']`
+- This allows the unblaze section to use component props while keeping the rest folded
+
+### Nested components inside @unblaze
+
+You can render other components inside `@unblaze` blocks, which is useful for extracting reusable dynamic sections:
+
+```blade
+@blaze
+
+@props(['name', 'label'])
+
+<div>
+    <label>{{ $label }}</label>
+    <input type="text" name="{{ $name }}">
+
+    @unblaze(scope: ['name' => $name])
+        <x-form.errors :name="$scope['name']" />
+    @endunblaze
+</div>
+```
+
+```blade
+{{-- components/form/errors.blade.php --}}
+
+@props(['name'])
+
+@error($name)
+    <p>{{ $message }}</p>
+@enderror
+```
+
+This allows you to keep your error display logic in a separate component while still using it within the unblaze section. The form input remains folded, and only the error component is evaluated at runtime.
+
+### Multiple @unblaze blocks
+
+You can use multiple `@unblaze` blocks in a single component:
+
+```blade
+@blaze
+
+<div>
+    <header>Static Header</header>
+
+    @unblaze
+        <div>Hello, {{ auth()->user()->name }}</div>
+    @endunblaze
+
+    <main>
+        {{-- Lots of static content --}}
+    </main>
+
+    @unblaze
+        <input type="hidden" value="{{ csrf_token() }}">
+    @endunblaze
+
+    <footer>Static Footer</footer>
+</div>
+```
+
+Each `@unblaze` block creates an independent dynamic section, while everything else remains folded.
 
 ## Performance expectations
 

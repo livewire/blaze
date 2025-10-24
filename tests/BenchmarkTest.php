@@ -31,7 +31,11 @@ function clearCache() {
     $files = glob(__DIR__ . '/../vendor/orchestra/testbench-core/laravel/storage/framework/views/*');
     foreach ($files as $file) {
         if (!str_ends_with($file, '.gitignore')) {
-            unlink($file);
+           if (is_dir($file)) {
+                rmdir($file);
+           } else {
+                unlink($file);
+            }
         }
     }
 }
