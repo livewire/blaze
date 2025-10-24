@@ -13,7 +13,7 @@ class BladeService
     {
         $compiler = app('blade.compiler');
 
-        $temporaryCachePath = storage_path('framework/views/blaze/isolated-render/');
+        $temporaryCachePath = storage_path('framework/views/blaze/isolated-render');
 
         File::ensureDirectoryExists($temporaryCachePath);
 
