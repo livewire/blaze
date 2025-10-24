@@ -135,6 +135,9 @@ class Folder
 
     protected function validateFoldableComponent(string $source, string $componentPath): void
     {
+        // Strip out @unblaze blocks before validation since they can contain dynamic content
+        $sourceWithoutUnblaze = $this->stripUnblazeBlocks($source);
+
         $problematicPatterns = [
             '@once' => 'forOnce',
             '\\$errors' => 'forErrors',
@@ -147,10 +150,16 @@ class Folder
         ];
 
         foreach ($problematicPatterns as $pattern => $factoryMethod) {
-            if (preg_match('/' . $pattern . '/', $source)) {
+            if (preg_match('/' . $pattern . '/', $sourceWithoutUnblaze)) {
                 throw InvalidBlazeFoldUsageException::{$factoryMethod}($componentPath);
             }
         }
+    }
+
+    protected function stripUnblazeBlocks(string $source): string
+    {
+        // Remove content between @unblaze and @endunblaze (including the directives themselves)
+        return preg_replace('/@unblaze.*?@endunblaze/s', '', $source);
     }
 
     protected function buildRuntimeDataArray(array $attributeNameToOriginal, string $rawAttributes): string

@@ -219,3 +219,63 @@ BLADE;
         expect($renders[2])->toContain('Dynamic value: three');
     });
 });
+
+describe('unblaze validation', function () {
+    beforeEach(function () {
+        app('blade.compiler')->anonymousComponentNamespace('', 'x');
+        app('blade.compiler')->anonymousComponentPath(__DIR__ . '/fixtures/components');
+    });
+
+    it('allows $errors inside @unblaze blocks', function () {
+        $input = '<x-with-errors-inside-unblaze />';
+
+        // Should not throw an exception
+        $compiled = app('blaze')->compile($input);
+
+        expect($compiled)->toContain('form-input');
+        expect($compiled)->toContain('$errors');
+    });
+
+    it('throws exception for $errors outside @unblaze blocks', function () {
+        expect(fn() => app('blaze')->compile('<x-with-errors-outside-unblaze />'))
+            ->toThrow(\Livewire\Blaze\Exceptions\InvalidBlazeFoldUsageException::class);
+    });
+
+    it('allows @csrf inside @unblaze blocks', function () {
+        $input = '<x-with-csrf-inside-unblaze />';
+
+        // Should not throw an exception
+        $compiled = app('blaze')->compile($input);
+
+        expect($compiled)->toContain('form-wrapper');
+    });
+
+    it('allows request() inside @unblaze blocks', function () {
+        $input = '<x-with-request-inside-unblaze />';
+
+        // Should not throw an exception
+        $compiled = app('blaze')->compile($input);
+
+        expect($compiled)->toContain('<nav>');
+        expect($compiled)->toContain('request()');
+    });
+
+    it('still validates problematic patterns in static parts of component', function () {
+        // Create a component with $errors in static part and @unblaze
+        $componentPath = __DIR__ . '/fixtures/components/mixed-errors.blade.php';
+        file_put_contents($componentPath, '@blaze
+<div>
+    <p>{{ $errors->count() }}</p>
+    @unblaze
+        <span>{{ $errors->first() }}</span>
+    @endunblaze
+</div>');
+
+        try {
+            expect(fn() => app('blaze')->compile('<x-mixed-errors />'))
+                ->toThrow(\Livewire\Blaze\Exceptions\InvalidBlazeFoldUsageException::class);
+        } finally {
+            unlink($componentPath);
+        }
+    });
+});
