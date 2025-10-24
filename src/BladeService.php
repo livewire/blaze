@@ -3,6 +3,7 @@
 namespace Livewire\Blaze;
 
 use Illuminate\Support\Facades\Event;
+use Illuminate\Support\Facades\File;
 use Livewire\Blaze\Unblaze;
 use ReflectionClass;
 
@@ -11,6 +12,10 @@ class BladeService
     public function isolatedRender(string $template): string
     {
         $compiler = app('blade.compiler');
+
+        $temporaryCachePath = storage_path('framework/views/blaze/isolated-render/');
+
+        File::ensureDirectoryExists($temporaryCachePath);
 
         $factory = app('view');
 
@@ -24,6 +29,7 @@ class BladeService
         ]);
 
         [$compiler, $restore] = $this->freezeObjectProperties($compiler, [
+            'cachePath' => $temporaryCachePath,
             'rawBlocks',
             'prepareStringsForCompilationUsing' => [
                 function ($input) {
@@ -44,6 +50,8 @@ class BladeService
         } finally {
             $restore();
             $restoreFactory();
+
+            File::deleteDirectory($temporaryCachePath);
         }
 
         return $result;
