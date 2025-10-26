@@ -140,18 +140,17 @@ class BladeService
                         return $fullPath;
                     }
 
-                    // For root components, try index.blade.php (e.g., pages::auth -> auth/index.blade.php)...
-                    if (!str_contains($componentPath, '/')) {
-                        $indexPath = $basePath . '/' . $componentPath . '/index.blade.php';
-                        if (file_exists($indexPath)) {
-                            return $indexPath;
-                        }
+                    // Try index.blade.php (e.g., pages::auth -> auth/index.blade.php)...
+                    $indexPath = $basePath . '/' . $componentPath . '/index.blade.php';
+                    if (file_exists($indexPath)) {
+                        return $indexPath;
+                    }
 
-                        // Try same-name file (e.g., pages::auth -> auth/auth.blade.php)...
-                        $sameNamePath = $basePath . '/' . $componentPath . '/' . $componentPath . '.blade.php';
-                        if (file_exists($sameNamePath)) {
-                            return $sameNamePath;
-                        }
+                    // Try same-name file (e.g., pages::auth -> auth/auth.blade.php)...
+                    $lastSegment = basename($componentPath);
+                    $sameNamePath = $basePath . '/' . $componentPath . '/' . $lastSegment . '.blade.php';
+                    if (file_exists($sameNamePath)) {
+                        return $sameNamePath;
                     }
                 }
             }
@@ -178,19 +177,20 @@ class BladeService
 
                     // Try direct component file first (e.g., form.input -> form/input.blade.php)...
                     $fullPath = $basePath . '/' . $componentPath . '.blade.php';
-                    if (file_exists($fullPath) && ! is_dir($fullPath)) {
+                    if (file_exists($fullPath)) {
                         return $fullPath;
                     }
 
-                    // For root components, try index.blade.php (e.g., form -> form/index.blade.php)...
+                    // Try index.blade.php (e.g., form -> form/index.blade.php)...
                     $indexPath = $basePath . '/' . $componentPath . '/index.blade.php';
-                    if (file_exists($indexPath) && ! is_dir($indexPath)) {
+                    if (file_exists($indexPath)) {
                         return $indexPath;
                     }
 
                     // Try same-name file (e.g., card -> card/card.blade.php)...
-                    $sameNamePath = $basePath . '/' . $componentPath . '/' . $componentPath . '.blade.php';
-                    if (file_exists($sameNamePath) && ! is_dir($sameNamePath)) {
+                    $lastSegment = basename($componentPath);
+                    $sameNamePath = $basePath . '/' . $componentPath . '/' . $lastSegment . '.blade.php';
+                    if (file_exists($sameNamePath)) {
                         return $sameNamePath;
                     }
                 }
