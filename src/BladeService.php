@@ -13,7 +13,7 @@ class BladeService
     {
         $compiler = app('blade.compiler');
 
-        $temporaryCachePath = storage_path('framework/views/blaze/isolated-render');
+        $temporaryCachePath = storage_path('framework/views/blaze');
 
         File::ensureDirectoryExists($temporaryCachePath);
 
@@ -44,7 +44,11 @@ class BladeService
         ]);
 
         try {
-            $result = $compiler->render($template);
+            // As we are rendering a string, Blade will generate a view for the string in the cache directory
+            // and it doesn't use the `cachePath` property. Instead it uses the config `view.compiled` path
+            // to store the view. Hence why our `temporaryCachePath` won't clean this file up. To remove
+            // the file, we can pass `deleteCachedView: true` to the render method...
+            $result = $compiler->render($template, deleteCachedView: true);
 
             $result = Unblaze::replaceUnblazePrecompiledDirectives($result);
         } finally {
