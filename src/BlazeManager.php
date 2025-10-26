@@ -115,6 +115,8 @@ class BlazeManager
 
         $output = $this->render($ast);
 
+        (new BladeService)->deleteTemporaryCacheDirectory();
+
         return $output;
     }
 

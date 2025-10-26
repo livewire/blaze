@@ -9,11 +9,16 @@ use ReflectionClass;
 
 class BladeService
 {
+    public function getTemporaryCachePath(): string
+    {
+        return storage_path('framework/views/blaze');
+    }
+
     public function isolatedRender(string $template): string
     {
         $compiler = app('blade.compiler');
 
-        $temporaryCachePath = storage_path('framework/views/blaze');
+        $temporaryCachePath = $this->getTemporaryCachePath();
 
         File::ensureDirectoryExists($temporaryCachePath);
 
@@ -54,11 +59,14 @@ class BladeService
         } finally {
             $restore();
             $restoreFactory();
-
-            File::deleteDirectory($temporaryCachePath);
         }
 
         return $result;
+    }
+
+    public function deleteTemporaryCacheDirectory()
+    {
+        File::deleteDirectory($this->getTemporaryCachePath());
     }
 
     public function containsLaravelExceptionView(string $input): bool
