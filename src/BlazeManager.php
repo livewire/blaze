@@ -2,6 +2,7 @@
 
 namespace Livewire\Blaze;
 
+use Illuminate\Contracts\View\Factory;
 use Livewire\Blaze\Events\ComponentFolded;
 use Livewire\Blaze\Nodes\ComponentNode;
 use Livewire\Blaze\Tokenizer\Tokenizer;
@@ -21,6 +22,8 @@ class BlazeManager
 
     protected $expiredMemo = [];
 
+    protected $factory = null;
+
     public function __construct(
         protected Tokenizer $tokenizer,
         protected Parser $parser,
@@ -31,6 +34,7 @@ class BlazeManager
         Event::listen(ComponentFolded::class, function (ComponentFolded $event) {
             $this->foldedEvents[] = $event;
         });
+        $this->factory = app(Factory::class); 
     }
 
     public function flushFoldedEvents()
@@ -63,7 +67,8 @@ class BlazeManager
             return $this->expiredMemo[$path];
         }
 
-        $compiler = $view->getEngine()->getCompiler();
+        $compilerEngine = $this->factory->getEngineResolver()->resolve('blade');
+        $compiler = $compilerEngine->getCompiler();
         $compiled = $compiler->getCompiledPath($path);
         $expired = $compiler->isExpired($path);
 
