@@ -17,7 +17,6 @@ class BlazeServiceProvider extends ServiceProvider
     {
         $this->registerBlazeManager();
         $this->registerBlazeDirectiveFallbacks();
-        $this->registerBladeMacros();
         $this->interceptBladeCompilation();
         $this->interceptViewCacheInvalidation();
     }
@@ -104,6 +103,6 @@ class BlazeServiceProvider extends ServiceProvider
 
     public function boot(): void
     {
-        // Bootstrap services
+        $this->registerBladeMacros();
     }
 }
