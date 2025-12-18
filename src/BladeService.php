@@ -91,7 +91,6 @@ class BladeService
 
         $reflection = new \ReflectionClass($compiler);
         $storeVerbatimBlocks = $reflection->getMethod('storeVerbatimBlocks');
-        $storeVerbatimBlocks->setAccessible(true);
 
         return $storeVerbatimBlocks->invoke($compiler, $input);
     }
@@ -102,7 +101,6 @@ class BladeService
 
         $reflection = new \ReflectionClass($compiler);
         $restoreRawBlocks = $reflection->getMethod('restoreRawBlocks');
-        $restoreRawBlocks->setAccessible(true);
 
         return $restoreRawBlocks->invoke($compiler, $input);
     }
@@ -129,7 +127,6 @@ class BladeService
 
         $reflection = new \ReflectionClass($compiler);
         $pathsProperty = $reflection->getProperty('anonymousComponentPaths');
-        $pathsProperty->setAccessible(true);
         $paths = $pathsProperty->getValue($compiler) ?? [];
 
         // Handle namespaced components...
@@ -224,7 +221,6 @@ class BladeService
 
             $property = $reflection->getProperty($name);
 
-            $property->setAccessible(true);
 
             $frozen[$name] = $property->getValue($object);
 
@@ -238,7 +234,6 @@ class BladeService
             function () use ($reflection, $object, $frozen) {
                 foreach ($frozen as $name => $value) {
                     $property = $reflection->getProperty($name);
-                    $property->setAccessible(true);
                     $property->setValue($object, $value);
                 }
             },
