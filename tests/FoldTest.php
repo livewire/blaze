@@ -5,7 +5,7 @@ describe('fold elligable components', function () {
         app('blade.compiler')->anonymousComponentPath(__DIR__ . '/fixtures/components');
     });
 
-    function compile(string $input): string {
+    function blazeCompile(string $input): string {
         return app('blaze')->compile($input);
     }
 
@@ -13,69 +13,69 @@ describe('fold elligable components', function () {
         $input = '<x-button>Save</x-button>';
         $output = '<button type="button">Save</button>';
 
-        expect(compile($input))->toBe($output);
+        expect(blazeCompile($input))->toBe($output);
     });
 
     it('strips double quotes from attributes with string literals', function () {
         $input = '<x-avatar :name="\'Hi\'" :src="\'there\'" />';
 
-        expect(compile($input))->not->toContain('src=""');
-        expect(compile($input))->not->toContain('alt=""');
+        expect(blazeCompile($input))->not->toContain('src=""');
+        expect(blazeCompile($input))->not->toContain('alt=""');
     });
 
     it('strips double quotes from complex dynamic attributes', function () {
         $input = '<x-avatar :name="$foo->bar" :src="$baz->qux" />';
 
-        expect(compile($input))->toContain('src="{{ $baz->qux }}" alt="{{ $foo->bar }}"');
+        expect(blazeCompile($input))->toContain('src="{{ $baz->qux }}" alt="{{ $foo->bar }}"');
     });
 
     it('with static props', function () {
         $input = '<x-alert message="Success!" />';
         $output = '<div class="alert">Success!</div>';
 
-        expect(compile($input))->toBe($output);
+        expect(blazeCompile($input))->toBe($output);
     });
 
     it('with static props containing dynamic characters like dollar signs', function () {
         $input = '<x-button wire:click="$refresh" />';
         $output = '<button type="button" wire:click="$refresh"></button>';
 
-        expect(compile($input))->toBe($output);
+        expect(blazeCompile($input))->toBe($output);
     });
 
     it('dynamic slot', function () {
         $input = '<x-button>{{ $name }}</x-button>';
         $output = '<button type="button">{{ $name }}</button>';
 
-        expect(compile($input))->toBe($output);
+        expect(blazeCompile($input))->toBe($output);
     });
 
     it('dynamic attributes', function () {
         $input = '<x-button :type="$type">Save</x-button>';
         $output = '<button type="{{ $type }}">Save</button>';
 
-        expect(compile($input))->toBe($output);
+        expect(blazeCompile($input))->toBe($output);
     });
 
     it('dynamic short attributes', function () {
         $input = '<x-button :$type>Save</x-button>';
         $output = '<button type="{{ $type }}">Save</button>';
 
-        expect(compile($input))->toBe($output);
+        expect(blazeCompile($input))->toBe($output);
     });
 
     it('dynamic echo attributes', function () {
         $input = '<x-button type="foo {{ $type }}">Save</x-button>';
         $output = '<button type="foo {{ $type }}">Save</button>';
 
-        expect(compile($input))->toBe($output);
+        expect(blazeCompile($input))->toBe($output);
     });
 
     it('dynamic slot with unfoldable component', function () {
         $input = '<x-button><x-unfoldable-button>{{ $name }}</x-unfoldable-button></x-button>';
         $output = '<button type="button"><x-unfoldable-button>{{ $name }}</x-unfoldable-button></button>';
 
-        expect(compile($input))->toBe($output);
+        expect(blazeCompile($input))->toBe($output);
     });
 
     it('nested components', function () {
@@ -93,7 +93,7 @@ describe('fold elligable components', function () {
         </div>
         HTML;
 
-        expect(compile($input))->toBe($output);
+        expect(blazeCompile($input))->toBe($output);
     });
 
     it('deeply nested components', function () {
@@ -113,21 +113,21 @@ describe('fold elligable components', function () {
         </div>
         HTML;
 
-        expect(compile($input))->toBe($output);
+        expect(blazeCompile($input))->toBe($output);
     });
 
     it('self-closing component', function () {
         $input = '<x-alert message="Success!" />';
         $output = '<div class="alert">Success!</div>';
 
-        expect(compile($input))->toBe($output);
+        expect(blazeCompile($input))->toBe($output);
     });
 
     it('component without @blaze is not folded', function () {
         $input = '<x-unfoldable-button>Save</x-unfoldable-button>';
         $output = '<x-unfoldable-button>Save</x-unfoldable-button>';
 
-        expect(compile($input))->toBe($output);
+        expect(blazeCompile($input))->toBe($output);
     });
 
     it('throws exception for invalid foldable usage with $pattern', function (string $pattern, string $expectedPattern) {
@@ -168,21 +168,21 @@ describe('fold elligable components', function () {
     <div class="modal-footer">Footer Content</div>
 </div>';
 
-        expect(compile($input))->toBe($output);
+        expect(blazeCompile($input))->toBe($output);
     });
 
     it('supports folding aware components with single word attributes', function () {
         $input = '<x-group variant="primary"><x-foldable-item /></x-group>';
         $output = '<div class="group group-primary" data-test="foo"><div class="item item-primary"></div></div>';
 
-        expect(compile($input))->toBe($output);
+        expect(blazeCompile($input))->toBe($output);
     });
 
     it('supports folding aware components with hyphenated attributes', function () {
         $input = '<x-group variant="primary" second-variant="secondary"><x-foldable-item /></x-group>';
         $output = '<div class="group group-primary" data-test="foo" data-second-variant="secondary"><div class="item item-primary item-secondary"></div></div>';
 
-        expect(compile($input))->toBe($output);
+        expect(blazeCompile($input))->toBe($output);
     });
 
     it('supports folding aware components with two wrapping components both with the same prop the closest one wins', function () {
@@ -190,7 +190,7 @@ describe('fold elligable components', function () {
         // The foldable-item should render the `secondary` variant because it is the closest one to the foldable-item...
         $output = '<div class="group group-primary" data-test="foo"><div class="group group-secondary" data-test="foo"><div class="item item-secondary"></div></div></div>';
 
-        expect(compile($input))->toBe($output);
+        expect(blazeCompile($input))->toBe($output);
     });
 
     it('supports aware on unfoldable components from folded parent with single word attributes', function () {
@@ -198,7 +198,7 @@ describe('fold elligable components', function () {
 
         $output = '<div class="group group-primary" data-test="foo"><div class="item item-primary"></div></div>';
 
-        $compiled = compile($input);
+        $compiled = blazeCompile($input);
         $rendered = \Illuminate\Support\Facades\Blade::render($compiled);
 
         expect($rendered)->toBe($output);
@@ -209,7 +209,7 @@ describe('fold elligable components', function () {
 
         $output = '<div class="group group-primary" data-test="foo" data-second-variant="secondary"><div class="item item-primary item-secondary"></div></div>';
 
-        $compiled = compile($input);
+        $compiled = blazeCompile($input);
         $rendered = \Illuminate\Support\Facades\Blade::render($compiled);
 
         expect($rendered)->toBe($output);
@@ -220,7 +220,7 @@ describe('fold elligable components', function () {
 
         $output = '<div class="group group-primary" data-test="bar"><div class="item item-primary"></div></div>';
 
-        $compiled = compile($input);
+        $compiled = blazeCompile($input);
         $rendered = \Illuminate\Support\Facades\Blade::render($compiled);
 
         expect($rendered)->toBe($output);
@@ -251,13 +251,13 @@ BLADE;
         $input = '<x-date date="2025-07-11 13:22:41 UTC" />';
         $output = '<div>Date is: Fri, Jul 11</div>';
 
-        expect(compile($input))->toBe($output);
+        expect(blazeCompile($input))->toBe($output);
     });
 
     it('cant fold dynamic props that get formatted', function () {
         $input = '<?php $date = "2025-07-11 13:22:41 UTC"; ?> <x-date :date="$date" />';
         $output = '<?php $date = "2025-07-11 13:22:41 UTC"; ?> <?php $blaze_memoized_key = \Livewire\Blaze\Memoizer\Memo::key("date", [\'date\' => $date]); ?><?php if (! \Livewire\Blaze\Memoizer\Memo::has($blaze_memoized_key)) : ?><?php ob_start(); ?><x-date :date="$date" /><?php \Livewire\Blaze\Memoizer\Memo::put($blaze_memoized_key, ob_get_clean()); ?><?php endif; ?><?php echo \Livewire\Blaze\Memoizer\Memo::get($blaze_memoized_key); ?>';
 
-        expect(compile($input))->toBe($output);
+        expect(blazeCompile($input))->toBe($output);
     });
 });

@@ -48,7 +48,7 @@ class Folder
             }
 
             // Default to true if fold parameter is not specified
-            return $directiveParameters['fold'] ?? true;
+            return $directiveParameters['fold'] ?? false;
 
         } catch (\Exception $e) {
             return false;

@@ -38,7 +38,7 @@ class Memoizer
             }
 
             // Default to true if memo parameter is not specified
-            return $directiveParameters['memo'] ?? true;
+            return $directiveParameters['memo'] ?? false;
 
         } catch (\Exception $e) {
             return false;

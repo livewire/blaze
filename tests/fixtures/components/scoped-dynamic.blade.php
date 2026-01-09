@@ -1,4 +1,4 @@
-@blaze
+@blaze(fold: true)
 <div class="scoped-component">
     <h1>Static: {{ \Illuminate\Support\Str::random(15) }}</h1>
     @unblaze(scope: ['value' => $value])

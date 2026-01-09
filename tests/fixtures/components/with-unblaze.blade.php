@@ -1,4 +1,4 @@
-@blaze
+@blaze(fold: true)
 <div class="container">
     <h1>Static Header</h1>
     @unblaze

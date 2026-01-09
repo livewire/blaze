@@ -1,4 +1,4 @@
-@blaze
+@blaze(fold: true)
 <div class="mixed-component">
     <h1>Static Random: {{ \Illuminate\Support\Str::random(20) }}</h1>
     @unblaze

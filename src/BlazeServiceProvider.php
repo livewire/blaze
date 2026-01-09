@@ -2,6 +2,9 @@
 
 namespace Livewire\Blaze;
 
+use Livewire\Blaze\Compiler\ComponentCompiler;
+use Livewire\Blaze\Compiler\TagCompiler;
+use Livewire\Blaze\Runtime\BlazeRuntime;
 use Livewire\Blaze\Walker\Walker;
 use Livewire\Blaze\Tokenizer\Tokenizer;
 use Livewire\Blaze\Parser\Parser;
@@ -10,12 +13,14 @@ use Livewire\Blaze\Folder\Folder;
 use Livewire\Blaze\Directive\BlazeDirective;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Support\Facades\Blade;
+use Illuminate\Support\Facades\View;
 
 class BlazeServiceProvider extends ServiceProvider
 {
     public function register(): void
     {
         $this->registerBlazeManager();
+        $this->registerBlazeRuntime();
         $this->registerBlazeDirectiveFallbacks();
         $this->registerBladeMacros();
         $this->interceptBladeCompilation();
@@ -38,11 +43,20 @@ class BlazeServiceProvider extends ServiceProvider
             new Memoizer(
                 componentNameToPath: fn ($name) => $bladeService->componentNameToPath($name),
             ),
+            new TagCompiler(
+                componentNameToPath: fn ($name) => $bladeService->componentNameToPath($name),
+            ),
+            new ComponentCompiler(),
         ));
 
         $this->app->alias(BlazeManager::class, Blaze::class);
 
         $this->app->bind('blaze', fn ($app) => $app->make(BlazeManager::class));
+    }
+
+    protected function registerBlazeRuntime(): void
+    {
+        View::share('__blaze', new BlazeRuntime);
     }
 
     protected function registerBlazeDirectiveFallbacks(): void

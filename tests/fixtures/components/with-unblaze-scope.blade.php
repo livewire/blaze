@@ -1,4 +1,4 @@
-@blaze
+@blaze(fold: true)
 <div class="wrapper">
     <h2>Title</h2>
     @unblaze(scope: ['message' => $message])

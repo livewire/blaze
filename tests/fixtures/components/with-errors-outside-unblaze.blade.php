@@ -1,4 +1,4 @@
-@blaze
+@blaze(fold: true)
 <div class="form-input">
     <label>Email</label>
     <input type="email" name="email">

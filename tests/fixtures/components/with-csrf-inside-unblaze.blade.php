@@ -1,4 +1,4 @@
-@blaze
+@blaze(fold: true)
 <div class="form-wrapper">
     <h2>Form</h2>
     @unblaze

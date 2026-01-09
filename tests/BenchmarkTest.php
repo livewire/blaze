@@ -32,6 +32,8 @@ function clearCache() {
     foreach ($files as $file) {
         if (!str_ends_with($file, '.gitignore')) {
            if (is_dir($file)) {
+                // Recursively remove directory contents
+                array_map('unlink', glob("$file/*.*"));
                 rmdir($file);
            } else {
                 unlink($file);

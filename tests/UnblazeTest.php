@@ -263,7 +263,7 @@ describe('unblaze validation', function () {
     it('still validates problematic patterns in static parts of component', function () {
         // Create a component with $errors in static part and @unblaze
         $componentPath = __DIR__ . '/fixtures/components/mixed-errors.blade.php';
-        file_put_contents($componentPath, '@blaze
+        file_put_contents($componentPath, '@blaze(fold: true)
 <div>
     <p>{{ $errors->count() }}</p>
     @unblaze

@@ -2,6 +2,9 @@
 
 namespace Livewire\Blaze;
 
+use Livewire\Blaze\Compiler\ComponentCompiler;
+use Livewire\Blaze\Compiler\TagCompiler;
+use Livewire\Blaze\Directive\BlazeDirective;
 use Livewire\Blaze\Events\ComponentFolded;
 use Livewire\Blaze\Nodes\ComponentNode;
 use Livewire\Blaze\Tokenizer\Tokenizer;
@@ -27,6 +30,8 @@ class BlazeManager
         protected Walker $walker,
         protected Folder $folder,
         protected Memoizer $memoizer,
+        protected TagCompiler $tagCompiler,
+        protected ComponentCompiler $componentCompiler,
     ) {
         Event::listen(ComponentFolded::class, function (ComponentFolded $event) {
             $this->foldedEvents[] = $event;
@@ -85,6 +90,13 @@ class BlazeManager
         // Protect verbatim blocks before tokenization
         $template = (new BladeService)->preStoreVerbatimBlocks($template);
 
+        // Check if current file needs function wrapping (before processing children)
+        $currentPath = app('blade.compiler')->getPath();        
+        $params = BlazeDirective::getParameters(file_get_contents($currentPath));
+
+        // Wrap in function if component has bare @blaze directive
+        $shouldWrapInFunction = $params === [];
+
         $tokens = $this->tokenizer->tokenize($template);
 
         $ast = $this->parser->parse($tokens);
@@ -109,11 +121,20 @@ class BlazeManager
                     array_pop($dataStack);
                 }
 
-                return $this->memoizer->memoize($this->folder->fold($node));
+                $node = $this->tagCompiler->compile($node);
+                $node = $this->folder->fold($node);
+                $node = $this->memoizer->memoize($node);
+
+                return $node;
             },
         );
 
         $output = $this->render($ast);
+
+        // If this template needs function wrapping, do it after children are processed
+        if ($shouldWrapInFunction) {
+            $output = $this->componentCompiler->compile($output, $currentPath);
+        }
 
         (new BladeService)->deleteTemporaryCacheDirectory();
 
