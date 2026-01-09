@@ -189,6 +189,45 @@ The function compiler supports **all Blade component features**:
 
 **Full compatibility**: Supports every Blade component feature you're already using
 
+### Limitations
+
+While Blaze supports all standard Blade component features, there are a few advanced Laravel features that are not available:
+
+**Not supported:**
+- ❌ View composers - Components with view composers attached will need to pass data through props instead
+- ❌ Custom `View::share()` variables - Shared variables are not automatically injected (use `$__env->shared('key')` to access them)
+- ❌ Dynamic component resolution (`<x-dynamic-component>`) - These fall back to standard Blade rendering
+- ❌ Dynamic slot names (`:name="$variable"`) - These fall back to standard Blade rendering
+- ❌ Class-based components - Only anonymous components are supported
+- ❌ `@aware` across Blade/Blaze boundaries - @aware only works when both parent and child use `@blaze`
+
+**Workarounds:**
+
+If your component needs `View::share()` data:
+```blade
+@blaze
+@props(['appName'])
+
+<div>{{ $appName }}</div>
+
+{{-- In parent component (without @blaze) --}}
+<x-header :app-name="config('app.name')" />
+```
+
+If your component needs view composer data:
+```blade
+{{-- Instead of relying on view composer --}}
+{{-- Pass the data as props from parent component --}}
+@blaze
+@props(['posts'])
+
+@foreach($posts as $post)
+    <div>{{ $post->title }}</div>
+@endforeach
+```
+
+**The pattern**: Blaze components receive data **through props**, not through global state. The parent component (without `@blaze`) fetches data from composers, shared variables, etc., and passes it down to optimized child components.
+
 ## When to use @blaze
 
 **Simple answer: Use `@blaze` on any component!**
@@ -204,147 +243,29 @@ With the function compiler, `@blaze` can be safely added to virtually any Blade 
 ✅ Nested components  
 ✅ Components that accept dynamic data through props
 
-### The only rule
-
-**Components with `@blaze` should be prop-driven** - they receive data through props rather than accessing global state directly in the template.
-
-**You can use `@blaze`:**
-```blade
-@blaze
-@props(['user'])
-
-<div class="user-card">
-    <h3>{{ $user->name }}</h3>
-    <p>Joined {{ $user->created_at->format('M Y') }}</p>
-</div>
-```
-
-**Avoid `@blaze` if the component accesses runtime globals directly:**
-```blade
-{{-- Accesses auth() directly in template --}}
-<div>
-    Welcome, {{ auth()->user()->name }}
-</div>
-
-{{-- Instead, pass the data as a prop --}}
-@blaze
-@props(['userName'])
-
-<div>
-    Welcome, {{ $userName }}
-</div>
-```
-
-### Why prop-driven?
-
-When components receive data through props, Blaze can optimize the component without worrying about runtime state. The parent component (which doesn't have `@blaze`) handles fetching the data, and the Blaze component just renders it efficiently.
-
-**Quick mental model**: If you can render the component in a Storybook-style component library (with props but no app context), it's perfect for `@blaze`.
-
 > **Note:** Looking for information about folding restrictions (auth checks, CSRF tokens, etc.)? See the [Advanced: Compile-time folding](#advanced-compile-time-folding) section.
 
-### ✅ Safe for @blaze
+### Function compilation vs Folding
 
-These components are good candidates for optimization:
+Blaze offers two optimization strategies with different capabilities:
 
-```blade
-{{-- Simple UI components --}}
+| Feature | Function Compilation (`@blaze`) | Folding (`@blaze(fold: true)`) |
+|---------|--------------------------------|-------------------------------|
+| **Performance** | 94-97% faster | 99.9% faster |
+| **Dynamic props** (`:prop="$var"`) | ✅ Fully supported | ⚠️ Falls back to functions |
+| **Static props** (`prop="value"`) | ✅ Fully supported | ✅ Pre-rendered |
+| **`@props` with defaults** | ✅ Fully supported | ✅ Supported |
+| **`@aware` directive** | ✅ Always works | ⚠️ Only with `aware: true` param |
+| **`$errors` variable** | ✅ Works anywhere | ⚠️ Only inside `@unblaze` blocks |
+| **`@csrf` / `@method`** | ✅ Works anywhere | ⚠️ Only inside `@unblaze` blocks |
+| **`auth()` / `session()`** | ✅ Works anywhere | ⚠️ Only inside `@unblaze` blocks |
+| **`request()` / `old()`** | ✅ Works anywhere | ⚠️ Only inside `@unblaze` blocks |
+| **`now()` / timestamps** | ✅ Works anywhere | ⚠️ Only inside `@unblaze` blocks |
+| **Nested components** | ✅ Any component | ⚠️ Only foldable children |
+| **Cache invalidation** | ✅ No caching | ⚠️ Requires cache management |
+| **Reliability** | ✅ 100% predictable | ⚠️ 95% (fallbacks exist) |
 
-@blaze
-
-<div class="card p-4 rounded shadow">
-    {{ $slot }}
-</div>
-```
-
-```blade
-{{-- Components with props --}}
-
-@blaze
-
-@props(['size' => 'md', 'color' => 'blue'])
-
-<button class="btn btn-{{ $size }} text-{{ $color }}">
-    {{ $slot }}
-</button>
-```
-
-```blade
-{{-- Components that accept dynamic data through props --}}
-
-@blaze
-
-@props(['user'])
-
-<div class="user-card">
-    <h3>{{ $user->name }}</h3>
-    <p>Joined {{ $user->created_at->format('M Y') }}</p>
-</div>
-```
-
-```blade
-{{-- Navigation items with active state passed as prop --}}
-
-@blaze
-
-@props(['href', 'active' => false])
-
-<a href="{{ $href }}" @class(['active' => $active])>
-    {{ $slot }}
-</a>
-```
-
-### Examples
-
-```blade
-{{-- ✅ Simple UI component --}}
-@blaze
-
-<div class="card p-4 rounded shadow">
-    {{ $slot }}
-</div>
-```
-
-```blade
-{{-- ✅ Component with static and dynamic props --}}
-@blaze
-@props(['size' => 'md', 'user'])
-
-<div class="card-{{ $size }}">
-    <h3>{{ $user->name }}</h3>
-</div>
-```
-
-```blade
-{{-- ⚠️ Avoid accessing runtime state directly --}}
-{{-- Instead of this: --}}
-<div>Welcome, {{ auth()->user()->name }}</div>
-
-{{-- Do this: --}}
-@blaze
-@props(['userName'])
-
-<div>Welcome, {{ $userName }}</div>
-```
-
-### Understanding the optimization
-
-With default function compilation, **all `@blaze` components are optimized** - whether you pass static or dynamic props:
-
-```blade
-{{-- ✅ Both are optimized with function compilation --}}
-<x-button variant="primary">Save</x-button>
-<x-button :variant="$user->role">Save</x-button>
-```
-
-The difference between **function compilation** (default) and **folding** (`fold: true`):
-
-| Strategy | Static props | Dynamic props | Speed | Reliability |
-|----------|--------------|---------------|-------|-------------|
-| Function compilation (default) | ✅ Optimized | ✅ Optimized | 94-97% faster | 100% |
-| Folding (`fold: true`) | ✅ Pre-rendered | ⚠️ Falls back to functions | 99.9% faster | 95% |
-
-**Function compilation** works with any props, **folding** only works when all props are static literals.
+**Recommendation**: Use the default `@blaze` (function compilation) for 99% of components. Only use `@blaze(fold: true)` if you need the absolute maximum performance and understand the restrictions.
 
 ### Optional: Runtime Memoization
 
