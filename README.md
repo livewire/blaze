@@ -28,7 +28,7 @@ Blaze is a Laravel package that dramatically improves the rendering performance 
 You can install the package via composer:
 
 ```bash
-composer require livewire/blaze:^1.0@beta
+composer require livewire/blaze:^1.1@beta
 ```
 
 ## Usage
