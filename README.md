@@ -2,7 +2,7 @@
 
 Speed up your Laravel app by optimizing Blade component rendering performance.
 
-> ⚠️ **Early stages** - This is an early-stage experimental package. APIs may change, and edge cases have yet to be worked out. Please test thoroughly and report any issues!
+> 🚀 **New blazingly fast function compiler!** Drop-in replacement for Blade components with full feature parity and 94-97% performance improvement. More reliable, no caching concerns, works everywhere.
 
 ```
 Rendering 25,000 button components:
@@ -122,107 +122,126 @@ This gives you 94-97% improvement with zero concerns about caching or stale data
 
 ## Table of contents
 
-- [Migration guide (v1.x → v2.0)](#migration-guide-v1x--v20)
+- [New function compiler](#new-function-compiler)
 - [When to use @blaze](#when-to-use-blaze)
-- [Making impure components Blaze-eligible with @unblaze](#making-impure-components-blaze-eligible-with-unblaze)
+- [Advanced: Compile-time folding](#advanced-compile-time-folding)
+- [Making impure components foldable with @unblaze](#making-impure-components-blaze-eligible-with-unblaze)
 - [Performance expectations](#performance-expectations)
 - [Debugging](#debugging)
 - [AI assistant integration](#ai-assistant-integration)
 
-## Migration guide (v1.x → v2.0)
+## New function compiler
 
-### Breaking change: New default behavior
+Blaze includes a blazingly fast function compiler that transforms your Blade components into optimized PHP functions. This compiler has **full feature parity** with Laravel's Blade components while being **94-97% faster**.
 
-In v2.0, the default behavior of `@blaze` has changed:
+### How it works
 
-**v1.x (old):**
-```blade
-@blaze  {{-- Defaulted to folding (compile-time pre-rendering) --}}
-```
-
-**v2.0 (new):**
-```blade
-@blaze  {{-- Defaults to function compilation (94-97% faster, works with all props) --}}
-```
-
-### Why the change?
-
-**Folding** (the old default) is extremely fast (99.9% improvement) but has limitations:
-- Only works when all props are static literals
-- Falls back silently when props are dynamic
-- Can cause confusion about when optimization applies
-- Requires cache invalidation management
-
-**Function compilation** (the new default) is more reliable:
-- Works with both static and dynamic props
-- No caching concerns or stale data issues
-- Predictable 94-97% performance improvement
-- Drop-in replacement for standard components
-
-### How to migrate
-
-**Most users: No changes needed**
-
-If your components work correctly now, they'll continue working with v2.0. The new default is more reliable and still provides 94-97% improvement.
-
-**If you need the old folding behavior:**
-
-Add `fold: true` explicitly to components where you know props are always static:
+When you add `@blaze` to a component, Blaze compiles it into a direct function call instead of going through Laravel's component resolution and rendering pipeline:
 
 ```blade
-{{-- v1.x --}}
-@blaze
+{{-- Standard Blade component --}}
+<x-button variant="primary">Save</x-button>
 
-{{-- v2.0 equivalent --}}
-@blaze(fold: true)
+{{-- Compiled by Blaze into --}}
+<?php echo _abc123($__blaze, ['variant' => 'primary'], ['default' => 'Save']); ?>
 ```
 
-**Recommended approach:**
+This eliminates the overhead of:
+- Component class instantiation
+- Attribute bag construction
+- View factory resolution
+- Multiple compilation passes
 
-Start with the new default and only add `fold: true` if you:
-1. Know the component is always called with static props
-2. Need the extra 3-5% performance gain
-3. Understand the caching implications
+### Feature parity
 
-### Performance comparison
+The function compiler supports **all Blade component features**:
+- ✅ `@props` with defaults and required props
+- ✅ `@aware` for passing data down component trees
+- ✅ Default and named slots (`$slot`, `<x-slot>`)
+- ✅ `$attributes` bag with merge, class, style methods
+- ✅ Kebab-case to camelCase prop conversion
+- ✅ Dynamic attributes (`:href`, `:class`, etc.)
+- ✅ Slot attributes
+- ✅ Nested components
 
-| Version | Default strategy | Static props | Dynamic props |
-|---------|-----------------|--------------|---------------|
-| v1.x | Folding | 99.9% faster | Falls back (no optimization) |
-| v2.0 | Function compilation | 94-97% faster | 94-97% faster |
+### Benchmark results (25,000 components)
 
-The new default is slightly slower with static props but **dramatically faster** with dynamic props (the common case).
+| Scenario | Standard Blade | Blaze | Improvement |
+|----------|----------------|-------|-------------|
+| Simple components | 451ms | 12ms | 97.3% |
+| With attributes | 462ms | 16ms | 96.5% |
+| With merge() | 635ms | 16ms | 97.5% |
+| With class() | 546ms | 18ms | 96.8% |
+| Props + attributes | 758ms | 25ms | 96.7% |
+| Default slots | 430ms | 20ms | 95.3% |
+| Named slots | 614ms | 35ms | 94.3% |
+| @aware (nested) | 1,835ms | 61ms | 96.7% |
+
+### Why function compilation?
+
+**Reliability**: Works with both static and dynamic props - no special cases or fallbacks
+
+**Performance**: Consistent 94-97% improvement across all scenarios
+
+**Simplicity**: Drop-in replacement - just add `@blaze` to your components
+
+**No caching concerns**: No stale data, no cache invalidation complexity
+
+**Full compatibility**: Supports every Blade component feature you're already using
 
 ## When to use @blaze
 
-With the default function compilation strategy, `@blaze` can be safely added to **most components** in your application. The main requirement is that the component doesn't access runtime-specific data at the **template level** (auth state, request data, CSRF tokens, etc.).
+**Simple answer: Use `@blaze` on any component!**
 
-### The @blaze rule
+With the function compiler, `@blaze` can be safely added to virtually any Blade component. It's a drop-in replacement that works with:
 
-**You can use `@blaze` if your component:**
-- Renders based only on props passed to it
-- Doesn't directly access auth, session, request, or other runtime globals in the template
-- Doesn't use `@csrf`, `$errors`, `old()`, or similar runtime helpers
+✅ Static components (buttons, cards, badges)  
+✅ Dynamic components (user profiles, data tables)  
+✅ Components with `@props`  
+✅ Components with `$attributes`  
+✅ Components with slots  
+✅ Components with `@aware`  
+✅ Nested components  
+✅ Components that accept dynamic data through props
 
-**You cannot use `@blaze` if your component:**
-- Uses `@auth`, `@guest`, `auth()->user()` directly in the template
-- Uses `@csrf`, `@method`, or form helpers
-- Accesses `$errors` or validation state
-- Uses `request()`, `session()`, or `old()` helpers
-- Uses `@error`, `@once`, or other runtime-dependent directives
+### The only rule
 
-### Quick mental model
+**Components with `@blaze` should be prop-driven** - they receive data through props rather than accessing global state directly in the template.
 
-Think of `@blaze` components as **prop-driven components** - they:
-- Accept data through props
-- Render based only on those props
-- Don't reach out to global state
+**You can use `@blaze`:**
+```blade
+@blaze
+@props(['user'])
 
-**Examples:** buttons, cards, badges, icons, layout components, typography, forms inputs (without validation display), navigation items (active state passed as prop)
+<div class="user-card">
+    <h3>{{ $user->name }}</h3>
+    <p>Joined {{ $user->created_at->format('M Y') }}</p>
+</div>
+```
 
-**Not eligible:** auth-dependent navigation, forms with CSRF tokens, validation error displays, components with `@once` blocks
+**Avoid `@blaze` if the component accesses runtime globals directly:**
+```blade
+{{-- Accesses auth() directly in template --}}
+<div>
+    Welcome, {{ auth()->user()->name }}
+</div>
 
-**For developers familiar with React**: Think of `@blaze` components like React function components - they receive props and return markup, without accessing global context or runtime state directly.
+{{-- Instead, pass the data as a prop --}}
+@blaze
+@props(['userName'])
+
+<div>
+    Welcome, {{ $userName }}
+</div>
+```
+
+### Why prop-driven?
+
+When components receive data through props, Blaze can optimize the component without worrying about runtime state. The parent component (which doesn't have `@blaze`) handles fetching the data, and the Blaze component just renders it efficiently.
+
+**Quick mental model**: If you can render the component in a Storybook-style component library (with props but no app context), it's perfect for `@blaze`.
+
+> **Note:** Looking for information about folding restrictions (auth checks, CSRF tokens, etc.)? See the [Advanced: Compile-time folding](#advanced-compile-time-folding) section.
 
 ### ✅ Safe for @blaze
 
@@ -275,107 +294,37 @@ These components are good candidates for optimization:
 </a>
 ```
 
-### ❌ Never use @blaze with
-
-Avoid `@blaze` for components that have runtime dependencies:
+### Examples
 
 ```blade
-{{-- CSRF tokens change per request --}}
-
-<form method="POST">
-    @csrf <!-- ❌ Don't use @blaze -->
-    <button type="submit">Submit</button>
-</form>
-```
-
-```blade
-{{-- Authentication state changes at runtime --}}
-
-@auth <!-- ❌ Don't use @blaze -->
-    <p>Welcome back!</p>
-@endauth
-```
-
-```blade
-{{-- Request data varies per request --}}
-
-@props(['href'])
-
-<!-- ❌ Don't use @blaze - request() is runtime-dependent -->
-<a href="{{ $href }}" @class(['active' => request()->is($href)])>
-    {{ $slot }}
-</a>
-
-<!-- ✅ Instead, pass active state as a prop -->
+{{-- ✅ Simple UI component --}}
 @blaze
 
-@props(['href', 'active' => false])
-
-<a href="{{ $href }}" @class(['active' => $active])>
+<div class="card p-4 rounded shadow">
     {{ $slot }}
-</a>
-```
-
-```blade
-{{-- Error bags are request-specific --}}
-
-@if($errors->has('email')) <!-- ❌ Don't use @blaze -->
-    <span class="error">{{ $errors->first('email') }}</span>
-@endif
-```
-
-```blade
-{{-- Session data changes at runtime --}}
-
-<div>Welcome, {{ session('username') }}</div> <!-- ❌ Don't use @blaze -->
-```
-
-```blade
-{{-- Pagination components --}}
-
-@props(['paginator']) <!-- ❌ Don't use @blaze -->
-
-<div class="pagination">
-    {{ $paginator->links() }}
 </div>
 ```
 
 ```blade
-{{-- Components containing non-foldable children --}}
+{{-- ✅ Component with static and dynamic props --}}
+@blaze
+@props(['size' => 'md', 'user'])
 
-@blaze <!-- ❌ WRONG: This table contains pagination which is dynamic -->
-
-@props(['items'])
-
-<table class="table">
-    @foreach($items as $item)
-        <tr><td>{{ $item->name }}</td></tr>
-    @endforeach
-
-    <x-table-pagination :paginator="$items" />
-</table>
+<div class="card-{{ $size }}">
+    <h3>{{ $user->name }}</h3>
+</div>
 ```
 
-### 🔍 Watch out for
-
-Be careful with these patterns that might seem safe but can cause issues:
-
 ```blade
-{{-- Time-dependent content --}}
-<p>Generated on {{ now() }}</p> <!-- Changes every request -->
+{{-- ⚠️ Avoid accessing runtime state directly --}}
+{{-- Instead of this: --}}
+<div>Welcome, {{ auth()->user()->name }}</div>
 
-{{-- User-specific content --}}
-<p>Hello {{ auth()->user()->name }}</p> <!-- Different per user -->
+{{-- Do this: --}}
+@blaze
+@props(['userName'])
 
-{{-- Environment-dependent values --}}
-<script src="{{ config('app.cdn_url') }}/app.js"></script> <!-- Might change -->
-
-{{-- Components that CONTAIN other non-foldable components --}}
-@blaze <!-- ❌ May break if child components are dynamic -->
-
-<div class="wrapper">
-    <x-user-greeting /> <!-- If this uses auth(), the parent can't be @blaze -->
-</div>
+<div>Welcome, {{ $userName }}</div>
 ```
 
 ### Understanding the optimization
@@ -422,12 +371,132 @@ This caches the rendered output, so if you render `<x-user-avatar :user-id="5" /
 
 **Note:** Most components don't need memoization - function compilation is already very fast.
 
-### 💡 Pro Tips
+## Advanced: Compile-time folding
 
-- **Start with simple components**: Begin with basic UI components like buttons, cards, and badges
-- **Check your dependencies**: If your component uses any Laravel helpers or global variables, think twice
-- **Test thoroughly**: After adding `@blaze`, verify the component still works correctly across different requests
-- **Blaze is forgiving**: If a component can't be optimized, Blaze will automatically fall back to normal rendering
+> **Most users can skip this section.** The default function compilation works for 99% of use cases. Folding is an advanced optimization with strict requirements.
+
+Blaze also supports **compile-time folding** with `@blaze(fold: true)` - an extreme optimization that pre-renders components during compilation for 99.9% performance improvement. However, folding only works under specific conditions.
+
+### When to use folding
+
+Use `@blaze(fold: true)` only if:
+1. Component is **always** called with static prop values (no `:prop="$variable"`)
+2. Component has no runtime dependencies (no `@csrf`, `$errors`, `auth()`, etc.)
+3. You need the absolute maximum performance (extra 3-5% over function compilation)
+
+```blade
+{{-- Example: This can be folded --}}
+@blaze(fold: true)
+@props(['variant' => 'primary'])
+
+<button class="btn-{{ $variant }}">{{ $slot }}</button>
+
+{{-- Called with static prop --}}
+<x-button variant="secondary">Save</x-button>
+```
+
+If props are dynamic, folding automatically falls back to function compilation:
+
+```blade
+{{-- This will use function compilation (not folded) --}}
+<x-button :variant="$userRole">Save</x-button>
+```
+
+### The folding litmus test
+
+Ask yourself these questions about your component:
+
+1. **Does it work the same for all users?** (no auth checks, no user-specific content)
+2. **Does it work the same on every request?** (no request data, no CSRF tokens)
+3. **Does it work the same at any time?** (no timestamps, no "time ago" formatting)
+4. **Does it only use the props you pass in?** (no session data, no database queries)
+5. **Are all child components it renders also foldable?** (no dynamic components hardcoded inside)
+6. **Is it always called with static props?** (no `:prop="$variable"`)
+
+**If you answered YES to all questions → Can use `@blaze(fold: true)`**  
+**If you answered NO to any question → Use default `@blaze` instead**
+
+### ❌ Cannot fold components with
+
+Avoid `@blaze(fold: true)` for components that have runtime dependencies:
+
+```blade
+{{-- CSRF tokens change per request --}}
+<form method="POST">
+    @csrf <!-- ❌ Can't fold -->
+    <button type="submit">Submit</button>
+</form>
+```
+
+```blade
+{{-- Authentication state changes at runtime --}}
+@auth <!-- ❌ Can't fold -->
+    <p>Welcome back!</p>
+@endauth
+```
+
+```blade
+{{-- Error bags are request-specific --}}
+@if($errors->has('email')) <!-- ❌ Can't fold -->
+    <span class="error">{{ $errors->first('email') }}</span>
+@endif
+```
+
+```blade
+{{-- Session data changes at runtime --}}
+<div>Welcome, {{ session('username') }}</div> <!-- ❌ Can't fold -->
+```
+
+```blade
+{{-- Request data varies per request --}}
+<div @class(['active' => request()->is('/')])>Home</div> <!-- ❌ Can't fold -->
+```
+
+```blade
+{{-- Time-dependent content --}}
+<p>Generated on {{ now() }}</p> <!-- ❌ Can't fold -->
+```
+
+```blade
+{{-- Components with dynamic props --}}
+@blaze(fold: true)
+<button>Save</button>
+
+{{-- ❌ Won't fold - dynamic prop --}}
+<x-button :variant="$user->role">Save</x-button>
+```
+
+### When folding makes sense
+
+**Good use case** - Static UI components in a design system that are always called with literals:
+
+```blade
+@blaze(fold: true)
+@props(['icon', 'label'])
+
+<button class="btn">
+    <x-icon :name="$icon" />
+    {{ $label }}
+</button>
+
+{{-- Always called like this (static props) --}}
+<x-button icon="save" label="Save" />
+<x-button icon="delete" label="Delete" />
+```
+
+**Bad use case** - Components that receive dynamic data:
+
+```blade
+@blaze(fold: true) <!-- ❌ Wrong choice -->
+@props(['user'])
+
+<div>{{ $user->name }}</div>
+
+{{-- Called like this (dynamic prop) --}}
+<x-user-card :user="$currentUser" />
+```
+
+For dynamic data, use the default `@blaze` (function compilation) instead - you still get 94-97% improvement without the folding restrictions.
 
 ## Making impure components Blaze-eligible with @unblaze
 
@@ -440,7 +509,7 @@ Sometimes you have a component that's *mostly* static, but contains a small dyna
 Imagine a form input component that's perfect for `@blaze` - except it needs to show validation errors:
 
 ```blade
-{{-- ❌ Can't use @blaze - $errors prevents optimization --}}
+{{-- ❌ Can't use @blaze(fold: true) - $errors prevents folding --}}
 
 <div>
     <label>{{ $label }}</label>
@@ -452,7 +521,7 @@ Imagine a form input component that's perfect for `@blaze` - except it needs to 
 </div>
 ```
 
-Without `@unblaze`, you have to choose: either skip `@blaze` entirely (losing all optimization), or remove the error handling (losing functionality).
+Without `@unblaze`, you have to choose: either skip folding entirely (losing the 99.9% speed boost), or remove the error handling (losing functionality).
 
 ### The solution: @unblaze
 
@@ -515,7 +584,7 @@ This approach is simpler and more maintainable for most use cases.
 Sometimes you need to pass component props into the `@unblaze` block. Use the `scope` parameter:
 
 ```blade
-@blaze
+@blaze(fold: true)
 
 @props(['userId', 'showStatus' => true])
 
@@ -541,7 +610,7 @@ Sometimes you need to pass component props into the `@unblaze` block. Use the `s
 You can render other components inside `@unblaze` blocks, which is useful for extracting reusable dynamic sections:
 
 ```blade
-@blaze
+@blaze(fold: true)
 
 @props(['name', 'label'])
 
@@ -572,7 +641,7 @@ This allows you to keep your error display logic in a separate component while s
 You can use multiple `@unblaze` blocks in a single component:
 
 ```blade
-@blaze
+@blaze(fold: true)
 
 <div>
     <header>Static Header</header>
@@ -597,22 +666,7 @@ Each `@unblaze` block creates an independent dynamic section, while everything e
 
 ## Performance expectations
 
-Blaze provides consistent 94-97% improvement in component rendering time across all scenarios. Here's what that means in practice:
-
-### Benchmark Results (25,000 components)
-
-| Scenario | Standard Blade | Blaze | Improvement |
-|----------|----------------|-------|-------------|
-| Simple components | 451ms | 12ms | 97.3% |
-| With attributes | 462ms | 16ms | 96.5% |
-| With merge() | 635ms | 16ms | 97.5% |
-| With class() | 546ms | 18ms | 96.8% |
-| Props + attributes | 758ms | 25ms | 96.7% |
-| Default slots | 430ms | 20ms | 95.3% |
-| Named slots | 614ms | 35ms | 94.3% |
-| @aware (nested) | 1,835ms | 61ms | 96.7% |
-
-### Real-world impact
+Blaze provides consistent 94-97% improvement in component rendering time. Here's what that means in practice:
 
 **Most pages**: 10-50ms faster total render time
 - Pages with dozens to hundreds of components
