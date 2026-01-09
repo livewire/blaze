@@ -168,14 +168,14 @@ The function compiler supports **all Blade component features**:
 
 | Scenario | Standard Blade | Blaze | Improvement |
 |----------|----------------|-------|-------------|
-| Simple components | 451ms | 12ms | 97.3% |
-| With attributes | 462ms | 16ms | 96.5% |
-| With merge() | 635ms | 16ms | 97.5% |
-| With class() | 546ms | 18ms | 96.8% |
-| Props + attributes | 758ms | 25ms | 96.7% |
-| Default slots | 430ms | 20ms | 95.3% |
-| Named slots | 614ms | 35ms | 94.3% |
-| @aware (nested) | 1,835ms | 61ms | 96.7% |
+| No attributes | 500ms | 13ms | 97.4% |
+| Attributes only | 457ms | 26ms | 94.3% |
+| Attributes + merge() | 546ms | 44ms | 91.9% |
+| Attributes + class() | 720ms | 46ms | 93.5% |
+| Props + attributes | 780ms | 40ms | 94.9% |
+| Default slot | 460ms | 22ms | 95.1% |
+| Named slots | 696ms | 49ms | 93.0% |
+| @aware (nested) | 1,787ms | 129ms | 92.8% |
 
 ### Why function compilation?
 
