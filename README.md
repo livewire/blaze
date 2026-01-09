@@ -225,7 +225,7 @@ Blaze offers two optimization strategies with different capabilities:
 | Feature | Function Compilation (`@blaze`) | Folding (`@blaze(fold: true)`) |
 |---------|--------------------------------|-------------------------------|
 | **Performance** | 94-97% faster | 99.9% faster |
-| **Dynamic props** (`:prop="$var"`) | ✅ Fully supported | ⚠️ Falls back to functions |
+| **Dynamic props** (`:prop="$var"`) | ✅ Fully supported | ⚠️ Works unless transformed |
 | **Static props** (`prop="value"`) | ✅ Fully supported | ✅ Pre-rendered |
 | **`@props` with defaults** | ✅ Fully supported | ✅ Supported |
 | **`@aware` directive** | ✅ Always works | ⚠️ Only with `aware: true` param |
@@ -237,6 +237,34 @@ Blaze offers two optimization strategies with different capabilities:
 | **Nested components** | ✅ Any component | ⚠️ Only foldable children |
 | **Cache invalidation** | ✅ No caching | ⚠️ Requires cache management |
 | **Reliability** | ✅ 100% predictable | ⚠️ Depends on usage |
+
+**Understanding "Works unless transformed":**
+
+When a component marked with `@blaze(fold: true)` receives dynamic props (`:title="$user->name"`), Blaze is smart enough to handle them - it preserves the dynamic values and passes them through during folding. The component can still be pre-rendered at compile time with 99.9% optimization.
+
+**However**, this only works if props **flow through unchanged**. If your component **transforms props** inside the template before using them, folding breaks:
+
+```blade
+{{-- ❌ This won't fold correctly - prop transformation inside component --}}
+@blaze(fold: true)
+
+@props(['title'])
+
+@php
+    $title = Str::title($title); // Transforms the prop
+@endphp
+
+<h1>{{ $title }}</h1>
+
+{{-- ✅ This works fine - no prop transformation --}}
+@blaze(fold: true)
+
+@props(['title'])
+
+<h1>{{ Str::title($title) }}</h1> <!-- Transformation in output only -->
+```
+
+When props are transformed inside the component (using `@php` blocks or similar), Blaze can't fold properly because the transformation happens before folding. Use function compilation (`@blaze`) for these components instead.
 
 **Recommendation**: Use the default `@blaze` (function compilation) for 99% of components. Only use `@blaze(fold: true)` if you need the absolute maximum performance and understand the restrictions.
 
@@ -275,8 +303,9 @@ Blaze also supports **compile-time folding** with `@blaze(fold: true)` - an extr
 
 Use `@blaze(fold: true)` only if:
 1. Component is **always** called with static prop values (no `:prop="$variable"`)
-2. Component has no runtime dependencies (no `@csrf`, `$errors`, `auth()`, etc.)
-3. You need the absolute maximum performance (extra 3-5% over function compilation)
+2. Component does **not transform props** inside the template (no `$title = Str::title($title)`)
+3. Component has no runtime dependencies (no `@csrf`, `$errors`, `auth()`, etc.)
+4. You need the absolute maximum performance (extra 3-5% over function compilation)
 
 ```blade
 {{-- Example: This can be folded --}}
@@ -380,20 +409,34 @@ Avoid `@blaze(fold: true)` for components that have runtime dependencies:
 <x-button icon="delete" label="Delete" />
 ```
 
-**Bad use case** - Components that receive dynamic data:
+**Bad use cases:**
 
 ```blade
-@blaze(fold: true) <!-- ❌ Wrong choice -->
+{{-- ❌ Receives dynamic props --}}
+@blaze(fold: true)
 
 @props(['user'])
 
 <div>{{ $user->name }}</div>
 
-{{-- Called like this (dynamic prop) --}}
+{{-- Called like this (dynamic prop prevents folding) --}}
 <x-user-card :user="$currentUser" />
 ```
 
-For dynamic data, use the default `@blaze` (function compilation) instead - you still get 94-97% improvement without the folding restrictions.
+```blade
+{{-- ❌ Transforms props inside component --}}
+@blaze(fold: true)
+
+@props(['title'])
+
+@php
+    $title = Str::title($title); // Prop transformation prevents proper folding
+@endphp
+
+<h1>{{ $title }}</h1>
+```
+
+For these cases, use the default `@blaze` (function compilation) instead - you still get 94-97% improvement without the folding restrictions.
 
 ## Making impure components foldable with @unblaze
 
