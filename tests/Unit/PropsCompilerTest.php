@@ -19,7 +19,7 @@ describe('basic compilation', function () {
 
         expect($result)->toBe(
             "\$__defaults = ['type' => 'button'];\n" .
-            "\$type = \$__data['type'] ?? \$__defaults['type'];\n" .
+            "\$type ??= \$__data['type'] ?? \$__defaults['type'];\n" .
             "unset(\$__data['type']);\n" .
             "unset(\$__defaults);\n"
         );
@@ -32,7 +32,7 @@ describe('basic compilation', function () {
 
         expect($result)->toBe(
             "\$__defaults = ['label'];\n" .
-            "if (array_key_exists('label', \$__data)) { \$label = \$__data['label']; }\n" .
+            "if (!isset(\$label) && array_key_exists('label', \$__data)) { \$label = \$__data['label']; }\n" .
             "unset(\$__data['label']);\n" .
             "unset(\$__defaults);\n"
         );
@@ -45,11 +45,11 @@ describe('basic compilation', function () {
 
         expect($result)->toBe(
             "\$__defaults = ['type' => 'button', 'required', 'disabled' => false];\n" .
-            "\$type = \$__data['type'] ?? \$__defaults['type'];\n" .
+            "\$type ??= \$__data['type'] ?? \$__defaults['type'];\n" .
             "unset(\$__data['type']);\n" .
-            "if (array_key_exists('required', \$__data)) { \$required = \$__data['required']; }\n" .
+            "if (!isset(\$required) && array_key_exists('required', \$__data)) { \$required = \$__data['required']; }\n" .
             "unset(\$__data['required']);\n" .
-            "\$disabled = \$__data['disabled'] ?? \$__defaults['disabled'];\n" .
+            "\$disabled ??= \$__data['disabled'] ?? \$__defaults['disabled'];\n" .
             "unset(\$__data['disabled']);\n" .
             "unset(\$__defaults);\n"
         );
@@ -60,7 +60,7 @@ describe('basic compilation', function () {
 
         $result = $compiler->compile("['type' => 'button',]");
 
-        expect($result)->toContain("\$type = \$__data['type'] ?? \$__defaults['type'];");
+        expect($result)->toContain("\$type ??= \$__data['type'] ?? \$__defaults['type'];");
     });
 
     it('handles multiline array', function () {
@@ -72,9 +72,9 @@ describe('basic compilation', function () {
             'showFooter' => true,
         ]");
 
-        expect($result)->toContain("\$title = \$__data['title'] ?? \$__defaults['title'];");
-        expect($result)->toContain("if (array_key_exists('subtitle', \$__data)) { \$subtitle = \$__data['subtitle']; }");
-        expect($result)->toContain("\$showFooter = \$__data['show-footer'] ?? \$__data['showFooter'] ?? \$__defaults['showFooter'];");
+        expect($result)->toContain("\$title ??= \$__data['title'] ?? \$__defaults['title'];");
+        expect($result)->toContain("if (!isset(\$subtitle) && array_key_exists('subtitle', \$__data)) { \$subtitle = \$__data['subtitle']; }");
+        expect($result)->toContain("\$showFooter ??= \$__data['show-footer'] ?? \$__data['showFooter'] ?? \$__defaults['showFooter'];");
     });
 });
 
@@ -142,7 +142,7 @@ describe('kebab-case handling', function () {
 
         $result = $compiler->compile("['type' => 'button']");
 
-        expect($result)->toContain("\$type = \$__data['type'] ?? \$__defaults['type'];");
+        expect($result)->toContain("\$type ??= \$__data['type'] ?? \$__defaults['type'];");
         expect($result)->not->toContain("'type-'");
     });
 
@@ -151,7 +151,7 @@ describe('kebab-case handling', function () {
 
         $result = $compiler->compile("['backgroundColor' => 'white']");
 
-        expect($result)->toContain("\$backgroundColor = \$__data['background-color'] ?? \$__data['backgroundColor'] ?? \$__defaults['backgroundColor'];");
+        expect($result)->toContain("\$backgroundColor ??= \$__data['background-color'] ?? \$__data['backgroundColor'] ?? \$__defaults['backgroundColor'];");
     });
 
     it('unset includes both camelCase and kebab-case variants', function () {
@@ -167,7 +167,7 @@ describe('kebab-case handling', function () {
 
         $result = $compiler->compile("['firstName']");
 
-        expect($result)->toContain("if (array_key_exists('first-name', \$__data)) { \$firstName = \$__data['first-name']; } elseif (array_key_exists('firstName', \$__data)) { \$firstName = \$__data['firstName']; }");
+        expect($result)->toContain("if (!isset(\$firstName)) { if (array_key_exists('first-name', \$__data)) { \$firstName = \$__data['first-name']; } elseif (array_key_exists('firstName', \$__data)) { \$firstName = \$__data['firstName']; } }");
     });
 });
 
@@ -243,7 +243,7 @@ describe('edge cases', function () {
         // Old array() syntax (still valid PHP)
         $result = $compiler->compile("array('type' => 'button')");
 
-        expect($result)->toContain("\$type = \$__data['type'] ?? \$__defaults['type'];");
+        expect($result)->toContain("\$type ??= \$__data['type'] ?? \$__defaults['type'];");
     });
 });
 

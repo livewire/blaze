@@ -382,6 +382,82 @@ describe('$attributes in @props defaults', function () {
     });
 });
 
+describe('named slots override props', function () {
+    it('prefers named slot over attribute when both provided', function () {
+        $result = blade(
+            components: [
+                'button' => <<<'BLADE'
+                    @blaze
+                    @props(['name' => 'Filip'])
+                    <button>Hey {{ $name }}</button>
+                    BLADE
+                ,
+            ],
+            view: <<<'BLADE'
+                <x-button name="Josh">
+                    <x-slot:name>Caleb</x-slot:name>
+                </x-button>
+                BLADE,
+        );
+
+        expect($result)->toContain('Hey Caleb');
+        expect($result)->not->toContain('Hey Josh');
+    });
+
+    it('prefers named slot over default value when only slot provided', function () {
+        $result = blade(
+            components: [
+                'button' => <<<'BLADE'
+                    @blaze
+                    @props(['name' => 'Filip'])
+                    <button>Hey {{ $name }}</button>
+                    BLADE
+                ,
+            ],
+            view: <<<'BLADE'
+                <x-button>
+                    <x-slot:name>Caleb</x-slot:name>
+                </x-button>
+                BLADE,
+        );
+
+        expect($result)->toContain('Hey Caleb');
+        expect($result)->not->toContain('Hey Filip');
+    });
+
+    it('uses attribute when no slot provided', function () {
+        $result = blade(
+            components: [
+                'button' => <<<'BLADE'
+                    @blaze
+                    @props(['name' => 'Filip'])
+                    <button>Hey {{ $name }}</button>
+                    BLADE
+                ,
+            ],
+            view: '<x-button name="Caleb" />',
+        );
+
+        expect($result)->toContain('Hey Caleb');
+    });
+
+    it('uses default when neither slot nor attribute provided', function () {
+        $result = blade(
+            components: [
+                'button' => <<<'BLADE'
+                    @blaze
+                    @props(['name' => 'Filip'])
+                    <button>Hey {{ $name }}</button>
+                    BLADE
+                ,
+            ],
+            view: '<x-button />',
+        );
+
+        expect($result)->toContain('Hey Filip');
+    });
+});
+
 describe('edge cases', function () {
     it('works with component with @blaze but no @props', function () {
         $result = blade(

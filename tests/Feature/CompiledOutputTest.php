@@ -223,11 +223,11 @@ describe('component wrapper compilation', function () {
             '<?php if (!function_exists(\'_' . $hash . '\')):
 function _' . $hash . '($__blaze, $__data = [], $__slots = [], $__bound = []) {
 $__env = $__blaze->env;
+extract($__slots, EXTR_SKIP);
+unset($__slots);
 extract($__data, EXTR_SKIP);
 $attributes = \Livewire\Blaze\Runtime\BlazeAttributeBag::sanitized($__data, $__bound);
-unset($__data, $__bound);
-extract($__slots, EXTR_SKIP);
-unset($__slots); ?><button <?php echo e($attributes); ?>>Click</button><?php }
+unset($__data, $__bound); ?><button <?php echo e($attributes); ?>>Click</button><?php }
 endif; ?><?php /**PATH ' . $path . ' ENDPATH**/ ?>'
         );
     });
@@ -245,8 +245,8 @@ endif; ?><?php /**PATH ' . $path . ' ENDPATH**/ ?>'
 
         expect($compiled)->toContain("function _$hash(\$__blaze, \$__data = [], \$__slots = [], \$__bound = [])");
         expect($compiled)->toContain("\$__defaults = ['type' => 'button', 'disabled' => false];");
-        expect($compiled)->toContain("\$type = \$__data['type'] ?? \$__defaults['type'];");
-        expect($compiled)->toContain("\$disabled = \$__data['disabled'] ?? \$__defaults['disabled'];");
+        expect($compiled)->toContain("\$type ??= \$__data['type'] ?? \$__defaults['type'];");
+        expect($compiled)->toContain("\$disabled ??= \$__data['disabled'] ?? \$__defaults['disabled'];");
         expect($compiled)->toContain("unset(\$__defaults);");
         expect($compiled)->toContain("unset(\$__data['type']);");
         expect($compiled)->toContain("unset(\$__data['disabled']);");
@@ -258,7 +258,7 @@ endif; ?><?php /**PATH ' . $path . ' ENDPATH**/ ?>'
     it('generates array_key_exists for required props', function () {
         $compiled = compile('props-required.blade.php');
 
-        expect($compiled)->toContain("if (array_key_exists('label', \$__data)) { \$label = \$__data['label']; }");
+        expect($compiled)->toContain("if (!isset(\$label) && array_key_exists('label', \$__data)) { \$label = \$__data['label']; }");
     });
 
     it('generates both camelCase and kebab-case in unset', function () {
@@ -297,7 +297,7 @@ endif; ?><?php /**PATH ' . $path . ' ENDPATH**/ ?>'
         $compiled = compile('props-simple.blade.php');
 
         expect($compiled)->not->toContain('extract($__data, EXTR_SKIP);');
-        expect($compiled)->toContain("\$foo = \$__data['foo']");
+        expect($compiled)->toContain("\$foo ??= \$__data['foo']");
     });
 
     it('includes $__slots parameter in function signature', function () {
