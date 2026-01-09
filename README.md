@@ -225,7 +225,7 @@ Blaze offers two optimization strategies with different capabilities:
 | Feature | Function Compilation (`@blaze`) | Folding (`@blaze(fold: true)`) |
 |---------|--------------------------------|-------------------------------|
 | **Performance** | 94-97% faster | 99.9% faster |
-| **Dynamic props** (`:prop="$var"`) | ✅ Fully supported | ⚠️ Works unless transformed |
+| **Dynamic props** (`:prop="$var"`) | ✅ Fully supported | ⚠️ Works unless transformed* |
 | **Static props** (`prop="value"`) | ✅ Fully supported | ✅ Pre-rendered |
 | **`@props` with defaults** | ✅ Fully supported | ✅ Supported |
 | **`@aware` directive** | ✅ Always works | ⚠️ Only with `aware: true` param |
