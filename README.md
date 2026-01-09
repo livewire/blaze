@@ -125,7 +125,7 @@ This gives you 94-97% improvement with zero concerns about caching or stale data
 - [New function compiler](#new-function-compiler)
 - [When to use @blaze](#when-to-use-blaze)
 - [Advanced: Compile-time folding](#advanced-compile-time-folding)
-- [Making impure components foldable with @unblaze](#making-impure-components-blaze-eligible-with-unblaze)
+- [Making impure components foldable with @unblaze](#making-impure-components-foldable-with-unblaze)
 - [Performance expectations](#performance-expectations)
 - [Debugging](#debugging)
 - [AI assistant integration](#ai-assistant-integration)
@@ -197,36 +197,9 @@ While Blaze supports all standard Blade component features, there are a few adva
 - ❌ View composers - Components with view composers attached will need to pass data through props instead
 - ❌ Custom `View::share()` variables - Shared variables are not automatically injected (use `$__env->shared('key')` to access them)
 - ❌ Dynamic component resolution (`<x-dynamic-component>`) - These fall back to standard Blade rendering
-- ❌ Dynamic slot names (`:name="$variable"`) - These fall back to standard Blade rendering
+- ❌ Dynamic slot names (`<x-slot :name="$variable">`) - These fall back to standard Blade rendering
 - ❌ Class-based components - Only anonymous components are supported
 - ❌ `@aware` across Blade/Blaze boundaries - @aware only works when both parent and child use `@blaze`
-
-**Workarounds:**
-
-If your component needs `View::share()` data:
-```blade
-@blaze
-@props(['appName'])
-
-<div>{{ $appName }}</div>
-
-{{-- In parent component (without @blaze) --}}
-<x-header :app-name="config('app.name')" />
-```
-
-If your component needs view composer data:
-```blade
-{{-- Instead of relying on view composer --}}
-{{-- Pass the data as props from parent component --}}
-@blaze
-@props(['posts'])
-
-@foreach($posts as $post)
-    <div>{{ $post->title }}</div>
-@endforeach
-```
-
-**The pattern**: Blaze components receive data **through props**, not through global state. The parent component (without `@blaze`) fetches data from composers, shared variables, etc., and passes it down to optimized child components.
 
 ## When to use @blaze
 
@@ -263,7 +236,7 @@ Blaze offers two optimization strategies with different capabilities:
 | **`now()` / timestamps** | ✅ Works anywhere | ⚠️ Only inside `@unblaze` blocks |
 | **Nested components** | ✅ Any component | ⚠️ Only foldable children |
 | **Cache invalidation** | ✅ No caching | ⚠️ Requires cache management |
-| **Reliability** | ✅ 100% predictable | ⚠️ 95% (fallbacks exist) |
+| **Reliability** | ✅ 100% predictable | ⚠️ Depends on usage |
 
 **Recommendation**: Use the default `@blaze` (function compilation) for 99% of components. Only use `@blaze(fold: true)` if you need the absolute maximum performance and understand the restrictions.
 
@@ -308,6 +281,7 @@ Use `@blaze(fold: true)` only if:
 ```blade
 {{-- Example: This can be folded --}}
 @blaze(fold: true)
+
 @props(['variant' => 'primary'])
 
 <button class="btn-{{ $variant }}">{{ $slot }}</button>
@@ -393,6 +367,7 @@ Avoid `@blaze(fold: true)` for components that have runtime dependencies:
 
 ```blade
 @blaze(fold: true)
+
 @props(['icon', 'label'])
 
 <button class="btn">
@@ -409,6 +384,7 @@ Avoid `@blaze(fold: true)` for components that have runtime dependencies:
 
 ```blade
 @blaze(fold: true) <!-- ❌ Wrong choice -->
+
 @props(['user'])
 
 <div>{{ $user->name }}</div>
@@ -419,7 +395,7 @@ Avoid `@blaze(fold: true)` for components that have runtime dependencies:
 
 For dynamic data, use the default `@blaze` (function compilation) instead - you still get 94-97% improvement without the folding restrictions.
 
-## Making impure components Blaze-eligible with @unblaze
+## Making impure components foldable with @unblaze
 
 > **Note:** The `@unblaze` directive is primarily useful with **folding** (`@blaze(fold: true)`). With the default function compilation strategy, you typically don't need `@unblaze` - just pass dynamic data through props instead.
 
@@ -609,24 +585,27 @@ Blaze provides consistent 94-97% improvement in component rendering time. Here's
 
 ## Debugging
 
-Blaze is designed to work transparently - components with `@blaze` should work exactly like standard Blade components, just faster.
+Blaze's function compilation (default `@blaze`) is designed to work transparently - it should work exactly like standard Blade components, just faster. If you encounter issues with the default behavior, it's likely a bug - please report it!
 
-### Compilation issues
+### Debugging folding
 
-If you encounter errors after adding `@blaze`, the most common causes are:
+If you're using **folding** (`@blaze(fold: true)`) and encountering issues, here are common causes:
 
 1. **Runtime-dependent code in template** - Using `@csrf`, `$errors`, `auth()`, etc.
-   - **Solution:** Remove `@blaze` or move dynamic code to parent component
+   - **Solution:** Move dynamic code inside `@unblaze` blocks or pass data through props
 
-2. **Invalid prop definitions** - Syntax errors in `@props([...])`
+2. **Dynamic props passed to folded component** - Component expects static props but receives `:prop="$var"`
+   - **Solution:** Either pass static values or use default `@blaze` instead
+
+3. **Invalid prop definitions** - Syntax errors in `@props([...])`
    - **Solution:** Verify prop array syntax is valid PHP
 
-3. **Missing `@aware` dependencies** - Child expects props not provided by parent
+4. **Missing `@aware` dependencies** - Child expects props not provided by parent
    - **Solution:** Ensure parent passes required props or child provides defaults
 
-### Debug mode
+### Debug mode for folding
 
-For detailed error information when using folding (`fold: true`), enable debug mode:
+To get detailed error information when folding fails, enable debug mode:
 
 ```php
 // In a service provider or debug environment...
@@ -635,22 +614,27 @@ app('blaze')->debug();
 ```
 
 When debug mode is enabled:
-- Blaze will throw exceptions instead of falling back gracefully
-- Helps identify issues with folding (invalid props, missing dependencies, etc.)
-- Only relevant when using `fold: true` - function compilation rarely fails
+- Blaze will throw exceptions instead of falling back gracefully to function compilation
+- Shows exactly why a component can't be folded
+- Helps identify invalid prop values, runtime dependencies, etc.
+- **Note:** Only relevant for `@blaze(fold: true)` - function compilation rarely fails
 
 ## AI assistant integration
 
-This repository includes an [`AGENTS.md`](AGENTS.md) file specifically designed for AI assistants (like GitHub Copilot, Cursor, or Claude). If you're using an AI tool to help with your Laravel project:
+This repository includes an [`AGENTS.md`](AGENTS.md) file specifically designed for AI assistants (like GitHub Copilot, Cursor, or Claude). The file contains detailed guidance for analyzing components and determining **folding eligibility** (`@blaze(fold: true)`).
 
-1. **Point your AI assistant to the AGENTS.md file** when asking about Blaze optimization
-2. **The file contains detailed guidance** for analyzing components and determining `@blaze` eligibility
-3. **Use it for automated analysis** - AI assistants can help audit your entire component library
+If you're using an AI tool to help audit which components can be folded:
+
+1. **Point your AI assistant to the AGENTS.md file** when asking about folding optimization
+2. **The file contains the folding litmus test** and detailed rules for what can/cannot be folded
+3. **Use it for automated analysis** - AI assistants can help audit your component library for folding candidates
 
 Example prompts for AI assistants:
-- "Using the AGENTS.md file, analyze my components and tell me which can use @blaze"
-- "Help me add @blaze to all eligible components following the AGENTS.md guidelines"
-- "Check if this component is safe for @blaze based on AGENTS.md"
+- "Using the AGENTS.md file, analyze my components and tell me which can use @blaze(fold: true)"
+- "Help me identify foldable components following the AGENTS.md guidelines"
+- "Check if this component is safe for folding based on AGENTS.md"
+
+**Note:** For general `@blaze` usage (function compilation), you don't need special analysis - it works on virtually any component!
 
 ## License
 

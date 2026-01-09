@@ -1,103 +1,125 @@
-# Laravel Blaze - Agent Guidance
+# Laravel Blaze - Agent Guidance for Folding
 
-This document provides guidance for AI assistants helping users work with Laravel Blaze, a package that optimizes Blade component rendering performance through compile-time code folding.
+> **Important:** This document is specifically about **compile-time folding** (`@blaze(fold: true)`), an advanced optimization strategy in Laravel Blaze. For general Blaze usage, the default function compilation (`@blaze`) works on virtually any component and doesn't need this analysis.
+
+This document provides guidance for AI assistants helping users identify which components can use **compile-time folding** - an extreme optimization that pre-renders components at compile-time for 99.9% performance improvement.
 
 ## Overview
 
-Laravel Blaze is a performance optimization package that pre-renders static portions of Blade components at compile-time, dramatically reducing runtime overhead. It works by:
+Laravel Blaze offers two optimization strategies:
 
-1. Identifying components marked with the `@blaze` directive in their source
-2. Analyzing component source for runtime dependencies
-3. Pre-rendering eligible components during Blade compilation
-4. Falling back to normal rendering for unsafe components
+1. **Function compilation** (`@blaze`) - 94-97% faster, works on any component (recommended default)
+2. **Compile-time folding** (`@blaze(fold: true)`) - 99.9% faster, but only works under specific conditions
+
+This document focuses on **folding analysis** - helping identify components that meet the strict requirements for `@blaze(fold: true)`.
+
+### How Folding Works
+
+When a component uses `@blaze(fold: true)`, Blaze:
+
+1. Identifies components marked with `@blaze(fold: true)` in their source
+2. Analyzes component source for runtime dependencies
+3. Pre-renders eligible components during Blade compilation with static props
+4. Falls back to function compilation for components with dynamic props or runtime dependencies
 
 ## Core Concepts
 
-### The @blaze Directive
+### The @blaze(fold: true) Directive
 
-The `@blaze` directive tells Blaze that a component has no runtime dependencies and can be safely optimized. It must be placed at the top of a component file:
+The `@blaze(fold: true)` directive tells Blaze that a component can be pre-rendered at compile-time. It must be placed at the top of a component file:
 
 ```blade
-@blaze
+@blaze(fold: true)
 
 @props(['title'])
 
 <h1 class="text-2xl font-bold">{{ $title }}</h1>
 ```
 
-The `@blaze` directive supports optional parameters to control different optimization strategies:
+**Requirements for folding:**
+- Component must have no runtime dependencies (no `@csrf`, `$errors`, `auth()`, etc.)
+- Component must be called with static prop values (no `:prop="$variable"`)
+- All nested child components must also be foldable
 
+**Optional parameters:**
 ```blade
-{{-- All optimizations enabled (default) --}}
-@blaze
+{{-- Enable folding with @aware support --}}
+@blaze(fold: true, aware: true)
 
-{{-- Explicitly enable all optimizations --}}
-@blaze(fold: true, memo: true, aware: true)
-
-{{-- Disable specific optimizations --}}
-@blaze(fold: false, memo: true, aware: false)
+{{-- Enable folding with memoization fallback --}}
+@blaze(fold: true, memo: true)
 ```
 
-**Parameters:**
-- `fold: true/false` - Enable compile-time code folding (default: true)
-- `memo: true/false` - Enable runtime memoization (default: true)
-- `aware: true/false` - Enable `@aware` directive support (default: true)
+### Folding Process
 
-### Code Folding Process
-
-When a `@blaze` component is encountered, Blaze:
-1. Replaces dynamic content being passed in via attributes or slots with placeholders
-2. Renders the component with placeholders
+When a component uses `@blaze(fold: true)`, Blaze:
+1. Checks if all props are static values (not dynamic `:prop="$var"`)
+2. Replaces dynamic content being passed in via attributes or slots with placeholders
+3. Renders the component with placeholders at compile-time
 3. Validates that placeholders are preserved
 4. Replaces placeholders with original dynamic content
 5. Outputs the optimized HTML directly into the parent template
 
-### Runtime Memoization
+### Fallback Behavior
 
-When a component can't be folded (due to dynamic content), Blaze automatically falls back to runtime memoization. This caches the rendered output based on the component name and props, so identical components don't need to be re-rendered.
+When a component can't be folded (due to dynamic props or runtime dependencies), Blaze automatically falls back to **function compilation**, which still provides 94-97% performance improvement.
 
-## Helping Users Analyze Components
+## Helping Users Analyze Components for Folding
 
-When a user asks about adding `@blaze` to a component or wants you to analyze their components, follow this process:
+When a user asks about adding `@blaze(fold: true)` to a component or wants you to analyze which components can be folded, follow this process:
 
 ### 1. Read and Analyze the Component
 
 First, examine the component source code for:
-- Runtime dependencies (see unsafe patterns below)
-- Dynamic content that changes per request
-- Dependencies on global state or context
+- Runtime dependencies that prevent folding (see unsafe patterns below)
+- Whether component is always called with static prop values
+- Whether nested child components are also foldable
 
-### 2. Safe Patterns for @blaze
+### 2. Foldable Component Patterns
 
-Components are safe for `@blaze` when they only:
+Components can use `@blaze(fold: true)` when they:
 - Accept props and render them consistently
-- Perform simple data formatting (dates, strings, etc.)
-- Render slots without modification
+- Have no runtime dependencies (`@csrf`, `$errors`, `auth()`, etc.)
+- Are always called with static props (not `:prop="$variable"`)
+- Only contain other foldable child components
 
 Examples:
 ```blade
-{{-- UI components --}}
-@blaze
+{{-- UI components with no props --}}
+@blaze(fold: true)
+
 <div class="card p-4 bg-white rounded shadow">{{ $slot }}</div>
 
-{{-- Prop-based styling --}}
-@blaze
+{{-- Static prop-based styling --}}
+@blaze(fold: true)
+
 @props(['variant' => 'primary'])
+
 <button class="btn btn-{{ $variant }}">{{ $slot }}</button>
 
-{{-- Simple formatting --}}
-@blaze
+{{-- Called like: <x-button variant="secondary">Save</x-button> --}}
+
+{{-- Simple formatting (if always called with static props) --}}
+@blaze(fold: true)
+
 @props(['price'])
+
 <span class="font-mono">${{ number_format($price, 2) }}</span>
 
-{{-- Components using @aware --}}
-@blaze
+{{-- Called like: <x-price price="19.99" /> --}}
+
+{{-- Components using @aware (requires aware: true param) --}}
+@blaze(fold: true, aware: true)
+
 @aware(['theme'])
 @props(['theme' => 'light'])
+
 <div class="theme-{{ $theme }}">{{ $slot }}</div>
 ```
 
-### 3. Unsafe Patterns (Never @blaze)
+### 3. Patterns That Prevent Folding
+
+These patterns mean the component **cannot use `@blaze(fold: true)`** (but can use default `@blaze` for function compilation):
 
 **Authentication & Authorization:**
 - `@auth`, `@guest`, `@can`, `@cannot`
@@ -188,37 +210,40 @@ This component might be safe for @blaze, but consider if [specific concern]. Tes
 
 ## Common User Requests
 
-### "Can I add @blaze to this component?"
+### "Can I add @blaze(fold: true) to this component?"
 
 1. Read the component file
-2. Analyze for unsafe patterns
-3. Provide a clear yes/no with explanation
-4. If no, suggest alternatives or modifications
+2. Analyze for unsafe patterns that prevent folding
+3. Check if component is always called with static props
+4. Provide a clear yes/no with explanation
+5. If no, suggest using default `@blaze` (function compilation) instead
 
-### "Add @blaze to my components"
+### "Add @blaze(fold: true) to my components"
 
 1. Find all component files (`resources/views/components/**/*.blade.php`)
-2. Analyze each component individually
-3. Add `@blaze` only to safe components (include a line break after `@blaze` )
-4. Report which components were modified and which were skipped with reasons
+2. Analyze each component individually for folding eligibility
+3. Add `@blaze(fold: true)` only to components that meet strict requirements
+4. For other components, recommend default `@blaze` instead
+5. Report which components use folding, function compilation, or neither
 
 ### "Optimize my Blade components"
 
-1. Audit existing components for @blaze eligibility
-2. Identify components that could be refactored to be foldable
-3. Suggest architectural improvements for better optimization
-4. Provide before/after examples
+1. Recommend adding default `@blaze` (function compilation) to all components
+2. Identify rare candidates for `@blaze(fold: true)` (always called with static props)
+3. Suggest architectural improvements if needed
+4. Explain that function compilation (94-97% faster) is sufficient for most cases
 
 ## Implementation Guidelines
 
-### Adding @blaze to Components
+### Adding @blaze(fold: true) to Components
 
-When adding `@blaze` to a component:
+When adding `@blaze(fold: true)` to a component:
 
-1. **Always read the component first** to understand its structure
-2. **Add @blaze as the very first line** of the component file
-3. **Preserve existing formatting** and structure
-4. **Don't modify component logic** unless specifically requested
+1. **Always read the component first** to verify it meets folding requirements
+2. **Add @blaze(fold: true) as the very first line** of the component file
+3. **Include a line break after the directive**
+4. **Preserve existing formatting** and structure
+5. **Don't modify component logic** unless specifically requested
 
 Example edit:
 ```blade
@@ -228,12 +253,14 @@ Example edit:
 <h1>{{ $title }}</h1>
 
 {{-- After --}}
-@blaze
+@blaze(fold: true)
 
 @props(['title'])
 
 <h1>{{ $title }}</h1>
 ```
+
+**Important:** Only add `@blaze(fold: true)` if the component meets ALL folding requirements. For most components, recommend default `@blaze` instead.
 
 ### Batch Operations
 
