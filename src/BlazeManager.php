@@ -87,15 +87,11 @@ class BlazeManager
 
     public function compile(string $template): string
     {
-        // Protect verbatim blocks before tokenization
         $template = (new BladeService)->preStoreVerbatimBlocks($template);
+        $currentPath = app('blade.compiler')->getPath();
+        $params = BlazeDirective::getParameters($template);
 
-        // Check if current file needs function wrapping (before processing children)
-        $currentPath = app('blade.compiler')->getPath();        
-        $params = BlazeDirective::getParameters(file_get_contents($currentPath));
-
-        // Wrap in function if component has bare @blaze directive
-        $shouldWrapInFunction = $params === [];
+        $shouldWrapInFunction = $params === [] && !empty($currentPath);
 
         $tokens = $this->tokenizer->tokenize($template);
 
