@@ -47,30 +47,11 @@ class BlazeRuntime
 
         $this->compiled[$path] = true;
 
-        // Check if compiled file exists AND is fresh
-        if (file_exists($compiledPath)) {
-            // Check if source is newer than compiled file
-            if (file_exists($path) && filemtime($path) <= filemtime($compiledPath)) {
-                return;  // Compiled file is up-to-date
-            }
-            
-            // Source is newer, need to recompile (fall through to compile below)
+        if (file_exists($compiledPath) && filemtime($path) <= filemtime($compiledPath)) {
+            return;
         }
 
-        // Compile the component using Laravel's BladeCompiler
-        $compiler = app('blade.compiler');
-        $compiler->compile($path);
-        
-        // Laravel compiles to its own location, but we need it at our hash location
-        // Copy the compiled file to the expected hash location
-        $laravelCompiledPath = $compiler->getCompiledPath($path);
-        if (file_exists($laravelCompiledPath)) {
-            $directory = dirname($compiledPath);
-            if (!is_dir($directory)) {
-                mkdir($directory, 0755, true);
-            }
-            copy($laravelCompiledPath, $compiledPath);
-        }
+        app('blade.compiler')->compile($path);
     }
 
     /**
