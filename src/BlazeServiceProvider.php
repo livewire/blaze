@@ -35,6 +35,9 @@ class BlazeServiceProvider extends ServiceProvider
             new Tokenizer,
             new Parser,
             new Walker,
+            $tagCompiler = new TagCompiler(
+                componentNameToPath: fn ($name) => $bladeService->componentNameToPath($name),
+            ),
             new Folder(
                 renderBlade: fn ($blade) => $bladeService->isolatedRender($blade),
                 renderNodes: fn ($nodes) => implode('', array_map(fn ($n) => $n->render(), $nodes)),
@@ -42,11 +45,9 @@ class BlazeServiceProvider extends ServiceProvider
             ),
             new Memoizer(
                 componentNameToPath: fn ($name) => $bladeService->componentNameToPath($name),
+                compileNode: fn ($node) => $tagCompiler->compile($node)->render(),
             ),
-            new TagCompiler(
-                componentNameToPath: fn ($name) => $bladeService->componentNameToPath($name),
-            ),
-            new ComponentCompiler(),
+            new ComponentCompiler,
         ));
 
         $this->app->alias(BlazeManager::class, Blaze::class);

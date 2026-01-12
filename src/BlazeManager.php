@@ -28,9 +28,9 @@ class BlazeManager
         protected Tokenizer $tokenizer,
         protected Parser $parser,
         protected Walker $walker,
+        protected TagCompiler $tagCompiler,
         protected Folder $folder,
         protected Memoizer $memoizer,
-        protected TagCompiler $tagCompiler,
         protected ComponentCompiler $componentCompiler,
     ) {
         Event::listen(ComponentFolded::class, function (ComponentFolded $event) {
@@ -91,7 +91,9 @@ class BlazeManager
         $currentPath = app('blade.compiler')->getPath();
         $params = BlazeDirective::getParameters($template);
 
-        $shouldWrapInFunction = $params === [] && !empty($currentPath);
+        // Wrap in function if ANY @blaze directive is present (not just bare @blaze).
+        // This ensures fold/memo components have a function fallback if folding fails.
+        $shouldWrapInFunction = $params !== null && !empty($currentPath);
 
         $tokens = $this->tokenizer->tokenize($template);
 
@@ -117,9 +119,10 @@ class BlazeManager
                     array_pop($dataStack);
                 }
 
-                $node = $this->tagCompiler->compile($node);
+                // Order matters: fold/memo try first, function compile catches failures
                 $node = $this->folder->fold($node);
                 $node = $this->memoizer->memoize($node);
+                $node = $this->tagCompiler->compile($node);
 
                 return $node;
             },

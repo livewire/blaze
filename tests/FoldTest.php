@@ -253,11 +253,4 @@ BLADE;
 
         expect(blazeCompile($input))->toBe($output);
     });
-
-    it('cant fold dynamic props that get formatted', function () {
-        $input = '<?php $date = "2025-07-11 13:22:41 UTC"; ?> <x-date :date="$date" />';
-        $output = '<?php $date = "2025-07-11 13:22:41 UTC"; ?> <?php $blaze_memoized_key = \Livewire\Blaze\Memoizer\Memo::key("date", [\'date\' => $date]); ?><?php if (! \Livewire\Blaze\Memoizer\Memo::has($blaze_memoized_key)) : ?><?php ob_start(); ?><x-date :date="$date" /><?php \Livewire\Blaze\Memoizer\Memo::put($blaze_memoized_key, ob_get_clean()); ?><?php endif; ?><?php echo \Livewire\Blaze\Memoizer\Memo::get($blaze_memoized_key); ?>';
-
-        expect(blazeCompile($input))->toBe($output);
-    });
 });

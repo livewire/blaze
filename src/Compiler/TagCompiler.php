@@ -33,17 +33,10 @@ class TagCompiler
         $source = file_get_contents($componentPath);
         $params = BlazeDirective::getParameters($source);
 
-        if (is_null($params)) {
-            return false;
-        }
-
-        // fold/memo components are handled by the Blaze package's walker
-        // Check if fold or memo keys exist and are truthy (not just present)
-        if ((isset($params['fold']) && $params['fold']) || (isset($params['memo']) && $params['memo'])) {
-            return false;
-        }
-
-        return true;
+        // Any @blaze directive (regardless of parameters) is a blaze component.
+        // Folder and Memoizer run first; if they succeed they return TextNode.
+        // If they fail or don't apply, this compiler catches the ComponentNode.
+        return !is_null($params);
     }
 
     /**

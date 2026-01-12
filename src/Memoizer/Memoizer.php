@@ -10,10 +10,12 @@ use Livewire\Blaze\Directive\BlazeDirective;
 class Memoizer
 {
     protected $componentNameToPath;
+    protected $compileNode;
 
-    public function __construct(callable $componentNameToPath)
+    public function __construct(callable $componentNameToPath, callable $compileNode)
     {
         $this->componentNameToPath = $componentNameToPath;
+        $this->compileNode = $compileNode;
     }
 
     public function isMemoizable(Node $node): bool
@@ -65,7 +67,7 @@ class Memoizer
         $output = '<' . '?php $blaze_memoized_key = \Livewire\Blaze\Memoizer\Memo::key("' . $name . '", ' . $attributes . '); ?>';
         $output .= '<' . '?php if (! \Livewire\Blaze\Memoizer\Memo::has($blaze_memoized_key)) : ?>';
         $output .= '<' . '?php ob_start(); ?>';
-        $output .= $node->render();
+        $output .= ($this->compileNode)($node);
         $output .= '<' . '?php \Livewire\Blaze\Memoizer\Memo::put($blaze_memoized_key, ob_get_clean()); ?>';
         $output .= '<' . '?php endif; ?>';
         $output .= '<' . '?php echo \Livewire\Blaze\Memoizer\Memo::get($blaze_memoized_key); ?>';
