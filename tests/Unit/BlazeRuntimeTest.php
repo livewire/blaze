@@ -35,6 +35,57 @@ describe('BlazeRuntime currentComponentData', function () {
 
         expect($runtime->currentComponentData())->toBe(['parent' => 'value']);
     });
+
+    it('does not include slots in data (slots are passed separately)', function () {
+        $runtime = new BlazeRuntime;
+
+        $runtime->pushData(['foo' => 'bar']);
+        $runtime->pushSlots(['header' => 'slot-header']);
+
+        // currentComponentData only returns data, not slots
+        expect($runtime->currentComponentData())->toBe(['foo' => 'bar']);
+        // Slots are available via currentComponentSlots
+        expect($runtime->currentComponentSlots())->toBe(['header' => 'slot-header']);
+    });
+});
+
+describe('BlazeRuntime slots stack operations', function () {
+    it('currentComponentSlots returns merged slots', function () {
+        $runtime = new BlazeRuntime;
+
+        $runtime->pushData([]);
+        $runtime->pushSlots(['header' => 'first']);
+        $runtime->pushData([]);
+        $runtime->pushSlots(['footer' => 'second']);
+
+        expect($runtime->currentComponentSlots())->toBe(['header' => 'first', 'footer' => 'second']);
+    });
+
+    it('child slots override parent slots with same name', function () {
+        $runtime = new BlazeRuntime;
+
+        $runtime->pushData([]);
+        $runtime->pushSlots(['header' => 'parent-header']);
+        $runtime->pushData([]);
+        $runtime->pushSlots(['header' => 'child-header']);
+
+        expect($runtime->currentComponentSlots())->toBe(['header' => 'child-header']);
+    });
+
+    it('popData removes slots along with data', function () {
+        $runtime = new BlazeRuntime;
+
+        $runtime->pushData(['a' => 1]);
+        $runtime->pushSlots(['slotA' => 'A']);
+        $runtime->pushData(['b' => 2]);
+        $runtime->pushSlots(['slotB' => 'B']);
+
+        expect($runtime->currentComponentSlots())->toBe(['slotA' => 'A', 'slotB' => 'B']);
+
+        $runtime->popData();
+
+        expect($runtime->currentComponentSlots())->toBe(['slotA' => 'A']);
+    });
 });
 
 describe('BlazeRuntime data stack operations', function () {
@@ -66,5 +117,15 @@ describe('BlazeRuntime data stack operations', function () {
         expect($runtime->getConsumableData('variant'))->toBe('primary');
         // Should return default for missing key
         expect($runtime->getConsumableData('missing', 'default'))->toBe('default');
+    });
+
+    it('getConsumableData checks slots before data', function () {
+        $runtime = new BlazeRuntime;
+
+        $runtime->pushData(['trigger' => 'data-trigger']);
+        $runtime->pushSlots(['trigger' => 'slot-trigger']);
+
+        // Slot should take precedence
+        expect($runtime->getConsumableData('trigger'))->toBe('slot-trigger');
     });
 });

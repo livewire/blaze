@@ -132,7 +132,7 @@ class BlazeManager
 
         // If this template needs function wrapping, do it after children are processed
         if ($shouldWrapInFunction) {
-            $output = $this->componentCompiler->compile($output, $currentPath);
+            $output = $this->componentCompiler->compile($output, $currentPath, $template);
         }
 
         (new BladeService)->deleteTemporaryCacheDirectory();

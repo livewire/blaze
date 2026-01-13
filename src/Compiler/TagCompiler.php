@@ -62,7 +62,7 @@ class TagCompiler
 
         $hash = self::hash($componentPath);
         $functionName = '_' . $hash;
-        $slotsVariableName = '$slot' . $hash;
+        $slotsVariableName = '$slots' . $hash;
         [$attributesArrayString, $boundKeysArrayString] = $this->getAttributesAndBoundKeysArrayStrings($node->attributes);
 
         $output = '<' . '?php $__blaze->ensureCompiled(\'' . $componentPath . '\', __DIR__.\'/'. $hash . '.php\'); ?>' . "\n";
@@ -70,14 +70,20 @@ class TagCompiler
 
         $output .= "\n" . '<' . '?php $__blaze->pushData(' . $attributesArrayString . '); ?>';
 
-        $output .= "\n" . $this->compileSlotsAndFunctionCall($node, $functionName, $slotsVariableName, $attributesArrayString, $boundKeysArrayString);
+        if ($node->selfClosing) {
+            $output .= "\n" . '<' . '?php ' . $functionName . '($__blaze, ' . $attributesArrayString . ', [], ' . $boundKeysArrayString . '); ?>';
+        } else {
+            $output .= "\n" . $this->compileSlots($node, $slotsVariableName);
+            $output .= "\n" . '<' . '?php $__blaze->pushSlots(' . $slotsVariableName . '); ?>';
+            $output .= "\n" . '<' . '?php ' . $functionName . '($__blaze, ' . $attributesArrayString . ', ' . $slotsVariableName . ', ' . $boundKeysArrayString . '); ?>';
+        }
 
         $output .= "\n" . '<' . '?php $__blaze->popData(); ?>' . "\n";
 
         return new TextNode($output);
     }
 
-    protected function compileDelegateComponent(ComponentNode $node)
+    protected function compileDelegateComponent(ComponentNode $node): string
     {
         $attributeParser = new AttributeParser;
         $attributesArray = $attributeParser->parseAttributeStringToArray($node->attributes);
@@ -88,25 +94,25 @@ class TagCompiler
 
         $slotsVariableName = '$slots' . hash('xxh128', $componentName);
 
-        $output .= $this->compileSlotsAndFunctionCall($node, '(\'_\' . $__resolved)', $slotsVariableName, '$__blaze->currentComponentData()', '[]');
+        if ($node->selfClosing) {
+            $output .= '<' . '?php (\'_\' . $__resolved)($__blaze, $__blaze->currentComponentData(), $__blaze->currentComponentSlots(), []); ?>';
+        } else {
+            $output .= $this->compileSlots($node, $slotsVariableName);
+            $output .= "\n" . '<' . '?php ' . $slotsVariableName . ' = array_merge($__blaze->currentComponentSlots(), ' . $slotsVariableName . '); ?>';
+            $output .= "\n" . '<' . '?php (\'_\' . $__resolved)($__blaze, $__blaze->currentComponentData(), ' . $slotsVariableName . ', []); ?>';
+        }
+
         $output .= "\n" . '<' . '?php unset($__resolved) ?>' . "\n";
 
         return $output;
     }
 
-    protected function compileSlotsAndFunctionCall(ComponentNode $node, string $function, string $slotsVariableName, string $attributesArrayString, string $boundKeysArrayString): string
+    protected function compileSlots(ComponentNode $node, string $slotsVariableName): string
     {
-        $output = '';
+        $slotCompiler = new SlotCompiler($slotsVariableName, fn ($str) => $this->getAttributesAndBoundKeysArrayStrings($str, true)[0]);
 
-        if ($node->selfClosing) {
-            $output .= '<' . '?php ' . $function . '($__blaze, ' . $attributesArrayString . ', [], ' . $boundKeysArrayString . '); ?>';
-        } else {
-            $slotCompiler = new SlotCompiler($slotsVariableName, fn ($str) => $this->getAttributesAndBoundKeysArrayStrings($str, true)[0]);
-
-            $output .= '<' . '?php ' . $slotsVariableName . ' = []; ?>';
-            $output .= $slotCompiler->compile($node->children);
-            $output .= "\n" . '<' . '?php ' . $function . '($__blaze, ' . $attributesArrayString . ', ' . $slotsVariableName . ', ' . $boundKeysArrayString . '); ?>';
-        }
+        $output = '<' . '?php ' . $slotsVariableName . ' = []; ?>';
+        $output .= $slotCompiler->compile($node->children);
 
         return $output;
     }

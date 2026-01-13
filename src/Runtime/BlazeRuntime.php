@@ -27,6 +27,12 @@ class BlazeRuntime
      */
     protected array $dataStack = [];
 
+    /**
+     * Stack of component slots for delegate forwarding.
+     * Each entry is the $__slots array passed to a component.
+     */
+    protected array $slotsStack = [];
+
     public function __construct()
     {
         $this->env = app('view');
@@ -78,11 +84,32 @@ class BlazeRuntime
         return $hash;
     }
 
+    /**
+     * Get merged data from all stack levels for delegate forwarding.
+     */
     public function currentComponentData(): array
     {
-        return array_reduce($this->dataStack, function ($merged, $data) {
-            return array_merge($merged, $data);
-        }, []);
+        $result = [];
+
+        for ($i = 0; $i < count($this->dataStack); $i++) {
+            $result = array_merge($result, $this->dataStack[$i]);
+        }
+
+        return $result;
+    }
+
+    /**
+     * Get merged slots from all stack levels for delegate forwarding.
+     */
+    public function currentComponentSlots(): array
+    {
+        $result = [];
+
+        for ($i = 0; $i < count($this->slotsStack); $i++) {
+            $result = array_merge($result, $this->slotsStack[$i]);
+        }
+
+        return $result;
     }
 
     /**
@@ -91,25 +118,39 @@ class BlazeRuntime
     public function pushData(array $data): void
     {
         $this->dataStack[] = $data;
+        $this->slotsStack[] = [];
     }
 
     /**
-     * Pop component data from the stack.
+     * Push slots onto the current stack level for delegate forwarding.
+     */
+    public function pushSlots(array $slots): void
+    {
+        if (count($this->slotsStack) > 0) {
+            $this->slotsStack[count($this->slotsStack) - 1] = $slots;
+        }
+    }
+
+    /**
+     * Pop component data and slots from the stack.
      */
     public function popData(): void
     {
         array_pop($this->dataStack);
+        array_pop($this->slotsStack);
     }
 
     /**
      * Get consumable data from parent components for @aware.
-     *
-     * Walks backward through the stack (most recent parent first)
-     * and returns the first matching key, or the default if not found.
+     * At each level, checks slots first (they override data), then walks up the stack.
      */
     public function getConsumableData(string $key, mixed $default = null): mixed
     {
+        // Walk backward through stack, checking slots then data at each level
         for ($i = count($this->dataStack) - 1; $i >= 0; $i--) {
+            if (array_key_exists($key, $this->slotsStack[$i])) {
+                return $this->slotsStack[$i][$key];
+            }
             if (array_key_exists($key, $this->dataStack[$i])) {
                 return $this->dataStack[$i][$key];
             }
