@@ -3,33 +3,33 @@
 use Livewire\Blaze\Runtime\BlazeRuntime;
 
 describe('BlazeRuntime currentComponentData', function () {
-    it('returns merged data from all stack levels', function () {
+    it('returns current stack level data only', function () {
         $runtime = new BlazeRuntime;
 
         $runtime->pushData(['foo' => 'bar']);
         $runtime->pushData(['baz' => 'qux']);
 
-        // currentComponentData merges all data from parent to child
-        expect($runtime->currentComponentData())->toBe(['foo' => 'bar', 'baz' => 'qux']);
+        // currentComponentData returns only the current level's data
+        expect($runtime->currentComponentData())->toBe(['baz' => 'qux']);
     });
 
-    it('child data overrides parent data with same key', function () {
+    it('returns only current level after push', function () {
         $runtime = new BlazeRuntime;
 
         $runtime->pushData(['color' => 'blue', 'size' => 'lg']);
         $runtime->pushData(['color' => 'red']);
 
-        // Child value should override parent
-        expect($runtime->currentComponentData())->toBe(['color' => 'red', 'size' => 'lg']);
+        // Only current level's data
+        expect($runtime->currentComponentData())->toBe(['color' => 'red']);
     });
 
-    it('returns only remaining data after pop', function () {
+    it('returns previous level data after pop', function () {
         $runtime = new BlazeRuntime;
 
         $runtime->pushData(['parent' => 'value']);
         $runtime->pushData(['child' => 'data']);
 
-        expect($runtime->currentComponentData())->toBe(['parent' => 'value', 'child' => 'data']);
+        expect($runtime->currentComponentData())->toBe(['child' => 'data']);
 
         $runtime->popData();
 
@@ -44,13 +44,13 @@ describe('BlazeRuntime currentComponentData', function () {
 
         // currentComponentData only returns data, not slots
         expect($runtime->currentComponentData())->toBe(['foo' => 'bar']);
-        // Slots are available via currentComponentSlots
-        expect($runtime->currentComponentSlots())->toBe(['header' => 'slot-header']);
+        // Slots are available via mergedComponentSlots
+        expect($runtime->mergedComponentSlots())->toBe(['header' => 'slot-header']);
     });
 });
 
 describe('BlazeRuntime slots stack operations', function () {
-    it('currentComponentSlots returns merged slots', function () {
+    it('mergedComponentSlots returns merged slots', function () {
         $runtime = new BlazeRuntime;
 
         $runtime->pushData([]);
@@ -58,7 +58,7 @@ describe('BlazeRuntime slots stack operations', function () {
         $runtime->pushData([]);
         $runtime->pushSlots(['footer' => 'second']);
 
-        expect($runtime->currentComponentSlots())->toBe(['header' => 'first', 'footer' => 'second']);
+        expect($runtime->mergedComponentSlots())->toBe(['header' => 'first', 'footer' => 'second']);
     });
 
     it('child slots override parent slots with same name', function () {
@@ -69,7 +69,7 @@ describe('BlazeRuntime slots stack operations', function () {
         $runtime->pushData([]);
         $runtime->pushSlots(['header' => 'child-header']);
 
-        expect($runtime->currentComponentSlots())->toBe(['header' => 'child-header']);
+        expect($runtime->mergedComponentSlots())->toBe(['header' => 'child-header']);
     });
 
     it('popData removes slots along with data', function () {
@@ -80,11 +80,11 @@ describe('BlazeRuntime slots stack operations', function () {
         $runtime->pushData(['b' => 2]);
         $runtime->pushSlots(['slotB' => 'B']);
 
-        expect($runtime->currentComponentSlots())->toBe(['slotA' => 'A', 'slotB' => 'B']);
+        expect($runtime->mergedComponentSlots())->toBe(['slotA' => 'A', 'slotB' => 'B']);
 
         $runtime->popData();
 
-        expect($runtime->currentComponentSlots())->toBe(['slotA' => 'A']);
+        expect($runtime->mergedComponentSlots())->toBe(['slotA' => 'A']);
     });
 });
 
@@ -96,10 +96,10 @@ describe('BlazeRuntime data stack operations', function () {
         $runtime->pushData(['b' => 2]);
         $runtime->pushData(['c' => 3]);
 
-        expect($runtime->currentComponentData())->toBe(['a' => 1, 'b' => 2, 'c' => 3]);
+        expect($runtime->currentComponentData())->toBe(['c' => 3]);
 
         $runtime->popData();
-        expect($runtime->currentComponentData())->toBe(['a' => 1, 'b' => 2]);
+        expect($runtime->currentComponentData())->toBe(['b' => 2]);
 
         $runtime->popData();
         expect($runtime->currentComponentData())->toBe(['a' => 1]);

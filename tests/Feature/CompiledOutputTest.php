@@ -344,7 +344,7 @@ unset($__data, $__bound); ?><?php $__resolved = $__blaze->resolve(\'flux::\' . \
 <?php require_once __DIR__ . \'/\' . $__resolved . \'.php\'; ?>
 <?php $slots' . $slotsHash . ' = []; ?>
 <?php ob_start(); ?>Hello World<?php $slots' . $slotsHash . '[\'slot\'] = new \Illuminate\View\ComponentSlot(trim(ob_get_clean()), []); ?>
-<?php $slots' . $slotsHash . ' = array_merge($__blaze->currentComponentSlots(), $slots' . $slotsHash . '); ?>
+<?php $slots' . $slotsHash . ' = array_merge($__blaze->mergedComponentSlots(), $slots' . $slotsHash . '); ?>
 <?php (\'_\' . $__resolved)($__blaze, $__blaze->currentComponentData(), $slots' . $slotsHash . ', []); ?>
 <?php unset($__resolved) ?>
 
@@ -360,7 +360,7 @@ unset($__data, $__bound); ?><?php $__resolved = $__blaze->resolve(\'flux::\' . \
             '@blaze
 <?php $__resolved = $__blaze->resolve(\'flux::\' . $type); ?>
 <?php require_once __DIR__ . \'/\' . $__resolved . \'.php\'; ?>
-<?php (\'_\' . $__resolved)($__blaze, $__blaze->currentComponentData(), $__blaze->currentComponentSlots(), []); ?>
+<?php (\'_\' . $__resolved)($__blaze, $__blaze->currentComponentData(), $__blaze->mergedComponentSlots(), []); ?>
 <?php unset($__resolved) ?>
 '
         );
@@ -383,7 +383,7 @@ unset($__data, $__bound); ?><?php $__resolved = $__blaze->resolve(\'flux::\' . \
         // Should contain default slot compilation
         expect($compiled)->toContain('[\'slot\'] = new \Illuminate\View\ComponentSlot');
         // Should merge with parent slots
-        expect($compiled)->toContain('array_merge($__blaze->currentComponentSlots()');
+        expect($compiled)->toContain('array_merge($__blaze->mergedComponentSlots()');
         // Should contain dynamic function call
         expect($compiled)->toContain('(\'_\' . $__resolved)($__blaze, $__blaze->currentComponentData()');
         // Should clean up resolved variable

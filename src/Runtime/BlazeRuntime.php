@@ -89,19 +89,13 @@ class BlazeRuntime
      */
     public function currentComponentData(): array
     {
-        $result = [];
-
-        for ($i = 0; $i < count($this->dataStack); $i++) {
-            $result = array_merge($result, $this->dataStack[$i]);
-        }
-
-        return $result;
+        return last($this->dataStack);
     }
 
     /**
      * Get merged slots from all stack levels for delegate forwarding.
      */
-    public function currentComponentSlots(): array
+    public function mergedComponentSlots(): array
     {
         $result = [];
 
@@ -117,8 +111,15 @@ class BlazeRuntime
      */
     public function pushData(array $data): void
     {
-        $this->dataStack[] = $data;
-        $this->slotsStack[] = [];
+        if ($attributes = $data['attributes'] ?? null) {
+            unset($data['attributes']);
+
+            $this->dataStack[] = array_merge($attributes->getAttributes(), $data);
+            $this->slotsStack[] = [];
+        } else {
+            $this->dataStack[] = $data;
+            $this->slotsStack[] = [];
+        }
     }
 
     /**

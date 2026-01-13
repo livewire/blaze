@@ -95,10 +95,10 @@ class TagCompiler
         $slotsVariableName = '$slots' . hash('xxh128', $componentName);
 
         if ($node->selfClosing) {
-            $output .= '<' . '?php (\'_\' . $__resolved)($__blaze, $__blaze->currentComponentData(), $__blaze->currentComponentSlots(), []); ?>';
+            $output .= '<' . '?php (\'_\' . $__resolved)($__blaze, $__blaze->currentComponentData(), $__blaze->mergedComponentSlots(), []); ?>';
         } else {
             $output .= $this->compileSlots($node, $slotsVariableName);
-            $output .= "\n" . '<' . '?php ' . $slotsVariableName . ' = array_merge($__blaze->currentComponentSlots(), ' . $slotsVariableName . '); ?>';
+            $output .= "\n" . '<' . '?php ' . $slotsVariableName . ' = array_merge($__blaze->mergedComponentSlots(), ' . $slotsVariableName . '); ?>';
             $output .= "\n" . '<' . '?php (\'_\' . $__resolved)($__blaze, $__blaze->currentComponentData(), ' . $slotsVariableName . ', []); ?>';
         }
 

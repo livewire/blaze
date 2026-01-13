@@ -441,6 +441,17 @@ describe('edge cases', function () {
     });
 });
 
+describe('@aware with forwarded attributes', function () {
+    it('child can be aware of attributes forwarded via :attributes prop', function () {
+        $result = blade(
+            view: '<x-aware-attrs-outer special="yes" />',
+        );
+
+        expect($result)->toContain('active-true');
+        expect($result)->toContain('special-yes');
+    });
+});
+
 describe('invalid @aware definitions', function () {
     it('throws exception for non-array expression', function () {
         $compiler = new AwareCompiler;

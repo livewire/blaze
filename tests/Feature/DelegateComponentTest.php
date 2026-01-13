@@ -98,24 +98,46 @@ describe('delegate component @aware with slots', function () {
     });
 
     it('delegate target can access parent slots via @aware', function () {
-        // The delegate component is rendered AFTER slots are compiled,
-        // so it can access parent slots via @aware
         $result = blade(
             components: [
                 'outer' => <<<'BLADE'
                     @blaze
-                    <flux:delegate-component :component="'inner'">
-                        <x-slot:header>Custom Header</x-slot:header>
+                    <flux:delegate-component :component="'delegate-target-slot'">
                         Body content
                     </flux:delegate-component>
                     BLADE
                 ,
             ],
-            view: '<x-outer />',
+            view: <<<'BLADE'
+                <x-outer>
+                    <x-slot:header>Custom Header</x-slot:header>
+                </x-outer>
+                BLADE
+            ,
         );
 
         // The delegate target receives the slots
         expect($result)->toContain('Custom Header');
         expect($result)->toContain('Body content');
+    });
+});
+
+describe('delegate component with forwarded attributes', function () {
+    beforeEach(function () {
+        app('blade.compiler')->anonymousComponentPath(__DIR__ . '/fixtures/flux', 'flux');
+        app('blade.compiler')->anonymousComponentPath(__DIR__ . '/fixtures');
+    });
+
+    it('delegate target does not inherit attributes from parents', function () {
+        // When a parent passes :attributes to a child that uses flux:delegate-component,
+        // the delegate target should NOT receive the ComponentAttributeBag as 'attributes'.
+        // Instead, it should get a fresh $attributes bag for its own use.
+        $result = Blade::render('<flux:delegate-attrs-outer data-outside />');
+
+        expect($result)->not->toContain('data-outside');
+        expect($result)->not->toContain('data-outer');
+        expect($result)->toContain('data-middle');
+        expect($result)->toContain('data-inner');
+        expect($result)->toContain('data-wrapper');
     });
 });
