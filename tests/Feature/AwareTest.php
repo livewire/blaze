@@ -24,7 +24,12 @@ describe('basic @aware functionality', function () {
                     BLADE
                 ,
             ],
-            view: '<x-menu color="blue"><x-menu-item>Item</x-menu-item></x-menu>',
+            view: <<<'BLADE'
+                <x-menu color="blue">
+                    <x-menu-item>Item</x-menu-item>
+                </x-menu>
+                BLADE
+            ,
         );
 
         expect($result)->toContain('bg-blue-100');
@@ -41,7 +46,10 @@ describe('basic @aware functionality', function () {
                     BLADE
                 ,
             ],
-            view: '<x-menu-item>Item</x-menu-item>',
+            view: <<<'BLADE'
+                <x-menu-item>Item</x-menu-item>
+                BLADE
+            ,
         );
 
         expect($result)->toContain('text-gray-800');
@@ -63,7 +71,12 @@ describe('basic @aware functionality', function () {
                     BLADE
                 ,
             ],
-            view: '<x-menu><x-menu-item>Item</x-menu-item></x-menu>',
+            view: <<<'BLADE'
+                <x-menu>
+                    <x-menu-item>Item</x-menu-item>
+                </x-menu>
+                BLADE
+            ,
         );
 
         expect($result)->toContain('bg-gray-100');
@@ -88,7 +101,12 @@ describe('nested components', function () {
                     BLADE
                 ,
             ],
-            view: '<x-outer variant="success"><x-inner>Text</x-inner></x-outer>',
+            view: <<<'BLADE'
+                <x-outer variant="success">
+                    <x-inner>Text</x-inner>
+                </x-outer>
+                BLADE
+            ,
         );
 
         expect($result)->toContain('outer-success');
@@ -154,7 +172,14 @@ describe('nested components', function () {
                     BLADE
                 ,
             ],
-            view: '<x-outer color="red"><x-middle color="blue"><x-inner>Text</x-inner></x-middle></x-outer>',
+            view: <<<'BLADE'
+                <x-outer color="red">
+                    <x-middle color="blue">
+                        <x-inner>Text</x-inner>
+                    </x-middle>
+                </x-outer>
+                BLADE
+            ,
         );
 
         expect($result)->toContain('level-outer-red');
@@ -174,7 +199,10 @@ describe('@aware without default', function () {
                     BLADE
                 ,
             ],
-            view: '<x-child>Test</x-child>',
+            view: <<<'BLADE'
+                <x-child>Test</x-child>
+                BLADE
+            ,
         );
 
         expect($result)->toContain('text-undefined');
@@ -196,7 +224,12 @@ describe('@aware without default', function () {
                     BLADE
                 ,
             ],
-            view: '<x-menu color="purple"><x-child>Test</x-child></x-menu>',
+            view: <<<'BLADE'
+                <x-menu color="purple">
+                    <x-child>Test</x-child>
+                </x-menu>
+                BLADE
+            ,
         );
 
         expect($result)->toContain('text-purple');
@@ -220,7 +253,12 @@ describe('multiple @aware variables', function () {
                     BLADE
                 ,
             ],
-            view: '<x-menu color="red" size="lg"><x-child>Click</x-child></x-menu>',
+            view: <<<'BLADE'
+                <x-menu color="red" size="lg">
+                    <x-child>Click</x-child>
+                </x-menu>
+                BLADE
+            ,
         );
 
         expect($result)->toContain('text-red');
@@ -243,7 +281,12 @@ describe('multiple @aware variables', function () {
                     BLADE
                 ,
             ],
-            view: '<x-menu color="green"><x-child>Click</x-child></x-menu>',
+            view: <<<'BLADE'
+                <x-menu color="green">
+                    <x-child>Click</x-child>
+                </x-menu>
+                BLADE
+            ,
         );
 
         expect($result)->toContain('text-green');
@@ -277,7 +320,12 @@ describe('edge cases', function () {
                     BLADE
                 ,
             ],
-            view: '<x-menu color="blue"><x-propsaware label="Click Me" /></x-menu>',
+            view: <<<'BLADE'
+                <x-menu color="blue">
+                    <x-propsaware label="Click Me" />
+                </x-menu>
+                BLADE
+            ,
         );
 
         expect($result)->toContain('Click Me');
@@ -297,7 +345,10 @@ describe('edge cases', function () {
                     BLADE
                 ,
             ],
-            view: '<x-test>Test</x-test>',
+            view: <<<'BLADE'
+                <x-test>Test</x-test>
+                BLADE
+            ,
         );
 
         expect($result)->toContain('gray-md');
@@ -319,7 +370,12 @@ describe('edge cases', function () {
                     BLADE
                 ,
             ],
-            view: '<x-parent :color="null"><x-child>Test</x-child></x-parent>',
+            view: <<<'BLADE'
+                <x-parent :color="null">
+                    <x-child>Test</x-child>
+                </x-parent>
+                BLADE
+            ,
         );
 
         expect($result)->toContain('text-fallback');
@@ -370,8 +426,12 @@ describe('edge cases', function () {
                 ,
             ],
             view: <<<'BLADE'
-                <x-menu color="red"><x-menu-item>Red Item</x-menu-item></x-menu>
-                <x-menu color="blue"><x-menu-item>Blue Item</x-menu-item></x-menu>
+                <x-menu color="red">
+                    <x-menu-item>Red Item</x-menu-item>
+                </x-menu>
+                <x-menu color="blue">
+                    <x-menu-item>Blue Item</x-menu-item>
+                </x-menu>
                 BLADE
             ,
         );
