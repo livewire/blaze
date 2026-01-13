@@ -227,8 +227,7 @@ extract($__slots, EXTR_SKIP);
 unset($__slots);
 extract($__data, EXTR_SKIP);
 $attributes = \Livewire\Blaze\Runtime\BlazeAttributeBag::sanitized($__data, $__bound);
-unset($__data, $__bound); ?><button <?php echo e($attributes); ?>>Click</button><?php }
-endif; ?><?php /**PATH ' . $path . ' ENDPATH**/ ?>'
+unset($__data, $__bound); ?><button <?php echo e($attributes); ?>>Click</button><?php } endif; ?><?php /**PATH ' . $path . ' ENDPATH**/ ?>'
         );
     });
 
@@ -315,5 +314,84 @@ endif; ?><?php /**PATH ' . $path . ' ENDPATH**/ ?>'
 
         expect($compiled)->toContain('BlazeAttributeBag::sanitized($__data, $__bound)');
         expect($compiled)->not->toContain('new \\Livewire\\Blaze\\Runtime\\BlazeAttributeBag($__data)');
+    });
+});
+
+describe('delegate component compilation', function () {
+    beforeEach(function () {
+        app('blade.compiler')->anonymousComponentPath(__DIR__ . '/fixtures/delegate');
+    });
+
+    it('compiles delegate-component with slot content', function () {
+        $path = __DIR__ . '/fixtures/delegate/delegate-parent.blade.php';
+        $hash = Compiler::hash($path);
+        $compiled = compile('delegate/delegate-parent.blade.php');
+
+        // The slots variable name is a hash of the component expression
+        $slotsHash = hash('xxh128', "'flux::' . 'child.' . \$variant");
+
+        expect($compiled)->toBe(
+            '<?php if (!function_exists(\'_' . $hash . '\')):
+function _' . $hash . '($__blaze, $__data = [], $__slots = [], $__bound = []) {
+$__env = $__blaze->env;
+$__slots[\'slot\'] ??= new \Illuminate\View\ComponentSlot(\'\');
+extract($__slots, EXTR_SKIP);
+unset($__slots);
+$__defaults = [\'variant\' => \'default\'];
+$variant ??= $__data[\'variant\'] ?? $__defaults[\'variant\'];
+unset($__data[\'variant\']);
+unset($__defaults);
+unset($__data, $__bound); ?><?php $__resolved = $__blaze->resolve(\'flux::\' . \'child.\' . $variant); ?>
+<?php require_once __DIR__ . \'/\' . $__resolved . \'.php\'; ?>
+<?php $slots' . $slotsHash . ' = []; ?>
+<?php ob_start(); ?>Hello World<?php $slots' . $slotsHash . '[\'slot\'] = new \Illuminate\View\ComponentSlot(trim(ob_get_clean()), []); ?>
+<?php (\'_\' . $__resolved)($__blaze, $__blaze->currentComponentData(), $slots' . $slotsHash . ', []); ?>
+<?php unset($__resolved) ?>
+
+<?php } endif; ?><?php /**PATH ' . $path . ' ENDPATH**/ ?>'
+        );
+    });
+
+    it('compiles self-closing delegate-component', function () {
+        $result = app('blaze')->compile('@blaze
+<flux:delegate-component :component="$type" />');
+
+        expect($result)->toBe(
+            '@blaze
+<?php $__resolved = $__blaze->resolve(\'flux::\' . $type); ?>
+<?php require_once __DIR__ . \'/\' . $__resolved . \'.php\'; ?>
+<?php (\'_\' . $__resolved)($__blaze, $__blaze->currentComponentData(), [], []); ?>
+<?php unset($__resolved) ?>
+'
+        );
+    });
+
+    it('compiles delegate-component with named slots', function () {
+        $path = __DIR__ . '/fixtures/delegate/delegate-with-slot.blade.php';
+        $hash = Compiler::hash($path);
+        $compiled = compile('delegate/delegate-with-slot.blade.php');
+
+        // Should contain the resolve call
+        expect($compiled)->toContain('$__resolved = $__blaze->resolve(\'flux::\' . \'button.\' . $type)');
+        // Should contain require_once with dynamic path
+        expect($compiled)->toContain('require_once __DIR__ . \'/\' . $__resolved . \'.php\'');
+        // Should contain slot initialization
+        expect($compiled)->toContain('= [];');
+        // Should contain named slot compilation
+        expect($compiled)->toContain('[\'icon\'] = new \Illuminate\View\ComponentSlot');
+        // Should contain default slot compilation
+        expect($compiled)->toContain('[\'slot\'] = new \Illuminate\View\ComponentSlot');
+        // Should contain dynamic function call
+        expect($compiled)->toContain('(\'_\' . $__resolved)($__blaze, $__blaze->currentComponentData()');
+        // Should clean up resolved variable
+        expect($compiled)->toContain('unset($__resolved)');
+    });
+
+    it('does not compile regular flux components as delegate', function () {
+        $result = app('blaze')->compile('@blaze
+<flux:button>Click</flux:button>');
+
+        expect($result)->not->toContain('$__blaze->resolve(');
+        expect($result)->not->toContain('$__resolved');
     });
 });

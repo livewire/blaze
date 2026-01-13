@@ -5,16 +5,21 @@ namespace Livewire\Blaze\Runtime;
 use Illuminate\Contracts\View\Factory;
 use Illuminate\Foundation\Application;
 use Illuminate\Support\ViewErrorBag;
+use Livewire\Blaze\BladeService;
+use Livewire\Blaze\Compiler\TagCompiler;
 
 class BlazeRuntime
 {
-    protected array $compiled = [];
-
     public readonly Factory $env;
     public readonly Application $app;
 
     // $errors must be fetched lazily they're created later in request lifecycle
-    protected ?ViewErrorBag $errors = null;
+    protected ViewErrorBag $errors;
+
+    protected string $compiledPath;
+    
+    protected array $paths = [];
+    protected array $compiled = [];
 
     /**
      * Stack of component data for @aware support.
@@ -26,6 +31,7 @@ class BlazeRuntime
     {
         $this->env = app('view');
         $this->app = app();
+        $this->compiledPath = config('view.compiled');
     }
 
     public function __get(string $name): mixed
@@ -52,6 +58,31 @@ class BlazeRuntime
         }
 
         app('blade.compiler')->compile($path);
+    }
+
+    public function resolve(string $component): string
+    {
+        if (isset($this->paths[$component])) {
+            $path = $this->paths[$component];
+        } else {
+            $path = $this->paths[$component] = (new BladeService)->componentNameToPath($component);
+        }
+
+        $hash = TagCompiler::hash($path);
+        $compiled = $this->compiledPath . '/' . $hash . '.php';
+        
+        if (! isset($this->compiled[$path])) {
+            $this->ensureCompiled($path, $compiled);
+        }
+
+        return $hash;
+    }
+
+    public function currentComponentData(): array
+    {
+        return array_reduce($this->dataStack, function ($merged, $data) {
+            return array_merge($merged, $data);
+        }, []);
     }
 
     /**

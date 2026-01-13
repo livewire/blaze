@@ -32,27 +32,26 @@ class PropsCompiler
             return '';
         }
 
-        $output = [];
+        $output = '';
 
-        // Pre-evaluate defaults to prevent cross-prop references
-        $output[] = '$__defaults = ' . $expression . ';';
+        $output .= '$__defaults = ' . $expression . ';' . "\n";
 
         foreach ($items as $name => $default) {
             $kebab = Str::kebab($name);
             $hasKebabVariant = $kebab !== $name;
 
-            $output[] = $hasKebabVariant
+            $output .= ($hasKebabVariant
                 ? $this->compileKebabAssignment($name, $kebab, $default)
-                : $this->compileAssignment($name, $default);
+                : $this->compileAssignment($name, $default)) . "\n";
 
-            $output[] = $hasKebabVariant
+            $output .= ($hasKebabVariant
                 ? sprintf('unset($__data[\'%s\'], $__data[\'%s\']);', $name, $kebab)
-                : sprintf('unset($__data[\'%s\']);', $name);
+                : sprintf('unset($__data[\'%s\']);', $name)) . "\n";
         }
 
-        $output[] = 'unset($__defaults);';
+        $output .= 'unset($__defaults);' . "\n";
 
-        return implode("\n", $output) . "\n";
+        return $output;
     }
 
     /**

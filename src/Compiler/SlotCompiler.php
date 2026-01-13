@@ -15,7 +15,7 @@ class SlotCompiler
      * @param callable(string): string $getAttributesArrayString
      */
     public function __construct(
-        protected string $hash,
+        protected string $slotsVariableName,
         protected Closure $getAttributesArrayString,
     ) {}
 
@@ -101,7 +101,7 @@ class SlotCompiler
     {
         return '<' . '?php ob_start(); ?>'
             . $content
-            . '<' . '?php $slot' . $this->hash . '[\'' . $name . '\'] = new \Illuminate\View\ComponentSlot(trim(ob_get_clean()), ' . $attributes . '); ?>';
+            . '<' . '?php ' . $this->slotsVariableName . '[\'' . $name . '\'] = new \Illuminate\View\ComponentSlot(trim(ob_get_clean()), ' . $attributes . '); ?>';
     }
 
     /**

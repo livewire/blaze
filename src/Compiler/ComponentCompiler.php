@@ -46,8 +46,7 @@ class ComponentCompiler
             str_contains($template, '$attributes') ? '$attributes = \\Livewire\\Blaze\\Runtime\\BlazeAttributeBag::sanitized($__data, $__bound);' . "\n" : null,
             'unset($__data, $__bound); ?>',
             $template,
-            '<' . '?php }' . "\n",
-            'endif; ?>',
+            '<' . '?php } endif; ?>',
         ]));
     }
 }
