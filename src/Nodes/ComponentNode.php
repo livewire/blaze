@@ -2,6 +2,7 @@
 
 namespace Livewire\Blaze\Nodes;
 
+use Livewire\Blaze\Exceptions\PlaceholderNotFoundException;
 use Livewire\Blaze\Support\AttributeParser;
 use Livewire\Blaze\Nodes\SlotNode;
 use Livewire\Blaze\Nodes\TextNode;
@@ -159,6 +160,9 @@ class ComponentNode extends Node
             }
             // Restore attribute placeholders...
             foreach ($attributePlaceholders as $placeholder => $original) {
+                if (! str_contains($renderedHtml, $placeholder)) {
+                    throw new PlaceholderNotFoundException($placeholder, substr($renderedHtml, 0, 2000));
+                }
                 $renderedHtml = str_replace($placeholder, $original, $renderedHtml);
             }
             return $renderedHtml;
