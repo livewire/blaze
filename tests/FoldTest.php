@@ -43,6 +43,15 @@ describe('fold elligable components', function () {
         expect(blazeCompile($input))->toBe($output);
     });
 
+    it('with slot content containing dollar sign followed by numbers', function () {
+        // Dollar signs followed by numbers (e.g., "$49") must not be interpreted as
+        // regex backreferences when restoring slot placeholders
+        $input = '<x-button>$49.00</x-button>';
+        $output = '<button type="button">$49.00</button>';
+
+        expect(blazeCompile($input))->toBe($output);
+    });
+
     it('dynamic slot', function () {
         $input = '<x-button>{{ $name }}</x-button>';
         $output = '<button type="button">{{ $name }}</button>';

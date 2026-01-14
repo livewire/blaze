@@ -152,8 +152,10 @@ class ComponentNode extends Node
             foreach ($slotPlaceholders as $placeholder => $content) {
                 if ($placeholder === $defaultPlaceholder) {
                     // Trim whitespace immediately around the default placeholder position...
+                    // Use preg_replace_callback to avoid $N backreference interpretation in content
+                    // (e.g., "$49.00" would have "$49" interpreted as capture group 49)
                     $pattern = '/\s*' . preg_quote($placeholder, '/') . '\s*/';
-                    $renderedHtml = preg_replace($pattern, $content, $renderedHtml);
+                    $renderedHtml = preg_replace_callback($pattern, fn () => $content, $renderedHtml);
                 } else {
                     $renderedHtml = str_replace($placeholder, $content, $renderedHtml);
                 }
