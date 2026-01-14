@@ -130,7 +130,9 @@ class AttributeParser
         }
 
         // Handle boolean attributes (single words without values)
-        preg_match_all('/(?:^|\s)([A-Za-z0-9_:-]+)(?=\s|$)/', $attributesString, $matches, PREG_SET_ORDER);
+        // First strip quoted values so we don't match words inside them
+        $stripped = preg_replace('/"[^"]*"/', '""', $attributesString);
+        preg_match_all('/(?:^|\s)([A-Za-z0-9_:-]+)(?=\s|$)/', $stripped, $matches, PREG_SET_ORDER);
         foreach ($matches as $m) {
             $attributeName = str($m[1])->camel()->toString();
             if (isset($attributes[$attributeName])) continue;

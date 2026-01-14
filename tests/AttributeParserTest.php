@@ -326,4 +326,19 @@ describe('parse attributes', function () {
 
         expect($attributes)->toBe($output);
     });
+
+    it('does not parse words within quoted class attribute values as boolean attributes', function () {
+        $input = 'class="rounded-lg w-full h-10 opacity-75"';
+        $output = [
+            'class' => [
+                'isDynamic' => false,
+                'value' => 'rounded-lg w-full h-10 opacity-75',
+                'original' => 'class="rounded-lg w-full h-10 opacity-75"',
+            ],
+        ];
+
+        $attributes = (new AttributeParser())->parseAttributeStringToArray($input);
+
+        expect($attributes)->toBe($output);
+    });
 });
