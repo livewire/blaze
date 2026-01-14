@@ -382,6 +382,44 @@ describe('$attributes in @props defaults', function () {
     });
 });
 
+describe('$attributes in @php blocks', function () {
+    it('initializes $attributes when used inside @php block', function () {
+        $result = blade(
+            components: [
+                'button' => <<<'BLADE'
+                    @blaze
+                    @php
+                        $type = $attributes->get('type', 'button');
+                    @endphp
+                    <button type="{{ $type }}">Click</button>
+                    BLADE
+                ,
+            ],
+            view: '<x-button type="submit" />',
+        );
+
+        expect($result)->toContain('type="submit"');
+    });
+
+    it('initializes $attributes when used inside @php block with default', function () {
+        $result = blade(
+            components: [
+                'button' => <<<'BLADE'
+                    @blaze
+                    @php
+                        $type = $attributes->get('type', 'button');
+                    @endphp
+                    <button type="{{ $type }}">Click</button>
+                    BLADE
+                ,
+            ],
+            view: '<x-button />',
+        );
+
+        expect($result)->toContain('type="button"');
+    });
+});
+
 describe('named slots override props', function () {
     it('prefers named slot over attribute when both provided', function () {
         $result = blade(

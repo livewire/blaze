@@ -297,6 +297,13 @@ unset($__data, $__bound); ?><button <?php echo e($attributes); ?>>Click</button>
         expect($compiled)->toContain('$attributes = \Livewire\Blaze\Runtime\BlazeAttributeBag::sanitized($__data, $__bound);');
     });
 
+    it('detects $attributes usage inside @php blocks', function () {
+        $compiled = compile('attrs-in-php-block.blade.php');
+
+        // The $attributes variable should be initialized even though it's only used in a @php block
+        expect($compiled)->toContain('$attributes = \Livewire\Blaze\Runtime\BlazeAttributeBag::sanitized($__data, $__bound);');
+    });
+
     it('generates extract() call when no @props directive', function () {
         $compiled = compile('no-props.blade.php');
 

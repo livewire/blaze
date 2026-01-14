@@ -87,6 +87,8 @@ class BlazeManager
 
     public function compile(string $template): string
     {
+        $source = $template;
+
         $bladeService = new BladeService;
         $template = $bladeService->preStoreUncompiledBlocks($template);
         $template = $bladeService->compileComments($template);
@@ -129,7 +131,7 @@ class BlazeManager
         $params = BlazeDirective::getParameters($template);
 
         if ($currentPath && $params !== null) {
-            $output = $this->componentCompiler->compile($output, $currentPath, $template);
+            $output = $this->componentCompiler->compile($output, $currentPath, $source);
         }
 
         (new BladeService)->deleteTemporaryCacheDirectory();
