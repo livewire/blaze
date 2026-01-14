@@ -40,14 +40,8 @@ class BlazeAttributeBag extends ComponentAttributeBag
             }
         }
 
-        $result = $attributeDefaults;
-
-        // Resolve AppendableAttributeValue defaults that have no matching instance attribute
-        foreach ($result as $key => $value) {
-            if ($value instanceof AppendableAttributeValue && ! isset($this->attributes[$key])) {
-                $result[$key] = $this->resolveAppendableAttributeDefault($attributeDefaults, $key, $escape);
-            }
-        }
+        $appendableAttributes = [];
+        $nonAppendableAttributes = [];
 
         foreach ($this->attributes as $key => $value) {
             $isAppendable = $key === 'class' || $key === 'style' || (
@@ -56,27 +50,42 @@ class BlazeAttributeBag extends ComponentAttributeBag
             );
 
             if ($isAppendable) {
-                $default = $attributeDefaults[$key] ?? '';
-
-                if ($default instanceof AppendableAttributeValue) {
-                    $default = $this->resolveAppendableAttributeDefault($attributeDefaults, $key, $escape);
-                }
-
-                if ($key === 'style' && $value !== '') {
-                    $value = rtrim($value, ';').';';
-                }
-
-                if ($default !== '' && $value !== '') {
-                    $result[$key] = $default.' '.$value;
-                } elseif ($value !== '') {
-                    $result[$key] = $value;
-                }
+                $appendableAttributes[$key] = $value;
             } else {
-                $result[$key] = $value;
+                $nonAppendableAttributes[$key] = $value;
             }
         }
 
-        return new static($result);
+        $attributes = [];
+
+        foreach ($appendableAttributes as $key => $value) {
+            $defaultsValue = isset($attributeDefaults[$key]) && $attributeDefaults[$key] instanceof AppendableAttributeValue
+                ? $this->resolveAppendableAttributeDefault($attributeDefaults, $key, $escape)
+                : ($attributeDefaults[$key] ?? '');
+
+            if ($key === 'style') {
+                $value = rtrim((string) $value, ';').';';
+            }
+
+            $merged = [];
+            foreach ([$defaultsValue, $value] as $part) {
+                if (! $part) {
+                    continue;
+                }
+
+                if (! in_array($part, $merged)) {
+                    $merged[] = $part;
+                }
+            }
+
+            $attributes[$key] = implode(' ', $merged);
+        }
+
+        foreach ($nonAppendableAttributes as $key => $value) {
+            $attributes[$key] = $value;
+        }
+
+        return new static(array_merge($attributeDefaults, $attributes));
     }
 
     /**

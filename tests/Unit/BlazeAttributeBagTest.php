@@ -88,6 +88,69 @@ describe('merge', function () {
         expect((string) $bag)
             ->toBe('test-string="ok" test-true="test-true" test-0="0" test-0-string="0" test-empty-string=""');
     });
+
+    it('orders appendable attributes before non-appendables after defaults', function () {
+        $bag = new BlazeAttributeBag(['disabled' => true, 'class' => 'text-red-500']);
+
+        expect((string) $bag->merge(['type' => 'submit']))
+            ->toBe('type="submit" class="text-red-500" disabled="disabled"');
+    });
+
+    it('removes duplicate class values when merging', function () {
+        $bag = new BlazeAttributeBag(['class' => 'foo']);
+
+        expect((string) $bag->merge(['class' => 'foo']))
+            ->toBe('class="foo"');
+    });
+
+    it('filters falsey class values when merging', function () {
+        $bag = new BlazeAttributeBag(['class' => null]);
+
+        expect((string) $bag->merge(['class' => 'foo']))
+            ->toBe('class="foo"');
+
+        $bag = new BlazeAttributeBag(['class' => 0]);
+
+        expect((string) $bag->merge(['class' => 'foo']))
+            ->toBe('class="foo"');
+    });
+
+    it('keeps empty class attribute when merging without defaults', function () {
+        $bag = new BlazeAttributeBag(['class' => '']);
+
+        expect($bag->merge()->all())->toBe(['class' => '']);
+    });
+
+    it('keeps appendable defaults unresolved without instance values', function () {
+        $bag = new BlazeAttributeBag([]);
+
+        $result = $bag->merge(['class' => $bag->prepends('font-bold')]);
+
+        expect($result->get('class'))->toBeInstanceOf(\Illuminate\View\AppendableAttributeValue::class);
+        expect($result->get('class')->value)->toBe('font-bold');
+    });
+
+    it('resolves appendable defaults when instance value is empty', function () {
+        $bag = new BlazeAttributeBag(['class' => '']);
+
+        $result = $bag->merge(['class' => $bag->prepends('font-bold')]);
+
+        expect($result->get('class'))->toBe('font-bold');
+    });
+
+    it('removes duplicate style values when merging', function () {
+        $bag = new BlazeAttributeBag(['style' => 'color:red;']);
+
+        expect((string) $bag->merge(['style' => 'color:red;']))
+            ->toBe('style="color:red;"');
+    });
+
+    it('keeps empty style attribute when merging without defaults', function () {
+        $bag = new BlazeAttributeBag(['style' => '']);
+
+        expect((string) $bag->merge())
+            ->toBe('style=";"');
+    });
 });
 
 describe('style merging', function () {
@@ -349,7 +412,8 @@ describe('prepends', function () {
 
         $result = $bag->merge(['data-controller' => $bag->prepends('inside-controller')]);
 
-        expect($result->get('data-controller'))->toBe('inside-controller');
+        expect($result->get('data-controller'))->toBeInstanceOf(\Illuminate\View\AppendableAttributeValue::class);
+        expect($result->get('data-controller')->value)->toBe('inside-controller');
     });
 
     it('works with class and style alongside prepends', function () {
