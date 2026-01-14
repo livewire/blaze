@@ -9,6 +9,31 @@ beforeEach(function () {
     app('blade.compiler')->anonymousComponentPath(__DIR__ . '/fixtures');
 });
 
+describe('comment handling', function () {
+    it('ignores blade comments inside component attributes', function () {
+        $result = \Illuminate\Support\Facades\Blade::render('<x-simple-button type="submit" {{-- ignore me --}} />');
+
+        expect($result)->toContain('button');
+        expect($result)->not->toContain('ignore me');
+    });
+
+    it('ignores component tags inside php comments', function () {
+        $result = \Illuminate\Support\Facades\Blade::render(<<<EOT
+<div>Before</div>
+@php
+// <x-simple-button />
+echo 'Middle';
+@endphp
+<div>After</div>
+EOT);
+
+        expect($result)->toContain('Before');
+        expect($result)->toContain('Middle');
+        expect($result)->toContain('After');
+        expect($result)->not->toContain('<button');
+    });
+});
+
 describe('nested component folding', function () {
     it('folds child with fold:true inside parent with bare @blaze', function () {
         $wrapperSource = file_get_contents(__DIR__ . '/fixtures/nested/wrapper.blade.php');

@@ -87,7 +87,10 @@ class BlazeManager
 
     public function compile(string $template): string
     {
-        $template = (new BladeService)->preStoreVerbatimBlocks($template);
+        $bladeService = new BladeService;
+        $template = $bladeService->preStoreUncompiledBlocks($template);
+        $template = $bladeService->compileComments($template);
+        
         $currentPath = app('blade.compiler')->getPath();
         $params = BlazeDirective::getParameters($template);
 
