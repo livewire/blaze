@@ -90,13 +90,6 @@ class BlazeManager
         $bladeService = new BladeService;
         $template = $bladeService->preStoreUncompiledBlocks($template);
         $template = $bladeService->compileComments($template);
-        
-        $currentPath = app('blade.compiler')->getPath();
-        $params = BlazeDirective::getParameters($template);
-
-        // Wrap in function if ANY @blaze directive is present (not just bare @blaze).
-        // This ensures fold/memo components have a function fallback if folding fails.
-        $shouldWrapInFunction = $params !== null && !empty($currentPath);
 
         $tokens = $this->tokenizer->tokenize($template);
 
@@ -122,7 +115,6 @@ class BlazeManager
                     array_pop($dataStack);
                 }
 
-                // Order matters: fold/memo try first, function compile catches failures
                 $node = $this->folder->fold($node);
                 $node = $this->memoizer->memoize($node);
                 $node = $this->tagCompiler->compile($node);
@@ -133,8 +125,10 @@ class BlazeManager
 
         $output = $this->render($ast);
 
-        // If this template needs function wrapping, do it after children are processed
-        if ($shouldWrapInFunction) {
+        $currentPath = app('blade.compiler')->getPath();
+        $params = BlazeDirective::getParameters($template);
+
+        if ($currentPath && $params !== null) {
             $output = $this->componentCompiler->compile($output, $currentPath, $template);
         }
 
