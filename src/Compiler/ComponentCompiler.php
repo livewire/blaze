@@ -39,6 +39,7 @@ class ComponentCompiler
             '<' . '?php if (!function_exists(\'' . $name . '\')):' . "\n",
             'function ' . $name . '($__blaze, $__data = [], $__slots = [], $__bound = []) {' . "\n",
             '$__env = $__blaze->env;' . "\n",
+            'if (($__data[\'attributes\'] ?? null) instanceof \Illuminate\View\ComponentAttributeBag) { $__data = array_merge($__data[\'attributes\']->getAttributes(), $__data); unset($__data[\'attributes\']); }' . "\n",
             str_contains($source, '$app') ? '$app = $__blaze->app;' . "\n" : null,
             str_contains($source, '$errors') ? '$errors = $__blaze->errors;' . "\n" : null,
             str_contains($source, '$slot') ? '$__slots[\'slot\'] ??= new \Illuminate\View\ComponentSlot(\'\');' . "\n" : null,

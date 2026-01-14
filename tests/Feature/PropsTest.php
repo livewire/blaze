@@ -458,6 +458,77 @@ describe('named slots override props', function () {
     });
 });
 
+describe('attribute forwarding via :$attributes', function () {
+    it('forwards attributes to inner component via :$attributes', function () {
+        $result = blade(
+            components: [
+                'inner' => <<<'BLADE'
+                    @blaze
+                    @props(['type' => 'submit'])
+                    <button type="{{ $type }}">Click</button>
+                    BLADE
+                ,
+            ],
+            view: '<x-inner :attributes="$attrs" />',
+            data: ['attrs' => new \Illuminate\View\ComponentAttributeBag(['type' => 'button', 'class' => 'btn'])],
+        );
+
+        expect($result)->toContain('type="button"');
+    });
+
+    it('explicit attributes take precedence over forwarded attributes', function () {
+        $result = blade(
+            components: [
+                'inner' => <<<'BLADE'
+                    @blaze
+                    @props(['type' => 'submit'])
+                    <button type="{{ $type }}">Click</button>
+                    BLADE
+                ,
+            ],
+            view: '<x-inner :attributes="$attrs" type="reset" />',
+            data: ['attrs' => new \Illuminate\View\ComponentAttributeBag(['type' => 'button'])],
+        );
+
+        expect($result)->toContain('type="reset"');
+    });
+
+    it('uses default when forwarded attribute bag is empty', function () {
+        $result = blade(
+            components: [
+                'inner' => <<<'BLADE'
+                    @blaze
+                    @props(['type' => 'submit'])
+                    <button type="{{ $type }}">Click</button>
+                    BLADE
+                ,
+            ],
+            view: '<x-inner :attributes="$attrs" />',
+            data: ['attrs' => new \Illuminate\View\ComponentAttributeBag([])],
+        );
+
+        expect($result)->toContain('type="submit"');
+    });
+
+    it('forwards multiple attributes from parent to child', function () {
+        $result = blade(
+            components: [
+                'inner' => <<<'BLADE'
+                    @blaze
+                    @props(['type' => 'submit', 'disabled' => false])
+                    <button type="{{ $type }}" {{ $disabled ? 'disabled' : '' }}>Click</button>
+                    BLADE
+                ,
+            ],
+            view: '<x-inner :attributes="$attrs" />',
+            data: ['attrs' => new \Illuminate\View\ComponentAttributeBag(['type' => 'button', 'disabled' => true])],
+        );
+
+        expect($result)->toContain('type="button"');
+        expect($result)->toContain('disabled');
+    });
+});
+
 describe('edge cases', function () {
     it('works with component with @blaze but no @props', function () {
         $result = blade(

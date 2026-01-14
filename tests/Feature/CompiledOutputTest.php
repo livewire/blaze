@@ -223,6 +223,7 @@ describe('component wrapper compilation', function () {
             '<?php if (!function_exists(\'_' . $hash . '\')):
 function _' . $hash . '($__blaze, $__data = [], $__slots = [], $__bound = []) {
 $__env = $__blaze->env;
+if (($__data[\'attributes\'] ?? null) instanceof \Illuminate\View\ComponentAttributeBag) { $__data = array_merge($__data[\'attributes\']->getAttributes(), $__data); unset($__data[\'attributes\']); }
 extract($__slots, EXTR_SKIP);
 unset($__slots);
 extract($__data, EXTR_SKIP);
@@ -334,6 +335,7 @@ describe('delegate component compilation', function () {
             '<?php if (!function_exists(\'_' . $hash . '\')):
 function _' . $hash . '($__blaze, $__data = [], $__slots = [], $__bound = []) {
 $__env = $__blaze->env;
+if (($__data[\'attributes\'] ?? null) instanceof \Illuminate\View\ComponentAttributeBag) { $__data = array_merge($__data[\'attributes\']->getAttributes(), $__data); unset($__data[\'attributes\']); }
 extract($__slots, EXTR_SKIP);
 unset($__slots);
 $__defaults = [\'variant\' => \'default\'];
