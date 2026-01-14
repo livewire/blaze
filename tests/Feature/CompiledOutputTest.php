@@ -223,7 +223,7 @@ describe('component wrapper compilation', function () {
             '<?php if (!function_exists(\'_' . $hash . '\')):
 function _' . $hash . '($__blaze, $__data = [], $__slots = [], $__bound = []) {
 $__env = $__blaze->env;
-if (($__data[\'attributes\'] ?? null) instanceof \Illuminate\View\ComponentAttributeBag) { $__data = array_merge($__data[\'attributes\']->getAttributes(), $__data); unset($__data[\'attributes\']); }
+if (($__data[\'attributes\'] ?? null) instanceof \Illuminate\View\ComponentAttributeBag) { $__data = $__data + $__data[\'attributes\']->all(); unset($__data[\'attributes\']); }
 extract($__slots, EXTR_SKIP);
 unset($__slots);
 extract($__data, EXTR_SKIP);
@@ -277,6 +277,17 @@ unset($__data, $__bound); ?><button <?php echo e($attributes); ?>>Click</button>
         expect($firstAttributesPos)->toBeLessThan($defaultsPos);
         expect($compiled)->toContain('$attributes = new \Livewire\Blaze\Runtime\BlazeAttributeBag($__data);');
         expect($compiled)->not->toContain('$attributes = \Livewire\Blaze\Runtime\BlazeAttributeBag::sanitized($__data, $__bound);');
+    });
+
+    it('creates sanitized $attributes when referenced in @props and template', function () {
+        $compiled = compile('props-attrs-both.blade.php');
+
+        $earlyAttributesPos = strpos($compiled, '$attributes = new \Livewire\Blaze\Runtime\BlazeAttributeBag($__data);');
+        $sanitizedPos = strpos($compiled, '$attributes = \Livewire\Blaze\Runtime\BlazeAttributeBag::sanitized($__data, $__bound);');
+
+        expect($earlyAttributesPos)->not->toBeFalse();
+        expect($sanitizedPos)->not->toBeFalse();
+        expect($earlyAttributesPos)->toBeLessThan($sanitizedPos);
     });
 
     it('does not create early $attributes when not referenced in @props', function () {
@@ -335,19 +346,20 @@ describe('delegate component compilation', function () {
             '<?php if (!function_exists(\'_' . $hash . '\')):
 function _' . $hash . '($__blaze, $__data = [], $__slots = [], $__bound = []) {
 $__env = $__blaze->env;
-if (($__data[\'attributes\'] ?? null) instanceof \Illuminate\View\ComponentAttributeBag) { $__data = array_merge($__data[\'attributes\']->getAttributes(), $__data); unset($__data[\'attributes\']); }
+if (($__data[\'attributes\'] ?? null) instanceof \Illuminate\View\ComponentAttributeBag) { $__data = $__data + $__data[\'attributes\']->all(); unset($__data[\'attributes\']); }
 extract($__slots, EXTR_SKIP);
 unset($__slots);
 $__defaults = [\'variant\' => \'default\'];
 $variant ??= $__data[\'variant\'] ?? $__defaults[\'variant\'];
 unset($__data[\'variant\']);
 unset($__defaults);
+$attributes = \Livewire\Blaze\Runtime\BlazeAttributeBag::sanitized($__data, $__bound);
 unset($__data, $__bound); ?><?php $__resolved = $__blaze->resolve(\'flux::\' . \'child.\' . $variant); ?>
 <?php require_once __DIR__ . \'/\' . $__resolved . \'.php\'; ?>
 <?php $slots' . $slotsHash . ' = []; ?>
 <?php ob_start(); ?>Hello World<?php $slots' . $slotsHash . '[\'slot\'] = new \Illuminate\View\ComponentSlot(trim(ob_get_clean()), []); ?>
 <?php $slots' . $slotsHash . ' = array_merge($__blaze->mergedComponentSlots(), $slots' . $slotsHash . '); ?>
-<?php (\'_\' . $__resolved)($__blaze, $__blaze->currentComponentData(), $slots' . $slotsHash . ', []); ?>
+<?php (\'_\' . $__resolved)($__blaze, $attributes->all(), $slots' . $slotsHash . ', []); ?>
 <?php unset($__resolved) ?>
 
 <?php } endif; ?><?php /**PATH ' . $path . ' ENDPATH**/ ?>'
@@ -362,7 +374,7 @@ unset($__data, $__bound); ?><?php $__resolved = $__blaze->resolve(\'flux::\' . \
             '@blaze
 <?php $__resolved = $__blaze->resolve(\'flux::\' . $type); ?>
 <?php require_once __DIR__ . \'/\' . $__resolved . \'.php\'; ?>
-<?php (\'_\' . $__resolved)($__blaze, $__blaze->currentComponentData(), $__blaze->mergedComponentSlots(), []); ?>
+<?php (\'_\' . $__resolved)($__blaze, $attributes->all(), $__blaze->mergedComponentSlots(), []); ?>
 <?php unset($__resolved) ?>
 '
         );
@@ -387,7 +399,7 @@ unset($__data, $__bound); ?><?php $__resolved = $__blaze->resolve(\'flux::\' . \
         // Should merge with parent slots
         expect($compiled)->toContain('array_merge($__blaze->mergedComponentSlots()');
         // Should contain dynamic function call
-        expect($compiled)->toContain('(\'_\' . $__resolved)($__blaze, $__blaze->currentComponentData()');
+        expect($compiled)->toContain('(\'_\' . $__resolved)($__blaze, $attributes->all()');
         // Should clean up resolved variable
         expect($compiled)->toContain('unset($__resolved)');
     });

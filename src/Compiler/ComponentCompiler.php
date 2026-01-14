@@ -35,11 +35,14 @@ class ComponentCompiler
         $compiled = $this->directiveMatcher->strip($compiled, 'props');
         $compiled = $this->directiveMatcher->strip($compiled, 'aware');
 
+        $propsUseAttributes = str_contains($propAssignments, '$attributes');
+        $sourceUsesAttributes = str_contains($this->directiveMatcher->strip($source, 'props'), '$attributes') || str_contains($source, '<flux:delegate-component');
+
         return implode('', array_filter([
             '<' . '?php if (!function_exists(\'' . $name . '\')):' . "\n",
             'function ' . $name . '($__blaze, $__data = [], $__slots = [], $__bound = []) {' . "\n",
             '$__env = $__blaze->env;' . "\n",
-            'if (($__data[\'attributes\'] ?? null) instanceof \Illuminate\View\ComponentAttributeBag) { $__data = array_merge($__data[\'attributes\']->getAttributes(), $__data); unset($__data[\'attributes\']); }' . "\n",
+            'if (($__data[\'attributes\'] ?? null) instanceof \Illuminate\View\ComponentAttributeBag) { $__data = $__data + $__data[\'attributes\']->all(); unset($__data[\'attributes\']); }' . "\n",
             str_contains($source, '$app') ? '$app = $__blaze->app;' . "\n" : null,
             str_contains($source, '$errors') ? '$errors = $__blaze->errors;' . "\n" : null,
             str_contains($source, '$slot') ? '$__slots[\'slot\'] ??= new \Illuminate\View\ComponentSlot(\'\');' . "\n" : null,
@@ -47,9 +50,9 @@ class ComponentCompiler
             'unset($__slots);' . "\n",
             $propsExpression === null ? 'extract($__data, EXTR_SKIP);' . "\n" : null,
             $awareAssignments,
-            str_contains($propAssignments, '$attributes') ? '$attributes = new \\Livewire\\Blaze\\Runtime\\BlazeAttributeBag($__data);' . "\n" : null,
+            $propsUseAttributes ? '$attributes = new \\Livewire\\Blaze\\Runtime\\BlazeAttributeBag($__data);' . "\n" : null,
             $propAssignments,
-            ! str_contains($propAssignments, '$attributes') && str_contains($source, '$attributes') ? '$attributes = \\Livewire\\Blaze\\Runtime\\BlazeAttributeBag::sanitized($__data, $__bound);' . "\n" : null,
+            $sourceUsesAttributes ? '$attributes = \\Livewire\\Blaze\\Runtime\\BlazeAttributeBag::sanitized($__data, $__bound);' . "\n" : null,
             'unset($__data, $__bound); ?>',
             $compiled,
             '<' . '?php } endif; ?>',

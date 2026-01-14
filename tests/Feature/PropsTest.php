@@ -493,6 +493,27 @@ describe('attribute forwarding via :$attributes', function () {
         expect($result)->toContain('type="reset"');
     });
 
+    it('renders explicit attributes before forwarded attributes', function () {
+        $result = blade(
+            components: [
+                'inner' => <<<'BLADE'
+                    @blaze
+                    <div {{ $attributes }}></div>
+                    BLADE
+                ,
+            ],
+            view: '<x-inner :attributes="$attrs" data-explicit="yes" />',
+            data: ['attrs' => new \Illuminate\View\ComponentAttributeBag(['data-forwarded' => 'bag'])],
+        );
+
+        $explicitPos = strpos($result, 'data-explicit="yes"');
+        $forwardedPos = strpos($result, 'data-forwarded="bag"');
+
+        expect($explicitPos)->not->toBeFalse();
+        expect($forwardedPos)->not->toBeFalse();
+        expect($explicitPos)->toBeLessThan($forwardedPos);
+    });
+
     it('uses default when forwarded attribute bag is empty', function () {
         $result = blade(
             components: [

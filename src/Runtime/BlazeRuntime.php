@@ -114,7 +114,7 @@ class BlazeRuntime
         if ($attributes = $data['attributes'] ?? null) {
             unset($data['attributes']);
 
-            $this->dataStack[] = array_merge($attributes->getAttributes(), $data);
+            $this->dataStack[] = array_merge($attributes->all(), $data);
             $this->slotsStack[] = [];
         } else {
             $this->dataStack[] = $data;
