@@ -1,5 +1,7 @@
 <?php
 
+use Illuminate\Support\Facades\Blade;
+
 describe('fold elligable components', function () {
     beforeEach(function () {
         app('blade.compiler')->anonymousComponentPath(__DIR__ . '/fixtures/components');
@@ -199,7 +201,7 @@ describe('fold elligable components', function () {
         $output = '<div class="group group-primary" data-test="foo"><div class="item item-primary"></div></div>';
 
         $compiled = compile($input);
-        $rendered = \Illuminate\Support\Facades\Blade::render($compiled);
+        $rendered = Blade::render($compiled);
 
         expect($rendered)->toBe($output);
     });
@@ -210,7 +212,7 @@ describe('fold elligable components', function () {
         $output = '<div class="group group-primary" data-test="foo" data-second-variant="secondary"><div class="item item-primary item-secondary"></div></div>';
 
         $compiled = compile($input);
-        $rendered = \Illuminate\Support\Facades\Blade::render($compiled);
+        $rendered = Blade::render($compiled);
 
         expect($rendered)->toBe($output);
     });
@@ -221,7 +223,7 @@ describe('fold elligable components', function () {
         $output = '<div class="group group-primary" data-test="bar"><div class="item item-primary"></div></div>';
 
         $compiled = compile($input);
-        $rendered = \Illuminate\Support\Facades\Blade::render($compiled);
+        $rendered = Blade::render($compiled);
 
         expect($rendered)->toBe($output);
     });
@@ -242,7 +244,7 @@ BLADE;
 
 BLADE;
 
-        $rendered = \Illuminate\Support\Facades\Blade::render($input);
+        $rendered = Blade::render($input);
 
         expect($rendered)->toBe($output);
     });
@@ -254,11 +256,28 @@ echo '<x-card>';
 @endphp
 BLADE;
 
-        $rendered = \Illuminate\Support\Facades\Blade::render($input);
+        $rendered = Blade::render($input);
 
         // The <x-card> in php block should not be rendered...
         expect($rendered)->toContain('<x-card>');
     });
+
+    it('supports comments', function () {
+        $input = '{{-- <x-card> --}}';
+        
+        $renderedCard = false;
+
+        Blade::prepareStringsForCompilationUsing(function ($template) use (&$renderedCard) {
+            if (str_contains($template, 'class="card"')) {
+                $renderedCard = true;
+            }
+        });
+
+        Blade::render($input);
+
+        expect($renderedCard)->toBeFalse();
+    });
+
 
     it('can fold static props that get formatted', function () {
         $input = '<x-date date="2025-07-11 13:22:41 UTC" />';

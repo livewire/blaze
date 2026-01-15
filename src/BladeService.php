@@ -96,6 +96,17 @@ class BladeService
         return $storeVerbatimBlocks->invoke($compiler, $input);
     }
 
+    public function preCompileComments(string $input): string
+    {
+        $compiler = app('blade.compiler');
+
+        $reflection = new \ReflectionClass($compiler);
+        $storeVerbatimBlocks = $reflection->getMethod('compileComments');
+        $storeVerbatimBlocks->setAccessible(true);
+
+        return $storeVerbatimBlocks->invoke($compiler, $input);
+    }
+
     public function viewCacheInvalidationHook(callable $callback)
     {
         Event::listen('composing:*', function ($event, $params) use ($callback) {
