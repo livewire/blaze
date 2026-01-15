@@ -247,6 +247,19 @@ BLADE;
         expect($rendered)->toBe($output);
     });
 
+    it('supports php blocks', function () {
+        $input = <<<'BLADE'
+@php
+echo '<x-card>';
+@endphp
+BLADE;
+
+        $rendered = \Illuminate\Support\Facades\Blade::render($input);
+
+        // The <x-card> in php block should not be rendered...
+        expect($rendered)->toContain('<x-card>');
+    });
+
     it('can fold static props that get formatted', function () {
         $input = '<x-date date="2025-07-11 13:22:41 UTC" />';
         $output = '<div>Date is: Fri, Jul 11</div>';

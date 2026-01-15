@@ -85,26 +85,15 @@ class BladeService
         });
     }
 
-    public function preStoreVerbatimBlocks(string $input): string
+    public function preStoreUncompiledBlocks(string $input): string
     {
         $compiler = app('blade.compiler');
 
         $reflection = new \ReflectionClass($compiler);
-        $storeVerbatimBlocks = $reflection->getMethod('storeVerbatimBlocks');
+        $storeVerbatimBlocks = $reflection->getMethod('storeUncompiledBlocks');
         $storeVerbatimBlocks->setAccessible(true);
 
         return $storeVerbatimBlocks->invoke($compiler, $input);
-    }
-
-    public function restoreVerbatimBlocks(string $input): string
-    {
-        $compiler = app('blade.compiler');
-
-        $reflection = new \ReflectionClass($compiler);
-        $restoreRawBlocks = $reflection->getMethod('restoreRawBlocks');
-        $restoreRawBlocks->setAccessible(true);
-
-        return $restoreRawBlocks->invoke($compiler, $input);
     }
 
     public function viewCacheInvalidationHook(callable $callback)
