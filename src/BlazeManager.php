@@ -63,7 +63,16 @@ class BlazeManager
             return $this->expiredMemo[$path];
         }
 
-        $compiler = $view->getEngine()->getCompiler();
+        $engine = $view->getEngine();
+
+        // Only CompilerEngine has the getCompiler() method.
+        // FileEngine and PhpEngine do not have this method, so we should skip checking them.
+        if (! method_exists($engine, 'getCompiler')) {
+            $this->expiredMemo[$path] = false;
+            return false;
+        }
+
+        $compiler = $engine->getCompiler();
         $compiled = $compiler->getCompiledPath($path);
         $expired = $compiler->isExpired($path);
 
