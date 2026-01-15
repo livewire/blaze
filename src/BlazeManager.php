@@ -83,7 +83,9 @@ class BlazeManager
     public function compile(string $template): string
     {
         // Protect verbatim and php blocks before tokenization
-        $template = (new BladeService)->preStoreUncompiledBlocks($template);
+        $blade = new BladeService;
+        $template = $blade->preStoreUncompiledBlocks($template);
+        $template = $blade->preCompileComments($template);
 
         $tokens = $this->tokenizer->tokenize($template);
 
