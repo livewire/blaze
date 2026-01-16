@@ -23,10 +23,21 @@ describe('fold elligable components', function () {
         expect(blazeCompile($input))->not->toContain('alt=""');
     });
 
-    it('strips double quotes from complex dynamic attributes', function () {
+    it('falls back to function compilation when dynamic prop is used in PHP block', function () {
+        // Avatar component uses $name in @php block, so it can't fold when name is dynamic
         $input = '<x-avatar :name="$foo->bar" :src="$baz->qux" />';
 
-        expect(blazeCompile($input))->toContain('src="{{ $baz->qux }}" alt="{{ $foo->bar }}"');
+        // Should NOT be folded - expect function-based compilation
+        expect(blazeCompile($input))->toContain('$__blaze->ensureCompiled');
+        expect(blazeCompile($input))->not->toContain('src="{{ $baz->qux }}"');
+    });
+
+    it('folds component when dynamic prop is only simply echoed', function () {
+        // Button component uses $type in $attributes->merge() which is safe
+        $input = '<x-button :type="$buttonType">Click</x-button>';
+
+        // Should be folded with placeholder substitution
+        expect(blazeCompile($input))->toBe('<button type="{{ $buttonType }}">Click</button>');
     });
 
     it('with static props', function () {

@@ -18,12 +18,18 @@ class Folder
     protected $renderBlade;
     protected $renderNodes;
     protected $componentNameToPath;
+    protected DynamicUsageAnalyzer $analyzer;
 
-    public function __construct(callable $renderBlade, callable $renderNodes, callable $componentNameToPath)
-    {
+    public function __construct(
+        callable $renderBlade,
+        callable $renderNodes,
+        callable $componentNameToPath,
+        DynamicUsageAnalyzer $analyzer = new DynamicUsageAnalyzer,
+    ) {
         $this->renderBlade = $renderBlade;
         $this->renderNodes = $renderNodes;
         $this->componentNameToPath = $componentNameToPath;
+        $this->analyzer = $analyzer;
     }
 
     public function isFoldable(Node $node): bool
@@ -71,26 +77,31 @@ class Folder
         try {
             $componentPath = ($this->componentNameToPath)($component->name);
 
-            if (file_exists($componentPath)) {
-                $source = file_get_contents($componentPath);
+            $source = file_get_contents($componentPath);
 
-                    $this->validateFoldableComponent($source, $componentPath);
+            $this->validateFoldableComponent($source, $componentPath);
 
-                $directiveParameters = BlazeDirective::getParameters($source);
+            $directiveParameters = BlazeDirective::getParameters($source);
 
-                // Default to true if aware parameter is not specified
-                if ($directiveParameters['aware'] ?? true) {
-                    $awareAttributes = $this->getAwareDirectiveAttributes($source);
+            // Default to true if aware parameter is not specified
+            if ($directiveParameters['aware'] ?? true) {
+                $awareAttributes = $this->getAwareDirectiveAttributes($source);
 
-                    if (! empty($awareAttributes)) {
-                        $component->mergeAwareAttributes($awareAttributes);
-                    }
+                if (! empty($awareAttributes)) {
+                    $component->mergeAwareAttributes($awareAttributes);
                 }
             }
 
             [$processedNode, $slotPlaceholders, $restore, $attributeNameToPlaceholder, $attributeNameToOriginal, $rawAttributes] = $component->replaceDynamicPortionsWithPlaceholders(
                 renderNodes: fn (array $nodes) => ($this->renderNodes)($nodes)
             );
+
+            // Check if dynamic props can be safely folded
+            $dynamicPropNames = array_keys($attributeNameToOriginal);
+
+            if (! empty($dynamicPropNames) && ! $this->analyzer->canFold($source, $dynamicPropNames)) {
+                return $component; // Fall back to standard Blade
+            }
 
             $usageBlade = ($this->renderNodes)([$processedNode]);
 

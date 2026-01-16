@@ -18,50 +18,25 @@ class DirectiveMatcher
      */
     public function match(string $template, string $directive): array
     {
-        $pattern = '/\B@(' . preg_quote($directive, '/') . ')([ \t]*)(\( ( [\S\s]*? ) \))?/x';
-        preg_match_all($pattern, $template, $matches);
+        // Same pattern as Laravel's compileStatements, but with specific directive name
+        $pattern = '/\B@(@?' . preg_quote($directive, '/') . ')([ \t]*)(\( ( [\S\s]*? ) \))?/x';
 
-        $results = [];
+        return $this->matchWithPattern($template, $pattern, includeName: false);
+    }
 
-        for ($i = 0; isset($matches[0][$i]); $i++) {
-            $match = [
-                'full' => $matches[0][$i],
-                'parensWithContent' => $matches[3][$i] ?: null,
-            ];
+    /**
+     * Find all directives with expressions in a template.
+     *
+     * Uses Laravel's directive pattern to match any @directive(expression).
+     *
+     * @return array Array of matches: [['name' => ..., 'match' => ..., 'expression' => ...], ...]
+     */
+    public function matchAll(string $template): array
+    {
+        // Laravel's pattern from compileStatements
+        $pattern = '/\B@(@?\w+(?:::\w+)?)([ \t]*)(\( ( [\S\s]*? ) \))?/x';
 
-            // Recursively extend match to find proper closing parenthesis
-            while ($match['parensWithContent'] !== null &&
-                   Str::endsWith($match['full'], ')') &&
-                   ! $this->hasEvenNumberOfParentheses($match['full'])) {
-                if (($after = Str::after($template, $match['full'])) === $template) {
-                    break;
-                }
-
-                $rest = Str::before($after, ')');
-
-                // Skip matches that would be consumed by this extension
-                if (isset($matches[0][$i + 1]) && Str::contains($rest . ')', $matches[0][$i + 1])) {
-                    unset($matches[0][$i + 1]);
-                    $i++;
-                }
-
-                $match['full'] = $match['full'] . $rest . ')';
-                $match['parensWithContent'] = $match['parensWithContent'] . $rest . ')';
-            }
-
-            // Derive expression by removing outer () from parensWithContent
-            $expression = $match['parensWithContent'];
-            if ($expression !== null && str_starts_with($expression, '(') && str_ends_with($expression, ')')) {
-                $expression = substr($expression, 1, -1);
-            }
-
-            $results[] = [
-                'match' => $match['full'],
-                'expression' => $expression,
-            ];
-        }
-
-        return $results;
+        return $this->matchWithPattern($template, $pattern, includeName: true);
     }
 
     /**
@@ -135,6 +110,69 @@ class DirectiveMatcher
     public function has(string $template, string $directive): bool
     {
         return ! empty($this->match($template, $directive));
+    }
+
+    /**
+     * Core matching logic shared by match() and matchAll().
+     */
+    protected function matchWithPattern(
+        string $template,
+        string $pattern,
+        bool $includeName = false,
+    ): array {
+        preg_match_all($pattern, $template, $matches);
+
+        $results = [];
+
+        for ($i = 0; isset($matches[0][$i]); $i++) {
+            $name = $matches[1][$i];
+            $full = $matches[0][$i];
+            $parensWithContent = $matches[3][$i] ?: null;
+
+            // Skip escaped directives (@@directive)
+            if (str_starts_with($name, '@')) {
+                continue;
+            }
+
+            // Recursively extend match to find proper closing parenthesis
+            while ($parensWithContent !== null &&
+                   Str::endsWith($full, ')') &&
+                   ! $this->hasEvenNumberOfParentheses($full)) {
+                if (($after = Str::after($template, $full)) === $template) {
+                    break;
+                }
+
+                $rest = Str::before($after, ')');
+
+                // Skip matches that would be consumed by this extension
+                if (isset($matches[0][$i + 1]) && Str::contains($rest . ')', $matches[0][$i + 1])) {
+                    unset($matches[0][$i + 1]);
+                    $i++;
+                }
+
+                $full .= $rest . ')';
+                $parensWithContent .= $rest . ')';
+            }
+
+            // Derive expression by removing outer () from parensWithContent
+            $expression = $parensWithContent;
+            if ($expression !== null && str_starts_with($expression, '(') && str_ends_with($expression, ')')) {
+                $expression = substr($expression, 1, -1);
+            }
+
+            $result = [
+                'match' => $full,
+                'expression' => $expression,
+            ];
+
+            if ($includeName) {
+                $result = ['name' => $name] + $result;
+            }
+
+            $results[] = $result;
+        }
+
+        return $results;
     }
 
     /**

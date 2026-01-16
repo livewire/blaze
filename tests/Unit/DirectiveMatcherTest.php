@@ -89,13 +89,13 @@ describe('match', function () {
         expect($matches)->toBeEmpty();
     });
 
-    it('matches directive after @ symbol', function () {
+    it('skips escaped directives', function () {
         $matcher = new DirectiveMatcher();
 
+        // In Blade, @@ is an escape sequence - @@props outputs literal @props
         $matches = $matcher->match('@@props(["a"])', 'props');
 
-        expect($matches)->toHaveCount(1);
-        expect($matches[0]['match'])->toBe('@props(["a"])');
+        expect($matches)->toBeEmpty();
     });
 });
 
@@ -292,5 +292,99 @@ describe('edge cases', function () {
 
         expect($matches)->toHaveCount(1);
         expect($matches[0]['expression'])->toBe('["type" => $attributes->whereStartsWith("type")->first()]');
+    });
+});
+
+describe('matchAll', function () {
+    it('matches all directives with expressions', function () {
+        $matcher = new DirectiveMatcher();
+        $template = '@if($show) content @endif';
+
+        $matches = $matcher->matchAll($template);
+
+        expect($matches)->toHaveCount(2);
+        expect($matches[0]['name'])->toBe('if');
+        expect($matches[0]['expression'])->toBe('$show');
+        expect($matches[1]['name'])->toBe('endif');
+        expect($matches[1]['expression'])->toBeNull();
+    });
+
+    it('matches multiple different directives', function () {
+        $matcher = new DirectiveMatcher();
+        $template = '@props(["name"]) @if($show) {{ $name }} @endif';
+
+        $matches = $matcher->matchAll($template);
+
+        expect($matches)->toHaveCount(3);
+        expect($matches[0]['name'])->toBe('props');
+        expect($matches[0]['expression'])->toBe('["name"]');
+        expect($matches[1]['name'])->toBe('if');
+        expect($matches[1]['expression'])->toBe('$show');
+        expect($matches[2]['name'])->toBe('endif');
+    });
+
+    it('matches foreach directive', function () {
+        $matcher = new DirectiveMatcher();
+        $template = '@foreach($items as $item) {{ $item }} @endforeach';
+
+        $matches = $matcher->matchAll($template);
+
+        expect($matches)->toHaveCount(2);
+        expect($matches[0]['name'])->toBe('foreach');
+        expect($matches[0]['expression'])->toBe('$items as $item');
+    });
+
+    it('matches custom directives', function () {
+        $matcher = new DirectiveMatcher();
+        $template = '@customDirective($value) content @endcustomDirective';
+
+        $matches = $matcher->matchAll($template);
+
+        expect($matches)->toHaveCount(2);
+        expect($matches[0]['name'])->toBe('customDirective');
+        expect($matches[0]['expression'])->toBe('$value');
+    });
+
+    it('skips escaped directives', function () {
+        $matcher = new DirectiveMatcher();
+        $template = '@@if($show) content @endif';
+
+        $matches = $matcher->matchAll($template);
+
+        // Should only match @endif, not @@if (escaped)
+        expect($matches)->toHaveCount(1);
+        expect($matches[0]['name'])->toBe('endif');
+    });
+
+    it('matches directives without parentheses', function () {
+        $matcher = new DirectiveMatcher();
+        $template = '@csrf @else content';
+
+        $matches = $matcher->matchAll($template);
+
+        expect($matches)->toHaveCount(2);
+        expect($matches[0]['name'])->toBe('csrf');
+        expect($matches[0]['expression'])->toBeNull();
+        expect($matches[1]['name'])->toBe('else');
+        expect($matches[1]['expression'])->toBeNull();
+    });
+
+    it('handles nested parentheses correctly', function () {
+        $matcher = new DirectiveMatcher();
+        $template = '@if(count($items) > 0) content @endif';
+
+        $matches = $matcher->matchAll($template);
+
+        expect($matches[0]['name'])->toBe('if');
+        expect($matches[0]['expression'])->toBe('count($items) > 0');
+    });
+
+    it('returns empty array for template without directives', function () {
+        $matcher = new DirectiveMatcher();
+        $template = '<div>no directives here</div>';
+
+        $matches = $matcher->matchAll($template);
+
+        expect($matches)->toBeEmpty();
     });
 });
