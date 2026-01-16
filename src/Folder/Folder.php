@@ -96,10 +96,14 @@ class Folder
                 renderNodes: fn (array $nodes) => ($this->renderNodes)($nodes)
             );
 
-            // Check if dynamic props can be safely folded
+            // Check if dynamic props can be safely folded (including nested component analysis)
             $dynamicPropNames = array_keys($attributeNameToOriginal);
 
-            if (! empty($dynamicPropNames) && ! $this->analyzer->canFold($source, $dynamicPropNames)) {
+            if (! empty($dynamicPropNames) && ! $this->analyzer->canFold(
+                source: $source,
+                dynamicAttributes: $dynamicPropNames,
+                componentNameToPath: $this->componentNameToPath,
+            )) {
                 return $component; // Fall back to standard Blade
             }
 

@@ -494,3 +494,303 @@ BLADE;
         expect($analyzer->canFold($source, ['type']))->toBeTrue();
     });
 });
+
+// Helper to get fixture path
+function fixturePath(string $name): string
+{
+    return __DIR__ . '/fixtures/nested/' . $name . '.blade.php';
+}
+
+describe('canFold with nested prop forwarding', function () {
+    it('allows when child only echoes forwarded prop', function () {
+        $analyzer = new DynamicUsageAnalyzer();
+
+        $parentSource = '@props(["name"]) <x-child :title="$name" />';
+
+        $componentNameToPath = fn ($name) => $name === 'child' ? fixturePath('child-echoes-only') : null;
+
+        expect($analyzer->canFold($parentSource, ['name'], $componentNameToPath))->toBeTrue();
+    });
+
+    it('aborts when child uses forwarded prop in @if', function () {
+        $analyzer = new DynamicUsageAnalyzer();
+
+        $parentSource = '@props(["name"]) <x-child :title="$name" />';
+
+        $componentNameToPath = fn ($name) => $name === 'child' ? fixturePath('child-uses-if') : null;
+
+        expect($analyzer->canFold($parentSource, ['name'], $componentNameToPath))->toBeFalse();
+    });
+
+    it('aborts when child uses forwarded prop in @php', function () {
+        $analyzer = new DynamicUsageAnalyzer();
+
+        $parentSource = '@props(["name"]) <x-child :title="$name" />';
+
+        $componentNameToPath = fn ($name) => $name === 'child' ? fixturePath('child-uses-php') : null;
+
+        expect($analyzer->canFold($parentSource, ['name'], $componentNameToPath))->toBeFalse();
+    });
+
+    it('handles prop name mapping (parent $name -> child $title)', function () {
+        $analyzer = new DynamicUsageAnalyzer();
+
+        $parentSource = '@props(["name"]) <x-child :title="$name" />';
+
+        // Child uses $title in @if - should fail
+        $componentNameToPath = fn ($name) => $name === 'child' ? fixturePath('child-uses-if') : null;
+
+        expect($analyzer->canFold($parentSource, ['name'], $componentNameToPath))->toBeFalse();
+    });
+
+    it('handles short syntax :$prop', function () {
+        $analyzer = new DynamicUsageAnalyzer();
+
+        // :$type is shorthand for :type="$type"
+        $parentSource = '@props(["type"]) <x-child :$type />';
+
+        $componentNameToPath = fn ($name) => $name === 'child' ? fixturePath('child-type-if') : null;
+
+        expect($analyzer->canFold($parentSource, ['type'], $componentNameToPath))->toBeFalse();
+    });
+
+    it('allows when static prop does not affect child analysis', function () {
+        $analyzer = new DynamicUsageAnalyzer();
+
+        // title is static, name is dynamic - name is not forwarded to title
+        $parentSource = '@props(["name"]) <x-child title="static" :other="$name" />';
+
+        $componentNameToPath = fn ($name) => $name === 'child' ? fixturePath('child-uses-if') : null;
+
+        // name is not forwarded to child's title at all
+        expect($analyzer->canFold($parentSource, ['name'], $componentNameToPath))->toBeTrue();
+    });
+
+    it('skips analysis for non-Blaze children', function () {
+        $analyzer = new DynamicUsageAnalyzer();
+
+        $parentSource = '@props(["name"]) <x-child :title="$name" />';
+
+        // Child has NO @blaze directive
+        $componentNameToPath = fn ($name) => $name === 'child' ? fixturePath('child-non-blaze') : null;
+
+        // Non-Blaze children are skipped (optimistic approach)
+        expect($analyzer->canFold($parentSource, ['name'], $componentNameToPath))->toBeTrue();
+    });
+
+    it('skips analysis for Blaze children with fold: false', function () {
+        $analyzer = new DynamicUsageAnalyzer();
+
+        $parentSource = '@props(["name"]) <x-child :title="$name" />';
+
+        // Child has @blaze but fold: false
+        $componentNameToPath = fn ($name) => $name === 'child' ? fixturePath('child-fold-false') : null;
+
+        expect($analyzer->canFold($parentSource, ['name'], $componentNameToPath))->toBeTrue();
+    });
+
+    it('skips analysis for unresolvable children', function () {
+        $analyzer = new DynamicUsageAnalyzer();
+
+        $parentSource = '@props(["name"]) <x-unknown-child :title="$name" />';
+
+        // Callback returns null for unknown components
+        $componentNameToPath = fn ($name) => null;
+
+        expect($analyzer->canFold($parentSource, ['name'], $componentNameToPath))->toBeTrue();
+    });
+
+    it('handles multiple props forwarded to same child', function () {
+        $analyzer = new DynamicUsageAnalyzer();
+
+        $parentSource = '@props(["name", "variant"]) <x-child :title="$name" :size="$variant" />';
+
+        // Child uses both props, size in @if
+        $componentNameToPath = fn ($name) => $name === 'child' ? fixturePath('child-multi-props') : null;
+
+        // $variant mapped to $size is used in @if
+        expect($analyzer->canFold($parentSource, ['name', 'variant'], $componentNameToPath))->toBeFalse();
+    });
+
+    it('handles same prop forwarded to multiple children', function () {
+        $analyzer = new DynamicUsageAnalyzer();
+
+        $parentSource = '@props(["name"]) <x-safe-child :value="$name" /> <x-unsafe-child :value="$name" />';
+
+        $componentNameToPath = fn ($name) => match($name) {
+            'safe-child' => fixturePath('child-safe-value'),
+            'unsafe-child' => fixturePath('child-unsafe-value'),
+            default => null,
+        };
+
+        expect($analyzer->canFold($parentSource, ['name'], $componentNameToPath))->toBeFalse();
+    });
+
+    it('aborts if ANY child fails analysis', function () {
+        $analyzer = new DynamicUsageAnalyzer();
+
+        $parentSource = '@props(["x", "y"]) <x-safe :value="$x" /> <x-unsafe :value="$y" />';
+
+        $componentNameToPath = fn ($name) => match($name) {
+            'safe' => fixturePath('child-safe-value'),
+            'unsafe' => fixturePath('child-unsafe-value'),
+            default => null,
+        };
+
+        expect($analyzer->canFold($parentSource, ['x', 'y'], $componentNameToPath))->toBeFalse();
+    });
+});
+
+describe('canFold with recursive nested analysis', function () {
+    it('analyzes grandchildren recursively', function () {
+        $analyzer = new DynamicUsageAnalyzer();
+
+        $parentSource = '@props(["top"]) <x-child :mid="$top" />';
+
+        $componentNameToPath = fn ($name) => match($name) {
+            'child' => fixturePath('child-forwards-to-grandchild'),
+            'grandchild' => fixturePath('grandchild-unsafe'),
+            default => null,
+        };
+
+        expect($analyzer->canFold($parentSource, ['top'], $componentNameToPath))->toBeFalse();
+    });
+
+    it('handles deep nesting (3+ levels)', function () {
+        $analyzer = new DynamicUsageAnalyzer();
+
+        $parentSource = '@props(["v0"]) <x-level1 :v1="$v0" />';
+
+        $componentNameToPath = fn ($name) => match($name) {
+            'level1' => fixturePath('level1'),
+            'level2' => fixturePath('level2'),
+            'level3' => fixturePath('level3'),
+            default => null,
+        };
+
+        expect($analyzer->canFold($parentSource, ['v0'], $componentNameToPath))->toBeFalse();
+    });
+
+    it('handles cycle detection', function () {
+        $analyzer = new DynamicUsageAnalyzer();
+
+        $parentSource = '@props(["prop"]) <x-cycle-a :val="$prop" />';
+
+        $componentNameToPath = fn ($name) => match($name) {
+            'cycle-a' => fixturePath('cycle-a'),
+            'cycle-b' => fixturePath('cycle-b'),
+            default => null,
+        };
+
+        // Should not hang due to cycle detection
+        expect($analyzer->canFold($parentSource, ['prop'], $componentNameToPath))->toBeTrue();
+    });
+});
+
+describe('canFold with nested $attributes forwarding', function () {
+    it('allows when child only echoes $attributes', function () {
+        $analyzer = new DynamicUsageAnalyzer();
+
+        // Parent forwards all attributes to child
+        $parentSource = '@props([]) <x-child :$attributes />';
+
+        $componentNameToPath = fn ($name) => $name === 'child' ? fixturePath('child-echoes-attributes') : null;
+
+        expect($analyzer->canFold($parentSource, ['class'], $componentNameToPath))->toBeTrue();
+    });
+
+    it('aborts when child uses $attributes in directive', function () {
+        $analyzer = new DynamicUsageAnalyzer();
+
+        $parentSource = '@props([]) <x-child :$attributes />';
+
+        $componentNameToPath = fn ($name) => $name === 'child' ? fixturePath('child-uses-attributes-in-directive') : null;
+
+        expect($analyzer->canFold($parentSource, ['class'], $componentNameToPath))->toBeFalse();
+    });
+
+    it('respects except filtering', function () {
+        $analyzer = new DynamicUsageAnalyzer();
+
+        // Parent excludes 'class' from forwarding
+        $parentSource = '@props([]) <x-child :attributes="$attributes->except([\'class\'])" />';
+
+        // Child uses $id in @if (which is fine because 'class' is excluded)
+        $componentNameToPath = fn ($name) => $name === 'child' ? fixturePath('child-uses-id-in-if') : null;
+
+        // class is excluded, so dynamic 'class' prop doesn't reach child
+        expect($analyzer->canFold($parentSource, ['class'], $componentNameToPath))->toBeTrue();
+    });
+
+    it('tracks props through merge rename', function () {
+        $analyzer = new DynamicUsageAnalyzer();
+
+        // Parent renames $variant to 'type' via merge
+        $parentSource = '@props(["variant"]) <x-child :attributes="$attributes->merge([\'type\' => $variant])" />';
+
+        // Child uses $type in @if
+        $componentNameToPath = fn ($name) => $name === 'child' ? fixturePath('child-uses-type-in-if') : null;
+
+        expect($analyzer->canFold($parentSource, ['variant'], $componentNameToPath))->toBeFalse();
+    });
+
+    it('aborts when $attributes chain is unanalyzable', function () {
+        $analyzer = new DynamicUsageAnalyzer();
+
+        // filter() is not in the allow-list
+        $parentSource = '@props([]) <x-child :attributes="$attributes->filter(fn ($v) => $v)" />';
+
+        $componentNameToPath = fn ($name) => $name === 'child' ? fixturePath('child-echoes-attributes') : null;
+
+        expect($analyzer->canFold($parentSource, ['class'], $componentNameToPath))->toBeFalse();
+    });
+
+    it('handles :attributes="$attributes" syntax', function () {
+        $analyzer = new DynamicUsageAnalyzer();
+
+        // Explicit :attributes="$attributes"
+        $parentSource = '@props([]) <x-child :attributes="$attributes" />';
+
+        $componentNameToPath = fn ($name) => $name === 'child' ? fixturePath('child-uses-attributes-in-directive') : null;
+
+        expect($analyzer->canFold($parentSource, ['id'], $componentNameToPath))->toBeFalse();
+    });
+});
+
+describe('canFold with mixed forwarding', function () {
+    it('handles both prop and $attributes forwarding to same child', function () {
+        $analyzer = new DynamicUsageAnalyzer();
+
+        // Parent forwards $name as :title and $attributes (which includes $class)
+        $parentSource = '@props(["name"]) <x-child :title="$name" :$attributes />';
+
+        // Child uses both $title in @if and $attributes
+        $componentNameToPath = fn ($name) => $name === 'child' ? fixturePath('child-mixed') : null;
+
+        expect($analyzer->canFold($parentSource, ['name', 'class'], $componentNameToPath))->toBeFalse();
+    });
+
+    it('allows when individual prop is safe and $attributes is safe', function () {
+        $analyzer = new DynamicUsageAnalyzer();
+
+        $parentSource = '@props(["name"]) <x-child :title="$name" :$attributes />';
+
+        // Child only echoes $title and $attributes (no directives)
+        $componentNameToPath = fn ($name) => $name === 'child' ? fixturePath('child-safe-mixed') : null;
+
+        expect($analyzer->canFold($parentSource, ['name', 'class'], $componentNameToPath))->toBeTrue();
+    });
+});
+
+describe('canFold without componentNameToPath callback', function () {
+    it('skips nested analysis when callback is null', function () {
+        $analyzer = new DynamicUsageAnalyzer();
+
+        // Even if child would fail, without callback no nested analysis happens
+        $parentSource = '@props(["name"]) <x-dangerous-child :title="$name" />';
+
+        // No callback = no nested analysis
+        expect($analyzer->canFold($parentSource, ['name']))->toBeTrue();
+        expect($analyzer->canFold($parentSource, ['name'], null))->toBeTrue();
+    });
+});
