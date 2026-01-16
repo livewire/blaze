@@ -49,14 +49,16 @@ class DynamicUsageAnalyzer
      * @param array $dynamicAttributes Dynamic attribute names passed to this component
      * @param callable|null $componentNameToPath Callback to resolve component name to path (enables nested analysis)
      * @param array $analyzedPaths Already analyzed paths for cycle detection
+     * @param array $dynamicSlots Slot variable names passed to this component (e.g., ['slot', 'header'])
      */
     public function canFold(
         string $source,
         array $dynamicAttributes,
         ?callable $componentNameToPath = null,
         array $analyzedPaths = [],
+        array $dynamicSlots = [],
     ): bool {
-        if (empty($dynamicAttributes)) {
+        if (empty($dynamicAttributes) && empty($dynamicSlots)) {
             return true;
         }
 
@@ -105,6 +107,28 @@ class DynamicUsageAnalyzer
             }
 
             if ($this->hasTransformedComponentAttribute($strippedSource, $propName)) {
+                return false;
+            }
+        }
+
+        // Analyze slot variable usage patterns (slots override props)
+        // Skip slots already checked as dynamic props to avoid duplicate checks
+        $slotsToCheck = array_diff($dynamicSlots, $dynamicProps);
+
+        foreach ($slotsToCheck as $slotName) {
+            if ($this->isUsedInPhpBlock($strippedSource, $slotName)) {
+                return false;
+            }
+
+            if ($this->isUsedInBladeDirective($strippedSource, $slotName)) {
+                return false;
+            }
+
+            if ($this->hasTransformedEcho($strippedSource, $slotName)) {
+                return false;
+            }
+
+            if ($this->hasTransformedComponentAttribute($strippedSource, $slotName)) {
                 return false;
             }
         }
@@ -442,13 +466,29 @@ class DynamicUsageAnalyzer
             }
         }
 
-        // Unsafe: Any binary operation
+        // Binary operations: check position for null coalesce
         if ($parent instanceof BinaryOp) {
+            // Safe: Variable on right side of null coalesce (fallback value, returned unchanged)
+            if ($parent instanceof BinaryOp\Coalesce && $parent->right === $variable) {
+                return false;
+            }
+            // Unsafe: All other binary operations (including left side of coalesce)
             return true;
         }
 
-        // Unsafe: Ternary expression
+        // Ternary: check position
         if ($parent instanceof Ternary) {
+            // Safe: Variable in 'else' branch of ternary (returned unchanged when condition is false)
+            // e.g., $condition ? 'yes' : $prop - $prop passes through unchanged
+            if ($parent->else === $variable) {
+                return false;
+            }
+            // Safe: Variable in 'if' branch when it's a simple pass-through
+            // e.g., $prop ? $prop : 'default' - first $prop is tested, second passes through
+            if ($parent->if === $variable) {
+                return false;
+            }
+            // Unsafe: Variable used as condition
             return true;
         }
 

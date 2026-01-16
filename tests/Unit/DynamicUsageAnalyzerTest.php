@@ -123,12 +123,22 @@ describe('canFold with Blade directives', function () {
 });
 
 describe('canFold with transformed echoes', function () {
-    it('aborts when prop has null coalesce', function () {
+    it('aborts when prop has null coalesce on left side', function () {
         $analyzer = new DynamicUsageAnalyzer();
 
+        // Prop on LEFT side - being tested, could be replaced by fallback
         $source = '@props(["name"]) <div>{{ $name ?? "Guest" }}</div>';
 
         expect($analyzer->canFold($source, ['name']))->toBeFalse();
+    });
+
+    it('allows prop on right side of null coalesce', function () {
+        $analyzer = new DynamicUsageAnalyzer();
+
+        // Prop on RIGHT side - used as fallback, passes through unchanged
+        $source = '@props(["name"]) <div>{{ $other ?? $name }}</div>';
+
+        expect($analyzer->canFold($source, ['name']))->toBeTrue();
     });
 
     it('aborts when prop is passed as function argument', function () {
@@ -164,12 +174,31 @@ describe('canFold with transformed echoes', function () {
         expect($analyzer->canFold($source, ['name']))->toBeFalse();
     });
 
-    it('aborts when prop has ternary', function () {
+    it('aborts when prop is used as ternary condition', function () {
         $analyzer = new DynamicUsageAnalyzer();
 
+        // Prop in CONDITION position - value is tested, affects control flow
         $source = '@props(["name"]) <div>{{ $name ? $name : "default" }}</div>';
 
         expect($analyzer->canFold($source, ['name']))->toBeFalse();
+    });
+
+    it('allows prop in ternary else branch only', function () {
+        $analyzer = new DynamicUsageAnalyzer();
+
+        // Prop only in ELSE branch - passes through unchanged when condition is false
+        $source = '@props(["fallback"]) <div>{{ $other ? "yes" : $fallback }}</div>';
+
+        expect($analyzer->canFold($source, ['fallback']))->toBeTrue();
+    });
+
+    it('allows prop in ternary if branch only', function () {
+        $analyzer = new DynamicUsageAnalyzer();
+
+        // Prop only in IF branch - passes through unchanged when condition is true
+        $source = '@props(["value"]) <div>{{ $condition ? $value : "default" }}</div>';
+
+        expect($analyzer->canFold($source, ['value']))->toBeTrue();
     });
 
     it('aborts when prop is in arithmetic expression', function () {
@@ -792,5 +821,218 @@ describe('canFold without componentNameToPath callback', function () {
         // No callback = no nested analysis
         expect($analyzer->canFold($parentSource, ['name']))->toBeTrue();
         expect($analyzer->canFold($parentSource, ['name'], null))->toBeTrue();
+    });
+});
+
+describe('canFold with slot variables', function () {
+    it('allows when $slot is only echoed simply', function () {
+        $analyzer = new DynamicUsageAnalyzer();
+
+        $source = '<div>{{ $slot }}</div>';
+
+        expect($analyzer->canFold($source, [], null, [], ['slot']))->toBeTrue();
+    });
+
+    it('allows when $slot is echoed unescaped', function () {
+        $analyzer = new DynamicUsageAnalyzer();
+
+        $source = '<div>{!! $slot !!}</div>';
+
+        expect($analyzer->canFold($source, [], null, [], ['slot']))->toBeTrue();
+    });
+
+    it('aborts when $slot is used in @if directive', function () {
+        $analyzer = new DynamicUsageAnalyzer();
+
+        $source = '@if($slot) <div>{{ $slot }}</div> @endif';
+
+        expect($analyzer->canFold($source, [], null, [], ['slot']))->toBeFalse();
+    });
+
+    it('aborts when $slot is used in @isset directive', function () {
+        $analyzer = new DynamicUsageAnalyzer();
+
+        $source = '@isset($slot) <div>{{ $slot }}</div> @endisset';
+
+        expect($analyzer->canFold($source, [], null, [], ['slot']))->toBeFalse();
+    });
+
+    it('aborts when $slot is used in @unless directive', function () {
+        $analyzer = new DynamicUsageAnalyzer();
+
+        $source = '@unless($slot->isEmpty()) <div>{{ $slot }}</div> @endunless';
+
+        expect($analyzer->canFold($source, [], null, [], ['slot']))->toBeFalse();
+    });
+
+    it('aborts when $slot is used in @php block', function () {
+        $analyzer = new DynamicUsageAnalyzer();
+
+        $source = '@php $content = $slot; @endphp <div>{{ $content }}</div>';
+
+        expect($analyzer->canFold($source, [], null, [], ['slot']))->toBeFalse();
+    });
+
+    it('aborts when $slot is used in standard PHP block', function () {
+        $analyzer = new DynamicUsageAnalyzer();
+
+        $source = '<?php $content = $slot; ?> <div>{{ $content }}</div>';
+
+        expect($analyzer->canFold($source, [], null, [], ['slot']))->toBeFalse();
+    });
+
+    it('aborts when $slot is transformed with function', function () {
+        $analyzer = new DynamicUsageAnalyzer();
+
+        $source = '<div>{{ strtoupper($slot) }}</div>';
+
+        expect($analyzer->canFold($source, [], null, [], ['slot']))->toBeFalse();
+    });
+
+    it('aborts when $slot has method call', function () {
+        $analyzer = new DynamicUsageAnalyzer();
+
+        $source = '<div>{{ $slot->toHtml() }}</div>';
+
+        expect($analyzer->canFold($source, [], null, [], ['slot']))->toBeFalse();
+    });
+
+    it('aborts when $slot has null coalesce on left side', function () {
+        $analyzer = new DynamicUsageAnalyzer();
+
+        // $slot on LEFT side - being tested, could be replaced by fallback
+        $source = '<div>{{ $slot ?? "default" }}</div>';
+
+        expect($analyzer->canFold($source, [], null, [], ['slot']))->toBeFalse();
+    });
+
+    it('allows $slot on right side of null coalesce', function () {
+        $analyzer = new DynamicUsageAnalyzer();
+
+        // $slot on RIGHT side - used as fallback, passes through unchanged
+        // Common pattern: {{ $message ?? $slot }}
+        $source = '<div>{{ $message ?? $slot }}</div>';
+
+        expect($analyzer->canFold($source, [], null, [], ['slot']))->toBeTrue();
+    });
+
+    it('allows $slot on right side of null coalesce with prop', function () {
+        $analyzer = new DynamicUsageAnalyzer();
+
+        // Real-world pattern: prop with slot fallback
+        $source = '@props(["message" => null]) <div>{{ $message ?? $slot }}</div>';
+
+        expect($analyzer->canFold($source, [], null, [], ['slot']))->toBeTrue();
+    });
+
+    it('aborts when $slot is concatenated', function () {
+        $analyzer = new DynamicUsageAnalyzer();
+
+        $source = '<div>{{ $slot . " suffix" }}</div>';
+
+        expect($analyzer->canFold($source, [], null, [], ['slot']))->toBeFalse();
+    });
+
+    it('handles named slots the same as default slot', function () {
+        $analyzer = new DynamicUsageAnalyzer();
+
+        $source = '@if($header) <h1>{{ $header }}</h1> @endif <div>{{ $slot }}</div>';
+
+        // header in @if is unsafe
+        expect($analyzer->canFold($source, [], null, [], ['header', 'slot']))->toBeFalse();
+    });
+
+    it('allows named slot when only echoed', function () {
+        $analyzer = new DynamicUsageAnalyzer();
+
+        $source = '<header>{{ $header }}</header><main>{{ $slot }}</main><footer>{{ $footer }}</footer>';
+
+        expect($analyzer->canFold($source, [], null, [], ['slot', 'header', 'footer']))->toBeTrue();
+    });
+
+    it('aborts when one of multiple slots is used unsafely', function () {
+        $analyzer = new DynamicUsageAnalyzer();
+
+        $source = '<header>{{ $header }}</header> @if($footer) <footer>{{ $footer }}</footer> @endif';
+
+        // footer is used in @if
+        expect($analyzer->canFold($source, [], null, [], ['header', 'footer']))->toBeFalse();
+    });
+
+    it('slot overrides prop with same name', function () {
+        $analyzer = new DynamicUsageAnalyzer();
+
+        // Even though 'header' has a default in @props, if slot is passed it's dynamic
+        $source = '@props(["header" => "Default"]) @if($header) <h1>{{ $header }}</h1> @endif';
+
+        // header is passed as slot, so it's dynamic and @if usage is unsafe
+        expect($analyzer->canFold($source, [], null, [], ['header']))->toBeFalse();
+    });
+
+    it('allows when slot is passed to child component simply', function () {
+        $analyzer = new DynamicUsageAnalyzer();
+
+        $source = '<x-child>{{ $slot }}</x-child>';
+
+        expect($analyzer->canFold($source, [], null, [], ['slot']))->toBeTrue();
+    });
+
+    it('aborts when slot is transformed before passing to child', function () {
+        $analyzer = new DynamicUsageAnalyzer();
+
+        $source = '<x-child>{{ trim($slot) }}</x-child>';
+
+        expect($analyzer->canFold($source, [], null, [], ['slot']))->toBeFalse();
+    });
+
+    it('allows when slot and props are both used safely', function () {
+        $analyzer = new DynamicUsageAnalyzer();
+
+        $source = '@props(["title"]) <h1>{{ $title }}</h1><div>{{ $slot }}</div>';
+
+        expect($analyzer->canFold($source, ['title'], null, [], ['slot']))->toBeTrue();
+    });
+
+    it('aborts when slot is safe but prop is unsafe', function () {
+        $analyzer = new DynamicUsageAnalyzer();
+
+        $source = '@props(["title"]) @if($title) <h1>{{ $title }}</h1> @endif <div>{{ $slot }}</div>';
+
+        expect($analyzer->canFold($source, ['title'], null, [], ['slot']))->toBeFalse();
+    });
+
+    it('aborts when prop is safe but slot is unsafe', function () {
+        $analyzer = new DynamicUsageAnalyzer();
+
+        $source = '@props(["title"]) <h1>{{ $title }}</h1> @if($slot) <div>{{ $slot }}</div> @endif';
+
+        expect($analyzer->canFold($source, ['title'], null, [], ['slot']))->toBeFalse();
+    });
+
+    it('does not double-check variable if in both dynamicAttributes and dynamicSlots', function () {
+        $analyzer = new DynamicUsageAnalyzer();
+
+        // If somehow 'header' is in both (edge case), it should still work
+        $source = '@props(["header"]) <h1>{{ $header }}</h1>';
+
+        // header appears in both - should not cause issues
+        expect($analyzer->canFold($source, ['header'], null, [], ['header']))->toBeTrue();
+    });
+
+    it('handles $slot isEmpty method call', function () {
+        $analyzer = new DynamicUsageAnalyzer();
+
+        // Common pattern: $slot->isEmpty() - this transforms the slot
+        $source = '@if($slot->isEmpty()) <div>No content</div> @else {{ $slot }} @endif';
+
+        expect($analyzer->canFold($source, [], null, [], ['slot']))->toBeFalse();
+    });
+
+    it('handles $slot isNotEmpty method call', function () {
+        $analyzer = new DynamicUsageAnalyzer();
+
+        $source = '@if($slot->isNotEmpty()) {{ $slot }} @endif';
+
+        expect($analyzer->canFold($source, [], null, [], ['slot']))->toBeFalse();
     });
 });
