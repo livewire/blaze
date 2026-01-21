@@ -56,7 +56,11 @@ class SlotUsageAnalyzer
     /**
      * Check if a slot is only used in simple echo patterns.
      * 
-     * Valid: {{ $slot }}, {!! $slot !!}
+     * Valid: 
+     *   - {{ $slot }}
+     *   - {!! $slot !!}
+     *   - {{ $something ?? $slot }} (slot as fallback on right side of null coalesce)
+     *   - {!! $something ?? $slot !!} (unescaped version)
      * Invalid: Any other usage
      */
     protected function isOnlySimpleEcho(string $source, string $slotName): bool
@@ -69,6 +73,12 @@ class SlotUsageAnalyzer
         
         // Remove {!! $slot !!} patterns  
         $temp = preg_replace('/\{!!\s*\$' . preg_quote($slotName, '/') . '\s*!!\}/', '', $temp);
+        
+        // Remove {{ $something ?? $slot }} patterns (slot on right side of null coalesce)
+        $temp = preg_replace('/\{\{\s*[^}]+\?\?\s*\$' . preg_quote($slotName, '/') . '\s*\}\}/', '', $temp);
+        
+        // Remove {!! $something ?? $slot !!} patterns (unescaped version)
+        $temp = preg_replace('/\{!!\s*[^}]+\?\?\s*\$' . preg_quote($slotName, '/') . '\s*!!\}/', '', $temp);
 
         // If the slot variable still appears anywhere else, it's not just simple echo
         return ! $this->containsVariable($temp, $slotName);

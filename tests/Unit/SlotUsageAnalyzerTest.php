@@ -141,12 +141,28 @@ describe('SlotUsageAnalyzer', function () {
             expect($analyzer->canFoldWithSlots($source, ['slot']))->toBeFalse();
         });
         
-        it('aborts when slot is used with null coalesce', function () {
+        it('aborts when slot is on left side of null coalesce', function () {
             $analyzer = new SlotUsageAnalyzer();
             
             $source = '<div>{{ $slot ?? "default" }}</div>';
             
             expect($analyzer->canFoldWithSlots($source, ['slot']))->toBeFalse();
+        });
+        
+        it('allows when slot is on right side of null coalesce (as fallback)', function () {
+            $analyzer = new SlotUsageAnalyzer();
+            
+            $source = '<div>{{ $message ?? $slot }}</div>';
+            
+            expect($analyzer->canFoldWithSlots($source, ['slot']))->toBeTrue();
+        });
+        
+        it('allows when slot is on right side of null coalesce with unescaped echo', function () {
+            $analyzer = new SlotUsageAnalyzer();
+            
+            $source = '<div>{!! $content ?? $slot !!}</div>';
+            
+            expect($analyzer->canFoldWithSlots($source, ['slot']))->toBeTrue();
         });
         
         it('aborts when slot is used in ternary', function () {

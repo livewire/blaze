@@ -126,16 +126,17 @@ describe('fold elligable components', function () {
         </x-card>
         HTML;
 
-        // Alert component uses $slot in transformation ($message ?? $slot), 
-        // so it won't be folded with the simplified approach
-        $result = blazeCompile($input);
-        
-        // Card should be folded
-        expect($result)->toContain('<div class="card">');
-        
-        // Alert should fall back to function compilation
-        expect($result)->toContain('$__blaze->ensureCompiled');
-        expect($result)->toContain('_a37473036e0b38226ddda5e20cccc5f8'); // Alert hash
+        $output = <<<HTML
+        <div class="card">
+            <div class="alert">
+                <button type="button">Save</button>
+            </div>
+        </div>
+        HTML;
+
+        // Alert component now uses allowed pattern ($message ?? $slot) 
+        // All components should be folded
+        expect(blazeCompile($input))->toBe($output);
     });
 
     it('self-closing component', function () {

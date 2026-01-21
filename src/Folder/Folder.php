@@ -99,7 +99,7 @@ class Folder
             // Simplified approach: abort folding if there are ANY dynamic props
             // Check for bound attributes (:prop), short attributes (:$prop), and echo attributes (prop="{{ ... }}")
             $hasBoundAttributes = ! empty($attributeNameToOriginal);
-            $hasEchoAttributes = str_contains($rawAttributes, '{{');
+            $hasEchoAttributes = $this->hasEchoInAttributes($rawAttributes);
             
             if ($hasBoundAttributes || $hasEchoAttributes) {
                 return $component; // Fall back to standard Blade
@@ -179,6 +179,29 @@ class Folder
     {
         // Remove content between @unblaze and @endunblaze (including the directives themselves)
         return preg_replace('/@unblaze.*?@endunblaze/s', '', $source);
+    }
+
+    /**
+     * Check if attributes contain echo syntax within attribute values.
+     * 
+     * Matches patterns like:
+     *  - attribute="value {{ $var }}"
+     *  - attribute="{{ $var }}"
+     *  - attribute="prefix {{ $var }} suffix"
+     * 
+     * Does NOT match:
+     *  - Bound attributes (:attribute="$var")
+     *  - Text outside attributes that happens to contain {{
+     */
+    protected function hasEchoInAttributes(string $attributes): bool
+    {
+        if (empty($attributes)) {
+            return false;
+        }
+        
+        // Check if there are any {{ }} patterns within quoted attribute values
+        // This regex matches: attribute="...{{...}}..."
+        return (bool) preg_match('/[a-zA-Z0-9_-]+\s*=\s*"[^"]*\{\{[^}]+\}\}[^"]*"/', $attributes);
     }
 
     protected function buildRuntimeDataArray(array $attributeNameToOriginal, string $rawAttributes): string
