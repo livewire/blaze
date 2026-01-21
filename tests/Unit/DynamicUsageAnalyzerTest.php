@@ -166,12 +166,12 @@ describe('canFold with transformed echoes', function () {
         expect($analyzer->canFold($source, ['data']))->toBeFalse();
     });
 
-    it('aborts when prop has concatenation', function () {
+    it('allows when prop has concatenation', function () {
         $analyzer = new DynamicUsageAnalyzer();
 
         $source = '@props(["name"]) <div>{{ $name . " suffix" }}</div>';
 
-        expect($analyzer->canFold($source, ['name']))->toBeFalse();
+        expect($analyzer->canFold($source, ['name']))->toBeTrue();
     });
 
     it('aborts when prop is used as ternary condition', function () {
@@ -446,7 +446,7 @@ describe('canFold with nested component attributes', function () {
         expect($analyzer->canFold($source, ['type']))->toBeFalse();
     });
 
-    it('aborts when prop is concatenated in component attribute', function () {
+    it('allows when prop is concatenated in component attribute', function () {
         $analyzer = new DynamicUsageAnalyzer();
 
         $source = <<<'BLADE'
@@ -454,7 +454,7 @@ describe('canFold with nested component attributes', function () {
 <x-card :title="$name . ' - Card'" />
 BLADE;
 
-        expect($analyzer->canFold($source, ['name']))->toBeFalse();
+        expect($analyzer->canFold($source, ['name']))->toBeTrue();
     });
 
     it('aborts when prop has null coalesce in component attribute', function () {
@@ -925,12 +925,12 @@ describe('canFold with slot variables', function () {
         expect($analyzer->canFold($source, [], null, [], ['slot']))->toBeTrue();
     });
 
-    it('aborts when $slot is concatenated', function () {
+    it('allows when $slot is concatenated', function () {
         $analyzer = new DynamicUsageAnalyzer();
 
         $source = '<div>{{ $slot . " suffix" }}</div>';
 
-        expect($analyzer->canFold($source, [], null, [], ['slot']))->toBeFalse();
+        expect($analyzer->canFold($source, [], null, [], ['slot']))->toBeTrue();
     });
 
     it('handles named slots the same as default slot', function () {

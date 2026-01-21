@@ -15,6 +15,7 @@ use PhpParser\Node\Arg;
 use PhpParser\Node\ArrayItem;
 use PhpParser\Node\Expr\ArrayDimFetch;
 use PhpParser\Node\Expr\BinaryOp;
+use PhpParser\Node\Expr\BinaryOp\Concat;
 use PhpParser\Node\Expr\FuncCall;
 use PhpParser\Node\Expr\MethodCall;
 use PhpParser\Node\Expr\NullsafeMethodCall;
@@ -58,6 +59,14 @@ class DynamicUsageAnalyzer
         array $analyzedPaths = [],
         array $dynamicSlots = [],
     ): bool {
+        if (! cache('blaze.fold-checker')) {
+            return true;
+        }
+
+        if (! cache('blaze.dynamic-checker') && (! empty($dynamicAttributes) || ! empty($dynamicSlots))) {
+            return false;
+        }
+
         if (empty($dynamicAttributes) && empty($dynamicSlots)) {
             return true;
         }
@@ -466,10 +475,14 @@ class DynamicUsageAnalyzer
             }
         }
 
-        // Binary operations: check position for null coalesce
+        // Binary operations: check position for null coalesce and allow concatenation
         if ($parent instanceof BinaryOp) {
             // Safe: Variable on right side of null coalesce (fallback value, returned unchanged)
             if ($parent instanceof BinaryOp\Coalesce && $parent->right === $variable) {
+                return false;
+            }
+            // Safe: Concatenation (prop value is embedded in final string)
+            if ($parent instanceof Concat) {
                 return false;
             }
             // Unsafe: All other binary operations (including left side of coalesce)
