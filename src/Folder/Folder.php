@@ -18,18 +18,18 @@ class Folder
     protected $renderBlade;
     protected $renderNodes;
     protected $componentNameToPath;
-    protected DynamicUsageAnalyzer $analyzer;
+    protected SlotUsageAnalyzer $slotAnalyzer;
 
     public function __construct(
         callable $renderBlade,
         callable $renderNodes,
         callable $componentNameToPath,
-        DynamicUsageAnalyzer $analyzer = new DynamicUsageAnalyzer,
+        SlotUsageAnalyzer $slotAnalyzer = new SlotUsageAnalyzer,
     ) {
         $this->renderBlade = $renderBlade;
         $this->renderNodes = $renderNodes;
         $this->componentNameToPath = $componentNameToPath;
-        $this->analyzer = $analyzer;
+        $this->slotAnalyzer = $slotAnalyzer;
     }
 
     public function isFoldable(Node $node): bool
@@ -96,16 +96,18 @@ class Folder
                 renderNodes: fn (array $nodes) => ($this->renderNodes)($nodes)
             );
 
-            // Check if dynamic props can be safely folded (including nested component analysis)
-            $dynamicPropNames = array_keys($attributeNameToOriginal);
-            $dynamicSlotNames = $this->extractSlotNames($component);
+            // Simplified approach: abort folding if there are ANY dynamic props
+            // Check for bound attributes (:prop), short attributes (:$prop), and echo attributes (prop="{{ ... }}")
+            $hasBoundAttributes = ! empty($attributeNameToOriginal);
+            $hasEchoAttributes = str_contains($rawAttributes, '{{');
+            
+            if ($hasBoundAttributes || $hasEchoAttributes) {
+                return $component; // Fall back to standard Blade
+            }
 
-            if ((! empty($dynamicPropNames) || ! empty($dynamicSlotNames)) && ! $this->analyzer->canFold(
-                source: $source,
-                dynamicAttributes: $dynamicPropNames,
-                componentNameToPath: $this->componentNameToPath,
-                dynamicSlots: $dynamicSlotNames,
-            )) {
+            // Check if slots are used in a safe way (only simple echoing)
+            $dynamicSlotNames = $this->extractSlotNames($component);
+            if (! empty($dynamicSlotNames) && ! $this->slotAnalyzer->canFoldWithSlots($source, $dynamicSlotNames)) {
                 return $component; // Fall back to standard Blade
             }
 
