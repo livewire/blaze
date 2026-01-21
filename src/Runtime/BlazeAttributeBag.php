@@ -147,4 +147,59 @@ class BlazeAttributeBag extends ComponentAttributeBag
 
         return implode(' ', $styles);
     }
+
+    /**
+     * Filter the attributes, returning a bag of attributes that pass the filter.
+     *
+     * @param  callable  $callback
+     * @return static
+     */
+    public function filter($callback)
+    {
+        $filtered = [];
+        foreach ($this->attributes as $key => $value) {
+            if ($callback($value, $key)) {
+                $filtered[$key] = $value;
+            }
+        }
+        return new static($filtered);
+    }
+
+    /**
+     * Return a bag of attributes that have keys starting with the given value / pattern.
+     *
+     * @param  string|string[]  $needles
+     * @return static
+     */
+    public function whereStartsWith($needles)
+    {
+        $needles = (array) $needles;
+        return $this->filter(function ($value, $key) use ($needles) {
+            foreach ($needles as $needle) {
+                if ($needle !== '' && strncmp($key, $needle, strlen($needle)) === 0) {
+                    return true;
+                }
+            }
+            return false;
+        });
+    }
+
+    /**
+     * Return a bag of attributes with keys that do not start with the given value / pattern.
+     *
+     * @param  string|string[]  $needles
+     * @return static
+     */
+    public function whereDoesntStartWith($needles)
+    {
+        $needles = (array) $needles;
+        return $this->filter(function ($value, $key) use ($needles) {
+            foreach ($needles as $needle) {
+                if ($needle !== '' && strncmp($key, $needle, strlen($needle)) === 0) {
+                    return false;
+                }
+            }
+            return true;
+        });
+    }
 }
