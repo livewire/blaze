@@ -6,10 +6,10 @@ describe('unblaze directive', function () {
     beforeEach(function () {
         // Configure Blade to find our test components
         app('blade.compiler')->anonymousComponentNamespace('', 'x');
-        app('blade.compiler')->anonymousComponentPath(__DIR__ . '/fixtures/components');
+        app('blade.compiler')->anonymousComponentPath(__DIR__.'/fixtures/components');
 
         // Add view path for our test pages
-        View::addLocation(__DIR__ . '/fixtures/pages');
+        View::addLocation(__DIR__.'/fixtures/pages');
     });
 
     it('folds component but preserves unblaze block', function () {
@@ -152,6 +152,22 @@ BLADE;
         expect($compiled)->toContain('{{ $dynamicLabel }}');
     });
 
+    it('compiles blaze-enabled components inside unblaze blocks', function () {
+        $input = <<<'BLADE'
+@unblaze
+<x-blaze-button>{{ $dynamicLabel }}</x-blaze-button>
+@endunblaze
+BLADE;
+
+        $compiled = app('blaze')->compile($input);
+
+        // The blaze-button component inside @unblaze should be compiled to function calls
+        expect($compiled)->toContain('$__blaze->ensureCompiled');
+
+        // The blaze-button should NOT remain as raw component tag
+        expect($compiled)->not->toContain('<x-blaze-button>');
+    });
+
     it('static folded content with random strings stays the same between renders', function () {
         // First render
         $render1 = \Illuminate\Support\Facades\Blade::render('<x-random-static />');
@@ -223,7 +239,7 @@ BLADE;
 describe('unblaze validation', function () {
     beforeEach(function () {
         app('blade.compiler')->anonymousComponentNamespace('', 'x');
-        app('blade.compiler')->anonymousComponentPath(__DIR__ . '/fixtures/components');
+        app('blade.compiler')->anonymousComponentPath(__DIR__.'/fixtures/components');
     });
 
     it('allows $errors inside @unblaze blocks', function () {
@@ -237,7 +253,7 @@ describe('unblaze validation', function () {
     });
 
     it('throws exception for $errors outside @unblaze blocks', function () {
-        expect(fn() => app('blaze')->compile('<x-with-errors-outside-unblaze />'))
+        expect(fn () => app('blaze')->compile('<x-with-errors-outside-unblaze />'))
             ->toThrow(\Livewire\Blaze\Exceptions\InvalidBlazeFoldUsageException::class);
     });
 
@@ -262,7 +278,7 @@ describe('unblaze validation', function () {
 
     it('still validates problematic patterns in static parts of component', function () {
         // Create a component with $errors in static part and @unblaze
-        $componentPath = __DIR__ . '/fixtures/components/mixed-errors.blade.php';
+        $componentPath = __DIR__.'/fixtures/components/mixed-errors.blade.php';
         file_put_contents($componentPath, '@blaze(fold: true)
 <div>
     <p>{{ $errors->count() }}</p>
@@ -272,7 +288,7 @@ describe('unblaze validation', function () {
 </div>');
 
         try {
-            expect(fn() => app('blaze')->compile('<x-mixed-errors />'))
+            expect(fn () => app('blaze')->compile('<x-mixed-errors />'))
                 ->toThrow(\Livewire\Blaze\Exceptions\InvalidBlazeFoldUsageException::class);
         } finally {
             unlink($componentPath);
