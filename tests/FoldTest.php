@@ -278,4 +278,49 @@ BLADE;
 
         expect(blazeCompile($input))->toBe($output);
     });
+
+    it('folds component with safe dynamic prop', function () {
+        $input = '<x-modal-safe :name="$modal" title="Hello">Content</x-modal-safe>';
+
+        // Should be folded because 'name' is in the safe list
+        $compiled = blazeCompile($input);
+        expect($compiled)->not->toContain('$__blaze->ensureCompiled');
+        expect($compiled)->toContain('data-name="{{ $modal }}"');
+        expect($compiled)->toContain('modal-title">Hello</div>');
+    });
+
+    it('folds component with multiple safe dynamic props', function () {
+        $input = '<x-modal-multi-safe :name="$modal" :id="$id" title="Hello">Content</x-modal-multi-safe>';
+
+        // Should be folded because 'name' and 'id' are both in the safe list
+        $compiled = blazeCompile($input);
+        expect($compiled)->not->toContain('$__blaze->ensureCompiled');
+        expect($compiled)->toContain('data-name="{{ $modal }}"');
+        expect($compiled)->toContain('data-id="{{ $id }}"');
+    });
+
+    it('does not fold component with unsafe dynamic prop even when safe list exists', function () {
+        // 'title' is not in the safe list, so folding should be aborted
+        $input = '<x-modal-safe :name="$modal" :title="$dynamicTitle">Content</x-modal-safe>';
+
+        // Should NOT be folded - expect function-based compilation
+        expect(blazeCompile($input))->toContain('$__blaze->ensureCompiled');
+    });
+
+    it('folds component with safe echo attribute syntax', function () {
+        $input = '<x-modal-safe name="{{ $modal }}" title="Hello">Content</x-modal-safe>';
+
+        // Should be folded because 'name' is in the safe list (echo syntax)
+        $compiled = blazeCompile($input);
+        expect($compiled)->not->toContain('$__blaze->ensureCompiled');
+        expect($compiled)->toContain('data-name="{{ $modal }}"');
+    });
+
+    it('does not fold component with unsafe echo attribute', function () {
+        // 'title' is not in the safe list, so folding should be aborted
+        $input = '<x-modal-safe name="{{ $modal }}" title="Hello {{ $suffix }}">Content</x-modal-safe>';
+
+        // Should NOT be folded - expect function-based compilation
+        expect(blazeCompile($input))->toContain('$__blaze->ensureCompiled');
+    });
 });

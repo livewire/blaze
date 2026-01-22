@@ -30,18 +30,31 @@ class BlazeDirective
      * Parse directive parameters
      *
      * For example, the string:
-     * "fold: false"
+     * "fold: true, safe: ['name', 'title']"
      *
      * will be parsed into the array:
      * [
-     *     'fold' => false,
+     *     'fold' => true,
+     *     'safe' => ['name', 'title'],
      * ]
      */
     protected static function parseParameters(string $paramString): array
     {
         $params = [];
 
-        // Simple parameter parsing for key:value pairs
+        // First, handle array parameters (e.g., safe: ['name', 'title'])
+        if (preg_match_all('/(\w+)\s*:\s*\[([^\]]*)\]/', $paramString, $arrayMatches, PREG_SET_ORDER)) {
+            foreach ($arrayMatches as $match) {
+                $key = $match[1];
+                $arrayContent = $match[2];
+                $params[$key] = self::parseArrayContent($arrayContent);
+            }
+
+            // Remove array parameters from string before processing scalar parameters
+            $paramString = preg_replace('/(\w+)\s*:\s*\[[^\]]*\]/', '', $paramString);
+        }
+
+        // Then handle scalar parameter parsing for key:value pairs
         if (preg_match_all('/(\w+)\s*:\s*(\w+)/', $paramString, $matches, PREG_SET_ORDER)) {
             foreach ($matches as $match) {
                 $key = $match[1];
@@ -57,5 +70,26 @@ class BlazeDirective
         }
 
         return $params;
+    }
+
+    /**
+     * Parse array content from a directive parameter.
+     *
+     * For example, the string:
+     * "'name', 'title'"
+     *
+     * will be parsed into the array:
+     * ['name', 'title']
+     */
+    protected static function parseArrayContent(string $content): array
+    {
+        $items = [];
+
+        // Match quoted strings (single or double quotes)
+        if (preg_match_all('/[\'"]([^\'"]+)[\'"]/', $content, $matches)) {
+            $items = $matches[1];
+        }
+
+        return $items;
     }
 }

@@ -96,12 +96,18 @@ class Folder
                 renderNodes: fn (array $nodes) => ($this->renderNodes)($nodes)
             );
 
-            // Simplified approach: abort folding if there are ANY dynamic props
+            // Get the list of props that are safe to be dynamic
+            $safeProps = $directiveParameters['safe'] ?? [];
+
+            // Filter out safe props from the dynamic attributes check
+            $unsafeBoundAttributes = array_diff_key($attributeNameToOriginal, array_flip($safeProps));
+
             // Check for bound attributes (:prop), short attributes (:$prop), and echo attributes (prop="{{ ... }}")
-            $hasBoundAttributes = ! empty($attributeNameToOriginal);
-            $hasEchoAttributes = $this->hasEchoInAttributes($rawAttributes);
+            // Only abort folding if there are unsafe dynamic props
+            $hasUnsafeBoundAttributes = ! empty($unsafeBoundAttributes);
+            $hasEchoAttributes = $this->hasEchoInAttributes($rawAttributes, $safeProps);
             
-            if ($hasBoundAttributes || $hasEchoAttributes) {
+            if ($hasUnsafeBoundAttributes || $hasEchoAttributes) {
                 return $component; // Fall back to standard Blade
             }
 
@@ -192,16 +198,26 @@ class Folder
      * Does NOT match:
      *  - Bound attributes (:attribute="$var")
      *  - Text outside attributes that happens to contain {{
+     *  - Attributes that are in the safeProps list
      */
-    protected function hasEchoInAttributes(string $attributes): bool
+    protected function hasEchoInAttributes(string $attributes, array $safeProps = []): bool
     {
         if (empty($attributes)) {
             return false;
         }
         
-        // Check if there are any {{ }} patterns within quoted attribute values
+        // Find all attributes with echo syntax
         // This regex matches: attribute="...{{...}}..."
-        return (bool) preg_match('/[a-zA-Z0-9_-]+\s*=\s*"[^"]*\{\{[^}]+\}\}[^"]*"/', $attributes);
+        if (preg_match_all('/([a-zA-Z0-9_-]+)\s*=\s*"[^"]*\{\{[^}]+\}\}[^"]*"/', $attributes, $matches)) {
+            // Check if any of the matched attributes are NOT in the safe list
+            foreach ($matches[1] as $attributeName) {
+                if (! in_array($attributeName, $safeProps)) {
+                    return true;
+                }
+            }
+        }
+
+        return false;
     }
 
     protected function buildRuntimeDataArray(array $attributeNameToOriginal, string $rawAttributes): string
