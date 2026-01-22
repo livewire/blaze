@@ -139,6 +139,35 @@ class BlazeManager
         return $output;
     }
 
+    public function compileTags(string $template): string
+    {
+        $bladeService = new BladeService;
+        $template = $bladeService->preStoreUncompiledBlocks($template);
+        $template = $bladeService->compileComments($template);
+
+        $tokens = $this->tokenizer->tokenize($template);
+
+        $ast = $this->parser->parse($tokens);
+
+        $ast = $this->walker->walk(
+            nodes: $ast,
+            preCallback: fn ($node) => $node,
+            postCallback: function ($node) use (&$dataStack) {
+                $node = $this->memoizer->memoize($node);
+
+                if (cache()->memo()->get('blaze.compiler')) {
+                    $node = $this->tagCompiler->compile($node);
+                }
+
+                return $node;
+            },
+        );
+
+        $output = $this->render($ast);
+
+        return $output;
+    }
+
     public function render(array $nodes): string
     {
         return implode('', array_map(fn ($n) => $n->render(), $nodes));
