@@ -1,4 +1,4 @@
-# Blaze
+# 🔥 Blaze
 
 Eliminate Blade component overhead in your Laravel app.
 
