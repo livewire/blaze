@@ -21,18 +21,14 @@ class Folder
 
     protected $componentNameToPath;
 
-    protected SlotUsageAnalyzer $slotAnalyzer;
-
     public function __construct(
         callable $renderBlade,
         callable $renderNodes,
         callable $componentNameToPath,
-        SlotUsageAnalyzer $slotAnalyzer = new SlotUsageAnalyzer,
     ) {
         $this->renderBlade = $renderBlade;
         $this->renderNodes = $renderNodes;
         $this->componentNameToPath = $componentNameToPath;
-        $this->slotAnalyzer = $slotAnalyzer;
     }
 
     public function isFoldable(Node $node): bool
@@ -111,12 +107,6 @@ class Folder
             $hasEchoAttributes = $this->hasEchoInAttributes($rawAttributes, $safeProps);
 
             if ($hasUnsafeBoundAttributes || $hasEchoAttributes) {
-                return $component; // Fall back to standard Blade
-            }
-
-            // Check if slots are used in a safe way (only simple echoing)
-            $dynamicSlotNames = $this->extractSlotNames($component);
-            if (! empty($dynamicSlotNames) && ! $this->slotAnalyzer->canFoldWithSlots($source, $dynamicSlotNames)) {
                 return $component; // Fall back to standard Blade
             }
 
@@ -313,43 +303,6 @@ class Folder
         }
 
         return false;
-    }
-
-    /**
-     * Extract slot variable names from a component's children.
-     *
-     * @return array Slot variable names (e.g., ['slot', 'header', 'footer'])
-     */
-    protected function extractSlotNames(ComponentNode $component): array
-    {
-        $slotNames = [];
-        $hasDefaultSlotContent = false;
-
-        foreach ($component->children as $child) {
-            if ($child instanceof SlotNode) {
-                $name = $child->name;
-                // Named slot (non-empty name that isn't 'slot')
-                if (! empty($name) && $name !== 'slot') {
-                    $slotNames[] = $name;
-                } else {
-                    // Default slot via <x-slot> or <x-slot name="slot">
-                    $hasDefaultSlotContent = true;
-                }
-            } else {
-                // Any non-SlotNode child is default slot content
-                // But skip empty text nodes
-                if ($child instanceof TextNode && trim($child->content) === '') {
-                    continue;
-                }
-                $hasDefaultSlotContent = true;
-            }
-        }
-
-        if ($hasDefaultSlotContent) {
-            $slotNames[] = 'slot';
-        }
-
-        return $slotNames;
     }
 
     protected function toCamelCase(string $name): string
