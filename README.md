@@ -7,8 +7,6 @@ Blade component overhead (25,000 renders):
 
 Without Blaze  ████████████████████████████████████████  450ms
 With Blaze     █                                          12ms
-
-                                              97% overhead eliminated
 ```
 
 ## Introduction
