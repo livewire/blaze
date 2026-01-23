@@ -39,7 +39,7 @@ public function boot(): void
 }
 ```
 
-That's it. All your anonymous components are now optimized.
+That's it.
 
 ### Per-folder configuration
 
