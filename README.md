@@ -1,8 +1,6 @@
-# Blaze
+# 🔥 Blaze
 
-Eliminate Blade component overhead in your Laravel app.
-
-> **Blazingly fast function compiler!** Drop-in replacement for Blade components with full feature parity. Removes 94-97% of Blade's component rendering overhead. For even more performance, enable compile-time folding to eliminate the overhead entirely.
+Speed up your Laravel app by optimizing Blade component rendering performance.
 
 ```
 Blade component overhead (25,000 renders):
