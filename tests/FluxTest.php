@@ -20,14 +20,20 @@ describe('flux component integration', function () {
         expect($output)->not->toContain('flux:heading');
     });
 
-    it('folds link component with dynamic route helper link', function() {
-        Route::get('/dashboard', fn() => 'dashboard')->name('dashboard');
+    it('folds link component with dynamic route helper link', function () {
+        Route::get('/dashboard', fn () => 'dashboard')->name('dashboard');
 
         $input = '<flux:link :href="route(\'dashboard\')">Dashboard</flux:link>';
         $output = app('blaze')->compile($input);
 
-        expect($output)
-            ->toContain('<a ')
-            ->toContain(' href="{{ route(\'dashboard\') }}"');
+        // Should be folded (contain the anchor tag)
+        expect($output)->toContain('<a ');
+
+        // Dynamic attributes use boolean fencing pattern
+        expect($output)->toContain('$__blazeAttr = route(\'dashboard\')');
+        expect($output)->toContain('href="');
+
+        // Should NOT be function compiled
+        expect($output)->not->toContain('$__blaze->ensureCompiled');
     });
 });

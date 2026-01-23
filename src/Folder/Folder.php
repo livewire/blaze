@@ -3,6 +3,9 @@
 namespace Livewire\Blaze\Folder;
 
 use Illuminate\Support\Facades\Event;
+use Illuminate\Support\Str;
+use Livewire\Blaze\Compiler\ArrayParser;
+use Livewire\Blaze\Compiler\DirectiveMatcher;
 use Livewire\Blaze\Directive\BlazeDirective;
 use Livewire\Blaze\Events\ComponentFolded;
 use Livewire\Blaze\Exceptions\InvalidBlazeFoldUsageException;
@@ -98,13 +101,22 @@ class Folder
             // Get the list of props that are safe to be dynamic
             $safeProps = $directiveParameters['safe'] ?? [];
 
-            // Filter out safe props from the dynamic attributes check
-            $unsafeBoundAttributes = array_diff_key($attributeNameToOriginal, array_flip($safeProps));
+            // Get the list of props defined in @props directive
+            // Only dynamic attributes that ARE defined props should prevent folding
+            // Dynamic attributes NOT in @props go to $attributes and shouldn't abort folding
+            $definedProps = $this->getDefinedProps($source);
+
+            // Filter dynamic attributes to only those that are defined props AND not in the safe list
+            $unsafeBoundAttributes = array_filter(
+                $attributeNameToOriginal,
+                fn ($value, $name) => in_array($name, $definedProps) && ! in_array($name, $safeProps),
+                ARRAY_FILTER_USE_BOTH
+            );
 
             // Check for bound attributes (:prop), short attributes (:$prop), and echo attributes (prop="{{ ... }}")
-            // Only abort folding if there are unsafe dynamic props
+            // Only abort folding if there are unsafe dynamic props that are defined in @props
             $hasUnsafeBoundAttributes = ! empty($unsafeBoundAttributes);
-            $hasEchoAttributes = $this->hasEchoInAttributes($rawAttributes, $safeProps);
+            $hasEchoAttributes = $this->hasEchoInAttributes($rawAttributes, $safeProps, $definedProps);
 
             if ($hasUnsafeBoundAttributes || $hasEchoAttributes) {
                 return $component; // Fall back to standard Blade
@@ -197,8 +209,9 @@ class Folder
      *  - Bound attributes (:attribute="$var")
      *  - Text outside attributes that happens to contain {{
      *  - Attributes that are in the safeProps list
+     *  - Attributes that are not defined in @props (they go to $attributes)
      */
-    protected function hasEchoInAttributes(string $attributes, array $safeProps = []): bool
+    protected function hasEchoInAttributes(string $attributes, array $safeProps = [], array $definedProps = []): bool
     {
         if (empty($attributes)) {
             return false;
@@ -207,9 +220,14 @@ class Folder
         // Find all attributes with echo syntax
         // This regex matches: attribute="...{{...}}..."
         if (preg_match_all('/([a-zA-Z0-9_-]+)\s*=\s*"[^"]*\{\{[^}]+\}\}[^"]*"/', $attributes, $matches)) {
-            // Check if any of the matched attributes are NOT in the safe list
+            // Check if any matched attribute is a defined prop and NOT in the safe list
             foreach ($matches[1] as $attributeName) {
-                if (! in_array($attributeName, $safeProps)) {
+                // Only abort if the attribute IS a defined prop AND NOT safe
+                // Attributes not in @props go to $attributes and shouldn't prevent folding
+                $isDefinedProp = empty($definedProps) || in_array($attributeName, $definedProps);
+                $isSafe = in_array($attributeName, $safeProps);
+
+                if ($isDefinedProp && ! $isSafe) {
                     return true;
                 }
             }
@@ -270,6 +288,43 @@ class Folder
         $attributeParser = new AttributeParser;
 
         return $attributeParser->parseArrayStringIntoArray($matches[1]);
+    }
+
+    /**
+     * Extract the list of defined prop names from the component source.
+     *
+     * Returns an array of prop names including both camelCase and kebab-case variants
+     * since attributes can be passed in either format.
+     */
+    protected function getDefinedProps(string $source): array
+    {
+        $matcher = new DirectiveMatcher;
+        $expression = $matcher->extractExpression($source, 'props');
+
+        if ($expression === null) {
+            return [];
+        }
+
+        try {
+            $parser = new ArrayParser;
+            $items = $parser->parse($expression);
+        } catch (\Exception $e) {
+            return [];
+        }
+
+        $props = [];
+
+        foreach (array_keys($items) as $name) {
+            $props[] = $name;
+
+            // Also include kebab-case variant since attributes can be passed that way
+            $kebab = Str::kebab($name);
+            if ($kebab !== $name) {
+                $props[] = $kebab;
+            }
+        }
+
+        return $props;
     }
 
     protected function hasAwareDescendant(Node $node): bool

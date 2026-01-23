@@ -93,6 +93,37 @@ describe('fold elligable components', function () {
         expect(blazeCompile($input))->toContain('$__blaze->ensureCompiled');
     });
 
+    it('folds when dynamic attribute is not a defined prop', function () {
+        // The link-with-props component has @props(['label' => 'Click me'])
+        // The :href attribute is NOT defined in @props, so it goes to $attributes
+        // This should NOT prevent folding
+        $input = '<x-link-with-props :href="$url">Go</x-link-with-props>';
+        $output = blazeCompile($input);
+
+        // Should be folded (not contain ensureCompiled)
+        expect($output)->not->toContain('$__blaze->ensureCompiled');
+
+        // Should contain the folded anchor tag
+        expect($output)->toContain('<a');
+
+        // Dynamic attributes use boolean fencing pattern (handles false/null)
+        expect($output)->toContain('$__blazeAttr = $url');
+        expect($output)->toContain('href="');
+
+        // Slot content should be present
+        expect($output)->toContain('Go');
+    });
+
+    it('does not fold when dynamic attribute IS a defined prop', function () {
+        // The button component has @props(['type' => 'button'])
+        // The :type attribute IS defined in @props, so dynamic value prevents folding
+        $input = '<x-button :type="$buttonType">Click</x-button>';
+        $output = blazeCompile($input);
+
+        // Should NOT be folded
+        expect($output)->toContain('$__blaze->ensureCompiled');
+    });
+
     it('folds with safe dynamic attribute and generates conditional PHP for boolean handling', function () {
         $input = '<x-button-safe-disabled :disabled="$isDisabled">Save</x-button-safe-disabled>';
         $output = blazeCompile($input);
