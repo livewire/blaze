@@ -11,7 +11,7 @@ With Blaze     █                                          12ms
 
 ## Introduction
 
-Blaze is a Laravel package that eliminates the overhead of Blade's component rendering pipeline. Rendering large numbers of components can be slow. Standard Blade components can be slow when rendering large numbers of them. Blaze compiles components into direct PHP function calls or static HTML, removing this overhead entirely.
+Rendering large numbers of Blade components can be slow. Blaze is a Laravel package that eliminates the overhead of Blade's component rendering pipeline by compiling components into direct PHP function calls or static HTML, removing this overhead entirely.
 
 ## Installation
 
