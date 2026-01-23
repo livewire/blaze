@@ -50,14 +50,17 @@ class BlazeServiceProvider extends ServiceProvider
             new ComponentCompiler,
         ));
 
+        $this->app->singleton(BlazeRuntime::class, fn () => new BlazeRuntime);
+
         $this->app->alias(BlazeManager::class, Blaze::class);
 
         $this->app->bind('blaze', fn ($app) => $app->make(BlazeManager::class));
+        $this->app->bind('blaze.runtime', fn ($app) => $app->make(BlazeRuntime::class));
     }
 
     protected function registerBlazeRuntime(): void
     {
-        View::share('__blaze', new BlazeRuntime);
+        View::share('__blaze', $this->app->make(BlazeRuntime::class));
     }
 
     protected function registerBlazeDirectiveFallbacks(): void

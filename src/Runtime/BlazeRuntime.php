@@ -20,18 +20,9 @@ class BlazeRuntime
     
     protected array $paths = [];
     protected array $compiled = [];
-
-    /**
-     * Stack of component data for @aware support.
-     * Each entry is the $__data array passed to a component.
-     */
     protected array $dataStack = [];
-
-    /**
-     * Stack of component slots for delegate forwarding.
-     * Each entry is the $__slots array passed to a component.
-     */
     protected array $slotsStack = [];
+    protected array $counts = [];
 
     public function __construct()
     {
@@ -158,5 +149,16 @@ class BlazeRuntime
         }
 
         return value($default);
+    }
+
+    public function increment(string $name): void
+    {
+        $this->counts[$name] ??= 0;
+        $this->counts[$name]++;
+    }
+    
+    public function getCounts(): array
+    {
+        return $this->counts;
     }
 }

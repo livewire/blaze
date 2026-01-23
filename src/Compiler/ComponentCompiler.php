@@ -41,6 +41,7 @@ class ComponentCompiler
         return implode('', array_filter([
             '<' . '?php if (!function_exists(\'' . $name . '\')):' . "\n",
             'function ' . $name . '($__blaze, $__data = [], $__slots = [], $__bound = []) {' . "\n",
+            app('blaze')->isDebugging() ? '$__blaze->increment(\'' . $name . '\');' . "\n" : null,
             '$__env = $__blaze->env;' . "\n",
             'if (($__data[\'attributes\'] ?? null) instanceof \Illuminate\View\ComponentAttributeBag) { $__data = $__data + $__data[\'attributes\']->all(); unset($__data[\'attributes\']); }' . "\n",
             str_contains($source, '$app') ? '$app = $__blaze->app;' . "\n" : null,
