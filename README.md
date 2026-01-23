@@ -11,22 +11,18 @@ With Blaze     █                                          12ms
 
 ## Introduction
 
-Blaze is a Laravel package that eliminates the overhead of Blade's component rendering pipeline. Standard Blade components can be slow when rendering large numbers of them. Blaze compiles components into direct PHP function calls, removing this overhead entirely.
+Blaze is a Laravel package that eliminates the overhead of Blade's component rendering pipeline.
 
-**Key benefits:**
-- **94-97% less overhead** - eliminates Blade's component rendering pipeline
-- **Drop-in replacement** - works with existing anonymous components
-- **Compile-time optimization** - no runtime cost
-- **Reliable** - no caching issues or stale data concerns
+Standard Blade components can be slow when rendering large numbers of them.
 
-For users who want to squeeze out even more performance, Blaze offers **compile-time folding** - an advanced optimization that pre-renders components to static HTML, removing virtually 100% of the overhead.
+Blaze compiles components into direct PHP function calls or static HTML, removing this overhead entirely.
 
 ## Installation
 
 You can install the package via composer:
 
 ```bash
-composer require livewire/blaze:^1.1@beta
+composer require livewire/blaze
 ```
 
 ## Usage
