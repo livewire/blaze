@@ -1,8 +1,8 @@
-# 🔥 Blaze
+# Blaze
 
 Eliminate Blade component overhead in your Laravel app.
 
-> **New blazingly fast function compiler!** Drop-in replacement for Blade components with full feature parity. Removes 94-97% of Blade's component rendering overhead. More reliable, no caching concerns, works everywhere.
+> **Blazingly fast function compiler!** Drop-in replacement for Blade components with full feature parity. Removes 94-97% of Blade's component rendering overhead. For even more performance, enable compile-time folding to eliminate the overhead entirely.
 
 ```
 Blade component overhead (25,000 renders):
@@ -22,6 +22,8 @@ Blaze is a Laravel package that eliminates the overhead of Blade's component ren
 - **Drop-in replacement** - works with existing components
 - **Compile-time optimization** - no runtime cost
 - **Reliable** - no caching issues or stale data concerns
+
+For users who want to squeeze out even more performance, Blaze offers **compile-time folding** - an advanced optimization that pre-renders components to static HTML, removing virtually 100% of the overhead.
 
 ## Installation
 
@@ -49,34 +51,7 @@ To optimize a Blade component for performance, simply add the `@blaze` directive
 
 > **Using Flux?** All eligible Flux components are already marked with `@blaze` - you don't need to do anything! Just install Blaze and enjoy the performance boost.
 
-When you use this component in your templates:
-
-```blade
-<x-button variant="secondary">
-    Save
-</x-button>
-```
-
-Blaze compiles it into a direct function call, bypassing Laravel's component resolution overhead:
-
-```php
-<?php echo _abc123($__blaze, ['variant' => 'secondary'], ['default' => 'Save']); ?>
-```
-
 ### Optimization Strategies
-
-The `@blaze` directive supports optional parameters to control different optimization strategies:
-
-```blade
-{{-- Function compilation (default) - removes 94-97% of overhead --}}
-@blaze
-
-{{-- Compile-time folding - removes ~100% of overhead but only works with static usage --}}
-@blaze(fold: true)
-
-{{-- Runtime memoization - caches component output --}}
-@blaze(memo: true)
-```
 
 **Available strategies:**
 
@@ -87,51 +62,61 @@ The `@blaze` directive supports optional parameters to control different optimiz
    - No caching concerns or stale data
 
 2. **Compile-time folding** (`fold: true`) - The fastest but most restrictive
-   - Pre-renders component at compile-time
-   - Only works when props and slots are static values
-   - Removes virtually all overhead (~100%) - component becomes static HTML
-   - Automatically falls back to function compilation if dynamic values are detected
+   - Pre-renders component at compile-time into static HTML
+   - Requires understanding of what makes a component foldable
+   - Removes virtually all overhead (~100%)
+   - Automatically falls back to function compilation when needed
 
 3. **Runtime memoization** (`memo: true`) - Caches rendered output
    - Caches output based on component name and props
-   - Reduces re-rendering of identical components
-   - Only useful for self-closing components
+   - Useful for self-closing components rendered multiple times with same props
    - Complements other strategies
-
-**Parameters:**
-- `fold: true/false` - Enable compile-time folding (default: false)
-- `memo: true/false` - Enable runtime memoization (default: false)
 
 ### Which strategy should I use?
 
-**For 99% of components, use the default:**
+**For most components, use the default:**
 ```blade
 @blaze
 ```
 
 This removes 94-97% of Blade's component overhead with zero concerns about caching or stale data.
 
-**Use folding only if:**
-- Component is always called with static props (rare)
-- You need every last microsecond of performance
-- You understand the folding requirements
+**Use memoization for repeated self-closing components:**
+
+Components like icons or avatars that appear multiple times on a page with the same props benefit from memoization:
+
+```blade
+{{-- components/icon.blade.php --}}
+@blaze(memo: true)
+
+@props(['name'])
+
+<svg><!-- icon SVG for {{ $name }} --></svg>
+```
+
+Now `<x-icon name="check" />` rendered 50 times only executes once - the rest are cached.
+
+**Use folding for maximum performance:**
+
+If you need every last bit of performance and are willing to understand the folding model, enable compile-time folding:
 
 ```blade
 @blaze(fold: true)
 ```
 
+See the [Compile-time folding](#advanced-compile-time-folding) section for details on what makes a component foldable.
+
 ## Table of contents
 
-- [New function compiler](#new-function-compiler)
-- [When to use @blaze](#when-to-use-blaze)
-- [Advanced: Compile-time folding](#advanced-compile-time-folding)
-- [Making impure components foldable with @unblaze](#making-impure-components-foldable-with-unblaze)
+- [Function compiler](#function-compiler)
+- [Memoization](#memoization)
+- [Compile-time folding](#advanced-compile-time-folding)
+- [The @unblaze directive](#making-impure-components-foldable-with-unblaze)
 - [Performance expectations](#performance-expectations)
-- [Debugging](#debugging)
 
-## New function compiler
+## Function compiler
 
-Blaze includes a blazingly fast function compiler that transforms your Blade components into optimized PHP functions. This compiler has **full feature parity** with Laravel's Blade components while removing **94-97% of the rendering overhead**.
+The function compiler transforms your Blade components into optimized PHP functions. This compiler has **full feature parity** with Laravel's Blade components while removing **94-97% of the rendering overhead**.
 
 ### How it works
 
@@ -203,45 +188,45 @@ While Blaze supports all standard Blade component features, there are a few adva
 - `@aware` across Blade/Blaze boundaries - `@aware` only works when both parent and child use `@blaze`
 - `Blade::stringable()` - Custom stringable callbacks are not invoked
 
-## When to use @blaze
+## Memoization
 
-**Simple answer: Use `@blaze` on any component!**
-
-With the function compiler, `@blaze` can be safely added to virtually any Blade component. It's a drop-in replacement that works with:
-
-- Static components (buttons, cards, badges)
-- Dynamic components (user profiles, data tables)
-- Components with `@props`
-- Components with `$attributes`
-- Components with slots
-- Components with `@aware`
-- Nested components
-- Components that accept dynamic data through props
-
-### Optional: Runtime Memoization
-
-If you have self-closing components that are rendered repeatedly with the same props, you can enable memoization:
+Runtime memoization caches the rendered output of self-closing components. When the same component is rendered multiple times with identical props, it only executes once.
 
 ```blade
-{{-- Enable memoization for repeated renders --}}
-
 @blaze(memo: true)
 
-@props(['userId'])
+@props(['name', 'size' => 'md'])
 
-<div class="user-avatar">
-    {{-- Component content --}}
-</div>
+<svg class="icon icon-{{ $size }}">
+    {{-- SVG content for {{ $name }} --}}
+</svg>
 ```
 
-This caches the rendered output, so if you render `<x-user-avatar :user-id="5" />` multiple times on the same page, it only renders once.
+This is particularly useful for:
 
-**When to use memoization:**
-- Self-closing components only (has no slots)
+**Icons** - The same icon often appears many times on a page:
+```blade
+<x-icon name="check" />  {{-- Rendered --}}
+<x-icon name="check" />  {{-- Cached --}}
+<x-icon name="check" />  {{-- Cached --}}
+<x-icon name="star" />   {{-- Rendered (different props) --}}
+```
+
+**Avatars** - User avatars in lists or repeated UI elements:
+```blade
+@blaze(memo: true)
+
+@props(['user'])
+
+<img src="{{ $user->avatar_url }}" alt="{{ $user->name }}" class="avatar" />
+```
+
+**Requirements:**
+- Self-closing components only (no slots)
 - Component is rendered multiple times with identical props
-- Component has expensive rendering logic
+- Props must be serializable for cache key generation
 
-**Note:** Most components don't need memoization - function compilation is already very fast.
+**Note:** Most components don't need memoization - function compilation is already very fast. Use memoization when you notice the same self-closing component rendered many times with the same props.
 
 ## Advanced: Compile-time folding
 
@@ -672,61 +657,9 @@ Each `@unblaze` block creates an independent dynamic section, while everything e
 
 ## Performance expectations
 
-Blaze removes 94-97% of Blade's component rendering overhead. Here's what that means in practice:
+> **TBD** - This section needs updated benchmarks.
 
-**Most pages**: 10-50ms less time spent in component rendering
-- Pages with dozens to hundreds of components
-- Cumulative savings add up quickly
-- More responsive page loads
-
-**Heavy component pages**: 100-500ms+ savings
-- Data tables with hundreds of rows
-- Large dropdowns or select menus
-- Dashboard grids with many cards
-- Form pages with dozens of inputs
-- Any page with heavy component usage
-
-**Per-component savings**: 10-20 microseconds each
-- May seem small, but compounds rapidly
-- 100 components = 1-2ms saved
-- 1,000 components = 10-20ms saved
-- 10,000 components = 100-200ms saved
-
-## Debugging
-
-Blaze's function compilation (default `@blaze`) is designed to work transparently - it should work exactly like standard Blade components, just faster. If you encounter issues with the default behavior, it's likely a bug - please report it!
-
-### Debugging folding
-
-If you're using **folding** (`@blaze(fold: true)`) and encountering issues, here are common causes:
-
-1. **Runtime-dependent code in template** - Using `@csrf`, `$errors`, `auth()`, etc.
-   - **Solution:** Move dynamic code inside `@unblaze` blocks or pass data through props
-
-2. **Dynamic props passed to folded component** - Component expects static props but receives `:prop="$var"`
-   - **Solution:** Either pass static values, add prop to `safe` list, or use default `@blaze` instead
-
-3. **Invalid prop definitions** - Syntax errors in `@props([...])`
-   - **Solution:** Verify prop array syntax is valid PHP
-
-4. **Missing `@aware` dependencies** - Child expects props not provided by parent
-   - **Solution:** Ensure parent passes required props or child provides defaults
-
-### Debug mode for folding
-
-To get detailed error information when folding fails, enable debug mode:
-
-```php
-// In a service provider or debug environment...
-
-app('blaze')->debug();
-```
-
-When debug mode is enabled:
-- Blaze will throw exceptions instead of falling back gracefully to function compilation
-- Shows exactly why a component can't be folded
-- Helps identify invalid prop values, runtime dependencies, etc.
-- **Note:** Only relevant for `@blaze(fold: true)` - function compilation rarely fails
+Blaze removes 94-97% of Blade's component rendering overhead. The actual impact on your application depends on how many components you render per page.
 
 ## License
 
