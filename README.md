@@ -43,29 +43,27 @@ That's it.
 
 ## Limitations
 
-While Blaze aims for feature parity with Blade's anonymous components, some features have been disabled to maximize performance:
+While Blaze aims for feature parity with Blade's anonymous components, some advanced features will NOT work when Blaze is enabled:
 
-- **Class-based components** are not supported (use anonymous components instead)
-- **View composers**, **`View::share()`**, and **component events** are disabled by default
+- Class-based components 
+- View composers / creators
+- Component lifecycle events
 
-These features can be re-enabled on a per-folder basis if your components depend on them. See the [Reference](#reference) section for details.
+Blaze primarily focuses on optimizing anonymous components. If you rely heavily on class-based components or view composers, consider enabling Blaze only for specific folders or components (see below).
 
 ### Configuration
 
-Due to these limitations, you may want to gradually roll out Blaze or enable specific features for certain folders.
+Due to these limitations, you may want to gradually roll out Blaze by opting in specific folders or components.
 
 **Per-folder:**
 
 ```php
 Blaze::optimize()
-    ->in(resource_path('views/components/legacy'), composer: true, share: true)
-    ->in(resource_path('views/components/icons'), memoize: true)
-    ->in(resource_path('views/components/ui'), fold: true);
+    ->in(resource_path('views/components/icons'))
+    ->in(resource_path('views/components/ui'));
 ```
 
 **Per-component:**
-
-Add the `@blaze` directive directly to a component for fine-grained control:
 
 ```blade
 @blaze
@@ -76,8 +74,6 @@ Add the `@blaze` directive directly to a component for fine-grained control:
 ```
 
 > **Using Flux?** All eligible Flux components are already marked with `@blaze` - you don't need to do anything! Just install Blaze and enjoy the performance boost.
-
-See the [Reference](#reference) section for all available options.
 
 ## Table of contents
 
