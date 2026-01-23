@@ -1,26 +1,26 @@
-# 🔥 Blaze
+# Blaze
 
-Speed up your Laravel app by optimizing Blade component rendering performance.
+Eliminate Blade component overhead in your Laravel app.
 
-> **New blazingly fast function compiler!** Drop-in replacement for Blade components with full feature parity and 94-97% performance improvement. More reliable, no caching concerns, works everywhere.
+> **New blazingly fast function compiler!** Drop-in replacement for Blade components with full feature parity. Removes 94-97% of Blade's component rendering overhead. More reliable, no caching concerns, works everywhere.
 
 ```
-Rendering 25,000 button components:
+Blade component overhead (25,000 renders):
 
 Without Blaze  ████████████████████████████████████████  450ms
 With Blaze     █                                          12ms
 
-                                                          97% faster
+                                              97% overhead eliminated
 ```
 
 ## Introduction
 
-Blaze is a Laravel package that dramatically improves the rendering performance of your Blade components by compiling them into optimized PHP functions. Instead of going through Laravel's full component resolution and rendering pipeline on every request, Blaze components are compiled directly into fast, direct function calls.
+Blaze is a Laravel package that eliminates the overhead of Blade's component rendering pipeline. Standard Blade components go through class instantiation, attribute bag construction, view resolution, and multiple compilation passes on every render. Blaze compiles components into direct PHP function calls, removing this overhead entirely.
 
 **Key benefits:**
-- **94-97% faster** than standard Blade components
+- **94-97% less overhead** - eliminates Blade's component rendering pipeline
 - **Drop-in replacement** - works with existing components
-- **No runtime overhead** - optimization happens at compile time
+- **Compile-time optimization** - no runtime cost
 - **Reliable** - no caching issues or stale data concerns
 
 ## Installation
@@ -68,10 +68,10 @@ Blaze compiles it into a direct function call, bypassing Laravel's component res
 The `@blaze` directive supports optional parameters to control different optimization strategies:
 
 ```blade
-{{-- Function compilation (default) - 94-97% faster --}}
+{{-- Function compilation (default) - removes 94-97% of overhead --}}
 @blaze
 
-{{-- Compile-time folding - 99.9% faster but only works with static usage --}}
+{{-- Compile-time folding - removes ~100% of overhead but only works with static usage --}}
 @blaze(fold: true)
 
 {{-- Runtime memoization - caches component output --}}
@@ -83,13 +83,13 @@ The `@blaze` directive supports optional parameters to control different optimiz
 1. **Function compilation** (default) - The most reliable optimization
    - Compiles component into optimized PHP function
    - Works with any props (static or dynamic)
-   - 94-97% performance improvement
+   - Removes 94-97% of Blade's component overhead
    - No caching concerns or stale data
 
 2. **Compile-time folding** (`fold: true`) - The fastest but most restrictive
    - Pre-renders component at compile-time
    - Only works when props and slots are static values
-   - 99.9% performance improvement
+   - Removes virtually all overhead (~100%) - component becomes static HTML
    - Automatically falls back to function compilation if dynamic values are detected
 
 3. **Runtime memoization** (`memo: true`) - Caches rendered output
@@ -109,7 +109,7 @@ The `@blaze` directive supports optional parameters to control different optimiz
 @blaze
 ```
 
-This gives you 94-97% improvement with zero concerns about caching or stale data.
+This removes 94-97% of Blade's component overhead with zero concerns about caching or stale data.
 
 **Use folding only if:**
 - Component is always called with static props (rare)
@@ -128,11 +128,10 @@ This gives you 94-97% improvement with zero concerns about caching or stale data
 - [Making impure components foldable with @unblaze](#making-impure-components-foldable-with-unblaze)
 - [Performance expectations](#performance-expectations)
 - [Debugging](#debugging)
-- [AI assistant integration](#ai-assistant-integration)
 
 ## New function compiler
 
-Blaze includes a blazingly fast function compiler that transforms your Blade components into optimized PHP functions. This compiler has **full feature parity** with Laravel's Blade components while being **94-97% faster**.
+Blaze includes a blazingly fast function compiler that transforms your Blade components into optimized PHP functions. This compiler has **full feature parity** with Laravel's Blade components while removing **94-97% of the rendering overhead**.
 
 ### How it works
 
@@ -166,8 +165,10 @@ The function compiler supports **all Blade component features**:
 
 ### Benchmark results (25,000 components)
 
-| Scenario | Standard Blade | Blaze | Improvement |
-|----------|----------------|-------|-------------|
+These benchmarks measure the time spent in Blade's component rendering pipeline - the overhead that Blaze eliminates:
+
+| Scenario | Blade Overhead | With Blaze | Reduction |
+|----------|----------------|------------|-----------|
 | No attributes | 500ms | 13ms | 97.4% |
 | Attributes only | 457ms | 26ms | 94.3% |
 | Attributes + merge() | 546ms | 44ms | 91.9% |
@@ -181,7 +182,7 @@ The function compiler supports **all Blade component features**:
 
 **Reliability**: Works with both static and dynamic props - no special cases or fallbacks
 
-**Performance**: Consistent 94-97% improvement across all scenarios
+**Performance**: Consistently removes 94-97% of overhead across all scenarios
 
 **Simplicity**: Drop-in replacement - just add `@blaze` to your components
 
@@ -246,11 +247,11 @@ This caches the rendered output, so if you render `<x-user-avatar :user-id="5" /
 
 > **Most users can skip this section.** The default function compilation works for 99% of use cases. Folding is an advanced optimization with strict requirements.
 
-Blaze also supports **compile-time folding** with `@blaze(fold: true)` - an extreme optimization that pre-renders components during compilation for 99.9% performance improvement. However, folding only works under specific conditions.
+Blaze also supports **compile-time folding** with `@blaze(fold: true)` - an extreme optimization that pre-renders components during compilation, removing virtually all component overhead. However, folding only works under specific conditions.
 
 ### How folding works
 
-When a component is folded, Blaze renders it at compile-time and embeds the resulting HTML directly into the compiled view. At runtime, there's zero overhead - the HTML is already there.
+When a component is folded, Blaze renders it at compile-time and embeds the resulting HTML directly into the compiled view. At runtime, there's zero component overhead - the HTML is already there, as if you'd written it by hand.
 
 ```blade
 {{-- This component... --}}
@@ -259,6 +260,8 @@ When a component is folded, Blaze renders it at compile-time and embeds the resu
 {{-- ...becomes this HTML at compile time --}}
 <span class="badge badge-success">Active</span>
 ```
+
+This is why folding removes virtually 100% of the overhead - the component no longer exists at runtime.
 
 ### When to use folding
 
@@ -499,7 +502,7 @@ Avoid `@blaze(fold: true)` for components that have runtime dependencies:
 <p>Generated on {{ now() }}</p> <!-- Cannot fold -->
 ```
 
-For these cases, use the default `@blaze` (function compilation) - you still get 94-97% improvement without the folding restrictions.
+For these cases, use the default `@blaze` (function compilation) - you still remove 94-97% of the overhead without the folding restrictions.
 
 ## Making impure components foldable with @unblaze
 
@@ -524,7 +527,7 @@ Imagine a form input component that's perfect for `@blaze` - except it needs to 
 </div>
 ```
 
-Without `@unblaze`, you have to choose: either skip folding entirely (losing the 99.9% speed boost), or remove the error handling (losing functionality).
+Without `@unblaze`, you have to choose: either skip folding entirely (losing the near-total overhead elimination), or remove the error handling (losing functionality).
 
 ### The solution: @unblaze
 
@@ -669,14 +672,14 @@ Each `@unblaze` block creates an independent dynamic section, while everything e
 
 ## Performance expectations
 
-Blaze provides consistent 94-97% improvement in component rendering time. Here's what that means in practice:
+Blaze removes 94-97% of Blade's component rendering overhead. Here's what that means in practice:
 
-**Most pages**: 10-50ms faster total render time
+**Most pages**: 10-50ms less time spent in component rendering
 - Pages with dozens to hundreds of components
 - Cumulative savings add up quickly
 - More responsive page loads
 
-**Heavy component pages**: 100-500ms+ faster
+**Heavy component pages**: 100-500ms+ savings
 - Data tables with hundreds of rows
 - Large dropdowns or select menus
 - Dashboard grids with many cards
@@ -724,23 +727,6 @@ When debug mode is enabled:
 - Shows exactly why a component can't be folded
 - Helps identify invalid prop values, runtime dependencies, etc.
 - **Note:** Only relevant for `@blaze(fold: true)` - function compilation rarely fails
-
-## AI assistant integration
-
-This repository includes an [`AGENTS.md`](AGENTS.md) file specifically designed for AI assistants (like GitHub Copilot, Cursor, or Claude). The file contains detailed guidance for analyzing components and determining **folding eligibility** (`@blaze(fold: true)`).
-
-If you're using an AI tool to help audit which components can be folded:
-
-1. **Point your AI assistant to the AGENTS.md file** when asking about folding optimization
-2. **The file contains the folding litmus test** and detailed rules for what can/cannot be folded
-3. **Use it for automated analysis** - AI assistants can help audit your component library for folding candidates
-
-Example prompts for AI assistants:
-- "Using the AGENTS.md file, analyze my components and tell me which can use @blaze(fold: true)"
-- "Help me identify foldable components following the AGENTS.md guidelines"
-- "Check if this component is safe for folding based on AGENTS.md"
-
-**Note:** For general `@blaze` usage (function compilation), you don't need special analysis - it works on virtually any component!
 
 ## License
 
