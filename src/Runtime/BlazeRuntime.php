@@ -11,14 +11,16 @@ use Livewire\Blaze\Compiler\TagCompiler;
 class BlazeRuntime
 {
     public readonly Factory $env;
+
     public readonly Application $app;
 
     // $errors must be fetched lazily they're created later in request lifecycle
     protected ViewErrorBag $errors;
 
     protected string $compiledPath;
-    
+
     protected array $paths = [];
+
     protected array $compiled = [];
     protected array $dataStack = [];
     protected array $slotsStack = [];
@@ -66,8 +68,8 @@ class BlazeRuntime
         }
 
         $hash = TagCompiler::hash($path);
-        $compiled = $this->compiledPath . '/' . $hash . '.php';
-        
+        $compiled = $this->compiledPath.'/'.$hash.'.php';
+
         if (! isset($this->compiled[$path])) {
             $this->ensureCompiled($path, $compiled);
         }
@@ -105,12 +107,26 @@ class BlazeRuntime
         if ($attributes = $data['attributes'] ?? null) {
             unset($data['attributes']);
 
-            $this->dataStack[] = array_merge($attributes->all(), $data);
+            $this->dataStack[] = $this->normalizeKeys(array_merge($attributes->all(), $data));
             $this->slotsStack[] = [];
         } else {
-            $this->dataStack[] = $data;
+            $this->dataStack[] = $this->normalizeKeys($data);
             $this->slotsStack[] = [];
         }
+    }
+
+    /**
+     * Normalize array keys from kebab-case to camelCase.
+     */
+    protected function normalizeKeys(array $data): array
+    {
+        $normalized = [];
+
+        foreach ($data as $key => $value) {
+            $normalized[\Illuminate\Support\Str::camel($key)] = $value;
+        }
+
+        return $normalized;
     }
 
     /**

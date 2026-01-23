@@ -2,17 +2,17 @@
 
 namespace Livewire\Blaze;
 
+use Illuminate\Support\Facades\Event;
 use Livewire\Blaze\Compiler\ComponentCompiler;
 use Livewire\Blaze\Compiler\TagCompiler;
 use Livewire\Blaze\Directive\BlazeDirective;
 use Livewire\Blaze\Events\ComponentFolded;
-use Livewire\Blaze\Nodes\ComponentNode;
-use Livewire\Blaze\Tokenizer\Tokenizer;
-use Illuminate\Support\Facades\Event;
-use Livewire\Blaze\Memoizer\Memoizer;
-use Livewire\Blaze\Walker\Walker;
-use Livewire\Blaze\Parser\Parser;
 use Livewire\Blaze\Folder\Folder;
+use Livewire\Blaze\Memoizer\Memoizer;
+use Livewire\Blaze\Nodes\ComponentNode;
+use Livewire\Blaze\Parser\Parser;
+use Livewire\Blaze\Tokenizer\Tokenizer;
+use Livewire\Blaze\Walker\Walker;
 
 class BlazeManager
 {
@@ -21,6 +21,8 @@ class BlazeManager
     protected $enabled = true;
 
     protected $debug = false;
+
+    protected $folding = false;
 
     protected $expiredMemo = [];
 
@@ -57,7 +59,7 @@ class BlazeManager
             $this->flushFoldedEvents()
         );
 
-        return $frontmatter . $output;
+        return $frontmatter.$output;
     }
 
     public function viewContainsExpiredFrontMatter($view): bool
@@ -106,14 +108,14 @@ class BlazeManager
                     $node->setParentsAttributes($dataStack);
                 }
 
-                if (($node instanceof ComponentNode) && !empty($node->children)) {
+                if (($node instanceof ComponentNode) && ! empty($node->children)) {
                     array_push($dataStack, $node->attributes);
                 }
 
                 return $node;
             },
             postCallback: function ($node) use (&$dataStack) {
-                if (($node instanceof ComponentNode) && !empty($node->children)) {
+                if (($node instanceof ComponentNode) && ! empty($node->children)) {
                     array_pop($dataStack);
                 }
 
@@ -155,13 +157,69 @@ class BlazeManager
             postCallback: function ($node) use (&$dataStack) {
                 $node = $this->memoizer->memoize($node);
 
-                $node = $this->tagCompiler->compile($node);
+                if (cache()->memo()->get('blaze.compiler')) {
+                    $node = $this->tagCompiler->compile($node);
+                }
 
                 return $node;
             },
         );
 
         $output = $this->render($ast);
+
+        return $output;
+    }
+
+    /**
+     * Compile for folding context - only tag compiler and component compiler.
+     * No folding or memoization to avoid infinite recursion.
+     */
+    public function compileForFolding(string $template): string
+    {
+        $source = $template;
+
+        $bladeService = new BladeService;
+        $template = $bladeService->preStoreUncompiledBlocks($template);
+        $template = $bladeService->compileComments($template);
+
+        $tokens = $this->tokenizer->tokenize($template);
+
+        $ast = $this->parser->parse($tokens);
+
+        $dataStack = [];
+
+        $ast = $this->walker->walk(
+            nodes: $ast,
+            preCallback: function ($node) use (&$dataStack) {
+                // Track parent attributes for @aware support
+                if ($node instanceof ComponentNode) {
+                    $node->setParentsAttributes($dataStack);
+                }
+
+                if (($node instanceof ComponentNode) && ! empty($node->children)) {
+                    array_push($dataStack, $node->attributes);
+                }
+
+                return $node;
+            },
+            postCallback: function ($node) use (&$dataStack) {
+                if (($node instanceof ComponentNode) && ! empty($node->children)) {
+                    array_pop($dataStack);
+                }
+
+                // Only tag compiler, no folder or memoizer
+                return $this->tagCompiler->compile($node);
+            },
+        );
+
+        $output = $this->render($ast);
+
+        $currentPath = app('blade.compiler')->getPath();
+        $params = BlazeDirective::getParameters($template);
+
+        if ($currentPath && $params !== null) {
+            $output = $this->componentCompiler->compile($output, $currentPath, $source);
+        }
 
         return $output;
     }
@@ -199,6 +257,21 @@ class BlazeManager
     public function isDebugging()
     {
         return $this->debug;
+    }
+
+    public function startFolding(): void
+    {
+        $this->folding = true;
+    }
+
+    public function stopFolding(): void
+    {
+        $this->folding = false;
+    }
+
+    public function isFolding(): bool
+    {
+        return $this->folding;
     }
 
     public function tokenizer(): Tokenizer

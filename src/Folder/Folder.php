@@ -2,22 +2,25 @@
 
 namespace Livewire\Blaze\Folder;
 
-use Livewire\Blaze\Exceptions\LeftoverPlaceholdersException;
-use Livewire\Blaze\Exceptions\InvalidBlazeFoldUsageException;
-use Livewire\Blaze\Support\AttributeParser;
-use Livewire\Blaze\Events\ComponentFolded;
-use Livewire\Blaze\Nodes\ComponentNode;
 use Illuminate\Support\Facades\Event;
-use Livewire\Blaze\Nodes\TextNode;
-use Livewire\Blaze\Nodes\SlotNode;
-use Livewire\Blaze\Nodes\Node;
 use Livewire\Blaze\Directive\BlazeDirective;
+use Livewire\Blaze\Events\ComponentFolded;
+use Livewire\Blaze\Exceptions\InvalidBlazeFoldUsageException;
+use Livewire\Blaze\Exceptions\LeftoverPlaceholdersException;
+use Livewire\Blaze\Nodes\ComponentNode;
+use Livewire\Blaze\Nodes\Node;
+use Livewire\Blaze\Nodes\SlotNode;
+use Livewire\Blaze\Nodes\TextNode;
+use Livewire\Blaze\Support\AttributeParser;
 
 class Folder
 {
     protected $renderBlade;
+
     protected $renderNodes;
+
     protected $componentNameToPath;
+
     protected SlotUsageAnalyzer $slotAnalyzer;
 
     public function __construct(
@@ -41,7 +44,7 @@ class Folder
         try {
             $componentPath = ($this->componentNameToPath)($node->name);
 
-            if (empty($componentPath) || !file_exists($componentPath)) {
+            if (empty($componentPath) || ! file_exists($componentPath)) {
                 return false;
             }
 
@@ -106,7 +109,7 @@ class Folder
             // Only abort folding if there are unsafe dynamic props
             $hasUnsafeBoundAttributes = ! empty($unsafeBoundAttributes);
             $hasEchoAttributes = $this->hasEchoInAttributes($rawAttributes, $safeProps);
-            
+
             if ($hasUnsafeBoundAttributes || $hasEchoAttributes) {
                 return $component; // Fall back to standard Blade
             }
@@ -119,7 +122,12 @@ class Folder
 
             $usageBlade = ($this->renderNodes)([$processedNode]);
 
-            $renderedHtml = ($this->renderBlade)($usageBlade);
+            app('blaze')->startFolding();
+            try {
+                $renderedHtml = ($this->renderBlade)($usageBlade);
+            } finally {
+                app('blaze')->stopFolding();
+            }
 
             $finalHtml = $restore($renderedHtml);
 
@@ -129,7 +137,7 @@ class Folder
                 $dataArrayLiteral = $this->buildRuntimeDataArray($attributeNameToOriginal, $rawAttributes);
 
                 if ($dataArrayLiteral !== '[]') {
-                    $finalHtml = '<?php $__env->pushConsumableComponentData(' . $dataArrayLiteral . '); ?>' . $finalHtml . '<?php $__env->popConsumableComponentData(); ?>';
+                    $finalHtml = '<?php $__env->pushConsumableComponentData('.$dataArrayLiteral.'); ?>'.$finalHtml.'<?php $__env->popConsumableComponentData(); ?>';
                 }
             }
 
@@ -175,7 +183,7 @@ class Folder
         ];
 
         foreach ($problematicPatterns as $pattern => $factoryMethod) {
-            if (preg_match('/' . $pattern . '/', $sourceWithoutUnblaze)) {
+            if (preg_match('/'.$pattern.'/', $sourceWithoutUnblaze)) {
                 throw InvalidBlazeFoldUsageException::{$factoryMethod}($componentPath);
             }
         }
@@ -189,12 +197,12 @@ class Folder
 
     /**
      * Check if attributes contain echo syntax within attribute values.
-     * 
+     *
      * Matches patterns like:
      *  - attribute="value {{ $var }}"
      *  - attribute="{{ $var }}"
      *  - attribute="prefix {{ $var }} suffix"
-     * 
+     *
      * Does NOT match:
      *  - Bound attributes (:attribute="$var")
      *  - Text outside attributes that happens to contain {{
@@ -205,7 +213,7 @@ class Folder
         if (empty($attributes)) {
             return false;
         }
-        
+
         // Find all attributes with echo syntax
         // This regex matches: attribute="...{{...}}..."
         if (preg_match_all('/([a-zA-Z0-9_-]+)\s*=\s*"[^"]*\{\{[^}]+\}\}[^"]*"/', $attributes, $matches)) {
@@ -229,7 +237,7 @@ class Folder
             $key = $this->toCamelCase($name);
 
             if (preg_match('/\{\{\s*\$([a-zA-Z0-9_]+)\s*\}\}/', $original, $m)) {
-                $pairs[$key] = '$' . $m[1];
+                $pairs[$key] = '$'.$m[1];
             } else {
                 $pairs[$key] = var_export($original, true);
             }
@@ -249,14 +257,16 @@ class Folder
             }
         }
 
-        if (empty($pairs)) return '[]';
+        if (empty($pairs)) {
+            return '[]';
+        }
 
         $parts = [];
         foreach ($pairs as $name => $expr) {
-            $parts[] = var_export($name, true) . ' => ' . $expr;
+            $parts[] = var_export($name, true).' => '.$expr;
         }
 
-        return '[' . implode(', ', $parts) . ']';
+        return '['.implode(', ', $parts).']';
     }
 
     protected function getAwareDirectiveAttributes(string $source): array
@@ -267,7 +277,7 @@ class Folder
             return [];
         }
 
-        $attributeParser = new AttributeParser();
+        $attributeParser = new AttributeParser;
 
         return $attributeParser->parseArrayStringIntoArray($matches[1]);
     }
@@ -367,7 +377,7 @@ class Folder
         $parts = [];
 
         foreach ($counts as $placeholder => $count) {
-            $parts[] = $placeholder . ' x' . $count;
+            $parts[] = $placeholder.' x'.$count;
         }
 
         return implode(', ', $parts);

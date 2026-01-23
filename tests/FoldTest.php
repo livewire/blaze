@@ -2,10 +2,11 @@
 
 describe('fold elligable components', function () {
     beforeEach(function () {
-        app('blade.compiler')->anonymousComponentPath(__DIR__ . '/fixtures/components');
+        app('blade.compiler')->anonymousComponentPath(__DIR__.'/fixtures/components');
     });
 
-    function blazeCompile(string $input): string {
+    function blazeCompile(string $input): string
+    {
         return app('blaze')->compile($input);
     }
 
@@ -87,9 +88,45 @@ describe('fold elligable components', function () {
 
     it('dynamic echo attributes', function () {
         $input = '<x-button type="foo {{ $type }}">Save</x-button>';
-        
+
         // With simplified approach, dynamic props prevent folding
         expect(blazeCompile($input))->toContain('$__blaze->ensureCompiled');
+    });
+
+    it('folds with safe dynamic attribute and generates conditional PHP for boolean handling', function () {
+        $input = '<x-button-safe-disabled :disabled="$isDisabled">Save</x-button-safe-disabled>';
+        $output = blazeCompile($input);
+
+        // Should be folded (not contain ensureCompiled)
+        expect($output)->not->toContain('$__blaze->ensureCompiled');
+
+        // Should contain conditional PHP for the disabled attribute
+        expect($output)->toContain('$__blazeAttr = $isDisabled');
+        expect($output)->toContain('!== false && !is_null($__blazeAttr)');
+        expect($output)->toContain('disabled="');
+
+        // Should still contain the static type attribute
+        expect($output)->toContain('type="button"');
+    });
+
+    it('handles safe dynamic attribute with true value correctly', function () {
+        $input = '<x-button-safe-disabled :disabled="$isDisabled">Save</x-button-safe-disabled>';
+        $output = blazeCompile($input);
+
+        // Should generate code that outputs disabled="disabled" when true
+        expect($output)->toContain("\$__blazeAttr === true ? 'disabled' : \$__blazeAttr");
+    });
+
+    it('folds static attributes without conditional PHP', function () {
+        $input = '<x-button-safe-disabled disabled>Save</x-button-safe-disabled>';
+        $output = blazeCompile($input);
+
+        // Should be folded
+        expect($output)->not->toContain('$__blaze->ensureCompiled');
+
+        // Static disabled should render directly without conditional
+        expect($output)->toContain('disabled="disabled"');
+        expect($output)->not->toContain('$__blazeAttr');
     });
 
     it('dynamic slot with unfoldable component', function () {
@@ -107,7 +144,7 @@ describe('fold elligable components', function () {
         </x-card>
         HTML;
 
-        $output = <<<HTML
+        $output = <<<'HTML'
         <div class="card">
             <button type="button">Edit</button>
             <button type="button">Delete</button>
@@ -126,7 +163,7 @@ describe('fold elligable components', function () {
         </x-card>
         HTML;
 
-        $output = <<<HTML
+        $output = <<<'HTML'
         <div class="card">
             <div class="alert">
                 <button type="button">Save</button>
@@ -134,7 +171,7 @@ describe('fold elligable components', function () {
         </div>
         HTML;
 
-        // Alert component now uses allowed pattern ($message ?? $slot) 
+        // Alert component now uses allowed pattern ($message ?? $slot)
         // All components should be folded
         expect(blazeCompile($input))->toBe($output);
     });
@@ -157,7 +194,7 @@ describe('fold elligable components', function () {
         $folder = app('blaze')->folder();
         $componentNode = new \Livewire\Blaze\Nodes\ComponentNode("invalid-foldable.{$pattern}", 'x', '', [], false);
 
-        expect(fn() => $folder->fold($componentNode))
+        expect(fn () => $folder->fold($componentNode))
             ->toThrow(\Livewire\Blaze\Exceptions\InvalidBlazeFoldUsageException::class);
 
         try {
@@ -322,5 +359,169 @@ BLADE;
 
         // Should NOT be folded - expect function-based compilation
         expect(blazeCompile($input))->toContain('$__blaze->ensureCompiled');
+    });
+});
+
+describe('boolean attribute fencing - rendered output', function () {
+    beforeEach(function () {
+        app('blade.compiler')->anonymousComponentPath(__DIR__.'/Feature/fixtures');
+    });
+
+    it('omits attribute when value is false', function () {
+        $result = blade(
+            components: [
+                'button' => <<<'BLADE'
+                    @blaze(fold: true, safe: ['disabled'])
+                    @props(['type' => 'button'])
+                    <button {{ $attributes->merge(['type' => $type]) }}>Click</button>
+                    BLADE
+                ,
+            ],
+            view: '<x-button :disabled="$isDisabled">Save</x-button>',
+            data: ['isDisabled' => false],
+        );
+
+        expect($result)->toContain('type="button"');
+        expect($result)->not->toContain('disabled');
+    });
+
+    it('renders attribute with key as value when value is true', function () {
+        $result = blade(
+            components: [
+                'button' => <<<'BLADE'
+                    @blaze(fold: true, safe: ['disabled'])
+                    @props(['type' => 'button'])
+                    <button {{ $attributes->merge(['type' => $type]) }}>Click</button>
+                    BLADE
+                ,
+            ],
+            view: '<x-button :disabled="$isDisabled">Save</x-button>',
+            data: ['isDisabled' => true],
+        );
+
+        expect($result)->toContain('disabled="disabled"');
+    });
+
+    it('omits attribute when value is null', function () {
+        $result = blade(
+            components: [
+                'button' => <<<'BLADE'
+                    @blaze(fold: true, safe: ['disabled'])
+                    @props(['type' => 'button'])
+                    <button {{ $attributes->merge(['type' => $type]) }}>Click</button>
+                    BLADE
+                ,
+            ],
+            view: '<x-button :disabled="$isDisabled">Save</x-button>',
+            data: ['isDisabled' => null],
+        );
+
+        expect($result)->toContain('type="button"');
+        expect($result)->not->toContain('disabled');
+    });
+
+    it('renders attribute with string value when value is a string', function () {
+        $result = blade(
+            components: [
+                'button' => <<<'BLADE'
+                    @blaze(fold: true, safe: ['disabled'])
+                    @props(['type' => 'button'])
+                    <button {{ $attributes->merge(['type' => $type]) }}>Click</button>
+                    BLADE
+                ,
+            ],
+            view: '<x-button :disabled="$isDisabled">Save</x-button>',
+            data: ['isDisabled' => 'until-loaded'],
+        );
+
+        expect($result)->toContain('disabled="until-loaded"');
+    });
+
+    it('renders x-data with empty string when value is true', function () {
+        $result = blade(
+            components: [
+                'dropdown' => <<<'BLADE'
+                    @blaze(fold: true, safe: ['x-data'])
+                    <div {{ $attributes }}>Dropdown</div>
+                    BLADE
+                ,
+            ],
+            view: '<x-dropdown :x-data="$alpine">Content</x-dropdown>',
+            data: ['alpine' => true],
+        );
+
+        // x-data should render as x-data="" when true (Alpine.js convention)
+        expect($result)->toContain('x-data=""');
+    });
+
+    it('renders wire:loading with empty string when value is true', function () {
+        $result = blade(
+            components: [
+                'spinner' => <<<'BLADE'
+                    @blaze(fold: true, safe: ['wire:loading'])
+                    <div {{ $attributes }}>Loading...</div>
+                    BLADE
+                ,
+            ],
+            view: '<x-spinner :wire:loading="$show">Loading</x-spinner>',
+            data: ['show' => true],
+        );
+
+        // wire:* attributes should render as wire:loading="" when true (Livewire convention)
+        expect($result)->toContain('wire:loading=""');
+    });
+
+    it('renders static boolean attribute correctly', function () {
+        $result = blade(
+            components: [
+                'button' => <<<'BLADE'
+                    @blaze(fold: true, safe: ['disabled'])
+                    @props(['type' => 'button'])
+                    <button {{ $attributes->merge(['type' => $type]) }}>Click</button>
+                    BLADE
+                ,
+            ],
+            view: '<x-button disabled>Save</x-button>',
+        );
+
+        // Static disabled attribute should render as disabled="disabled"
+        expect($result)->toContain('disabled="disabled"');
+    });
+
+    it('preserves other attributes when boolean attribute is false', function () {
+        $result = blade(
+            components: [
+                'button' => <<<'BLADE'
+                    @blaze(fold: true, safe: ['disabled'])
+                    @props(['type' => 'button'])
+                    <button {{ $attributes->merge(['type' => $type]) }}>Click</button>
+                    BLADE
+                ,
+            ],
+            view: '<x-button :disabled="$isDisabled" class="btn-primary">Save</x-button>',
+            data: ['isDisabled' => false],
+        );
+
+        expect($result)->toContain('class="btn-primary"');
+        expect($result)->toContain('type="button"');
+        expect($result)->not->toContain('disabled');
+    });
+
+    it('handles multiple dynamic boolean attributes', function () {
+        $result = blade(
+            components: [
+                'input' => <<<'BLADE'
+                    @blaze(fold: true, safe: ['disabled', 'readonly', 'required'])
+                    <input {{ $attributes }} />
+                    BLADE
+                ,
+            ],
+            view: '<x-input :disabled="$d" :readonly="$r" :required="$req" />',
+            data: ['d' => true, 'r' => false, 'req' => true],
+        );
+
+        expect($result)->toContain('disabled="disabled"');
+        expect($result)->not->toContain('readonly');
+        expect($result)->toContain('required="required"');
     });
 });

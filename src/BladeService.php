@@ -4,7 +4,6 @@ namespace Livewire\Blaze;
 
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\File;
-use Livewire\Blaze\Unblaze;
 use ReflectionClass;
 
 class BladeService
@@ -42,8 +41,11 @@ class BladeService
                         $input = Unblaze::processUnblazeDirectives($input);
                     }
 
+                    // Run Blaze compilation (tag compiler + component compiler only, no folding)
+                    $input = app('blaze')->compileForFolding($input);
+
                     return $input;
-                }
+                },
             ],
             'path' => null,
         ]);
@@ -143,20 +145,20 @@ class BladeService
                     $basePath = rtrim($pathData['path'], '/');
 
                     // Try direct component file first (e.g., pages::auth.login -> auth/login.blade.php)...
-                    $fullPath = $basePath . '/' . $componentPath . '.blade.php';
+                    $fullPath = $basePath.'/'.$componentPath.'.blade.php';
                     if (file_exists($fullPath)) {
                         return $fullPath;
                     }
 
                     // Try index.blade.php (e.g., pages::auth -> auth/index.blade.php)...
-                    $indexPath = $basePath . '/' . $componentPath . '/index.blade.php';
+                    $indexPath = $basePath.'/'.$componentPath.'/index.blade.php';
                     if (file_exists($indexPath)) {
                         return $indexPath;
                     }
 
                     // Try same-name file (e.g., pages::auth -> auth/auth.blade.php)...
                     $lastSegment = basename($componentPath);
-                    $sameNamePath = $basePath . '/' . $componentPath . '/' . $lastSegment . '.blade.php';
+                    $sameNamePath = $basePath.'/'.$componentPath.'/'.$lastSegment.'.blade.php';
                     if (file_exists($sameNamePath)) {
                         return $sameNamePath;
                     }
@@ -177,27 +179,27 @@ class BladeService
         // Check each registered anonymous component path (without prefix)...
         foreach ($paths as $pathData) {
             // Only check paths without a prefix for regular anonymous components...
-            if (!isset($pathData['prefix']) || $pathData['prefix'] === null) {
+            if (! isset($pathData['prefix']) || $pathData['prefix'] === null) {
                 $registeredPath = $pathData['path'] ?? $pathData;
 
                 if (is_string($registeredPath)) {
                     $basePath = rtrim($registeredPath, '/');
 
                     // Try direct component file first (e.g., form.input -> form/input.blade.php)...
-                    $fullPath = $basePath . '/' . $componentPath . '.blade.php';
+                    $fullPath = $basePath.'/'.$componentPath.'.blade.php';
                     if (file_exists($fullPath)) {
                         return $fullPath;
                     }
 
                     // Try index.blade.php (e.g., form -> form/index.blade.php)...
-                    $indexPath = $basePath . '/' . $componentPath . '/index.blade.php';
+                    $indexPath = $basePath.'/'.$componentPath.'/index.blade.php';
                     if (file_exists($indexPath)) {
                         return $indexPath;
                     }
 
                     // Try same-name file (e.g., card -> card/card.blade.php)...
                     $lastSegment = basename($componentPath);
-                    $sameNamePath = $basePath . '/' . $componentPath . '/' . $lastSegment . '.blade.php';
+                    $sameNamePath = $basePath.'/'.$componentPath.'/'.$lastSegment.'.blade.php';
                     if (file_exists($sameNamePath)) {
                         return $sameNamePath;
                     }

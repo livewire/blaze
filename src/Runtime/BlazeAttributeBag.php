@@ -11,8 +11,8 @@ class BlazeAttributeBag extends ComponentAttributeBag
     /**
      * Create an attribute bag with sanitized values for safe HTML rendering.
      *
-     * @param array $attributes All attributes passed to the component
-     * @param array $boundKeys Keys of attributes that were bound (from PHP expressions)
+     * @param  array  $attributes  All attributes passed to the component
+     * @param  array  $boundKeys  Keys of attributes that were bound (from PHP expressions)
      */
     public static function sanitized(array $attributes, array $boundKeys = []): static
     {
@@ -162,6 +162,7 @@ class BlazeAttributeBag extends ComponentAttributeBag
                 $filtered[$key] = $value;
             }
         }
+
         return new static($filtered);
     }
 
@@ -174,12 +175,14 @@ class BlazeAttributeBag extends ComponentAttributeBag
     public function whereStartsWith($needles)
     {
         $needles = (array) $needles;
+
         return $this->filter(function ($value, $key) use ($needles) {
             foreach ($needles as $needle) {
                 if ($needle !== '' && strncmp($key, $needle, strlen($needle)) === 0) {
                     return true;
                 }
             }
+
             return false;
         });
     }
@@ -193,13 +196,49 @@ class BlazeAttributeBag extends ComponentAttributeBag
     public function whereDoesntStartWith($needles)
     {
         $needles = (array) $needles;
+
         return $this->filter(function ($value, $key) use ($needles) {
             foreach ($needles as $needle) {
                 if ($needle !== '' && strncmp($key, $needle, strlen($needle)) === 0) {
                     return false;
                 }
             }
+
             return true;
         });
+    }
+
+    /**
+     * Render attributes as HTML string.
+     *
+     * When folding is active, wraps each attribute with fence markers
+     * so dynamic attributes can be converted to conditional PHP during restore.
+     */
+    public function __toString()
+    {
+        $isFolding = app('blaze')->isFolding();
+        $string = '';
+
+        foreach ($this->attributes as $key => $value) {
+            if ($value === false || is_null($value)) {
+                continue;
+            }
+
+            if ($value === true) {
+                // Match Laravel's behavior: x-data and wire:* get empty string, others get key name
+                $value = $key === 'x-data' || str_starts_with($key, 'wire:') ? '' : $key;
+            }
+
+            $attr = $key.'="'.str_replace('"', '\\"', trim($value)).'"';
+
+            if ($isFolding) {
+                // Put space OUTSIDE fence so trim() can remove it from first attribute
+                $string .= ' <!--BLAZE_ATTR:'.$key.'-->'.$attr.'<!--/BLAZE_ATTR-->';
+            } else {
+                $string .= ' '.$attr;
+            }
+        }
+
+        return trim($string);
     }
 }
