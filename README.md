@@ -77,20 +77,17 @@ To optimize a Blade component for performance, simply add the `@blaze` directive
 
 This removes 94-97% of Blade's component overhead with zero concerns about caching or stale data.
 
+See the [Function compiler](#function-compiler) section for details.
+
 **Use memoization for repeated self-closing components:**
 
 Components like icons or avatars that appear multiple times on a page with the same props benefit from memoization:
 
 ```blade
-{{-- components/icon.blade.php --}}
 @blaze(memo: true)
-
-@props(['name'])
-
-<svg><!-- icon SVG for {{ $name }} --></svg>
 ```
 
-Now `<x-icon name="check" />` rendered 50 times only executes once - the rest are cached.
+See the [Memoization](#memoization) section for details.
 
 **Use folding for maximum performance:**
 
