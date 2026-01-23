@@ -28,24 +28,13 @@ Getting started with Blaze takes one line of code.
 Add the following to your `AppServiceProvider`:
 
 ```diff
-<?php
-
-namespace App\Providers;
-
-use Illuminate\Support\ServiceProvider;
-+ use Livewire\Blaze\Blaze;
-
-class AppServiceProvider extends ServiceProvider
+/**
+ * Bootstrap any application services.
+ */
+public function boot(): void
 {
-    /**
-     * Bootstrap any application services.
-     */
-    public function boot(): void
-    {
-+       Blaze::optimize();
-    }
++   Blaze::optimize();
 }
-
 ```
 
 That's it. All your anonymous components are now optimized.
