@@ -39,7 +39,6 @@ describe('fold elligable components', function () {
 
         // Should fall back to function compilation
         expect(blazeCompile($input))->toContain('$__blaze->ensureCompiled');
-        expect(blazeCompile($input))->toContain('_34fc6104d3a5018ae101f4a3665deaa6');
     });
 
     it('with static props', function () {

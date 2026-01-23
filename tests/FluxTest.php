@@ -18,7 +18,7 @@ describe('flux component integration', function () {
         expect($output)->toContain('Hello World');
         expect($output)->toContain('data-flux-heading');
         expect($output)->not->toContain('flux:heading');
-    });
+    })->skip(fn () => env('CI', false), 'Only works with unreleased flux blaze branch');
 
     it('folds link component with dynamic route helper link', function () {
         Route::get('/dashboard', fn () => 'dashboard')->name('dashboard');
@@ -35,5 +35,5 @@ describe('flux component integration', function () {
 
         // Should NOT be function compiled
         expect($output)->not->toContain('$__blaze->ensureCompiled');
-    });
+    })->skip(fn () => env('CI', false), 'Only works with unreleased flux blaze branch');
 });

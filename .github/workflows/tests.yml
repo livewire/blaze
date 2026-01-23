@@ -47,3 +47,5 @@ jobs:
 
       - name: Run Pest
         run: vendor/bin/pest --no-coverage
+        env:
+          CI: true
