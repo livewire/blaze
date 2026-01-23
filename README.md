@@ -41,19 +41,31 @@ public function boot(): void
 
 That's it.
 
-### Per-folder configuration
+### Limitations
 
-If you want to enable specific optimizations for certain folders, you can chain `in()` calls:
+While Blaze aims for feature parity with Blade's anonymous components, some features have been disabled to maximize performance:
+
+- **Class-based components** are not supported (use anonymous components instead)
+- **View composers**, **`View::share()`**, and **component events** are disabled by default
+
+These features can be re-enabled on a per-folder basis if your components depend on them. See the [Reference](#reference) section for details.
+
+### Configuration
+
+Due to these limitations, you may want to gradually roll out Blaze or enable specific features for certain folders.
+
+**Per-folder:**
 
 ```php
 Blaze::optimize()
+    ->in(resource_path('views/components/legacy'), composer: true, share: true)
     ->in(resource_path('views/components/icons'), memoize: true)
     ->in(resource_path('views/components/ui'), fold: true);
 ```
 
-### Per-component configuration
+**Per-component:**
 
-For fine-grained control, add the `@blaze` directive directly to a component:
+Add the `@blaze` directive directly to a component for fine-grained control:
 
 ```blade
 @blaze
@@ -117,18 +129,7 @@ Instead of resolving the component through Blade's rendering pipeline, Blaze cal
 
 Blaze supports all essential features of anonymous components including `@props`, `@aware`, `$attributes`, slots, and dynamic attributes.
 
-To maximize performance, some features are handled differently:
-
-**Unsupported features:**
-
-- Class-based components (use anonymous components instead)
-- `@aware` across Blaze/non-Blaze boundaries (both parent and child must use `@blaze`)
-
-**Disabled by default** (enable per-folder for compatibility):
-
-- View composers (`composer: true`)
-- `View::share()` variables (`share: true`)
-- Component events (`events: true`)
+> **Note:** When using `@aware`, both the parent and child components must use `@blaze` for the values to propagate correctly.
 
 ### Benchmark results
 
