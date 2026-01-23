@@ -11,15 +11,7 @@ With Blaze     █                                          12ms
 
 ## Introduction
 
-Rendering large numbers of Blade components can be slow. Due to Blade's expensive component pipeline, rendering 25,000 empty buttons in a loop can take up to 450ms!
-
-```blade
-@for ($i = 0; $i < 25000; $i++)
-    <x-button />
-@endfor
-```
-
-Blaze is a Laravel package that eliminates this overhead by compiling components into direct PHP function calls or static HTML.
+Rendering large numbers of Blade components can be slow due to Blade's expensive component pipeline. Blaze is a Laravel package that eliminates this overhead by compiling components into direct PHP function calls or static HTML.
 
 ## Installation
 
