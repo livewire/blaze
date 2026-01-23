@@ -3,7 +3,7 @@
 Speed up your Laravel app by optimizing Blade component rendering performance.
 
 ```
-Blade component overhead (25,000 renders):
+Rendering 25,000 anonymous components:
 
 Without Blaze  ████████████████████████████████████████  450ms
 With Blaze     █                                          12ms
@@ -11,7 +11,7 @@ With Blaze     █                                          12ms
 
 ## Introduction
 
-Blaze is a Laravel package that eliminates the overhead of Blade's component rendering pipeline. Standard Blade components go through class instantiation, attribute bag construction, view resolution, and multiple compilation passes on every render. Blaze compiles components into direct PHP function calls, removing this overhead entirely.
+Blaze is a Laravel package that eliminates the overhead of Blade's component rendering pipeline. Standard Blade components can be slow when rendering large numbers of them. Blaze compiles components into direct PHP function calls, removing this overhead entirely.
 
 **Key benefits:**
 - **94-97% less overhead** - eliminates Blade's component rendering pipeline
@@ -53,8 +53,8 @@ To optimize a Blade component for performance, add the `@blaze` directive at the
 
 1. **Function compilation** (default) - The most reliable optimization
    - Compiles component into optimized PHP function
-   - Works with any props (static or dynamic)
-   - Removes 94-97% of Blade's component overhead
+   - Removes up to 97% of Blade's component overhead
+   - Drop-in solution with zero setup
 
 2. **Compile-time folding** (`fold: true`) - The fastest optimization
    - Pre-renders component at compile-time into static HTML
@@ -73,7 +73,7 @@ To optimize a Blade component for performance, add the `@blaze` directive at the
 @blaze
 ```
 
-This removes 94-97% of Blade's component overhead with zero concerns about caching or stale data.
+This removes most of Blade's component overhead with zero concerns about caching or stale data.
 
 **Use memoization for repeated self-closing components:**
 
