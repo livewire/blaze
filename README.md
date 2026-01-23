@@ -70,7 +70,7 @@ To optimize a Blade component for performance, simply add the `@blaze` directive
 
 ### Which strategy should I use?
 
-**For most components, use the default:**
+#### For most components, use the default:
 ```blade
 @blaze
 ```
@@ -79,7 +79,7 @@ This removes 94-97% of Blade's component overhead with zero concerns about cachi
 
 See the [Function compiler](#function-compiler) section for details.
 
-**Use memoization for repeated self-closing components:**
+#### Use memoization for repeated self-closing components:
 
 Components like icons or avatars that appear multiple times on a page with the same props benefit from memoization:
 
@@ -89,7 +89,7 @@ Components like icons or avatars that appear multiple times on a page with the s
 
 See the [Memoization](#memoization) section for details.
 
-**Use folding for maximum performance:**
+#### Use folding for maximum performance:
 
 If you need every last bit of performance and are willing to understand the folding model, enable compile-time folding:
 
