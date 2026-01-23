@@ -41,7 +41,7 @@ public function boot(): void
 
 That's it.
 
-### Limitations
+## Limitations
 
 While Blaze aims for feature parity with Blade's anonymous components, some features have been disabled to maximize performance:
 
