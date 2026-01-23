@@ -150,9 +150,9 @@ class Folder
         } catch (InvalidBlazeFoldUsageException $e) {
             throw $e;
         } catch (\Exception $e) {
-            if (app('blaze')->isDebugging()) {
-                throw $e;
-            }
+            // if (app('blaze')->isDebugging()) {
+            //     throw $e;
+            // }
 
             return $component;
         }
