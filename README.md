@@ -1,4 +1,4 @@
-# 🔥 Blaze
+# Blaze
 
 Speed up your Laravel app by optimizing Blade component rendering performance.
 
@@ -100,14 +100,15 @@ If you need every last bit of performance and are willing to understand the fold
 @blaze(fold: true)
 ```
 
-See the [Compile-time folding](#advanced-compile-time-folding) section for details on what makes a component foldable.
+See the [Compile-time folding](#compile-time-folding) section for details on what makes a component foldable.
 
 ## Table of contents
 
 - [Function compiler](#function-compiler)
+- [Configuration](#configuration)
 - [Memoization](#memoization)
-- [Compile-time folding](#advanced-compile-time-folding)
-- [The @unblaze directive](#making-impure-components-foldable-with-unblaze)
+- [Compile-time folding](#compile-time-folding)
+- [The @unblaze directive](#the-unblaze-directive)
 - [Performance expectations](#performance-expectations)
 
 ## Function compiler
@@ -123,7 +124,7 @@ When you add `@blaze` to a component, Blaze compiles it into a direct function c
 <x-button variant="primary">Save</x-button>
 
 {{-- Compiled by Blaze into --}}
-<?php echo _abc123($__blaze, ['variant' => 'primary'], ['default' => 'Save']); ?>
+<?php _c4f8e2a1b3d5f6e7($__blaze, ['variant' => 'primary'], ['default' => fn() => 'Save']); ?>
 ```
 
 This eliminates the overhead of:
@@ -134,7 +135,9 @@ This eliminates the overhead of:
 
 ### Feature parity
 
-The function compiler supports **all Blade component features**:
+The function compiler supports all standard Blade component features. However, some features are **disabled by default** to maximize performance. You can enable them on a per-folder basis if your components require them:
+
+**Enabled by default:**
 - `@props` with defaults and required props
 - `@aware` for passing data down component trees
 - Default and named slots (`$slot`, `<x-slot>`)
@@ -143,6 +146,12 @@ The function compiler supports **all Blade component features**:
 - Dynamic attributes (`:href`, `:class`, etc.)
 - Slot attributes
 - Nested components
+
+**Disabled by default (can be enabled):**
+- View composers
+- `View::share()` variables
+
+See the [Configuration](#configuration) section to learn how to enable these features.
 
 ### Benchmark results (25,000 components)
 
@@ -173,16 +182,58 @@ These benchmarks measure the time spent in Blade's component rendering pipeline 
 
 ### Limitations
 
-While Blaze supports all standard Blade component features, there are a few advanced Laravel features that are not available:
+While Blaze supports all standard Blade component features, there are a few things that are not available:
 
 **Not supported:**
-- View composers - Components with view composers attached will need to pass data through props instead
-- Custom `View::share()` variables - Shared variables are not automatically injected (use `$__env->shared('key')` to access them)
 - Dynamic component resolution (`<x-dynamic-component>`) - These fall back to standard Blade rendering
 - Dynamic slot names (`<x-slot :name="$variable">`) - These fall back to standard Blade rendering
 - Class-based components - Only anonymous components are supported
 - `@aware` across Blade/Blaze boundaries - `@aware` only works when both parent and child use `@blaze`
-- `Blade::stringable()` - Custom stringable callbacks are not invoked
+
+## Configuration
+
+By default, Blaze optimizes components with the `@blaze` directive and disables certain features for maximum performance. You can customize this behavior in your `AppServiceProvider`:
+
+```php
+use Illuminate\Support\Facades\Blade;
+
+public function boot(): void
+{
+    // Enable Blaze for all components in a folder with custom options
+    Blade::optimize()
+        ->in(resource_path('views/components'))
+        ->composer(true)    // Enable view composers
+        ->share(true);      // Enable View::share() variables
+}
+```
+
+### Available options
+
+| Option | Default | Description |
+|--------|---------|-------------|
+| `composer` | `false` | Enable view composers for components in this folder |
+| `share` | `false` | Enable `View::share()` variables (access via `$__env->shared('key')`) |
+
+### Multiple folder configurations
+
+You can configure different folders with different options:
+
+```php
+// Design system components - maximum performance
+Blade::optimize()
+    ->in(resource_path('views/components/ui'));
+
+// Page components that need view composers
+Blade::optimize()
+    ->in(resource_path('views/components/pages'))
+    ->composer(true);
+
+// Legacy components that use shared variables
+Blade::optimize()
+    ->in(resource_path('views/components/legacy'))
+    ->composer(true)
+    ->share(true);
+```
 
 ## Memoization
 
@@ -198,37 +249,21 @@ Runtime memoization caches the rendered output of self-closing components. When 
 </svg>
 ```
 
-This is particularly useful for:
+Memoization works even with dynamic props - the cache key is based on the actual prop values at runtime:
 
-**Icons** - The same icon often appears many times on a page:
 ```blade
-<x-icon name="check" />  {{-- Rendered --}}
-<x-icon name="check" />  {{-- Cached --}}
-<x-icon name="check" />  {{-- Cached --}}
-<x-icon name="star" />   {{-- Rendered (different props) --}}
+@foreach($items as $item)
+    <x-icon :name="$item->icon" />  {{-- Each unique icon renders once --}}
+@endforeach
 ```
 
-**Avatars** - User avatars in lists or repeated UI elements:
-```blade
-@blaze(memo: true)
+Good candidates for memoization are components like icons or avatars - they typically have a small set of possible values (the same icons appear repeatedly) and are often rendered many times on a single page.
 
-@props(['user'])
+> **Note:** Memoization only works with self-closing components (no slots).
 
-<img src="{{ $user->avatar_url }}" alt="{{ $user->name }}" class="avatar" />
-```
+## Compile-time folding
 
-**Requirements:**
-- Self-closing components only (no slots)
-- Component is rendered multiple times with identical props
-- Props must be serializable for cache key generation
-
-**Note:** Most components don't need memoization - function compilation is already very fast. Use memoization when you notice the same self-closing component rendered many times with the same props.
-
-## Advanced: Compile-time folding
-
-> **Most users can skip this section.** The default function compilation works for 99% of use cases. Folding is an advanced optimization with strict requirements.
-
-Blaze also supports **compile-time folding** with `@blaze(fold: true)` - an extreme optimization that pre-renders components during compilation, removing virtually all component overhead. However, folding only works under specific conditions.
+Blaze supports **compile-time folding** with `@blaze(fold: true)` - an optimization that pre-renders components during compilation, removing virtually all component overhead.
 
 ### How folding works
 
@@ -244,96 +279,123 @@ When a component is folded, Blaze renders it at compile-time and embeds the resu
 
 This is why folding removes virtually 100% of the overhead - the component no longer exists at runtime.
 
-### When to use folding
+### A simple example
 
-Use `@blaze(fold: true)` only if:
-1. Component is called with static prop and slot values
-2. Component has no runtime dependencies (no `@csrf`, `$errors`, `auth()`, etc.)
-3. You need the absolute maximum performance
+Here's a simple component that can be folded:
 
 ```blade
-{{-- Example: This can be folded --}}
+{{-- components/badge.blade.php --}}
 @blaze(fold: true)
 
 @props(['variant' => 'primary'])
 
-<button class="btn-{{ $variant }}">{{ $slot }}</button>
-
-{{-- Called with static values --}}
-<x-button variant="secondary">Save</x-button>
+<span class="badge badge-{{ $variant }}">{{ $slot }}</span>
 ```
 
-### Dynamic values and folding
+When called with static values:
 
-The key concept to understand is that folding happens at **compile-time**, not runtime. Any value that could change between requests will cause incorrect results if folded.
-
-**Static values** - known at compile time:
 ```blade
-<x-button variant="primary">Save</x-button>
-<x-card title="Welcome">...</x-card>
+<x-badge variant="success">Active</x-badge>
 ```
 
-**Dynamic values** - only known at runtime:
-```blade
-<x-button :variant="$userRole">Save</x-button>
-<x-card :title="$post->title">...</x-card>
-<x-alert>{{ $message }}</x-alert>
+Blaze pre-renders this at compile time into:
+
+```html
+<span class="badge badge-success">Active</span>
 ```
 
-When Blaze detects dynamic values being passed to a foldable component, it must decide whether to proceed with folding or abort. This is controlled by the `safe` and `unsafe` parameters.
+This is a simple example because it doesn't use any dynamic values - everything is known at compile time. But what happens when you pass dynamic values?
 
-### What's safe by default
+### Dynamic attributes and folding
 
-**Dynamic attributes** - Attributes that are NOT captured as `@props` are safe by default. They pass through the `$attributes` bag unchanged:
+When you pass a dynamic attribute to a foldable component, Blaze needs a way to handle it. Let's see how this works with a component that doesn't capture props:
 
 ```blade
+{{-- components/box.blade.php --}}
 @blaze(fold: true)
-@props(['variant' => 'primary'])
 
-{{-- $attributes passes through anything not in @props --}}
-<button class="btn-{{ $variant }}" {{ $attributes }}>
-    {{ $slot }}
-</button>
+<div {{ $attributes }}>{{ $slot }}</div>
 ```
+
+When you use this component with a dynamic attribute:
 
 ```blade
-{{-- This works - :disabled is not a prop, it passes through $attributes --}}
-<x-button variant="primary" :disabled="$isLoading">Save</x-button>
+<x-box :class="$highlighted ? 'bg-yellow' : 'bg-white'">Content</x-box>
 ```
 
-### What's NOT safe by default
+Blaze handles this through **placeholder replacement**:
 
-**Defined props** - Any prop declared in `@props([...])` is NOT safe by default. This is because when you capture a prop, you likely use it for:
-- Conditions: `@if($variant === 'danger')`
-- Transformations: `{{ Str::upper($title) }}`
-- Derived values: `$classes = $large ? 'text-lg' : 'text-sm'`
+1. Replace the dynamic value with a placeholder: `<x-box class="__PLACEHOLDER_1__">Content</x-box>`
+2. Render the component: `<div class="__PLACEHOLDER_1__">Content</div>`
+3. Replace the placeholder with the original PHP code: `<div class="<?php echo $highlighted ? 'bg-yellow' : 'bg-white'; ?>">Content</div>`
 
-All of these would produce incorrect results if folded with a dynamic value.
+This works perfectly because the dynamic value just passes through `$attributes` unchanged.
 
-If a prop is dynamic and NOT in the `safe` list, folding aborts and falls back to function compilation.
+### When dynamic props break folding
 
-**Slots** - Slots are also NOT safe by default because their content could contain dynamic expressions, directives, or other components that must be evaluated at runtime.
+Now let's add `@props` and use the prop in logic:
+
+```blade
+{{-- components/status-badge.blade.php --}}
+@blaze(fold: true)
+
+@props(['status'])
+
+@php
+$color = match($status) {
+    'active' => 'green',
+    'pending' => 'yellow',
+    'inactive' => 'gray',
+    default => 'gray',
+};
+@endphp
+
+<span class="badge bg-{{ $color }}">{{ $status }}</span>
+```
+
+If you call this with a dynamic prop:
+
+```blade
+<x-status-badge :status="$user->status" />
+```
+
+Blaze would try the placeholder approach:
+
+1. Replace: `<x-status-badge status="__PLACEHOLDER_1__" />`
+2. Render: The `match()` statement runs with `"__PLACEHOLDER_1__"` as the value
+3. Result: `<span class="badge bg-gray">__PLACEHOLDER_1__</span>`
+
+The `match()` hits the `default` case and bakes in `gray` forever! The dynamic status value gets replaced in the text content, but the color is permanently wrong.
+
+**This is why Blaze aborts folding when a defined prop receives a dynamic value** - the prop might be used in logic that would produce incorrect results.
 
 ### The `safe` parameter
 
-If you have a prop that's just passed through without transformation, you can mark it as safe:
+Sometimes you have a prop that's just passed through without any transformation:
+
+```blade
+{{-- components/heading.blade.php --}}
+@blaze(fold: true)
+
+@props(['title', 'level' => 2])
+
+<h{{ $level }}>{{ $title }}</h{{ $level }}>
+```
+
+The `$title` prop is just echoed - no conditions, no transformations. It's safe to replace with a placeholder. You can tell Blaze this:
 
 ```blade
 @blaze(fold: true, safe: ['title'])
-@props(['title', 'variant' => 'primary'])
 
-<div class="card card-{{ $variant }}">
-    <h1>{{ $title }}</h1>  {{-- title is just passed through --}}
-    {{ $slot }}
-</div>
+@props(['title', 'level' => 2])
+
+<h{{ $level }}>{{ $title }}</h{{ $level }}>
 ```
 
-Now this works:
+Now this works with dynamic titles:
+
 ```blade
-{{-- Folding proceeds - title is marked as safe --}}
-<x-card :title="$post->title" variant="featured">
-    <p>Static content here</p>
-</x-card>
+<x-heading :title="$post->title" />  {{-- Folds successfully --}}
 ```
 
 **The `safe: ['*']` wildcard:**
@@ -342,13 +404,13 @@ If all your props are just passed through (no conditions, no transformations), y
 
 ```blade
 @blaze(fold: true, safe: ['*'])
-@props(['title', 'subtitle', 'icon'])
+@props(['title', 'subtitle', 'author'])
 
-<div class="header">
-    <x-icon name="{{ $icon }}" />
+<article>
     <h1>{{ $title }}</h1>
-    <p>{{ $subtitle }}</p>
-</div>
+    <p class="subtitle">{{ $subtitle }}</p>
+    <span class="author">{{ $author }}</span>
+</article>
 ```
 
 ### The `unsafe` parameter
@@ -357,7 +419,7 @@ The `unsafe` parameter marks things that are normally safe as unsafe, forcing fo
 
 **Marking attributes as unsafe:**
 
-If your component reads from `$attributes` to derive values, you need to mark attributes as unsafe:
+Remember that attributes NOT captured as `@props` pass through safely by default. But if your component reads from `$attributes` to derive values, you need to mark attributes as unsafe:
 
 ```blade
 @blaze(fold: true, unsafe: ['attributes'])
@@ -381,7 +443,7 @@ Here, the `action` attribute is used to derive which icon to display. If `action
 
 **Marking slots as unsafe:**
 
-If your component inspects slot content to make decisions, mark the slot as unsafe:
+Slots are NOT safe by default because their content could contain dynamic expressions. However, if your component inspects slot content programmatically, you may want to be explicit:
 
 ```blade
 @blaze(fold: true, unsafe: ['slot'])
@@ -396,10 +458,6 @@ $hasContent = !empty(trim($slot->toHtml()));
 </div>
 ```
 
-Here the component checks whether the slot has content. If the slot content is dynamic, the `$hasContent` check would be incorrect after folding.
-
-> **Note:** Since slots are NOT safe by default, this example would already abort folding if the slot contains dynamic content. The `unsafe: ['slot']` is useful when you want to abort folding even for static slot content that you're inspecting programmatically.
-
 **The `unsafe: ['*']` wildcard:**
 
 Forces folding to abort if ANY dynamic value is detected (props, attributes, or slots):
@@ -411,40 +469,17 @@ Forces folding to abort if ANY dynamic value is detected (props, attributes, or 
 
 **Specifying slot names:**
 
-You can mark specific slots as unsafe:
+You can mark specific named slots as unsafe:
 
 ```blade
 @blaze(fold: true, unsafe: ['actions'])
-@props(['title'])
-
-<div class="card">
-    <h1>{{ $title }}</h1>
-    {{ $slot }}
-    <div class="card-actions">
-        @if(isset($actions) && !empty(trim($actions->toHtml())))
-            {{ $actions }}
-        @endif
-    </div>
-</div>
 ```
 
-### The folding litmus test
+### Global state and runtime dependencies
 
-Ask yourself these questions about your component:
+Beyond dynamic props, components can also fail to fold correctly if they depend on global state that changes between requests.
 
-1. **Does it work the same for all users?** (no auth checks, no user-specific content)
-2. **Does it work the same on every request?** (no request data, no CSRF tokens)
-3. **Does it work the same at any time?** (no timestamps, no "time ago" formatting)
-4. **Does it only use the props you pass in?** (no session data, no database queries)
-5. **Are all child components it renders also foldable?** (no non-foldable components inside)
-6. **Is it always called with static props?** (no `:prop="$variable"` unless marked safe)
-
-**If you answered YES to all questions -> Can use `@blaze(fold: true)`**
-**If you answered NO to any question -> Use default `@blaze` instead**
-
-### Cannot fold components with
-
-Avoid `@blaze(fold: true)` for components that have runtime dependencies:
+**Cannot fold components with:**
 
 ```blade
 {{-- CSRF tokens change per request --}}
@@ -485,15 +520,27 @@ Avoid `@blaze(fold: true)` for components that have runtime dependencies:
 
 For these cases, use the default `@blaze` (function compilation) - you still remove 94-97% of the overhead without the folding restrictions.
 
-## Making impure components foldable with @unblaze
+### The folding litmus test
 
-> **Note:** The `@unblaze` directive is primarily useful with **folding** (`@blaze(fold: true)`). With the default function compilation strategy, you typically don't need `@unblaze` - just pass dynamic data through props instead.
+Ask yourself these questions about your component:
+
+1. **Does it work the same for all users?** (no auth checks, no user-specific content)
+2. **Does it work the same on every request?** (no request data, no CSRF tokens)
+3. **Does it work the same at any time?** (no timestamps, no "time ago" formatting)
+4. **Does it only use the props you pass in?** (no session data, no database queries)
+5. **Are all child components it renders also foldable?** (no non-foldable components inside)
+6. **Are dynamic props either passed through unchanged OR marked as `safe`?**
+
+**If you answered YES to all questions -> Can use `@blaze(fold: true)`**
+**If you answered NO to any question -> Use default `@blaze` instead**
+
+## The @unblaze directive
 
 Sometimes you have a component that's *mostly* static, but contains a small dynamic section that would normally prevent it from being folded (like `$errors`, `request()`, or `session()`). The `@unblaze` directive lets you "punch a hole" in an otherwise foldable component, keeping the static parts pre-rendered while allowing specific sections to remain dynamic.
 
 ### The problem
 
-Imagine a form input component that's perfect for `@blaze` - except it needs to show validation errors:
+Imagine a form input component that's perfect for folding - except it needs to show validation errors:
 
 ```blade
 {{-- Cannot use @blaze(fold: true) - $errors prevents folding --}}
@@ -508,15 +555,13 @@ Imagine a form input component that's perfect for `@blaze` - except it needs to 
 </div>
 ```
 
-Without `@unblaze`, you have to choose: either skip folding entirely (losing the near-total overhead elimination), or remove the error handling (losing functionality).
+Without `@unblaze`, you have to choose: either skip folding entirely, or remove the error handling.
 
 ### The solution: @unblaze
 
 The `@unblaze` directive creates a dynamic section within a folded component:
 
 ```blade
-{{-- Now we can use folding! --}}
-
 @blaze(fold: true)
 
 @props(['name', 'label'])
@@ -538,9 +583,9 @@ The `@unblaze` directive creates a dynamic section within a folded component:
 - The error handling inside `@unblaze` remains dynamic (evaluated at runtime)
 - You get the best of both worlds: folding optimization + dynamic functionality
 
-**Alternative approach (recommended for most cases):**
+### Alternative approach
 
-Instead of using `@unblaze`, extract the dynamic part into a separate component:
+Instead of using `@unblaze`, you can extract the dynamic part into a separate component:
 
 ```blade
 {{-- input.blade.php - can be folded --}}
@@ -557,6 +602,8 @@ Instead of using `@unblaze`, extract the dynamic part into a separate component:
 
 ```blade
 {{-- input-errors.blade.php - stays dynamic --}}
+@blaze
+
 @props(['name'])
 
 @error($name)
@@ -564,7 +611,7 @@ Instead of using `@unblaze`, extract the dynamic part into a separate component:
 @enderror
 ```
 
-This approach is simpler and more maintainable for most use cases.
+This approach is often simpler and more maintainable.
 
 ### Using scope to pass data into @unblaze
 
@@ -594,7 +641,7 @@ Sometimes you need to pass component props into the `@unblaze` block. Use the `s
 
 ### Nested components inside @unblaze
 
-You can render other components inside `@unblaze` blocks, which is useful for extracting reusable dynamic sections:
+You can render other components inside `@unblaze` blocks:
 
 ```blade
 @blaze(fold: true)
@@ -610,18 +657,6 @@ You can render other components inside `@unblaze` blocks, which is useful for ex
     @endunblaze
 </div>
 ```
-
-```blade
-{{-- components/form/errors.blade.php --}}
-
-@props(['name'])
-
-@error($name)
-    <p>{{ $message }}</p>
-@enderror
-```
-
-This allows you to keep your error display logic in a separate component while still using it within the unblaze section. The form input remains folded, and only the error component is evaluated at runtime.
 
 ### Multiple @unblaze blocks
 
