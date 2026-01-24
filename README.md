@@ -105,12 +105,6 @@ Blaze offers three optimization strategies:
 
 The function compiler transforms your Blade components into optimized PHP functions. This skips the entire component rendering pipeline, eliminating 91-97% of the overhead.
 
-### Feature parity
-
-Blaze is designed as a drop-in replacement for Blade components. It supports all essential features of anonymous components and the HTML output it produces should be identical to Blade.
-
-Be sure to also check out the [general limitations](#limitations).
-
 ### Benchmark results
 
 The benchmarks below represent 25,000 components rendered in a loop:
