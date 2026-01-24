@@ -35,40 +35,26 @@ Blaze is designed as a drop-in replacement for anonymous Blade components. It su
 > [!IMPORTANT]
 > When using `@aware`, both the parent and child must use Blaze for the values to propagate correctly. 
 
-### Usage
+### Getting started
 
-Enable Blaze in your `AppServiceProvider`.
-
-This will optimize all [anonymous component paths](https://laravel.com/docs/12.x/blade#anonymous-component-paths).
+Enable Blaze in your `AppServiceProvider`:
 
 ```php
 use Livewire\Blaze\Blaze;
 
-/**
- * Bootstrap any application services.
- */
 public function boot(): void
 {
     Blaze::optimize();
 }
 ```
 
-> [!CAUTION]
-> This can break your app if you rely on features not supported by Blaze. Consider only enabling Blaze for certain directories or components.
-
-### Configuration
-
-To only enable Blaze for specific directories or components:
-
-**Define component paths:**
+This optimizes all [anonymous component paths](https://laravel.com/docs/12.x/blade#anonymous-component-paths). You can also scope Blaze to specific directories or enable it per-component:
 
 ```php
 Blaze::optimize()
     ->in(resource_path('views/components/icons'))
     ->in(resource_path('views/components/ui'));
 ```
-
-**Or use the @blaze directive:**
 
 ```blade
 @blaze
@@ -78,7 +64,7 @@ Blaze::optimize()
 </button>
 ```
 
-To enable different strategies per directory/component:
+Different [optimization strategies](#optimization-strategies) can be enabled per directory or component:
 
 ```php
 Blaze::optimize()
@@ -93,13 +79,13 @@ Blaze::optimize()
 
 ## Optimization strategies
 
-Blaze offers three optimization strategies:
+By default, Blaze uses function compilation - a reliable strategy that behaves identically to standard Blade but eliminates 91-97% of the rendering overhead. For specific scenarios, two optional strategies can be enabled per-component or directory:
 
 | Strategy | Param | When to use |
-|----------|----------|-------------|
-| **[Compiler](#function-compiler)** | (default) | For most components - reliable optimization with zero concerns about caching or stale data |
-| **[Memoization](#runtime-memoization)** | `memo` | For self-closing components like icons or avatars that appear many times on a page with the same props |
-| **[Folding](#compile-time-folding)** | `fold` | For maximum performance - when you understand the folding model and your component's data flow |
+|----------|-------|-------------|
+| **[Compiler](#function-compiler)** | (default) | General use - works like Blade, 91-97% faster |
+| **[Memoization](#runtime-memoization)** | `memo` | Icons/avatars repeated with same props |
+| **[Folding](#compile-time-folding)** | `fold` | Static components - maximum performance |
 
 ## Function compiler
 
