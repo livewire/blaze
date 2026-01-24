@@ -176,11 +176,14 @@ The component is cached based on actual prop values at runtime. If `<x-icon name
 
 ## Compile-time folding
 
-Compile-time folding is Blaze's most powerful optimization strategy, pre-rendering components during compilation to remove virtually all overhead. However, it requires a deep understanding of how folding works. **Used incorrectly, folding can cause subtle bugs that are difficult to diagnose.** Read this section carefully before enabling it.
+Compile-time folding pre-renders components during compilation, removing virtually all overhead. However, it requires understanding how folding works.
 
 ```blade
 @blaze(fold: true)
 ```
+
+> [!CAUTION]
+> Used incorrectly, folding can cause subtle bugs that are difficult to diagnose. Read this section carefully before enabling it.
 
 ### How folding works
 
@@ -235,18 +238,13 @@ When called with a dynamic attribute:
 
 Blaze uses **placeholder replacement** to fold this correctly:
 
-```blade
-{{-- Step 1: Replace dynamic value with placeholder --}}
-<x-card class="__BLAZE_PH_1__">Featured content</x-card>
+| Step | What happens |
+|------|--------------|
+| **1. Placeholder** | `<x-card class="__BLAZE_PH_1__">` |
+| **2. Render** | `<div class="rounded-lg shadow-md p-6 __BLAZE_PH_1__">` |
+| **3. Replace** | `<div class="... <?php echo e($featured ? '...' : '...'); ?>">` |
 
-{{-- Step 2: Render the component at compile-time --}}
-<div class="rounded-lg shadow-md p-6 __BLAZE_PH_1__">Featured content</div>
-
-{{-- Step 3: Replace placeholder with original PHP expression --}}
-<div class="rounded-lg shadow-md p-6 <?php echo e($featured ? 'bg-yellow-50' : 'bg-white'); ?>">Featured content</div>
-```
-
-This works because the value passes through `$attributes` unchanged - Blaze doesn't need to understand what the value is, just where it ends up.
+This works because the value passes through `$attributes` unchanged - Blaze doesn't need to know what the value is, just where it ends up.
 
 ---
 
@@ -313,7 +311,8 @@ Now dynamic titles fold successfully:
 <x-heading :title="$post->title" />  {{-- Folds --}}
 ```
 
-> **Warning:** Only mark props as safe if they truly pass through unchanged. If you use a "safe" prop in a condition like `@if($title)` or transform it like `{{ Str::upper($title) }}`, the condition/transformation will be evaluated at compile-time with a placeholder value, causing bugs.
+> [!WARNING]
+> Only mark props as safe if they truly pass through unchanged. If you use a "safe" prop in a condition like `@if($title)` or transform it like `{{ Str::upper($title) }}`, the condition/transformation will be evaluated at compile-time with a placeholder value, causing bugs.
 
 **Mark all props as safe:**
 
@@ -427,19 +426,19 @@ Consider this component:
 
 If a logged-in user triggers the compilation (by being the first to visit the page after a cache clear), the "Welcome" message gets baked into the template. **All subsequent users - including logged-out users - will see the same content.**
 
-> **Warning:** Components that read global state should never be folded. Use `@blaze` (function compilation) instead, or wrap the dynamic section in `@unblaze`.
+> [!WARNING]
+> Components that read global state should never be folded. Use `@blaze` (function compilation) instead, or wrap the dynamic section in `@unblaze`.
 
 **Common global state to watch for:**
 
-```blade
-auth()->check(), auth()->user()     {{-- Authentication --}}
-session('key'), session()->get()    {{-- Session data --}}
-request()->path(), request()->is()  {{-- Request data --}}
-$errors->has(), $errors->first()    {{-- Validation errors --}}
-now(), Carbon::now()                {{-- Current time --}}
-@csrf                               {{-- CSRF tokens --}}
-@auth, @guest                       {{-- Auth directives --}}
-```
+| Category | Examples |
+|----------|----------|
+| Authentication | `auth()->check()`, `auth()->user()`, `@auth`, `@guest` |
+| Session | `session('key')`, `session()->get()` |
+| Request | `request()->path()`, `request()->is()` |
+| Validation | `$errors->has()`, `$errors->first()` |
+| Time | `now()`, `Carbon::now()` |
+| Security | `@csrf` |
 
 ---
 
@@ -497,8 +496,6 @@ Before enabling `fold: true` on a component, verify:
 
 ### Directive parameters
 
-Use these parameters with the `@blaze` directive:
-
 ```blade
 @blaze(fold: true, safe: ['title'], unsafe: ['attributes'])
 ```
@@ -507,39 +504,40 @@ Use these parameters with the `@blaze` directive:
 |-----------|------|---------|-------------|
 | `fold` | `bool` | `false` | Enable compile-time folding |
 | `memo` | `bool` | `false` | Enable runtime memoization |
-| `safe` | `array` | `[]` | Props that pass through unchanged and can be folded even when dynamic |
-| `unsafe` | `array` | `[]` | Props, attributes, or slots that should abort folding when dynamic |
+| `safe` | `array` | `[]` | Props that can be folded even when dynamic |
+| `unsafe` | `array` | `[]` | Props/attributes/slots that abort folding when dynamic |
 
 **Special values for `safe` and `unsafe`:**
 
-- `'*'` - All props
-- `'attributes'` - The entire `$attributes` bag
-- `'attributes.name'` - A specific attribute
-- `'slot'` - The default slot
-- `'slotName'` - A named slot
+| Value | Target |
+|-------|--------|
+| `'*'` | All props |
+| `'attributes'` | The entire `$attributes` bag |
+| `'attributes.name'` | A specific attribute |
+| `'slot'` | The default slot |
+| `'slotName'` | A named slot |
 
 ### Folder configuration
-
-Configure folders in your `AppServiceProvider`:
 
 ```php
 Blaze::optimize()
     ->in(resource_path('views/components/ui'), fold: true)
-    ->in(resource_path('views/components/icons'), memoize: true)
+    ->in(resource_path('views/components/icons'), memo: true)
     ->in(resource_path('views/components/legacy'), composer: true, share: true)
     ->in(resource_path('views/components/dynamic'), compile: false);
 ```
 
 | Option | Default | Description |
 |--------|---------|-------------|
-| `compile` | `true` | Enable Blaze for this folder. Set to `false` to exclude. |
-| `fold` | `false` | Enable compile-time folding for all components in folder |
-| `memoize` | `false` | Enable runtime memoization for all components in folder |
-| `composer` | `false` | Enable view composers (disabled by default for performance) |
+| `compile` | `true` | Enable Blaze. Set `false` to exclude. |
+| `fold` | `false` | Enable compile-time folding |
+| `memo` | `false` | Enable runtime memoization |
+| `composer` | `false` | Enable view composers |
 | `share` | `false` | Enable `View::share()` variables |
 | `events` | `false` | Enable component lifecycle events |
 
-Components with explicit `@blaze` directives override folder-level settings.
+> [!TIP]
+> Component-level `@blaze` directives override folder-level settings.
 
 ## License
 
