@@ -131,6 +131,8 @@ When you enable Blaze, it compiles your components into direct function calls:
 @props(['type' => 'button'])
 
 <button type="{{ $type }}">
+    {{ $slot }}
+</button>
 ```
 
 ```php
