@@ -130,7 +130,7 @@ When you enable Blaze, it compiles your components into direct function calls:
 
 @props(['type' => 'button'])
 
-<button type="{{ $type }}">
+<button type="{{ $type }}" class="inline-flex">
     {{ $slot }}
 </button>
 ```
@@ -138,10 +138,10 @@ When you enable Blaze, it compiles your components into direct function calls:
 ```php
 <?php
 function _c4f8e2a1($__data, $__slots) {
-$type = $__data['type'] ?? 'primary';
+$type = $__data['type'] ?? 'button';
 $attributes = new BlazeAttributeBag($__data);
 ?>
-<button type="<?php echo e($type); ?>">
+<button type="<?php echo e($type); ?>" class="inline-flex">
     <?php echo e($slots['default']); ?>
 </button>
 <?php } ?>
@@ -150,11 +150,11 @@ $attributes = new BlazeAttributeBag($__data);
 When you include a component on a page, instead of resolving the it through Blade's rendering pipeline, Blaze calls the function directly:
 
 ```blade
-<x-button variant="primary">Save</x-button>
+<x-button type="submit">Send</x-button>
 ```
 
 ```php
-_c4f8e2a1(['variant' => 'primary'], ['default' => 'Save']);
+_c4f8e2a1(['type' => 'submit'], ['default' => 'Send']);
 ```
 
 ## Runtime memoization
@@ -162,7 +162,6 @@ _c4f8e2a1(['variant' => 'primary'], ['default' => 'Save']);
 Runtime memoization is an optimization for specific component types like icons and avatars. These components are often rendered many times on a page with the same values.
 
 ```blade
-{{-- icon.blade.php --}}
 @blaze(memo: true)
 
 @props(['icon'])
@@ -170,7 +169,7 @@ Runtime memoization is an optimization for specific component types like icons a
 <x-dynamic-component :component="'icons.' . $icon" />
 ```
 
-The cache key is based on actual prop values at runtime. If `<x-icon name="check" />` appears 50 times on a page, it only renders once - the rest return cached HTML.
+The component is cached based on actual prop values at runtime. If `<x-icon name="check" />` appears 50 times on a page, it only renders once - the rest return cached HTML.
 
 > [!IMPORTANT]
 > Memoization only works with self-closing components (components without slots).
@@ -185,37 +184,26 @@ Compile-time folding is Blaze's most powerful optimization strategy, pre-renderi
 
 ### How folding works
 
-When a component is folded, Blaze renders it at compile-time and embeds the HTML directly into your template:
+```blade
+@blaze(fold: true)
+
+@props(['type' => 'button'])
+
+<button type="{{ $type }}" class="inline-flex">
+    {{ $slot }}
+</button>
+```
+
+When you include a component on a page, Blaze renders it at compile-time and embeds the HTML directly into your template:
 
 ```blade
-{{-- Your components --}}
-
-{{-- components/badge.blade.php --}}
-@blaze(fold: true)
-
-@props(['variant' => 'primary'])
-
-<span class="inline-flex items-center rounded-full px-2 py-1 text-xs
-    {{ $variant === 'success' ? 'bg-green-100 text-green-700' : 'bg-blue-100 text-blue-700' }}">
-    {{ $slot }}
-</span>
-
-{{-- components/box.blade.php --}}
-@blaze(fold: true)
-
-<div {{ $attributes->class(['p-4 rounded-lg']) }}>
-    {{ $slot }}
-</div>
+<x-button type="submit">Submit</x-button>
 ```
 
 ```blade
-{{-- Your template --}}
-<x-badge variant="success">Active</x-badge>
-<x-box class="bg-white shadow">Content</x-box>
-
-{{-- After folding - just HTML, no component overhead --}}
-<span class="inline-flex items-center rounded-full px-2 py-1 text-xs bg-green-100 text-green-700">Active</span>
-<div class="p-4 rounded-lg bg-white shadow">Content</div>
+<button type="submit" class="inline-flex">
+    Submit
+</button>
 ```
 
 The component no longer exists at runtime.
