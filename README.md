@@ -1,4 +1,4 @@
-# Blaze
+# 🔥 Blaze
 
 Speed up your Laravel app by optimizing Blade component rendering performance.
 
@@ -9,9 +9,15 @@ Without Blaze  █████████████████████�
 With Blaze     █                                          12ms
 ```
 
+## Installation
+
+```bash
+composer require livewire/blaze
+```
+
 ## Introduction
 
-Rendering large numbers of Blade components can be slow due to Laravel's expensive component pipeline. Blaze is a Laravel package that eliminates this overhead by compiling components into direct PHP function calls or static HTML.
+Rendering large numbers of Blade components can be slow due to Laravel's expensive component pipeline. Blaze eliminates this overhead by compiling components into direct PHP function calls or static HTML.
 
 ### Limitations
 
@@ -20,20 +26,12 @@ Rendering large numbers of Blade components can be slow due to Laravel's expensi
 > [!TIP]
 > If you're using Flux, just install Blaze and you're good to go!
 
-However, you can also benefit from using Blaze in your own projects if you use anonymous components heavily but be mindful of its limitations:
+You can also benefit from using Blaze in your own projects but be mindful of its limitations:
 
 - **Class-based components** are not supported
 - **`View::share()`** variables will not be injected
 - **View composers / creators** will not run
 - **Component lifecycle events** will not fire
-
-## Installation
-
-You can install the package via composer:
-
-```bash
-composer require livewire/blaze
-```
 
 ## Usage
 
@@ -76,8 +74,6 @@ Blaze::optimize()
     {{ $slot }}
 </button>
 ```
-
-> **Using Flux?** All eligible Flux components are already marked with `@blaze` - you don't need to do anything! Just install Blaze and enjoy the speed boost.
 
 ## Table of contents
 
