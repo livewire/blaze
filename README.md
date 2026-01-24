@@ -33,7 +33,7 @@ Blaze is designed as a drop-in replacement for anonymous Blade components. It su
 - **Component lifecycle events** will not fire
 
 > [!IMPORTANT]
-> When using `@aware`, both the parent and child components must use Blaze for the values to propagate correctly. 
+> When using `@aware`, both the parent and child must use Blaze for the values to propagate correctly. 
 
 ## Usage
 
