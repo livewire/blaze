@@ -43,7 +43,9 @@ That's it.
 
 ## Limitations
 
-Blaze focuses primarily on anonymous components. These are commonly used as building blocks for design systems and UI libraries like [Flux UI](https://fluxui.dev), but you can also use Blaze in your own projects to speed up anonymous component rendering.
+Blaze focuses primarily on anonymous components. These are commonly used as building blocks for design systems and UI libraries like [Flux UI](https://fluxui.dev).
+
+You can also use Blaze in your own projects to speed up anonymous component rendering.
 
 While Blaze aims for feature parity with Blade, some advanced features will NOT work when Blaze is enabled:
 
