@@ -126,8 +126,6 @@ These numbers reflect the rendering pipeline overhead, not the work your compone
 When you enable Blaze, it compiles your components into direct function calls:
 
 ```blade
-{{-- button.blade.php --}}
-
 @blaze
 
 @props(['type' => 'button'])
