@@ -13,6 +13,21 @@ With Blaze     █                                          12ms
 
 Rendering large numbers of Blade components can be slow due to Laravel's expensive component pipeline. Blaze is a Laravel package that eliminates this overhead by compiling components into direct PHP function calls or static HTML.
 
+## Limitations
+
+Blaze only works with **anonymous Blade components** and disables certain Laravel features to maximize performance.
+
+We decided to focus on anonymous components because they are often used as building blocks for design systems and UI libraries like [Flux UI](https://fluxui.dev), which Blaze was built for originally. If you're using Flux, just install Blaze and you're good to go!
+
+However, you can also benefit from using Blaze in your own projects if you use anonymous components.
+
+That said, please be aware of these limitations:
+
+- **Class-based components** are not supported
+- **`View::share()`** variables will not be injected
+- **View composers / creators** will not run
+- **Component lifecycle events** will not fire
+
 ## Installation
 
 You can install the package via composer:
@@ -40,19 +55,6 @@ public function boot(): void
 ```
 
 That's it.
-
-## Limitations
-
-Blaze focuses primarily on anonymous components. These are commonly used as building blocks for design systems and UI libraries like [Flux UI](https://fluxui.dev).
-
-You can also use Blaze in your own projects to speed up anonymous component rendering.
-
-While Blaze aims for feature parity with Blade, some advanced features will NOT work when Blaze is enabled:
-
-- Class-based components 
-- `View::share()` variables
-- View composers / creators
-- Component lifecycle events
 
 ### Configuration
 
