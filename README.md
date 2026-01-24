@@ -56,7 +56,7 @@ public function boot(): void
 > [!CAUTION]
 > This can break your app if you rely on features not supported by Blaze. Consider only enabling Blaze for certain directories or components.
 
-#### Configuration
+### Configuration
 
 To only enable Blaze for specific directories or components:
 
