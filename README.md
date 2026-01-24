@@ -24,14 +24,16 @@ Rendering large numbers of Blade components can be slow due to Laravel's expensi
 
 ### Limitations
 
-**Blaze only works with anonymous Blade components**. These are often used as building blocks for design systems and UI libraries like [Flux UI](https://fluxui.dev), which Blaze was built for originally.
-
-You can also benefit from using Blaze in your own projects but be mindful of its limitations:
+Blaze is designed as a drop-in replacement for anonymous Blade components. It supports all essential features and the HTML output it produces should be identical to Blade. That said, there are some limitations:
 
 - **Class-based components** are not supported
+- **The `$component` variable** is not supported
 - **`View::share()`** variables will not be injected
 - **View composers / creators** will not run
 - **Component lifecycle events** will not fire
+
+> [!IMPORTANT]
+> When using `@aware`, both the parent and child components must use Blaze for the values to propagate correctly. 
 
 ## Usage
 
@@ -91,7 +93,7 @@ Blaze::optimize()
 
 ## Optimization strategies
 
-Blaze offers three optimization strategies, each suited for different scenarios:
+Blaze offers three optimization strategies:
 
 | Strategy | Param | When to use |
 |----------|----------|-------------|
@@ -105,24 +107,9 @@ The function compiler transforms your Blade components into optimized PHP functi
 
 ### Feature parity
 
-Blaze is designed as a drop-in replacement for Blade components. It supports all essential features of anonymous components and the HTML output it produces should be identical to Blade. That said there are minor differences.
+Blaze is designed as a drop-in replacement for Blade components. It supports all essential features of anonymous components and the HTML output it produces should be identical to Blade.
 
 Be sure to also check out the [general limitations](#limitations).
-
-| Feature | Blade | Blaze |
-|----------|----------------|------------|
-| Dynamic attributes | ✅ | ✅ |
-| Short attribute syntax | ✅ | ✅ |
-| Default slot | ✅ | ✅ |
-| Named slots | ✅ | ✅ |
-| Slot attributes | ✅ | ✅ |
-| `@props` | ✅ | ✅ |
-| `@aware` | ✅ | ⚠️ |
-| `$attributes` | ✅ | ✅ |
-| `$component` | ✅ | ❌ |
-
-⚠️ When using `@aware`, both the parent and child components must use `@blaze` for the values to propagate correctly.  
-❌ Because Blaze doesn't use class-based components under the hood, the `$component` variable will NOT be accessible.
 
 ### Benchmark results
 
