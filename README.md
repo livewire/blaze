@@ -103,7 +103,7 @@ Blaze offers three optimization strategies:
 
 ## Function compiler
 
-The function compiler transforms your Blade components into optimized PHP functions. This skips the entire component rendering pipeline, eliminating 94-97% of the overhead.
+The function compiler transforms your Blade components into optimized PHP functions. This skips the entire component rendering pipeline, eliminating 91-97% of the overhead.
 
 ### Feature parity
 
