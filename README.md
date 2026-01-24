@@ -159,28 +159,27 @@ _c4f8e2a1(['type' => 'submit'], ['default' => 'Send']);
 
 ## Runtime memoization
 
-Runtime memoization is an optimization for specific component types like icons and avatars. These components are often rendered many times on a page with the same values.
+**This strategy only works for components without slots.**
+
+Runtime memoization is an optimization for specific types of components like icons and avatars, which are often rendered many times on a page with the same values.
 
 ```blade
 @blaze(memo: true)
 
-@props(['icon'])
+@props(['name'])
 
-<x-dynamic-component :component="'icons.' . $icon" />
+<x-dynamic-component :component="'icons.' . $name" />
 ```
 
-The component is cached based on actual prop values at runtime. If `<x-icon name="check" />` appears 50 times on a page, it only renders once - the rest return cached HTML.
+```blade
+<x-icon :name="$task->status->icon" />
+```
 
-> [!IMPORTANT]
-> Memoization only works with self-closing components (components without slots).
+If `<x-icon name="check" />` appears 50 times on a page, it only renders once.
 
 ## Compile-time folding
 
-Compile-time folding pre-renders components during compilation, removing virtually all overhead. However, it requires understanding how folding works.
-
-```blade
-@blaze(fold: true)
-```
+Compile-time folding is Blaze's most powerful optimization strategy, pre-rendering components during compilation to remove virtually all overhead. However, it requires a deep understanding of how folding works.
 
 > [!CAUTION]
 > Used incorrectly, folding can cause subtle bugs that are difficult to diagnose. Read this section carefully before enabling it.
