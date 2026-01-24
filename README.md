@@ -7,46 +7,14 @@ Without Blaze  █████████████████████�
 With Blaze     █                                          13ms
 ```
 
-- [Introduction](#introduction)
-- [Installation](#installation)
-- [Configuration](#configuration)
-    - [Directory-Based Optimization](#directory-based-optimization)
-    - [Per-Component Optimization](#per-component-optimization)
-- [Optimization Strategies](#optimization-strategies)
-    - [Function Compilation](#function-compilation)
-    - [Runtime Memoization](#runtime-memoization)
-    - [Compile-Time Folding](#compile-time-folding)
-- [Folding](#folding)
-    - [How Folding Works](#how-folding-works)
-    - [Dynamic Attributes](#dynamic-attributes)
-    - [Props](#props)
-    - [The Safe Parameter](#the-safe-parameter)
-    - [The Unsafe Parameter](#the-unsafe-parameter)
-    - [Slots](#slots)
-    - [Global State](#global-state)
-    - [The Unblaze Directive](#the-unblaze-directive)
-- [Reference](#reference)
-    - [Directive Parameters](#directive-parameters)
-    - [Directory Configuration](#directory-configuration)
-
 ## Introduction
 
 Blaze supercharges your Blade components by compiling them into direct PHP function calls, eliminating 91-97% of the rendering overhead. No configuration changes, no template modifications - just faster components.
 
 Blaze is designed as a drop-in replacement for anonymous Blade components. It supports all essential features including props, slots, attributes, and `@aware`. The HTML output is identical to standard Blade rendering.
 
-> **Note**  
+> [!IMPORTANT]
 > When using `@aware`, both the parent and child components must use Blaze for values to propagate correctly.
-
-### Limitations
-
-Blaze focuses on anonymous components. The following features are not supported:
-
-- Class-based components
-- The `$component` variable
-- `View::share()` variables (can be enabled per-directory)
-- View composers / creators (can be enabled per-directory)
-- Component lifecycle events (can be enabled per-directory)
 
 ## Installation
 
@@ -56,7 +24,8 @@ You may install Blaze via Composer:
 composer require livewire/blaze
 ```
 
-If you're using Flux, Blaze is already configured and ready to use.
+> [!TIP]
+> If you're using Flux, just install Blaze and you're good to go!
 
 ### Enabling Blaze
 
@@ -77,6 +46,9 @@ This optimizes all [anonymous component paths](https://laravel.com/docs/12.x/bla
 php artisan view:clear
 ```
 
+> [!NOTE]
+> Blaze focuses on anonymous components. Class-based components, the `$component` variable, `View::share()` variables, view composers, and component lifecycle events are not supported.
+
 ## Configuration
 
 ### Directory-Based Optimization
@@ -94,7 +66,7 @@ Different optimization strategies can be enabled per directory:
 ```php
 Blaze::optimize()
     ->in(resource_path('views/components/icons'), memo: true)
-    ->in(resource_path('views/components/static'), fold: true);
+    ->in(resource_path('views/components/cards'), fold: true);
 ```
 
 ### Per-Component Optimization
@@ -127,7 +99,7 @@ Blaze offers three optimization strategies, each suited to different use cases:
 |----------|-----------|----------|-------------------|
 | Function Compilation | (default) | General use | 91-97% |
 | Runtime Memoization | `memo` | Repeated identical components | 91-97% + deduplication |
-| Compile-Time Folding | `fold` | Static components | ~100% |
+| Compile-Time Folding | `fold` | Maximum performance | ~100% |
 
 ### Function Compilation
 
@@ -189,7 +161,7 @@ _c4f8e2a1(['type' => 'submit'], ['default' => 'Send']);
 
 Runtime memoization caches component output during a single request. When a component renders with the same props multiple times, it only executes once.
 
-> **Note**  
+> [!NOTE]
 > Memoization only works for components without slots.
 
 This strategy is ideal for components like icons and avatars that appear many times with identical values:
@@ -208,7 +180,7 @@ If `<x-icon name="check" />` appears 50 times on a page, it renders once and reu
 
 Compile-time folding is Blaze's most aggressive optimization. It pre-renders components during compilation, embedding the HTML directly into your template. The component no longer exists at runtime.
 
-> **Warning**  
+> [!CAUTION]
 > Folding requires careful consideration. Used incorrectly, it can cause subtle bugs that are difficult to diagnose. Review the [Folding](#folding) section before enabling.
 
 ```blade
@@ -322,7 +294,7 @@ Now dynamic titles fold successfully:
 <x-heading :title="$post->title" />
 ```
 
-> **Warning**  
+> [!WARNING]
 > Only mark props as safe if they truly pass through unchanged. Using a "safe" prop in conditions or transformations will cause bugs.
 
 To mark all props as safe:
@@ -357,7 +329,7 @@ With `unsafe: ['attributes']`, any dynamic attribute causes folding to abort, fa
 For more precision, target specific attributes:
 
 ```blade
-@blaze(fold: true, unsafe: ['attributes.variant'])
+@blaze(fold: true, unsafe: ['variant'])
 ```
 
 Now `<x-alert :variant="$type">` aborts folding, but `<x-alert :class="$classes">` still folds.
@@ -424,7 +396,7 @@ If a logged-in user triggers compilation, the "Welcome" message gets permanently
 
 ### The Unblaze Directive
 
-When a component is mostly static but needs a dynamic section, use `@unblaze` to exclude that section:
+When a component is mostly foldable but needs a dynamic section, use `@unblaze` to exclude that section:
 
 ```blade
 @blaze(fold: true)
@@ -468,9 +440,9 @@ Variables from the component scope must be passed explicitly using the `scope` p
 |-------|--------|
 | `'*'` | All props |
 | `'attributes'` | The entire `$attributes` bag |
-| `'attributes.name'` | A specific attribute |
+| `'[name]'` | A specific prop or attribute by name |
 | `'slot'` | The default slot |
-| `'slotName'` | A named slot |
+| `'[slot_name]'` | A named slot |
 
 ### Directory Configuration
 
@@ -478,7 +450,6 @@ Variables from the component scope must be passed explicitly using the `scope` p
 Blaze::optimize()
     ->in(resource_path('views/components/ui'), fold: true)
     ->in(resource_path('views/components/icons'), memo: true)
-    ->in(resource_path('views/components/legacy'), composer: true, share: true)
     ->in(resource_path('views/components/dynamic'), compile: false);
 ```
 
@@ -487,9 +458,6 @@ Blaze::optimize()
 | `compile` | `true` | Enable Blaze. Set `false` to exclude. |
 | `fold` | `false` | Enable compile-time folding |
 | `memo` | `false` | Enable runtime memoization |
-| `composer` | `false` | Enable view composers |
-| `share` | `false` | Enable `View::share()` variables |
-| `events` | `false` | Enable component lifecycle events |
 
 ## License
 
