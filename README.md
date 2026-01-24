@@ -9,7 +9,20 @@ With Blaze     █                                          13ms
 
 ## Introduction
 
-Blaze supercharges your Blade components by compiling them into direct PHP function calls, eliminating 91-97% of the rendering overhead. No configuration changes, no template modifications - just faster components.
+Blaze supercharges your Blade components by compiling them into direct PHP function calls, eliminating 91-97% of the rendering overhead. No configuration changes, no template modifications.
+
+## Installation
+
+You may install Blaze via Composer:
+
+```bash
+composer require livewire/blaze
+```
+
+> [!TIP]
+> If you're using Flux, just install Blaze and you're good to go!
+
+## Usage
 
 Blaze is designed as a drop-in replacement for anonymous Blade components. It supports all essential features including props, slots, attributes, and `@aware`. The HTML output is identical to standard Blade rendering.
 
@@ -23,16 +36,8 @@ Blaze focuses on anonymous components. The following are not supported:
 - View composers / creators
 - Component lifecycle events
 
-## Installation
-
-You may install Blaze via Composer:
-
-```bash
-composer require livewire/blaze
-```
-
-> [!TIP]
-> If you're using Flux, just install Blaze and you're good to go!
+> [!IMPORTANT]
+> When using `@aware`, both the parent and child components must use Blaze for values to propagate correctly.
 
 ### Enabling Blaze
 
@@ -47,7 +52,9 @@ public function boot(): void
 }
 ```
 
-This optimizes all [anonymous component paths](https://laravel.com/docs/12.x/blade#anonymous-component-paths). After enabling Blaze, you should clear your compiled views:
+This optimizes all [anonymous component paths](https://laravel.com/docs/12.x/blade#anonymous-component-paths).
+
+After enabling Blaze, you should clear your compiled views:
 
 ```bash
 php artisan view:clear
@@ -95,13 +102,6 @@ Optimization strategies can be specified directly:
 
 Component-level directives override directory-level settings.
 
-### Using @aware
-
-Blaze fully supports the `@aware` directive for sharing data between parent and child components.
-
-> [!IMPORTANT]
-> When using `@aware`, both the parent and child components must use Blaze for values to propagate correctly.
-
 ## Optimization Strategies
 
 Blaze offers three optimization strategies, each suited to different use cases:
@@ -110,7 +110,7 @@ Blaze offers three optimization strategies, each suited to different use cases:
 |----------|-----------|----------|-------------------|
 | Function Compilation | (default) | General use | 91-97% |
 | Runtime Memoization | `memo` | Repeated identical components | 91-97% + deduplication |
-| Compile-Time Folding | `fold` | Maximum performance | ~100% |
+| Compile-Time Folding | `fold` | Maximum performance | 100% |
 
 ### Function Compilation
 
@@ -457,25 +457,26 @@ Variables from the component scope must be passed explicitly using the `scope` p
 | `fold` | `bool` | `false` | Enable compile-time folding |
 | `memo` | `bool` | `false` | Enable runtime memoization |
 | `safe` | `array` | `[]` | Props that fold even when dynamic |
-| `unsafe` | `array` | `[]` | Values that abort folding when dynamic |
+| `unsafe` | `array` | `[]` | Props that abort folding when dynamic |
 
-**Special values for `safe` and `unsafe`:**
+**Accepted values for `safe` and `unsafe`:**
 
 | Value | Target |
 |-------|--------|
-| `'*'` | All props |
-| `'attributes'` | The entire `$attributes` bag |
-| `'[name]'` | A specific prop or attribute by name |
-| `'slot'` | The default slot |
-| `'[slot_name]'` | A named slot |
+| `*` | All props / attributes / slots |
+| `slot` | The default slot |
+| `[name]` | A property / attribute / slot |
+| `attributes` | Attributes not defined in `@props` |
+
 
 ### Directory Configuration
 
 ```php
 Blaze::optimize()
+    ->in(resource_path('views/components'))
     ->in(resource_path('views/components/ui'), fold: true)
     ->in(resource_path('views/components/icons'), memo: true)
-    ->in(resource_path('views/components/dynamic'), compile: false);
+    ->in(resource_path('views/components/legacy'), compile: false);
 ```
 
 | Option | Default | Description |
