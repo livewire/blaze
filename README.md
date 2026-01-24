@@ -15,6 +15,9 @@ With Blaze     █                                          12ms
 composer require livewire/blaze
 ```
 
+> [!TIP]
+> If you're using Flux, just install Blaze and you're good to go!
+
 ## Introduction
 
 Rendering large numbers of Blade components can be slow due to Laravel's expensive component pipeline. Blaze eliminates this overhead by compiling components into direct PHP function calls or static HTML.
@@ -22,9 +25,6 @@ Rendering large numbers of Blade components can be slow due to Laravel's expensi
 ### Limitations
 
 **Blaze only works with anonymous Blade components**, these are often used as building blocks for design systems and UI libraries like [Flux UI](https://fluxui.dev), which Blaze was built for originally.
-
-> [!TIP]
-> If you're using Flux, just install Blaze and you're good to go!
 
 You can also benefit from using Blaze in your own projects but be mindful of its limitations:
 
