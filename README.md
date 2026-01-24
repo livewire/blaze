@@ -5,8 +5,8 @@ Speed up your Laravel app by optimizing Blade component rendering performance.
 ```
 Rendering 25,000 anonymous components:
 
-Without Blaze  ████████████████████████████████████████  450ms
-With Blaze     █                                          12ms
+Without Blaze  ████████████████████████████████████████  500ms
+With Blaze     █                                          13ms
 ```
 
 ## Installation
@@ -35,9 +35,9 @@ You can also benefit from using Blaze in your own projects but be mindful of its
 
 ## Usage
 
-Getting started with Blaze takes one line of code.
+Enable Blaze in your `AppServiceProvider`.
 
-Add the following to your `AppServiceProvider`:
+This will optimize all [anonymous component paths](https://laravel.com/docs/12.x/blade#anonymous-component-paths).
 
 ```php
 use Livewire\Blaze\Blaze;
@@ -51,13 +51,14 @@ public function boot(): void
 }
 ```
 
-That's it.
+> [!CAUTION]
+> If you rely on features that are not supported by Blaze, doing this will break your app. Instead only enable Blaze for certain directories or components.
 
 ### Configuration
 
-Due to these limitations, you may want to gradually roll out Blaze by opting in specific folders or components.
+To only enable Blaze for specific directories or components:
 
-**Per-folder:**
+**Define component paths:**
 
 ```php
 Blaze::optimize()
@@ -65,7 +66,7 @@ Blaze::optimize()
     ->in(resource_path('views/components/ui'));
 ```
 
-**Per-component:**
+**Or use the @blaze directive:**
 
 ```blade
 @blaze
@@ -75,63 +76,45 @@ Blaze::optimize()
 </button>
 ```
 
-## Table of contents
+Use named parameters to enable different strategies per directory/component:
 
-- [Optimization strategies](#optimization-strategies)
-- [Function compiler](#function-compiler)
-- [Compile-time folding](#compile-time-folding)
-- [Memoization](#memoization)
-- [Reference](#reference)
+```php
+Blaze::optimize()
+    ->in(resource_path('...'), memo: true)
+    ->in(resource_path('...'), fold: true);
+```
+
+```blade
+@blaze(memo: true)
+@blaze(fold: true)
+```
 
 ## Optimization strategies
 
 Blaze offers three optimization strategies, each suited for different scenarios:
 
-| Strategy | When to use |
-|----------|-------------|
-| **Function compilation** (default) | For most components - reliable 94-97% overhead reduction with zero concerns about caching or stale data |
-| **Compile-time folding** (`fold: true`) | For maximum performance when you understand the folding model and your component's data flow |
-| **Runtime memoization** (`memo: true`) | For self-closing components like icons or avatars that appear many times on a page with the same props |
+| Strategy | Param | When to use |
+|----------|----------|-------------|
+| **[Compiler](#function-compiler)** | (default) | For most components - reliable optimization with zero concerns about caching or stale data |
+| **[Memoization](#runtime-memoization)** | `memo` | For self-closing components like icons or avatars that appear many times on a page with the same props |
+| **[Folding](#compile-time-folding)** | `fold` | For maximum performance - when you understand the folding model and your component's data flow |
 
 ## Function compiler
 
-The function compiler transforms your Blade components into optimized PHP functions, removing 94-97% of the rendering overhead.
+The function compiler transforms your Blade components into optimized PHP functions. This skips the entire component rendering pipeline, eliminating 94-97% of the overhead.
 
-### How it works
+### Feature parity
 
-When you enable Blaze, it compiles your components into direct function calls:
+Excluding the [general limitations](#limitations), Blaze supports all essential features of anonymous components including `@props`, `@aware`, `$attributes`, slots, named slots and dynamic attributes. The HTML output it produces should be identical to Blade.
 
-```php
-{{-- components/button.blade.php becomes: --}}
-
-function _c4f8e2a1($__blaze, $__data, $__slots, $__bound) {
-    $variant = $__data['variant'] ?? 'primary';
-    $attributes = new BlazeAttributeBag($__data);
-    ?>
-    <button class="btn-<?php echo e($variant); ?>">
-        <?php echo e($slot); ?>
-    </button>
-    <?php
-}
-
-{{-- <x-button variant="primary">Save</x-button> compiles to: --}}
-
-_c4f8e2a1($__blaze, ['variant' => 'primary'], ['default' => fn() => 'Save'], []);
-```
-
-Instead of resolving the component through Blade's rendering pipeline, Blaze calls the function directly.
-
-### Feature support
-
-Blaze supports all essential features of anonymous components including `@props`, `@aware`, `$attributes`, slots, and dynamic attributes.
-
-> **Note:** When using `@aware`, both the parent and child components must use `@blaze` for the values to propagate correctly.
+> [!IMPORTANT]
+> When using `@aware`, both the parent and child components must use `@blaze` for the values to propagate correctly.
 
 ### Benchmark results
 
-The benchmarks below demonstrate the Blade overhead that Blaze eliminates when rendering 25,000 components:
+The benchmarks below represent 25,000 components rendered in a loop:
 
-| Scenario | Blade Overhead | With Blaze | Reduction |
+| Scenario | Blade | Blaze | Reduction |
 |----------|----------------|------------|-----------|
 | No attributes | 500ms | 13ms | 97.4% |
 | Attributes only | 457ms | 26ms | 94.3% |
@@ -141,9 +124,61 @@ The benchmarks below demonstrate the Blade overhead that Blaze eliminates when r
 | Named slots | 696ms | 49ms | 93.0% |
 | @aware (nested) | 1,787ms | 129ms | 92.8% |
 
-These numbers reflect the rendering pipeline overhead, not the work your components do internally. If your components perform expensive operations (database queries, API calls, complex calculations), that work will still affect performance.
+These numbers reflect the rendering pipeline overhead, not the work your components do internally. If your components execute expensive operations, that work will still affect performance.
 
-If your application is still slow after installing Blaze, first investigate other bottlenecks in your application. If you determine that slowness is still coming from Blade rendering, consider [compile-time folding](#compile-time-folding).
+### How it works
+
+When you enable Blaze, it compiles your components into direct function calls:
+
+```blade
+{{-- button.blade.php --}}
+
+@blaze
+
+@props(['type' => 'button'])
+
+<button type="{{ $type }}">
+```
+
+```php
+<?php
+function _c4f8e2a1($__data, $__slots) {
+$type = $__data['type'] ?? 'primary';
+$attributes = new BlazeAttributeBag($__data);
+?>
+<button type="<?php echo e($type); ?>">
+    <?php echo e($slots['default']); ?>
+</button>
+<?php } ?>
+```
+
+When you include a component on a page, instead of resolving the it through Blade's rendering pipeline, Blaze calls the function directly:
+
+```blade
+<x-button variant="primary">Save</x-button>
+```
+
+```php
+_c4f8e2a1(['variant' => 'primary'], ['default' => 'Save']);
+```
+
+## Runtime memoization
+
+Runtime memoization is an optimization for specific component types like icons and avatars. These components are often rendered many times on a page with the same values.
+
+```blade
+{{-- icon.blade.php --}}
+@blaze(memo: true)
+
+@props(['icon'])
+
+<x-dynamic-component :component="'icons.' . $icon" />
+```
+
+The cache key is based on actual prop values at runtime. If `<x-icon name="check" />` appears 50 times on a page, it only renders once - the rest return cached HTML.
+
+> [!IMPORTANT]
+> Memoization only works with self-closing components (components without slots).
 
 ## Compile-time folding
 
@@ -474,25 +509,6 @@ Before enabling `fold: true` on a component, verify:
 - [ ] **No `View::share()` or view composers** - Unless you've enabled them with `share: true` or `composer: true`
 
 **When in doubt, use `@blaze` without folding.** Function compilation provides excellent performance (94-97% overhead reduction) with none of the footguns.
-
-## Memoization
-
-Runtime memoization is an optimization for specific component types like icons and avatars. These components are dynamic in nature (they can't be folded because their output depends on props), but they're often rendered many times on a page with the same values.
-
-```blade
-{{-- components/icon.blade.php --}}
-@blaze(memo: true)
-
-@props(['name', 'class' => ''])
-
-<svg class="w-5 h-5 {{ $class }}">
-    <use href="/icons.svg#{{ $name }}" />
-</svg>
-```
-
-The cache key is based on actual prop values at runtime. If `<x-icon name="check" />` appears 50 times on a page, it only renders once - the rest return cached HTML.
-
-> **Note:** Memoization only works with self-closing components (components without slots).
 
 ## Reference
 
