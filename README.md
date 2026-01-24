@@ -43,13 +43,14 @@ That's it.
 
 ## Limitations
 
-While Blaze aims for feature parity with Blade's anonymous components, some advanced features will NOT work when Blaze is enabled:
+Blaze focuses primarily on anonymous components. These are commonly used as building blocks for design systems and UI libraries like [Flux UI](https://fluxui.dev), but you can also use Blaze in your own projects to speed up anonymous component rendering.
+
+While Blaze aims for feature parity with Blade, some advanced features will NOT work when Blaze is enabled:
 
 - Class-based components 
+- `View::share()` variables
 - View composers / creators
 - Component lifecycle events
-
-Blaze primarily focuses on optimizing anonymous components. If you rely heavily on class-based components or view composers, consider enabling Blaze only for specific folders or components (see below).
 
 ### Configuration
 
@@ -73,7 +74,7 @@ Blaze::optimize()
 </button>
 ```
 
-> **Using Flux?** All eligible Flux components are already marked with `@blaze` - you don't need to do anything! Just install Blaze and enjoy the performance boost.
+> **Using Flux?** All eligible Flux components are already marked with `@blaze` - you don't need to do anything! Just install Blaze and enjoy the speed boost.
 
 ## Table of contents
 
