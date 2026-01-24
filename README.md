@@ -15,15 +15,12 @@ Rendering large numbers of Blade components can be slow due to Laravel's expensi
 
 ### Limitations
 
-Blaze only works with **anonymous Blade components** and disables certain Laravel features to maximize performance.
+**Blaze only works with anonymous Blade components**, these are often used as building blocks for design systems and UI libraries like [Flux UI](https://fluxui.dev), which Blaze was built for originally.
 
-We decided to focus on anonymous components because they are often used as building blocks for design systems and UI libraries like [Flux UI](https://fluxui.dev), which Blaze was built for originally.
+> [!TIP]
+> If you're using Flux, just install Blaze and you're good to go!
 
-If you're using Flux, just install Blaze and you're good to go!
-
-However, you can also benefit from using Blaze in your own projects if you use anonymous components.
-
-That said, please be aware of these limitations:
+However, you can also benefit from using Blaze in your own projects if you use anonymous components heavily but be mindful of its limitations:
 
 - **Class-based components** are not supported
 - **`View::share()`** variables will not be injected
