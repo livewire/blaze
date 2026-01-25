@@ -131,7 +131,7 @@ Optimization strategies can be specified directly:
 
 Component-level directives override directory-level settings.
 
-## Optimization Strategies
+# Optimization Strategies
 
 By default Blaze uses **Function Compilation**, which works for virtually all components and provides significant performance improvements — this is sufficient for most use cases.
 
@@ -144,7 +144,7 @@ To go even further, you can consider the other strategies that require additiona
 | Compile-Time Folding | `fold` | Maximum performance | 100% |
 
 
-## Function Compilation
+# Function Compilation
 
 This strategy transforms your components into optimized PHP functions, bypassing the entire component rendering pipeline while maintaining identical behavior to standard Blade.
 
@@ -164,7 +164,7 @@ The following benchmarks represent 25,000 components rendered in a loop:
 
 > These numbers reflect rendering pipeline overhead. If your components execute expensive operations internally, that work will still affect performance when using this strategy.
 
-### How It Works
+## How It Works
 
 When you enable Blaze, components are compiled into direct function calls:
 
@@ -200,7 +200,7 @@ Becomes:
 _c4f8e2a1(['type' => 'submit'], ['default' => 'Send']);
 ```
 
-## Runtime Memoization
+# Runtime Memoization
 
 Runtime memoization caches component output during a single request. When a component renders with the same props multiple times, it only executes once. This strategy is ideal for components like icons and avatars that appear many times with identical values:
 
@@ -223,11 +223,11 @@ Because there might be multiple tasks with the same status, we don't need to re-
 > [!NOTE]
 > Memoization only works for components without slots.
 
-## Compile-Time Folding
+# Compile-Time Folding
 
 Compile-time folding is Blaze's most aggressive optimization. It pre-renders components during compilation, embedding the HTML directly into your template. The component ceases to exist at runtime - there is no function call, no variable resolution, no overhead whatsoever.
 
-### Benchmark Results
+## Benchmark Results
 
 Because folded components are rendered at compile-time, the runtime cost is effectively zero. The rendering time remains constant regardless of how many components you use:
 
@@ -453,7 +453,7 @@ For more precision, target specific attributes:
 
 Now `<x-alert :variant="$type">` aborts folding, but `<x-alert :class="$classes">` still folds.
 
-### Global State
+## Global State
 
 Folded components are rendered at compile-time. Any global state is captured at compilation, not runtime:
 
@@ -480,7 +480,7 @@ If a logged-in user triggers compilation, the "Welcome" message gets permanently
 | Time | `now()`, `Carbon::now()` |
 | Security | `@csrf` |
 
-### The Unblaze Directive
+## The Unblaze Directive
 
 When a component is mostly foldable but needs a dynamic section, use `@unblaze` to exclude that section:
 
@@ -505,7 +505,7 @@ The label and input are folded. Error handling remains dynamic.
 
 Variables from the component scope must be passed explicitly using the `scope` parameter.
 
-## Reference
+# Reference
 
 ### Directive Parameters
 
