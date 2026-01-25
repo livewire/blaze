@@ -64,28 +64,18 @@ php artisan view:clear
 Blaze supports all essential features and produces HTML output that is identical to Blade. The focus is on maximizing performance while maintaining compatibility. That said, there are some limitations to be aware of:
 
 - **Class-based components** are not supported
-    
-    Class instantiation introduce significant overhead. Blaze only focuses on optimizing anonymous components, which are often used for building design systems and UI libraries. If your component requires complex logic it is likely not a good candidate for Blaze optimization.
-
-    The `$component` variable, which normally points to the component class instance, will also not be available.
-
+- **The `$component` variable** will not be available
 - **View composers / creators / lifecycle events** will not fire
-
-    TODO
-
 - **Auto-injecting `View::share()` variables** is not supported
 
-    TODO
-    
-    Variables shared via `View::share()` will NOT be injected automatically. You have to access them manually:
+    You can still access the data manually via the `$__env` variable:
 
     ```blade
     {{ $__env->shared('key') }}
     ```
-
 - **Cross boundary `@aware`** between Blade and Blaze components
 
-    While `@aware` is supported, you must use Blaze in both parent and child for values to propagate correctly.
+    Both parent and child must use Blaze for values to propagate.
 
 # Configuration
 
