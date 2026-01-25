@@ -51,15 +51,19 @@ php artisan view:clear
 > [!CAUTION]
 > **If you're installing Blaze into an existing app**, enabling Blaze in all component paths can break your app. Consider scoping Blaze to specific directories or components until you've worked around the limitations described below.
 
-### Limitations
+## Limitations
 
-Blaze supports all essential features of anonymous components and produces HTML output that is identical to Blade. That said, there are some limitations:
+Blaze supports all essential features and produces HTML output that is identical to Blade. The focus is on maximizing performance while maintaining compatibility. That said, there are some limitations to be aware of:
 
-#### Accessing parent data using `@aware`
+- **Class-based components**
+    
+    To maximize the performance, **class-based components are not supported**. Therefore, the `$component` variable, which normally points to the component class instance, will not be available.
 
-While `@aware` is supported, you must use Blaze in both parent and child for values to propagate correctly.
+### View composers / creators / lifecycle events
 
-#### Accessing variables shared using `View::share()`
+View composers, creators, and component lifecycle events will not run for Blaze components.
+
+### Accessing variables shared using `View::share()`
 
 Variables shared via `View::share()` will NOT be injected automatically. You have to access them manually:
 
@@ -67,7 +71,11 @@ Variables shared via `View::share()` will NOT be injected automatically. You hav
 {{ $__env->shared('key') }}
 ```
 
-#### Unsupported features
+### Using `@aware` between Blade and Blaze components
+
+While `@aware` is supported, you must use Blaze in both parent and child for values to propagate correctly.
+
+### Unsupported features
 
 - **Class-based components** are not supported
 - **The `$component` variable** will not be accessible
@@ -254,7 +262,7 @@ $classes = match($color) {
 </button>
 ```
 
-When compiled:
+When included on a page:
 
 ```blade
 <x-button color="red">Submit</x-button>
@@ -308,7 +316,7 @@ Before finalizing the output, Blaze substitutes the original dynamic expressions
 </button>
 ```
 
-### Dynamic props
+#### Dynamic props
 
 In the previous example, the dynamic attribute was handled successfully because it was passed directly to the HTML output. However, if a dynamic prop is used in conditions or transformations, folding may fail.
 
