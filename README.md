@@ -201,6 +201,14 @@ This strategy is ideal for components like icons and avatars that appear many ti
 <x-dynamic-component :component="'icons.' . $name" />
 ```
 
+When you include the component on a page, Blaze caches the output based on the actual prop values:
+
+```blade
+<x-icon :name="$task->status->icon">
+```
+
+Because there might be multiple tasks with the same status, we don't need to re-render the icon each time. Blaze stores the output in a cache keyed by the prop values and reuses it for subsequent renders.
+
 If `<x-icon name="check" />` appears 50 times on a page, it renders once and reuses the output.
 
 ## Compile-Time Folding
@@ -224,7 +232,7 @@ Because folded components are rendered at compile-time, the runtime cost is effe
 
 This section covers the intricacies of compile-time folding. If you're using the default function compilation strategy, you can skip this section entirely.
 
-#### Static props
+#### Static attributes
 
 Let's start with a simple component that only recieves a static prop like `color="red"`: 
 
@@ -262,9 +270,9 @@ Becomes:
 
 This works flawlessly because all data needed to render the component is available at compile-time.
 
-#### Dynamic props
+#### Dynamic attributes
 
-Because Blaze pre-renderes components during compilation, it doesn't have access to data that will be passed to the components at runtime. Blaze works around this by replacing dynamic values with placeholders during rendering and substituting the original expressions back into the final output.
+Because Blaze pre-renderes components during compilation, it doesn't have access to data that will be passed to the components at runtime. It works around this by replacing dynamic values with placeholders during rendering and substituting the original expressions back into the final output.
 
 To illustrate this, let's assign a random id to the button:
 
@@ -284,7 +292,7 @@ Next, it pre-renders the component using the placeholder:
 <x-button color="red" :id="ATTR_PLACEHOLDER_1">Submit</x-button>
 ```
 
-Which compiles to:
+Which results in:
 
 ```blade
 <button class="bg-red-500 hover:bg-red-400" type="submit" id="ATTR_PLACEHOLDER_1">
@@ -300,36 +308,47 @@ Before finalizing the output, Blaze substitutes the original dynamic expressions
 </button>
 ```
 
-### Props
+### Dynamic props
 
-Problems occur when dynamic values are captured by `@props` and used in logic:
+In the previous example, the dynamic attribute was handled successfully because it was passed directly to the HTML output. However, if a dynamic prop is used in conditions or transformations, folding may fail.
+
+Let's now use a dynamic variable for the `color` prop which is used in a `match` statement:
 
 ```blade
-@blaze(fold: true)
+<x-button :color="$deleting ? 'red' : 'blue'" />
+```
 
-@props(['status'])
+Blaze creates the mapping table and pre-renders the component with a placeholder:
 
+| Property | Dynamic value | Placeholder |
+|------|--------|--------|
+| `color` | `$deleting ? 'red' : 'blue'` | ATTR_PLACEHOLDER_1 |
+
+```blade
+<x-button color="ATTR_PLACEHOLDER_1">
+```
+
+The match statement now evaluates with the placeholder string `"ATTR_PLACEHOLDER_1"`, not the actual value. The lookup fails and falls back to the default.
+
+```blade
 @php
-    $colors = [
-        'active' => 'bg-green-100',
-        'pending' => 'bg-yellow-100',
-    ];
+$classes = match('ATTR_PLACEHOLDER_1') {
+    'red' => 'bg-red-500 hover:bg-red-400',
+    'blue' => 'bg-blue-500 hover:bg-blue-400',
+    default => 'bg-gray-500 hover:bg-gray-400',
+};
 @endphp
-
-<span class="{{ $colors[$status] ?? 'bg-gray-100' }}">
-    {{ $status }}
-</span>
 ```
 
-When called with a dynamic prop:
+This will result in the button always being gray, regardless of the value of `$deleting`.
 
 ```blade
-<x-badge :status="$user->status" />
+<button class="bg-gray-500 hover:bg-gray-400" type="button">
+    Submit
+</button>
 ```
 
-The array lookup executes with the placeholder string `"__BLAZE_PH_1__"`, not the actual value. The lookup fails and falls back to the default.
-
-**Blaze automatically aborts folding when a defined prop receives a dynamic value.**
+**Blaze prevents this behavior by automatically aborting folding when a defined prop receives a dynamic value.**
 
 ### The Safe Parameter
 
