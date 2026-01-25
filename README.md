@@ -9,7 +9,20 @@ Without Blaze  █████████████████████�
 With Blaze     █                                          13ms
 ```
 
-## Installation
+# Introduction
+
+Out of the box, Blaze is a **drop-in replacement** for Blade components which does not require any changes to your existing component code. 
+
+It works by compiling components into optimized PHP code instead of using the standard rendering pipeline — this eliminates 91-97% of the  overhead while maintaining near full feature parity with Blade.
+
+Blaze offers two additional strategies for even greater performance.
+
+These require additional configuration and considerations:
+- **Memoization**: a caching strategy for repeated components
+- **Folding**: pre-rendering components into static HTML
+
+
+# Installation
 
 You may install Blaze via Composer:
 
@@ -20,25 +33,23 @@ composer require livewire/blaze
 > [!TIP]
 > If you're using [Flux UI](https://fluxui.dev), just install Blaze and you're good to go - no configuration needed!
 
+# Getting started
 
-## Introduction
+To get started with Blaze, all you need to do is call `Blaze::optimize()` in your `AppServiceProvider`.
 
-Out of the box, Blaze is a **drop-in replacement** for anonymous coponents. It does not require any changes to your existing component code and works by compiling components into optimized PHP code - this eliminates 91-97% of the rendering overhead.
-
-Blaze also offers two additional optimization strategies for even greater performance:
-- **Memoization** - a caching strategy for repeated components
-- **Folding** - pre-rendering components into static HTML
-
-## Getting started
-
-Enable Blaze in your `AppServiceProvider` to optimize all component paths:
+This enables Blaze for all components by default. **It is highly recommended** to only enable Blaze for specific folders or components if you're integrating it into an existing application. This allows you to gradually adopt Blaze and verify compatibility - see the [Configuration](#configuration) section for more details.
 
 ```php
 use Livewire\Blaze\Blaze;
 
+/**
+ * Bootstrap any application services.
+ */
 public function boot(): void
 {
     Blaze::optimize();
+
+    // ...
 }
 ```
 
@@ -48,10 +59,7 @@ After enabling Blaze, you should clear your compiled views:
 php artisan view:clear
 ```
 
-> [!CAUTION]
-> **If you're installing Blaze into an existing app**, enabling it for all components can break your app. Consider scoping Blaze to specific directories or components until you've worked around the limitations described below.
-
-## Limitations
+# Limitations
 
 Blaze supports all essential features and produces HTML output that is identical to Blade. The focus is on maximizing performance while maintaining compatibility. That said, there are some limitations to be aware of:
 
@@ -79,7 +87,9 @@ Blaze supports all essential features and produces HTML output that is identical
 
     While `@aware` is supported, you must use Blaze in both parent and child for values to propagate correctly.
 
-## Configuration
+# Configuration
+
+Blaze provides flexible configuration options to let you gradually adopt it into your application or enable different optimizations for different components.
 
 ### Directory-Based Optimization
 
@@ -123,7 +133,9 @@ Component-level directives override directory-level settings.
 
 ## Optimization Strategies
 
-By default Blaze uses **Function Compilation**, which works for virtually all components and provides significant performance improvements — this is sufficient for most use cases. To go even further, you can consider the other strategies that require additional considerations.
+By default Blaze uses **Function Compilation**, which works for virtually all components and provides significant performance improvements — this is sufficient for most use cases.
+
+To go even further, you can consider the other strategies that require additional considerations.
 
 | Strategy | Parameter | Best For | Overhead Reduction |
 |----------|-----------|----------|-------------------|
@@ -131,7 +143,6 @@ By default Blaze uses **Function Compilation**, which works for virtually all co
 | Runtime Memoization | `memo` | Repeated identical components | 91-97% + deduplication |
 | Compile-Time Folding | `fold` | Maximum performance | 100% |
 
-Let's break down each strategy:
 
 ## Function Compilation
 
@@ -151,7 +162,7 @@ The following benchmarks represent 25,000 components rendered in a loop:
 | Named slots | 696ms | 49ms | 93.0% |
 | @aware (nested) | 1,787ms | 129ms | 92.8% |
 
-These numbers reflect rendering pipeline overhead. If your components execute expensive operations internally, that work will still affect performance.
+> These numbers reflect rendering pipeline overhead. If your components execute expensive operations internally, that work will still affect performance when using this strategy.
 
 ### How It Works
 
@@ -191,12 +202,7 @@ _c4f8e2a1(['type' => 'submit'], ['default' => 'Send']);
 
 ## Runtime Memoization
 
-Runtime memoization caches component output during a single request. When a component renders with the same props multiple times, it only executes once.
-
-> [!NOTE]
-> Memoization only works for components without slots.
-
-This strategy is ideal for components like icons and avatars that appear many times with identical values:
+Runtime memoization caches component output during a single request. When a component renders with the same props multiple times, it only executes once. This strategy is ideal for components like icons and avatars that appear many times with identical values:
 
 ```blade
 @blaze(memo: true)
@@ -212,14 +218,12 @@ When you include the component on a page, Blaze caches the output based on the a
 <x-icon :name="$task->status->icon">
 ```
 
-Because there might be multiple tasks with the same status, we don't need to re-render the icon each time. Blaze stores the output in a cache keyed by the prop values and reuses it for subsequent renders.
+Because there might be multiple tasks with the same status, we don't need to re-render the icon each time. Blaze stores the output in a cache using a hash of the prop values as the key and returns the cached output on subsequent renders.
 
-If `<x-icon name="check" />` appears 50 times on a page, it renders once and reuses the output.
+> [!NOTE]
+> Memoization only works for components without slots.
 
 ## Compile-Time Folding
-
-> [!CAUTION]
-> **Folding requires careful consideration**. Used incorrectly, it can cause subtle bugs that are difficult to diagnose. Make sure you fully understand the limitations described below before using this strategy.
 
 Compile-time folding is Blaze's most aggressive optimization. It pre-renders components during compilation, embedding the HTML directly into your template. The component ceases to exist at runtime - there is no function call, no variable resolution, no overhead whatsoever.
 
@@ -233,13 +237,12 @@ Because folded components are rendered at compile-time, the runtime cost is effe
 | 50,000 | 1,000ms | 0.68ms |
 | 100,000 | 2,000ms | 0.68ms |
 
-### How It Works
+> [!CAUTION]
+> **Folding requires careful consideration**. Used incorrectly, it can cause subtle bugs that are difficult to diagnose. Make sure you fully understand the limitations described below before using this strategy.
 
-This section covers the intricacies of compile-time folding. If you're using the default function compilation strategy, you can skip this section entirely.
+## How It Works
 
-#### Static attributes
-
-Let's start with a simple component that only recieves a static prop like `color="red"`: 
+This section covers the intricacies of compile-time folding.
 
 ```blade
 @blaze(fold: true)
@@ -275,7 +278,7 @@ Becomes:
 
 This works flawlessly because all data needed to render the component is available at compile-time.
 
-#### Dynamic attributes
+### Dynamic attributes
 
 Because Blaze pre-renderes components during compilation, it doesn't have access to data that will be passed to the components at runtime. It works around this by replacing dynamic values with placeholders during rendering and substituting the original expressions back into the final output.
 
@@ -313,7 +316,7 @@ Before finalizing the output, Blaze substitutes the original dynamic expressions
 </button>
 ```
 
-#### Dynamic props
+### Dynamic props
 
 In the previous example, the dynamic attribute was handled successfully because it was passed directly to the HTML output. However, if a dynamic prop is used in conditions or transformations, folding may fail.
 
@@ -345,7 +348,7 @@ $classes = match('ATTR_PLACEHOLDER_1') {
 @endphp
 ```
 
-This will result in the button always being gray, regardless of the value of `$deleting`.
+This will result in the button always being gray:
 
 ```blade
 <button class="bg-gray-500 hover:bg-gray-400" type="button">
@@ -353,12 +356,47 @@ This will result in the button always being gray, regardless of the value of `$d
 </button>
 ```
 
-**Blaze prevents this behavior by automatically aborting folding when a defined prop receives a dynamic value.**
+**Blaze prevents this behavior by automatically aborting folding when a defined prop receives a dynamic value.** This behavior can be overriden using [Selective folding](#selective-folding) based on which properties have been passed in dynamically.
 
-### The Safe Parameter
+### Slots
+
+Slots are considered safe by default - their content passes through unchanged. However, slot inspection methods won't work correctly:
+
+```blade
+{{-- This wont work when folded --}}
+@if($slot->isNotEmpty())
+    <div>{{ $slot }}</div>
+@endif
+```
+
+The placeholder is never empty, so the condition always evaluates to `true`.
+
+To inspect slot content, mark the slot as unsafe:
+
+```blade
+@blaze(fold: true, unsafe: ['slot'])
+
+@if($slot->isNotEmpty())
+    <div>{{ $slot }}</div>
+@endif
+```
+
+For named slots:
+
+```blade
+@blaze(fold: true, unsafe: ['footer'])
+
+@if($footer->isNotEmpty())
+    <footer>{{ $footer }}</footer>
+@endif
+```
+
+## Selective folding
 
 If a prop passes through to the output without being used in conditions or transformations, you may mark it as safe:
 
+
+### Marking attributes as `safe`:
 ```blade
 @blaze(fold: true, safe: ['title'])
 
@@ -384,7 +422,7 @@ To mark all props as safe:
 @blaze(fold: true, safe: ['*'])
 ```
 
-### The Unsafe Parameter
+### Marking attributes as `unsafe`:
 
 When certain dynamic values would break a component, mark them as unsafe to abort folding:
 
@@ -414,39 +452,6 @@ For more precision, target specific attributes:
 ```
 
 Now `<x-alert :variant="$type">` aborts folding, but `<x-alert :class="$classes">` still folds.
-
-### Slots
-
-Slots are considered safe by default - their content passes through unchanged. However, slot inspection methods won't work correctly:
-
-```blade
-{{-- This won't work when folded --}}
-@if($slot->isNotEmpty())
-    <div>{{ $slot }}</div>
-@endif
-```
-
-The placeholder is never empty, so the condition always evaluates to `true`.
-
-To inspect slot content, mark the slot as unsafe:
-
-```blade
-@blaze(fold: true, unsafe: ['slot'])
-
-@if($slot->isNotEmpty())
-    <div>{{ $slot }}</div>
-@endif
-```
-
-For named slots:
-
-```blade
-@blaze(fold: true, unsafe: ['footer'])
-
-@if($footer->isNotEmpty())
-    <footer>{{ $footer }}</footer>
-@endif
-```
 
 ### Global State
 
