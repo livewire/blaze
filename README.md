@@ -1,15 +1,13 @@
 # 🔥 Blaze
 
+Speed up your Laravel app by optimizing Blade component rendering performance.
+
 ```
 Rendering 25,000 anonymous components:
 
 Without Blaze  ████████████████████████████████████████  500ms
 With Blaze     █                                          13ms
 ```
-
-## Introduction
-
-Blaze supercharges your Blade components by compiling them into direct PHP function calls, eliminating 91-97% of the rendering overhead. No configuration changes, no template modifications.
 
 ## Installation
 
@@ -20,28 +18,20 @@ composer require livewire/blaze
 ```
 
 > [!TIP]
-> If you're using Flux, just install Blaze and you're good to go!
+> If you're using [Flux UI](https://fluxui.dev), just install Blaze and you're good to go - no configuration needed!
 
-## Usage
 
-Blaze is designed as a drop-in replacement for anonymous Blade components. It supports all essential features including props, slots, attributes, and `@aware`. The HTML output is identical to standard Blade rendering.
+## Introduction
 
-### Limitations
+Out of the box, Blaze is a **drop-in replacement** for anonymous coponents. It does not require any changes to your existing component code and works by compiling components into optimized PHP code - this eliminates 91-97% of the rendering overhead.
 
-Blaze focuses on anonymous components. The following are not supported:
+Blaze also offers two additional optimization strategies for even greater performance:
+- **Memoization** - a caching strategy for repeated components
+- **Folding** - pre-rendering components into static HTML
 
-- Class-based components
-- The `$component` variable
-- `View::share()` variables
-- View composers / creators
-- Component lifecycle events
+## Getting started
 
-> [!IMPORTANT]
-> When using `@aware`, both the parent and child components must use Blaze for values to propagate correctly.
-
-### Enabling Blaze
-
-Enable Blaze in your `AppServiceProvider`:
+Enable Blaze in your `AppServiceProvider` to optimize all component paths:
 
 ```php
 use Livewire\Blaze\Blaze;
@@ -52,13 +42,37 @@ public function boot(): void
 }
 ```
 
-This optimizes all [anonymous component paths](https://laravel.com/docs/12.x/blade#anonymous-component-paths).
-
 After enabling Blaze, you should clear your compiled views:
 
 ```bash
 php artisan view:clear
 ```
+
+> [!CAUTION]
+> **If you're installing Blaze into an existing app**, enabling Blaze in all component paths can break your app. Consider scoping Blaze to specific directories or components until you've worked around the limitations described below.
+
+### Limitations
+
+Blaze supports all essential features of anonymous components and produces HTML output that is identical to Blade. That said, there are some limitations:
+
+#### Accessing parent data using `@aware`
+
+While `@aware` is supported, you must use Blaze in both parent and child for values to propagate correctly.
+
+#### Accessing variables shared using `View::share()`
+
+Variables shared via `View::share()` will NOT be injected automatically. You have to access them manually:
+
+```blade
+{{ $__env->shared('key') }}
+```
+
+#### Unsupported features
+
+- **Class-based components** are not supported
+- **The `$component` variable** will not be accessible
+- **View composers / creators** will not run
+- **Component lifecycle events** will not fire
 
 ## Configuration
 
@@ -104,7 +118,7 @@ Component-level directives override directory-level settings.
 
 ## Optimization Strategies
 
-Blaze offers three optimization strategies, each suited to different use cases:
+By default Blaze uses **Function Compilation**, which works for virtually all components and provides significant performance improvements — this is sufficient for most use cases. To go even further, you can consider the other strategies that require additional considerations.
 
 | Strategy | Parameter | Best For | Overhead Reduction |
 |----------|-----------|----------|-------------------|
@@ -112,11 +126,13 @@ Blaze offers three optimization strategies, each suited to different use cases:
 | Runtime Memoization | `memo` | Repeated identical components | 91-97% + deduplication |
 | Compile-Time Folding | `fold` | Maximum performance | 100% |
 
-### Function Compilation
+Let's break down each strategy:
 
-Function compilation is the default strategy. It transforms your components into optimized PHP functions, bypassing the entire component rendering pipeline while maintaining identical behavior to standard Blade.
+## Function Compilation
 
-#### Benchmark Results
+This strategy transforms your components into optimized PHP functions, bypassing the entire component rendering pipeline while maintaining identical behavior to standard Blade.
+
+### Benchmark Results
 
 The following benchmarks represent 25,000 components rendered in a loop:
 
@@ -132,7 +148,7 @@ The following benchmarks represent 25,000 components rendered in a loop:
 
 These numbers reflect rendering pipeline overhead. If your components execute expensive operations internally, that work will still affect performance.
 
-#### How It Works
+### How It Works
 
 When you enable Blaze, components are compiled into direct function calls:
 
@@ -168,7 +184,7 @@ Becomes:
 _c4f8e2a1(['type' => 'submit'], ['default' => 'Send']);
 ```
 
-### Runtime Memoization
+## Runtime Memoization
 
 Runtime memoization caches component output during a single request. When a component renders with the same props multiple times, it only executes once.
 
@@ -187,11 +203,14 @@ This strategy is ideal for components like icons and avatars that appear many ti
 
 If `<x-icon name="check" />` appears 50 times on a page, it renders once and reuses the output.
 
-### Compile-Time Folding
+## Compile-Time Folding
+
+> [!CAUTION]
+> **Folding requires careful consideration**. Used incorrectly, it can cause subtle bugs that are difficult to diagnose. Make sure you fully understand the limitations described below before using this strategy.
 
 Compile-time folding is Blaze's most aggressive optimization. It pre-renders components during compilation, embedding the HTML directly into your template. The component ceases to exist at runtime - there is no function call, no variable resolution, no overhead whatsoever.
 
-#### Benchmark Results
+### Benchmark Results
 
 Because folded components are rendered at compile-time, the runtime cost is effectively zero. The rendering time remains constant regardless of how many components you use:
 
@@ -201,19 +220,28 @@ Because folded components are rendered at compile-time, the runtime cost is effe
 | 50,000 | 1,000ms | 0.68ms |
 | 100,000 | 2,000ms | 0.68ms |
 
-The time doesn't grow because there are no components to render - just static HTML.
+### How It Works
 
-> [!CAUTION]
-> Folding requires careful consideration. Used incorrectly, it can cause subtle bugs that are difficult to diagnose. Review the [Folding](#folding) section before enabling.
+This section covers the intricacies of compile-time folding. If you're using the default function compilation strategy, you can skip this section entirely.
 
-#### How It Works
+#### Static props
+
+Let's start with a simple component that only recieves a static prop like `color="red"`: 
 
 ```blade
 @blaze(fold: true)
 
-@props(['type' => 'button'])
+@props(['color'])
 
-<button type="{{ $type }}" class="inline-flex">
+@php
+$classes = match($color) {
+    'red' => 'bg-red-500 hover:bg-red-400',
+    'blue' => 'bg-blue-500 hover:bg-blue-400',
+    default => 'bg-gray-500 hover:bg-gray-400',
+};
+@endphp
+
+<button class="{{ $classes }}" type="button">
     {{ $slot }}
 </button>
 ```
@@ -221,52 +249,56 @@ The time doesn't grow because there are no components to render - just static HT
 When compiled:
 
 ```blade
-<x-button type="submit">Submit</x-button>
+<x-button color="red">Submit</x-button>
 ```
 
 Becomes:
 
 ```blade
-<button type="submit" class="inline-flex">
+<button class="bg-red-500 hover:bg-red-400" type="submit">
     Submit
 </button>
 ```
 
-## Folding
+This works flawlessly because all data needed to render the component is available at compile-time.
 
-This section covers the intricacies of compile-time folding. If you're using the default function compilation strategy, you can skip this section entirely.
+#### Dynamic props
 
-### How Folding Works
+Because Blaze pre-renderes components during compilation, it doesn't have access to data that will be passed to the components at runtime. Blaze works around this by replacing dynamic values with placeholders during rendering and substituting the original expressions back into the final output.
 
-When a component is folded, Blaze renders it at compile-time and embeds the output directly into your template. This eliminates virtually all runtime overhead but introduces constraints on what the component can do.
-
-### Dynamic Attributes
-
-Blaze handles dynamic attributes that pass through `$attributes` unchanged using placeholder replacement:
+To illustrate this, let's assign a random id to the button:
 
 ```blade
-@blaze(fold: true)
-
-<div {{ $attributes->class(['rounded-lg shadow-md p-6']) }}>
-    {{ $slot }}
-</div>
+<x-button color="red" :id="Str::random()">Submit</x-button>
 ```
 
-When called:
+During compilation, Blaze will analyze the component to identify dynamic values and store their values:
+
+| Property | Dynamic value | Placeholder |
+|------|--------|--------|
+| `id` | `Str::random()` | ATTR_PLACEHOLDER_1 |
+
+Next, it pre-renders the component using the placeholder:
 
 ```blade
-<x-card :class="$featured ? 'bg-yellow-50' : 'bg-white'">
-    Content
-</x-card>
+<x-button color="red" :id="ATTR_PLACEHOLDER_1">Submit</x-button>
 ```
 
-Blaze replaces the dynamic value with a placeholder, renders the component, then substitutes the original expression back:
+Which compiles to:
 
-| Step | Result |
-|------|--------|
-| Placeholder | `<x-card class="__BLAZE_PH_1__">` |
-| Render | `<div class="rounded-lg shadow-md p-6 __BLAZE_PH_1__">` |
-| Replace | `<div class="... <?php echo e($featured ? '...' : '...'); ?>">` |
+```blade
+<button class="bg-red-500 hover:bg-red-400" type="submit" id="ATTR_PLACEHOLDER_1">
+    Submit
+</button>
+```
+
+Before finalizing the output, Blaze substitutes the original dynamic expressions back into the HTML using the mapping table:
+
+```blade
+<button class="bg-red-500 hover:bg-red-400" type="submit" id="{{ Str::random() }}">
+    Submit
+</button>
+```
 
 ### Props
 
