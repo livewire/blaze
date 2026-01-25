@@ -65,7 +65,7 @@ Blaze supports all essential features and produces HTML output that is identical
 
     TODO
 
-- **`View::share()`** variables will not be injected automatically
+- **Auto-injecting `View::share()` variables** is not supported
 
     TODO
     
