@@ -241,6 +241,8 @@ Rendering time remains constant regardless of component count:
 
 This section covers the intricacies of compile-time folding.
 
+### Static attributes 
+
 ```blade
 @blaze(fold: true)
 
