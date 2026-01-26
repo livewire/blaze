@@ -362,10 +362,7 @@ The match lookup fails and falls back to the default, which results in the butto
 
 ### Slots
 
-Slots are handled similarly to attributes — they are replaced with placeholders during pre-rendering and restored afterwards. 
-
->[!IMPORTANT]
-> Unlike attributes, slots are always considered as **pass-through** — they will never abort folding unless marked as `unsafe` (see [Selective folding](#selective-folding)).
+Slots are handled similarly to attributes — they are replaced with placeholders during pre-rendering and restored afterwards. Unlike attributes, slots are always considered as **pass-through** — they will never abort folding unless marked as `unsafe` (see [Selective folding](#selective-folding)).
 
 ```blade
 <x-button>{{ $action }}</x-button>
