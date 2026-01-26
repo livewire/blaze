@@ -113,11 +113,7 @@ Blaze supports all essential features and produces HTML output that is identical
 - **View composers / creators / lifecycle events** will not fire
 - **Auto-injecting `View::share()` variables** is not supported
 
-    You can still access the data manually via the `$__env` variable:
-
-    ```blade
-    {{ $__env->shared('key') }}
-    ```
+    You must access the data manually using `$__env->shared('key')`
 - **Cross boundary `@aware`** between Blade and Blaze components
 
     Both parent and child must use Blaze for values to propagate.
