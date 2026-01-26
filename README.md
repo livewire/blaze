@@ -11,9 +11,9 @@ With Blaze     █                                          13ms
 
 # Introduction
 
-Out of the box, Blaze is a **drop-in replacement** for Blade components which does not require any changes to your existing component code. 
+Out of the box, Blaze is a **drop-in replacement** for anonymous Blade components that does not require any changes to your existing component code. 
 
-It works by compiling components into optimized PHP code instead of using the standard rendering pipeline — this eliminates 91-97% of the  overhead while maintaining near full feature parity with Blade.
+It works by compiling components into optimized PHP code instead of using the standard rendering pipeline — this eliminates 91-97% of the overhead while maintaining near full feature parity with Blade.
 
 Blaze offers two additional strategies for even greater performance.
 
@@ -35,9 +35,7 @@ composer require livewire/blaze
 
 # Getting started
 
-To get started with Blaze, all you need to do is call `Blaze::optimize()` in your `AppServiceProvider`.
-
-This enables Blaze for all components by default. **It is highly recommended** to only enable Blaze for specific folders or components if you're integrating it into an existing application. This allows you to gradually adopt Blaze and verify compatibility - see the [Configuration](#configuration) section for more details.
+To get started, call `Blaze::optimize()` in your `AppServiceProvider`.
 
 ```php
 use Livewire\Blaze\Blaze;
@@ -47,17 +45,64 @@ use Livewire\Blaze\Blaze;
  */
 public function boot(): void
 {
-    Blaze::optimize();
+    Blaze::optimize()->in(resource_path('view/components'));
 
     // ...
 }
 ```
 
-After enabling Blaze, you should clear your compiled views:
+After enabling, you should clear your compiled views:
 
 ```bash
 php artisan view:clear
 ```
+
+## Configuration
+
+**If you're integrating Blaze into an existing application**, it is recommended to only optimize specific directories or components. This allows you to gradually adopt Blaze and verify compatibility with [known limitations](#limitations).
+
+```php
+Blaze::optimize()
+    ->in(resource_path('views/components/button')
+    ->in(resource_path('views/components/modal');
+```
+
+To exclude a sub-folder, use `compile: false`.
+
+```php
+Blaze::optimize()
+    ->in(resource_path('views/components')
+    ->in(resource_path('views/components/legacy', compile: false);
+```
+
+You can also enable different optimization strategies per folder.
+
+```php
+Blaze::optimize()
+    ->in(resource_path('views/components/icons'), memo: true)
+    ->in(resource_path('views/components/cards'), fold: true);
+```
+
+Alternatively, enable Blaze for individual components using the `@blaze` directive:
+
+```blade
+@blaze
+
+<button {{ $attributes }}>
+    {{ $slot }}
+</button>
+```
+
+Optimization strategies can be specified in the arguments:
+
+```blade
+@blaze(memo: true)
+
+@blaze(fold: true)
+```
+
+Component-level directives override directory-level settings.
+
 
 # Limitations
 
@@ -77,70 +122,24 @@ Blaze supports all essential features and produces HTML output that is identical
 
     Both parent and child must use Blaze for values to propagate.
 
-# Configuration
-
-Blaze provides flexible configuration options to let you gradually adopt it into your application or enable different optimizations for different components.
-
-### Directory-Based Optimization
-
-You may scope Blaze to specific directories:
-
-```php
-Blaze::optimize()
-    ->in(resource_path('views/components/icons'))
-    ->in(resource_path('views/components/ui'));
-```
-
-Different optimization strategies can be enabled per directory:
-
-```php
-Blaze::optimize()
-    ->in(resource_path('views/components/icons'), memo: true)
-    ->in(resource_path('views/components/cards'), fold: true);
-```
-
-### Per-Component Optimization
-
-You may also enable Blaze on individual components using the `@blaze` directive:
-
-```blade
-@blaze
-
-<button {{ $attributes }}>
-    {{ $slot }}
-</button>
-```
-
-Optimization strategies can be specified directly:
-
-```blade
-@blaze(memo: true)
-
-@blaze(fold: true)
-```
-
-Component-level directives override directory-level settings.
-
 # Optimization Strategies
 
-By default Blaze uses **Function Compilation**, which works for virtually all components and provides significant performance improvements — this is sufficient for most use cases.
+By default Blaze uses **Function Compiler**, which works for virtually all components and provides significant performance improvements — this is sufficient for most use cases.
 
 To go even further, you can consider the other strategies that require additional considerations.
 
-| Strategy | Parameter | Best For | Overhead Reduction |
-|----------|-----------|----------|-------------------|
-| Function Compilation | (default) | General use | 91-97% |
-| Runtime Memoization | `memo` | Repeated identical components | 91-97% + deduplication |
-| Compile-Time Folding | `fold` | Maximum performance | 100% |
+| Strategy | Parameter | Default | Best For |
+|----------|-----------|----------|----------|
+| [Function Compiler](#function-compiler) | `compile` | `true` | General use |
+| [Runtime Memoization](#runtime-memoization) | `memo` | `false` | Repeated components |
+| [Compile-Time Folding](#compile-time-folding) | `fold` | `false` | Maximum performance |
 
 
-# Function Compilation
+# Function Compiler
 
-This strategy transforms your components into optimized PHP functions, bypassing the entire component rendering pipeline while maintaining identical behavior to standard Blade.
+This strategy is the default behavior of Blaze. It is a reliable optimization that requires no changes and can be safely applied to nearly all components without concerns about stale data or dynamic content.
 
-### Benchmark Results
-
-The following benchmarks represent 25,000 components rendered in a loop:
+Rendering 25,000 components in a loop:
 
 | Scenario | Blade | Blaze | Reduction |
 |----------|-------|-------|-----------|
@@ -152,18 +151,18 @@ The following benchmarks represent 25,000 components rendered in a loop:
 | Named slots | 696ms | 49ms | 93.0% |
 | @aware (nested) | 1,787ms | 129ms | 92.8% |
 
-> These numbers reflect rendering pipeline overhead. If your components execute expensive operations internally, that work will still affect performance when using this strategy.
+> These numbers reflect rendering pipeline overhead. If your components perform expensive operations internally, that work will still affect performance when using this strategy.
 
-## How It Works
+## How it works
 
-When you enable Blaze, components are compiled into direct function calls:
+When you enable Blaze, your components will be compiled into optimized PHP functions that skip the standard rendering pipeline while maintaining compatibility with Blade component syntax.
 
 ```blade
-@blaze
+@blaze 
 
 @props(['type' => 'button'])
 
-<button type="{{ $type }}" class="inline-flex">
+<button {{ $attributes->merge(['type' => $type]) }}>
     {{ $slot }}
 </button>
 ```
@@ -178,7 +177,7 @@ function _c4f8e2a1($__data, $__slots) {
 }
 ```
 
-When you include the component, Blaze calls the function directly instead of resolving through Blade's rendering pipeline:
+When you include the component, Blaze calls its function directly.
 
 ```blade
 <x-button type="submit">Send</x-button>
@@ -192,34 +191,46 @@ _c4f8e2a1(['type' => 'submit'], ['default' => 'Send']);
 
 # Runtime Memoization
 
-Runtime memoization caches component output during a single request. When a component renders with the same props multiple times, it only executes once. This strategy is ideal for components like icons and avatars that appear many times with identical values:
+This strategy is ideal for components like icons and avatars that are often repeated with the same props. If a component appears on a page multiple times, it will only be rendered once.
+
+> [!IMPORTANT]
+> Memoization only works on components without slots.
+
+## How it works
+
+When you enable memoization, your component's output will be cached based on the props that are passed into it.
 
 ```blade
 @blaze(memo: true)
 
 @props(['name'])
 
-<x-dynamic-component :component="'icons.' . $name" />
+<x-dynamic-component :component="'icon-' . $name" />
 ```
 
-When you include the component on a page, Blaze caches the output based on the actual prop values:
+When you include the component on a page, Blaze wraps it in a cache check:
 
 ```blade
-<x-icon :name="$task->status->icon">
+<x-icon :name="$task->status->icon" />
 ```
 
-Because there might be multiple tasks with the same status, we don't need to re-render the icon each time. Blaze stores the output in a cache using a hash of the prop values as the key and returns the cached output on subsequent renders.
+Becomes:
 
-> [!NOTE]
-> Memoization only works for components without slots.
+```blade
+<?php if ($__cached = Blaze::cached('icon', ['name' => $task->status->icon]): ?>
+    <!-- Retrieve the output from cache: -->
+    <?php echo e($__cached); ?>
+<?php else: ?>
+    <!-- Render and store into cache: -->
+    <x-icon :name="$task->status->icon">
+<?php endif; ?>
+```
 
 # Compile-Time Folding
 
 Compile-time folding is Blaze's most aggressive optimization. It pre-renders components during compilation, embedding the HTML directly into your template. The component ceases to exist at runtime - there is no function call, no variable resolution, no overhead whatsoever.
 
-## Benchmark Results
-
-Because folded components are rendered at compile-time, the runtime cost is effectively zero. The rendering time remains constant regardless of how many components you use:
+Rendering time remains constant regardless of component count:
 
 | Components | Blade | Blaze (folded) |
 |------------|-------|----------------|
@@ -228,7 +239,7 @@ Because folded components are rendered at compile-time, the runtime cost is effe
 | 100,000 | 2,000ms | 0.68ms |
 
 > [!CAUTION]
-> **Folding requires careful consideration**. Used incorrectly, it can cause subtle bugs that are difficult to diagnose. Make sure you fully understand the limitations described below before using this strategy.
+> **Folding requires careful consideration**. Used incorrectly, it can cause subtle bugs that are difficult to diagnose. Make sure you fully understand its workings before using this strategy.
 
 ## How It Works
 
@@ -268,9 +279,9 @@ Becomes:
 
 This works flawlessly because all data needed to render the component is available at compile-time.
 
-### Dynamic attributes
+### Dynamic pass-through attributes
 
-Because Blaze pre-renderes components during compilation, it doesn't have access to data that will be passed to the components at runtime. It works around this by replacing dynamic values with placeholders during rendering and substituting the original expressions back into the final output.
+Because Blaze pre-renderes components during compilation, it doesn't have access to data that will be passed to the components at runtime. It works around this by replacing dynamic attributes with placeholders and substituting the original expressions back into the final output.
 
 To illustrate this, let's assign a random id to the button:
 
@@ -278,13 +289,13 @@ To illustrate this, let's assign a random id to the button:
 <x-button color="red" :id="Str::random()">Submit</x-button>
 ```
 
-During compilation, Blaze will analyze the component to identify dynamic values and store their values:
+During compilation, Blaze analyzes the component to identify dynamic attributes and store their values:
 
-| Property | Dynamic value | Placeholder |
-|------|--------|--------|
-| `id` | `Str::random()` | ATTR_PLACEHOLDER_1 |
+| Placeholder | Dynamic value |
+|------|--------|
+| ATTR_PLACEHOLDER_1 | `Str::random()`
 
-Next, it pre-renders the component using the placeholder:
+Next, it pre-renders the component using the placeholder.
 
 ```blade
 <x-button color="red" :id="ATTR_PLACEHOLDER_1">Submit</x-button>
@@ -298,7 +309,7 @@ Which results in:
 </button>
 ```
 
-Before finalizing the output, Blaze substitutes the original dynamic expressions back into the HTML using the mapping table:
+Before finalizing the output, Blaze substitutes the original expression back into the HTML.
 
 ```blade
 <button class="bg-red-500 hover:bg-red-400" type="submit" id="{{ Str::random() }}">
@@ -306,11 +317,16 @@ Before finalizing the output, Blaze substitutes the original dynamic expressions
 </button>
 ```
 
-### Dynamic props
+This worked because `id` is a **pass-through attribute** — it is outputted without any transformation or without being used in internal component logic.
 
-In the previous example, the dynamic attribute was handled successfully because it was passed directly to the HTML output. However, if a dynamic prop is used in conditions or transformations, folding may fail.
+### Dynamic non-pass-through attributes
 
-Let's now use a dynamic variable for the `color` prop which is used in a `match` statement:
+When an attribute value is transformed or used in internal component logic, folding can only succeed if that attribute is static. This is because Blaze doesn't have access to dynamic values at compile-time.
+
+>[!IMPORTANT]
+> When a component receives a dynamic attribute that is also defined in `@props`, Blaze automatically aborts folding and falls back to function compilation. This is a defensive default which avoids most common errors. Attributes can be marked as `safe` to revert this behavior — we'll explore this concept in [Selective folding](#selective-folding).
+
+To understand why, let's explore an example where folding breaks:
 
 ```blade
 <x-button :color="$deleting ? 'red' : 'blue'" />
@@ -318,19 +334,19 @@ Let's now use a dynamic variable for the `color` prop which is used in a `match`
 
 Blaze creates the mapping table and pre-renders the component with a placeholder:
 
-| Property | Dynamic value | Placeholder |
-|------|--------|--------|
-| `color` | `$deleting ? 'red' : 'blue'` | ATTR_PLACEHOLDER_1 |
+| Placeholder | Dynamic value |
+|------|--------|
+| ATTR_PLACEHOLDER_1 | `$deleting ? 'red' : 'blue'` |
 
 ```blade
 <x-button color="ATTR_PLACEHOLDER_1">
 ```
 
-The match statement now evaluates with the placeholder string `"ATTR_PLACEHOLDER_1"`, not the actual value. The lookup fails and falls back to the default.
+Inside the component, `$color` will now evaluate to the string `"ATTR_PLACEHOLDER_1"`:
 
 ```blade
 @php
-$classes = match('ATTR_PLACEHOLDER_1') {
+$classes = match("ATTR_PLACEHOLDER_1") {
     'red' => 'bg-red-500 hover:bg-red-400',
     'blue' => 'bg-blue-500 hover:bg-blue-400',
     default => 'bg-gray-500 hover:bg-gray-400',
@@ -338,110 +354,153 @@ $classes = match('ATTR_PLACEHOLDER_1') {
 @endphp
 ```
 
-This will result in the button always being gray:
+The match lookup fails and falls back to the default, which results in the button always being gray:
 
 ```blade
-<button class="bg-gray-500 hover:bg-gray-400" type="button">
+<button class="bg-gray-500 hover:bg-gray-400 ❌" type="button">
     Submit
 </button>
 ```
 
-**Blaze prevents this behavior by automatically aborting folding when a defined prop receives a dynamic value.** This behavior can be overriden using [Selective folding](#selective-folding) based on which properties have been passed in dynamically.
-
 ### Slots
 
-Slots are considered safe by default - their content passes through unchanged. However, slot inspection methods won't work correctly:
+Slots are handled similarly to attributes — they are replaced with placeholders during pre-rendering and restored afterwards. 
+
+>[!IMPORTANT]
+> Unlike attributes, slots are always considered as **pass-through** — they will never abort folding unless marked as `unsafe` (see [Selective folding](#selective-folding)).
 
 ```blade
-{{-- This wont work when folded --}}
-@if($slot->isNotEmpty())
-    <div>{{ $slot }}</div>
-@endif
+<x-button>{{ $action }}</x-button>
 ```
 
-The placeholder is never empty, so the condition always evaluates to `true`.
+During compilation, Blaze analyzes the component and stores slot values:
 
-To inspect slot content, mark the slot as unsafe:
+| Placeholder | Dynamic value |
+|------|--------|
+| SLOT_PLACEHOLDER_1 | `{{ $action }}` |
+
+Blaze pre-renders the component using the placeholder.
+
+```blade
+<x-button>SLOT_PLACEHOLDER_1</x-button>
+```
+
+Which results in:
+
+```blade
+<button class="bg-red-500 hover:bg-red-400" type="submit">
+    SLOT_PLACEHOLDER_1
+</button>
+```
+
+Before finalizing the output, Blaze substitutes the original expression back into the HTML.
+
+
+## Selective folding
+
+By default, Blaze errs on the side of caution and aborts folding when dynamic values are detected in attributes defined in `@props`. This prevents many common mistakes, but can be overly restrictive in some scenarios. Similarly, slots are always considered pass-through, which may not be desirable in some cases.
+
+You can fine-tune folding behavior using the `safe` and `unsafe` parameters of the `@blaze` directive.
+
+### Using `safe`
+
+Use `safe` to mark props that are **pass-through** — they are not transformed or used in internal component logic. This allows folding to proceed even when those props are dynamic.
+
+```blade
+@blaze(fold: true, safe: ['level'])
+
+@props(['level' => 1])
+
+<h{{ $level }}>{{ $slot }}</h{{ $level }}>
+```
+
+```blade
+<x-heading :level="$isFeaturedSection ? 1 : 2" />
+```
+
+Now the component folds successfully, producing:
+
+```blade
+<h{{ $isFeaturedSection ? 1 : 2 }}></h{{ $isFeaturedSection ? 1 : 2 }}>
+```
+
+### Using `unsafe` for slots
+
+Use `unsafe` to mark slots that are **not** pass-through — they are transformed or used in internal component logic. This forces folding to abort.
 
 ```blade
 @blaze(fold: true, unsafe: ['slot'])
 
-@if($slot->isNotEmpty())
+@if ($slot->hasActualContent())
+    <span>No results</span>
+@else
     <div>{{ $slot }}</div>
 @endif
 ```
 
-For named slots:
+```blade
+<x-items>
+    @if(isPro())
+        ...
+    @endif
+</x-items>
+```
+
+This also works with named slots:
 
 ```blade
 @blaze(fold: true, unsafe: ['footer'])
 
-@if($footer->isNotEmpty())
-    <footer>{{ $footer }}</footer>
-@endif
+<div>
+    @if($footer->hasActualContent())
+        ...
+    @endif
+</div>
 ```
 
-## Selective folding
+Now the component correctly aborts folding whenever it's used with a slot.
 
-If a prop passes through to the output without being used in conditions or transformations, you may mark it as safe:
+> [!IMPORTANT]
+> Blaze does not inspect slot content to determine if it is dynamic or static. When a slot is marked as `unsafe` it will always abort folding regardless of its actual content. Self-closing components will still fold successfully.
 
+### Using `unsafe` for attributes
 
-### Marking attributes as `safe`:
-```blade
-@blaze(fold: true, safe: ['title'])
+You can also mark attributes that are not defined in `@props` as unsafe.
 
-@props(['title', 'level' => 2])
-
-<h{{ $level }} class="font-bold">
-    {{ $title }}
-</h{{ $level }}>
-```
-
-Now dynamic titles fold successfully:
+This avoids folding errors when **non-pass-through** attributes are resolved dynamically via `$attributes`
 
 ```blade
-<x-heading :title="$post->title" />
+@blaze(fold: true, unsafe: ['href'])
+
+@php
+$active = $attributes->get('href') === url()->current();
+@endphp
+
+<a {{ $attributes->merge(['data-active' => $active]) }}>
+    {{ $slot }}
+</a>
 ```
 
-> [!WARNING]
-> Only mark props as safe if they truly pass through unchanged. Using a "safe" prop in conditions or transformations will cause bugs.
-
-To mark all props as safe:
-
-```blade
-@blaze(fold: true, safe: ['*'])
-```
-
-### Marking attributes as `unsafe`:
-
-When certain dynamic values would break a component, mark them as unsafe to abort folding:
+You can also mark the entire attribute bag as unsafe:
 
 ```blade
 @blaze(fold: true, unsafe: ['attributes'])
 
 @php
-    $icon = match($attributes->get('variant')) {
-        'success' => 'check-circle',
-        'error' => 'x-circle',
-        default => 'info-circle',
-    };
+$active = $attributes->get('href') === url()->current();
+$external = $attributes->get('target') === '_blank';
 @endphp
 
-<div {{ $attributes->except('variant') }}>
-    <x-icon :name="$icon" />
+<a {{ $attributes->merge(['data-active' => $active]) }}>
+    @if($external)
+        ...
+    @endif
+
     {{ $slot }}
-</div>
+</a>
 ```
 
-With `unsafe: ['attributes']`, any dynamic attribute causes folding to abort, falling back to function compilation.
-
-For more precision, target specific attributes:
-
-```blade
-@blaze(fold: true, unsafe: ['variant'])
-```
-
-Now `<x-alert :variant="$type">` aborts folding, but `<x-alert :class="$classes">` still folds.
+Now any dynamic attributes will cause folding to abort.
 
 ## Global State
 
