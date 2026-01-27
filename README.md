@@ -251,7 +251,7 @@ Blaze tries to avoid folding when it's likely to cause problems, but it cannot d
 **Components that use global state should never be folded**. This includes anything not passed in from the outside — data accessed via helper functions, facades, or Blade directives. Using any of these patterns inside the component will produce incorrect results when folded.
 
 > [!WARNING]
-> Blaze cannot detect global state usage and will not abort folding automatically. You must ensure these components are not marked with `fold: true`.
+> Components that use global state must not be marked with `fold: true`. Blaze attempts to detect global state usage and will throw an exception when it does, but it cannot catch everything.
 
 | Category | Examples |
 |----------|----------|
@@ -328,7 +328,7 @@ During compilation, Blaze identifies dynamic attributes and stores their values:
 Next, it pre-renders the component using the placeholder:
 
 ```blade
-<x-button color="red" :id="ATTR_PLACEHOLDER_1">Submit</x-button>
+<x-button color="red" id="ATTR_PLACEHOLDER_1">Submit</x-button>
 ```
 
 Which results in:
@@ -353,7 +353,7 @@ This worked because `id` is a **pass-through attribute** — it's output directl
 
 The next example illustrates a scenario with dynamic attributes where folding breaks.
 
-**Blaze automatically aborts folding** when a component receives a dynamic attribute that is also defined in `@props`. Instead, it falls back to function compilation and the performance benefits of folding are not realized.
+**Blaze automatically aborts folding** when a component receives a dynamic attribute that is also defined in `@props`. It falls back to function compilation and the performance benefits of folding are not realized.
 
 > Blaze assumes that attributes defined in @props are likely used in internal logic and therefore should not be folded. This defensive behavior avoids most common errors. However, there are cases where this is too restrictive, which we'll explore in [Selective folding](#selective-folding).
 
