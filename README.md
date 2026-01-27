@@ -250,6 +250,9 @@ Blaze tries to avoid folding when it's likely to cause problems, but it cannot d
 
 **Components that use global state should never be folded**. This includes anything not passed in from the outside — data accessed via helper functions, facades, or Blade directives. Using any of these patterns inside the component will produce incorrect results when folded.
 
+> [!WARNING]
+> Blaze cannot detect global state usage and will not abort folding automatically. You must ensure these components are not marked with `fold: true`.
+
 | Category | Examples |
 |----------|----------|
 | Database | `User::get()` |
