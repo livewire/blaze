@@ -248,11 +248,9 @@ The most important thing to understand is that the result of folding is a static
 
 Blaze tries to avoid folding in situations where it's most likely to cause bugs but it is not possible to detect all cases. You will need to analyze each component individually and adjust the parameters to configure when folding should be aborted.
 
-This solely depends on how dynamic attributes and slots are used internally.
-
 ### Global state
 
-**Components which use global state should never be folded**. This constitutes anything that isn't passed into the component from the outside and instead accessed via a helper function, facade or a blaze directive. Usage of any of these patterns inside the component will produce incorrect results when folded.
+**Components that use global state should never be folded**. This constitutes anything that isn't passed into the component from the outside and is instead accessed via a helper function, facade or a blaze directive. Usage of any of these patterns inside the component will produce incorrect results when folded.
 
 | Category | Examples |
 |----------|----------|
@@ -264,7 +262,7 @@ This solely depends on how dynamic attributes and slots are used internally.
 | Time | `now()`, `Carbon::now()` |
 | Security | `@csrf` |
 
-_This applies to internal component code._ It can be okay to pass global state into the component via attributes or slots. However there are exceptions to that as well. We will explore these in the next sections.
+> This applies to internal component code. It can be okay to pass global state into the component via attributes or slots. However there are exceptions to that as well. We will explore these in the next sections.
 
 ### Static attributes 
 
@@ -419,7 +417,7 @@ Blaze pre-renders the component using the placeholder.
 Which results in:
 
 ```blade
-<button class="bg-red-500 hover:bg-red-400">
+<button class="bg-gray-500 hover:bg-gray-400">
     SLOT_PLACEHOLDER_1
 </button>
 ```
@@ -427,7 +425,7 @@ Which results in:
 Before finalizing the output, Blaze substitutes the original expression back into the HTML.
 
 ```blade
-<button class="bg-red-500 hover:bg-red-400">
+<button class="bg-gray-500 hover:bg-gray-400">
     {{ $action }}
 </button>
 ```
@@ -532,39 +530,10 @@ $external = $attributes->get('target') === '_blank';
     @if($external)
         ...
     @endif
-
-    {{ $slot }}
 </a>
 ```
 
 Now any dynamic attributes will cause folding to abort.
-
-## Global State
-
-Folded components are rendered at compile-time. Any global state is captured at compilation, not runtime:
-
-```blade
-@blaze(fold: true)
-
-@if(auth()->check())
-    <span>Welcome, {{ auth()->user()->name }}</span>
-@else
-    <span>Please log in</span>
-@endif
-```
-
-If a logged-in user triggers compilation, the "Welcome" message gets permanently embedded. All subsequent users see the same content.
-
-**Components that read global state should not be folded.** Common sources of global state:
-
-| Category | Examples |
-|----------|----------|
-| Authentication | `auth()->check()`, `@auth`, `@guest` |
-| Session | `session('key')` |
-| Request | `request()->path()`, `request()->is()` |
-| Validation | `$errors->has()`, `$errors->first()` |
-| Time | `now()`, `Carbon::now()` |
-| Security | `@csrf` |
 
 ## The Unblaze Directive
 
@@ -575,21 +544,19 @@ When a component is mostly foldable but needs a dynamic section, use `@unblaze` 
 
 @props(['name', 'label'])
 
-<div class="form-group">
+<div>
     <label>{{ $label }}</label>
-    <input name="{{ $name }}" class="rounded-md border-gray-300">
+    <input name="{{ $name }}">
 
     @unblaze(scope: ['name' => $name])
-        @error($scope['name'])
-            <p class="text-red-600">{{ $message }}</p>
-        @enderror
+        @if($errors->has($scope['name']))
+            {{ $errors->first($scope['name']) }}
+        @endif
     @endunblaze
 </div>
 ```
 
-The label and input are folded. Error handling remains dynamic.
-
-Variables from the component scope must be passed explicitly using the `scope` parameter.
+Note that variables from the component scope must be passed explicitly using the `scope` parameter.
 
 # Reference
 
