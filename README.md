@@ -244,7 +244,7 @@ In the following sections, we'll explore how Blaze folds components to give you 
 
 ### Overview
 
-The most important thing to understand is that the result of folding is a static HTML. All internal component code, conditions, and dynamic content is folded away. This can create bugs that are difficult to diagnose because components may appear to work correctly in some places and break in others.
+The most important thing to understand is that the result of folding is a static HTML. All internal component code, conditions, and dynamic content is folded away. This can create bugs where components may appear to work correctly in some places and break in others.
 
 Blaze tries to avoid folding in situations where it's most likely to cause bugs but it is not possible to detect all cases. You will need to analyze each component individually and adjust the parameters to configure when folding should be aborted.
 
