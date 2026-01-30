@@ -16,14 +16,14 @@ class ComponentCompiler
     /**
      * Compile a component template into a function definition.
      *
-     * @param string $compiled The compiled template (after TagCompiler processing)
-     * @param string $path The component file path
-     * @param string|null $source The original source template (for detecting $slot usage)
+     * @param  string  $compiled  The compiled template (after TagCompiler processing)
+     * @param  string  $path  The component file path
+     * @param  string|null  $source  The original source template (for detecting $slot usage)
      */
     public function compile(string $compiled, string $path, ?string $source = null): string
     {
         $source ??= $compiled;
-        $name = '_' . TagCompiler::hash($path);
+        $name = '_'.TagCompiler::hash($path);
 
         $propsExpression = $this->directiveMatcher->extractExpression($source, 'props');
         $awareExpression = $this->directiveMatcher->extractExpression($source, 'aware');
@@ -37,26 +37,47 @@ class ComponentCompiler
 
         $propsUseAttributes = str_contains($propAssignments, '$attributes');
         $sourceUsesAttributes = str_contains($this->directiveMatcher->strip($source, 'props'), '$attributes') || str_contains($source, '<flux:delegate-component');
+        $needsEchoHandler = $this->hasEchoHandlers() && $this->hasEchoSyntax($source);
 
         return implode('', array_filter([
-            '<' . '?php if (!function_exists(\'' . $name . '\')):' . "\n",
-            'function ' . $name . '($__blaze, $__data = [], $__slots = [], $__bound = []) {' . "\n",
-            app('blaze')->isDebugging() && ! app('blaze')->isFolding() ? '$__blaze->increment(\'' . $name . '\');' . "\n" : null,
-            '$__env = $__blaze->env;' . "\n",
-            'if (($__data[\'attributes\'] ?? null) instanceof \Illuminate\View\ComponentAttributeBag) { $__data = $__data + $__data[\'attributes\']->all(); unset($__data[\'attributes\']); }' . "\n",
-            str_contains($source, '$app') ? '$app = $__blaze->app;' . "\n" : null,
-            str_contains($source, '$errors') ? '$errors = $__blaze->errors;' . "\n" : null,
-            str_contains($source, '$slot') ? '$__slots[\'slot\'] ??= new \Illuminate\View\ComponentSlot(\'\');' . "\n" : null,
-            'extract($__slots, EXTR_SKIP);' . "\n",
-            'unset($__slots);' . "\n",
-            $propsExpression === null ? 'extract($__data, EXTR_SKIP);' . "\n" : null,
+            '<'.'?php if (!function_exists(\''.$name.'\')):'."\n",
+            'function '.$name.'($__blaze, $__data = [], $__slots = [], $__bound = []) {'."\n",
+            app('blaze')->isDebugging() && ! app('blaze')->isFolding() ? '$__blaze->increment(\''.$name.'\');'."\n" : null,
+            '$__env = $__blaze->env;'."\n",
+            $needsEchoHandler ? '$__bladeCompiler = app(\'blade.compiler\');'."\n" : null,
+            'if (($__data[\'attributes\'] ?? null) instanceof \Illuminate\View\ComponentAttributeBag) { $__data = $__data + $__data[\'attributes\']->all(); unset($__data[\'attributes\']); }'."\n",
+            str_contains($source, '$app') ? '$app = $__blaze->app;'."\n" : null,
+            str_contains($source, '$errors') ? '$errors = $__blaze->errors;'."\n" : null,
+            str_contains($source, '$slot') ? '$__slots[\'slot\'] ??= new \Illuminate\View\ComponentSlot(\'\');'."\n" : null,
+            'extract($__slots, EXTR_SKIP);'."\n",
+            'unset($__slots);'."\n",
+            $propsExpression === null ? 'extract($__data, EXTR_SKIP);'."\n" : null,
             $awareAssignments,
-            $propsUseAttributes ? '$attributes = new \\Livewire\\Blaze\\Runtime\\BlazeAttributeBag($__data);' . "\n" : null,
+            $propsUseAttributes ? '$attributes = new \\Livewire\\Blaze\\Runtime\\BlazeAttributeBag($__data);'."\n" : null,
             $propAssignments,
-            $sourceUsesAttributes ? '$attributes = \\Livewire\\Blaze\\Runtime\\BlazeAttributeBag::sanitized($__data, $__bound);' . "\n" : null,
+            $sourceUsesAttributes ? '$attributes = \\Livewire\\Blaze\\Runtime\\BlazeAttributeBag::sanitized($__data, $__bound);'."\n" : null,
             'unset($__data, $__bound); ?>',
             $compiled,
-            '<' . '?php } endif; ?>',
+            '<'.'?php } endif; ?>',
         ]));
+    }
+
+    /**
+     * Check if the Blade compiler has any echo handlers registered.
+     */
+    protected function hasEchoHandlers(): bool
+    {
+        $compiler = app('blade.compiler');
+        $reflection = new \ReflectionProperty($compiler, 'echoHandlers');
+
+        return ! empty($reflection->getValue($compiler));
+    }
+
+    /**
+     * Check if the source contains Blade echo syntax.
+     */
+    protected function hasEchoSyntax(string $source): bool
+    {
+        return preg_match('/\{\{.+?\}\}|\{!!.+?!!\}/s', $source) === 1;
     }
 }
