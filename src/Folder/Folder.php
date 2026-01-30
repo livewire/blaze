@@ -98,27 +98,38 @@ class Folder
                 renderNodes: fn (array $nodes) => ($this->renderNodes)($nodes)
             );
 
-            // Get the list of props that are safe to be dynamic
-            $safeProps = $directiveParameters['safe'] ?? [];
+            // Get the list of props that are safe/unsafe to be dynamic
+            $safeList = $directiveParameters['safe'] ?? [];
+            $unsafeList = $directiveParameters['unsafe'] ?? [];
+
+            // Check for wildcard - all dynamic values are safe
+            $allSafe = in_array('*', $safeList);
+
+            // Detect :$attributes spread - always abort folding
+            // The attributes bag can't be evaluated at compile time
+            if ($this->hasAttributesSpread($rawAttributes)) {
+                return $component;
+            }
 
             // Get the list of props defined in @props directive
             // Only dynamic attributes that ARE defined props should prevent folding
             // Dynamic attributes NOT in @props go to $attributes and shouldn't abort folding
             $definedProps = $this->getDefinedProps($source);
 
-            // Filter dynamic attributes to only those that are defined props AND not in the safe list
+            // Filter dynamic attributes to only those that should prevent folding
             $unsafeBoundAttributes = array_filter(
                 $attributeNameToOriginal,
-                fn ($value, $name) => in_array($name, $definedProps) && ! in_array($name, $safeProps),
+                fn ($value, $name) => $this->isUnsafeDynamicAttribute($name, $definedProps, $safeList, $unsafeList),
                 ARRAY_FILTER_USE_BOTH
             );
 
             // Check for bound attributes (:prop), short attributes (:$prop), and echo attributes (prop="{{ ... }}")
             // Only abort folding if there are unsafe dynamic props that are defined in @props
             $hasUnsafeBoundAttributes = ! empty($unsafeBoundAttributes);
-            $hasEchoAttributes = $this->hasEchoInAttributes($rawAttributes, $safeProps, $definedProps);
+            $hasEchoAttributes = $this->hasEchoInAttributes($rawAttributes, $safeList, $unsafeList, $definedProps);
+            $hasUnsafeSlots = $this->hasUnsafeSlots($slotPlaceholders, $unsafeList);
 
-            if ($hasUnsafeBoundAttributes || $hasEchoAttributes) {
+            if ($hasUnsafeBoundAttributes || $hasEchoAttributes || $hasUnsafeSlots) {
                 return $component; // Fall back to standard Blade
             }
 
@@ -208,28 +219,96 @@ class Folder
      * Does NOT match:
      *  - Bound attributes (:attribute="$var")
      *  - Text outside attributes that happens to contain {{
-     *  - Attributes that are in the safeProps list
-     *  - Attributes that are not defined in @props (they go to $attributes)
+     *  - Attributes that are in the safeList
+     *  - Attributes that are not defined in @props (unless in unsafeList)
      */
-    protected function hasEchoInAttributes(string $attributes, array $safeProps = [], array $definedProps = []): bool
+    protected function hasEchoInAttributes(string $attributes, array $safeList = [], array $unsafeList = [], array $definedProps = []): bool
     {
         if (empty($attributes)) {
+            return false;
+        }
+
+        // Wildcard - all dynamic values are safe
+        if (in_array('*', $safeList)) {
             return false;
         }
 
         // Find all attributes with echo syntax
         // This regex matches: attribute="...{{...}}..."
         if (preg_match_all('/([a-zA-Z0-9_-]+)\s*=\s*"[^"]*\{\{[^}]+\}\}[^"]*"/', $attributes, $matches)) {
-            // Check if any matched attribute is a defined prop and NOT in the safe list
+            // Check if any matched attribute should prevent folding
             foreach ($matches[1] as $attributeName) {
-                // Only abort if the attribute IS a defined prop AND NOT safe
-                // Attributes not in @props go to $attributes and shouldn't prevent folding
-                $isDefinedProp = empty($definedProps) || in_array($attributeName, $definedProps);
-                $isSafe = in_array($attributeName, $safeProps);
-
-                if ($isDefinedProp && ! $isSafe) {
+                if ($this->isUnsafeDynamicAttribute($attributeName, $definedProps, $safeList, $unsafeList)) {
                     return true;
                 }
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * Check if the raw attributes string contains :$attributes spread syntax.
+     */
+    protected function hasAttributesSpread(string $attributes): bool
+    {
+        return (bool) preg_match('/(?<!\S):\$attributes\b/', $attributes);
+    }
+
+    /**
+     * Determine if a dynamic attribute should prevent folding.
+     *
+     * An attribute is "unsafe" (prevents folding) if:
+     * - It is explicitly in the unsafe list, OR
+     * - It is a defined prop AND not in the safe list AND safe: ['*'] is not set
+     */
+    protected function isUnsafeDynamicAttribute(string $name, array $definedProps, array $safeList, array $unsafeList): bool
+    {
+        // Wildcard - all dynamic values are safe
+        if (in_array('*', $safeList)) {
+            return false;
+        }
+
+        // Explicitly safe - never abort
+        if (in_array($name, $safeList)) {
+            return false;
+        }
+
+        // Explicitly unsafe - always abort
+        if (in_array($name, $unsafeList)) {
+            return true;
+        }
+
+        // Default: only abort if it's a defined prop
+        // Attributes NOT in @props go to $attributes and shouldn't abort folding
+        return in_array($name, $definedProps);
+    }
+
+    /**
+     * Check if any slots in the unsafe list have content.
+     *
+     * Slots are pass-through by default (don't abort folding).
+     * Only when a slot is in the unsafe list AND has content should folding abort.
+     */
+    protected function hasUnsafeSlots(array $slotPlaceholders, array $unsafeList): bool
+    {
+        if (empty($unsafeList)) {
+            return false;
+        }
+
+        foreach ($slotPlaceholders as $placeholder => $content) {
+            // Determine the slot key
+            if (str_starts_with($placeholder, 'SLOT_PLACEHOLDER_')) {
+                // Default slot
+                $slotKey = 'slot';
+            } else {
+                // Named slot: NAMED_SLOT_footer -> footer
+                $slotKey = str_replace('NAMED_SLOT_', '', $placeholder);
+            }
+
+            // If slot is in unsafe list AND has content, abort folding
+            if (in_array($slotKey, $unsafeList) && ! empty(trim($content))) {
+                return true;
             }
         }
 

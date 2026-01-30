@@ -29,7 +29,7 @@ describe('fold elligable components', function () {
         // Avatar component uses $name in @php block, so it can't fold when name is dynamic
         $input = '<x-avatar :name="$foo->bar" :src="$baz->qux" />';
         $output = blazeCompile($input);
-        
+
         // Should NOT be folded - expect function-based compilation
         expect($output)->toContain('$__blaze->ensureCompiled');
         expect($output)->not->toContain('src="{{ $baz->qux }}"');
@@ -386,6 +386,93 @@ BLADE);
 
         // Should NOT be folded - expect function-based compilation
         expect($output)->toContain('$__blaze->ensureCompiled');
+    });
+
+    it('does not fold component when unsafe slot has content', function () {
+        // card-unsafe-slot has unsafe: ['slot'], so any slot content should abort folding
+        $input = '<x-card-unsafe-slot>Some content</x-card-unsafe-slot>';
+        $output = blazeCompile($input);
+
+        // Should NOT be folded because slot has content and is in unsafe list
+        expect($output)->toContain('$__blaze->ensureCompiled');
+    });
+
+    it('folds component when unsafe slot is not provided (self-closing)', function () {
+        // card-unsafe-slot has unsafe: ['slot'], self-closing means no slot
+        $input = '<x-card-unsafe-slot />';
+        $output = blazeCompile($input);
+
+        // Should be folded because no slot is provided
+        expect($output)->not->toContain('$__blaze->ensureCompiled');
+        expect($output)->toContain('<div class="card">');
+    });
+
+    it('does not fold component when unsafe named slot has content', function () {
+        // card-unsafe-footer has unsafe: ['footer'], so footer slot should abort folding
+        $input = '<x-card-unsafe-footer>Body<x-slot:footer>Footer content</x-slot:footer></x-card-unsafe-footer>';
+        $output = blazeCompile($input);
+
+        // Should NOT be folded because footer slot has content and is in unsafe list
+        expect($output)->toContain('$__blaze->ensureCompiled');
+    });
+
+    it('folds component when unsafe named slot is not provided', function () {
+        // card-unsafe-footer has unsafe: ['footer'], but if footer is not provided, folding is OK
+        $input = '<x-card-unsafe-footer>Body only</x-card-unsafe-footer>';
+        $output = blazeCompile($input);
+
+        // Should be folded because footer slot is not provided
+        expect($output)->not->toContain('$__blaze->ensureCompiled');
+        expect($output)->toContain('<div class="card">');
+    });
+
+    it('does not fold component when unsafe attribute is dynamic', function () {
+        // button-unsafe-type has unsafe: ['type'], so dynamic type should abort folding
+        // even though type is NOT in @props (it goes to $attributes)
+        $input = '<x-button-unsafe-type :type="$buttonType" />';
+        $output = blazeCompile($input);
+
+        // Should NOT be folded because type is dynamic and in unsafe list
+        expect($output)->toContain('$__blaze->ensureCompiled');
+    });
+
+    it('folds component when unsafe attribute is static', function () {
+        // button-unsafe-type has unsafe: ['type'], but static type is OK
+        $input = '<x-button-unsafe-type type="submit" />';
+        $output = blazeCompile($input);
+
+        // Should be folded because type is static
+        expect($output)->not->toContain('$__blaze->ensureCompiled');
+        expect($output)->toContain('<button');
+    });
+
+    it('folds component with safe wildcard and dynamic props', function () {
+        // button-all-safe has safe: ['*'], so all dynamic values should be allowed
+        $input = '<x-button-all-safe :type="$type" :label="$label" />';
+        $output = blazeCompile($input);
+
+        // Should be folded because wildcard makes all dynamic values safe
+        expect($output)->not->toContain('$__blaze->ensureCompiled');
+        expect($output)->toContain('<button');
+    });
+
+    it('does not fold component when :$attributes spread is used', function () {
+        // When :$attributes is passed, defined props could be inside that bag
+        // Should abort folding to be safe
+        $input = '<x-button :$attributes>Click</x-button>';
+        $output = blazeCompile($input);
+
+        // Should NOT be folded because :$attributes spread is used
+        expect($output)->toContain('$__blaze->ensureCompiled');
+    });
+
+    it('does not fold component when :$attributes spread is used even with safe wildcard', function () {
+        // Even with safe: ['*'], :$attributes spread can't be folded because
+        // the attributes bag can't be evaluated at compile time
+        $input = '<x-button-all-safe :type="$type" :label="$label" :$attributes />';
+
+        // Should NOT fold because :$attributes spread is fundamentally incompatible with folding
+        expect(blazeCompile($input))->toContain('$__blaze->ensureCompiled');
     });
 });
 
