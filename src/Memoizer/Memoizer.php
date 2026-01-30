@@ -12,10 +12,13 @@ class Memoizer
     protected $componentNameToPath;
     protected $compileNode;
 
-    public function __construct(callable $componentNameToPath, callable $compileNode)
+    protected $getOptimizeBuilder;
+
+    public function __construct(callable $componentNameToPath, callable $compileNode, callable $getOptimizeBuilder)
     {
         $this->componentNameToPath = $componentNameToPath;
         $this->compileNode = $compileNode;
+        $this->getOptimizeBuilder = $getOptimizeBuilder;
     }
 
     public function isMemoizable(Node $node): bool
@@ -35,11 +38,21 @@ class Memoizer
 
             $directiveParameters = BlazeDirective::getParameters($source);
 
-            if (is_null($directiveParameters)) {
-                return false;
+            // Get path-based default for memo
+            $optimizeBuilder = ($this->getOptimizeBuilder)();
+            $pathMemoDefault = $optimizeBuilder->shouldMemo($componentPath);
+
+            // Component-level @blaze(memo: ...) takes priority over path config
+            if (! is_null($directiveParameters) && isset($directiveParameters['memo'])) {
+                return $directiveParameters['memo'];
             }
 
-            // Default to true if memo parameter is not specified
+            // Use path-based default if available
+            if ($pathMemoDefault !== null) {
+                return $pathMemoDefault;
+            }
+
+            // Final fallback: false (memoization is opt-in)
             return $directiveParameters['memo'] ?? false;
 
         } catch (\Exception $e) {

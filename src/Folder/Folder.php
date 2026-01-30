@@ -24,14 +24,18 @@ class Folder
 
     protected $componentNameToPath;
 
+    protected $getOptimizeBuilder;
+
     public function __construct(
         callable $renderBlade,
         callable $renderNodes,
         callable $componentNameToPath,
+        callable $getOptimizeBuilder,
     ) {
         $this->renderBlade = $renderBlade;
         $this->renderNodes = $renderNodes;
         $this->componentNameToPath = $componentNameToPath;
+        $this->getOptimizeBuilder = $getOptimizeBuilder;
     }
 
     public function isFoldable(Node $node): bool
@@ -51,11 +55,21 @@ class Folder
 
             $directiveParameters = BlazeDirective::getParameters($source);
 
-            if (is_null($directiveParameters)) {
-                return false;
+            // Get path-based default for fold
+            $optimizeBuilder = ($this->getOptimizeBuilder)();
+            $pathFoldDefault = $optimizeBuilder->shouldFold($componentPath);
+
+            // Component-level @blaze(fold: ...) takes priority over path config
+            if (! is_null($directiveParameters) && isset($directiveParameters['fold'])) {
+                return $directiveParameters['fold'];
             }
 
-            // Default to true if fold parameter is not specified
+            // Use path-based default if available
+            if ($pathFoldDefault !== null) {
+                return $pathFoldDefault;
+            }
+
+            // Final fallback: false (folding is opt-in)
             return $directiveParameters['fold'] ?? false;
 
         } catch (\Exception $e) {

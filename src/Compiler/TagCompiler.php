@@ -14,11 +14,15 @@ use Livewire\Blaze\Support\AttributeParser;
 class TagCompiler
 {
     protected Closure $componentNameToPath;
+
+    protected Closure $getOptimizeBuilder;
+
     protected ComponentTagCompiler $componentTagCompiler;
 
-    public function __construct(callable $componentNameToPath)
+    public function __construct(callable $componentNameToPath, callable $getOptimizeBuilder)
     {
         $this->componentNameToPath = $componentNameToPath;
+        $this->getOptimizeBuilder = $getOptimizeBuilder;
         $this->componentTagCompiler = new ComponentTagCompiler(
             aliases: [],
             namespaces: [],
@@ -27,14 +31,35 @@ class TagCompiler
     }
 
     /**
-     * Check if a component has @blaze without fold/memo.
+     * Check if a component should be compiled with Blaze.
+     *
+     * Priority:
+     * 1. If component has @blaze directive, use it (returns true)
+     * 2. If path matches a configured directory with compile: false, return false
+     * 3. If path matches a configured directory with compile: true, return true
+     * 4. If no path config, return false (component must opt-in via @blaze or directory config)
      */
     protected function isBlazeComponent(string $componentPath): bool
     {
         $source = file_get_contents($componentPath);
         $params = BlazeDirective::getParameters($source);
 
-        return !is_null($params);
+        // Component-level @blaze directive takes highest priority
+        if (! is_null($params)) {
+            return true;
+        }
+
+        // Check path-based configuration
+        $optimizeBuilder = ($this->getOptimizeBuilder)();
+        $shouldCompile = $optimizeBuilder->shouldCompile($componentPath);
+
+        // If path config exists, use it
+        if ($shouldCompile !== null) {
+            return $shouldCompile;
+        }
+
+        // No directive and no path config - don't compile with Blaze
+        return false;
     }
 
     /**

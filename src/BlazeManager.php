@@ -26,6 +26,8 @@ class BlazeManager
 
     protected $expiredMemo = [];
 
+    protected OptimizeBuilder $optimizeBuilder;
+
     public function __construct(
         protected Tokenizer $tokenizer,
         protected Parser $parser,
@@ -35,6 +37,7 @@ class BlazeManager
         protected Memoizer $memoizer,
         protected ComponentCompiler $componentCompiler,
     ) {
+        $this->optimizeBuilder = new OptimizeBuilder;
         Event::listen(ComponentFolded::class, function (ComponentFolded $event) {
             $this->foldedEvents[] = $event;
         });
@@ -287,5 +290,15 @@ class BlazeManager
     public function folder(): Folder
     {
         return $this->folder;
+    }
+
+    public function optimize(): OptimizeBuilder
+    {
+        return $this->optimizeBuilder;
+    }
+
+    public function optimizeBuilder(): OptimizeBuilder
+    {
+        return $this->optimizeBuilder;
     }
 }

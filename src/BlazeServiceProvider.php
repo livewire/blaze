@@ -31,21 +31,28 @@ class BlazeServiceProvider extends ServiceProvider
     {
         $bladeService = new BladeService;
 
+        // Closure to get the OptimizeBuilder from the BlazeManager
+        // This deferred lookup allows the BlazeManager to be fully constructed first
+        $getOptimizeBuilder = fn () => app('blaze')->optimizeBuilder();
+
         $this->app->singleton(BlazeManager::class, fn () => new BlazeManager(
             new Tokenizer,
             new Parser,
             new Walker,
             $tagCompiler = new TagCompiler(
                 componentNameToPath: fn ($name) => $bladeService->componentNameToPath($name),
+                getOptimizeBuilder: $getOptimizeBuilder,
             ),
             new Folder(
                 renderBlade: fn ($blade) => $bladeService->isolatedRender($blade),
                 renderNodes: fn ($nodes) => implode('', array_map(fn ($n) => $n->render(), $nodes)),
                 componentNameToPath: fn ($name) => $bladeService->componentNameToPath($name),
+                getOptimizeBuilder: $getOptimizeBuilder,
             ),
             new Memoizer(
                 componentNameToPath: fn ($name) => $bladeService->componentNameToPath($name),
                 compileNode: fn ($node) => $tagCompiler->compile($node)->render(),
+                getOptimizeBuilder: $getOptimizeBuilder,
             ),
             new ComponentCompiler,
         ));
