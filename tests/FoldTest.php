@@ -12,84 +12,90 @@ describe('fold elligable components', function () {
 
     it('simple component', function () {
         $input = '<x-button>Save</x-button>';
-        $output = '<button type="button">Save</button>';
+        $output = blazeCompile($input);
 
-        expect(blazeCompile($input))->toBe($output);
+        expect($output)->toBe('<button type="button">Save</button>');
     });
 
     it('strips double quotes from attributes with string literals', function () {
         $input = '<x-avatar :name="\'Hi\'" :src="\'there\'" />';
+        $output = blazeCompile($input);
 
-        expect(blazeCompile($input))->not->toContain('src=""');
-        expect(blazeCompile($input))->not->toContain('alt=""');
+        expect($output)->not->toContain('src=""');
+        expect($output)->not->toContain('alt=""');
     });
 
     it('falls back to function compilation when dynamic prop is used in PHP block', function () {
         // Avatar component uses $name in @php block, so it can't fold when name is dynamic
         $input = '<x-avatar :name="$foo->bar" :src="$baz->qux" />';
-
+        $output = blazeCompile($input);
+        
         // Should NOT be folded - expect function-based compilation
-        expect(blazeCompile($input))->toContain('$__blaze->ensureCompiled');
-        expect(blazeCompile($input))->not->toContain('src="{{ $baz->qux }}"');
+        expect($output)->toContain('$__blaze->ensureCompiled');
+        expect($output)->not->toContain('src="{{ $baz->qux }}"');
     });
 
     it('does not fold component with dynamic props', function () {
         // With the new simplified approach, ANY dynamic prop prevents folding
         $input = '<x-button :type="$buttonType">Click</x-button>';
+        $output = blazeCompile($input);
 
         // Should fall back to function compilation
-        expect(blazeCompile($input))->toContain('$__blaze->ensureCompiled');
+        expect($output)->toContain('$__blaze->ensureCompiled');
     });
 
     it('with static props', function () {
         $input = '<x-alert message="Success!" />';
-        $output = '<div class="alert">Success!</div>';
+        $output = blazeCompile($input);
 
-        expect(blazeCompile($input))->toBe($output);
+        expect($output)->toBe('<div class="alert">Success!</div>');
     });
 
     it('with static props containing dynamic characters like dollar signs', function () {
         $input = '<x-button wire:click="$refresh" />';
-        $output = '<button type="button" wire:click="$refresh"></button>';
+        $output = blazeCompile($input);
 
-        expect(blazeCompile($input))->toBe($output);
+        expect($output)->toBe('<button type="button" wire:click="$refresh"></button>');
     });
 
     it('with slot content containing dollar sign followed by numbers', function () {
         // Dollar signs followed by numbers (e.g., "$49") must not be interpreted as
         // regex backreferences when restoring slot placeholders
         $input = '<x-button>$49.00</x-button>';
-        $output = '<button type="button">$49.00</button>';
+        $output = blazeCompile($input);
 
-        expect(blazeCompile($input))->toBe($output);
+        expect($output)->toBe('<button type="button">$49.00</button>');
     });
 
     it('dynamic slot', function () {
         $input = '<x-button>{{ $name }}</x-button>';
-        $output = '<button type="button">{{ $name }}</button>';
+        $output = blazeCompile($input);
 
-        expect(blazeCompile($input))->toBe($output);
+        expect($output)->toBe('<button type="button">{{ $name }}</button>');
     });
 
     it('dynamic attributes', function () {
         $input = '<x-button :type="$type">Save</x-button>';
+        $output = blazeCompile($input);
 
         // With simplified approach, dynamic props prevent folding
-        expect(blazeCompile($input))->toContain('$__blaze->ensureCompiled');
+        expect($output)->toContain('$__blaze->ensureCompiled');
     });
 
     it('dynamic short attributes', function () {
         $input = '<x-button :$type>Save</x-button>';
+        $output = blazeCompile($input);
 
         // With simplified approach, dynamic props prevent folding
-        expect(blazeCompile($input))->toContain('$__blaze->ensureCompiled');
+        expect($output)->toContain('$__blaze->ensureCompiled');
     });
 
     it('dynamic echo attributes', function () {
         $input = '<x-button type="foo {{ $type }}">Save</x-button>';
+        $output = blazeCompile($input);
 
         // With simplified approach, dynamic props prevent folding
-        expect(blazeCompile($input))->toContain('$__blaze->ensureCompiled');
+        expect($output)->toContain('$__blaze->ensureCompiled');
     });
 
     it('folds when dynamic attribute is not a defined prop', function () {
@@ -161,9 +167,9 @@ describe('fold elligable components', function () {
 
     it('dynamic slot with unfoldable component', function () {
         $input = '<x-button><x-unfoldable-button>{{ $name }}</x-unfoldable-button></x-button>';
-        $output = '<button type="button"><x-unfoldable-button>{{ $name }}</x-unfoldable-button></button>';
+        $output = blazeCompile($input);
 
-        expect(blazeCompile($input))->toBe($output);
+        expect($output)->toBe('<button type="button"><x-unfoldable-button>{{ $name }}</x-unfoldable-button></button>');
     });
 
     it('nested components', function () {
@@ -174,14 +180,14 @@ describe('fold elligable components', function () {
         </x-card>
         HTML;
 
-        $output = <<<'HTML'
+        $output = blazeCompile($input);
+
+        expect($output)->toBe(<<<'HTML'
         <div class="card">
             <button type="button">Edit</button>
             <button type="button">Delete</button>
         </div>
-        HTML;
-
-        expect(blazeCompile($input))->toBe($output);
+        HTML);
     });
 
     it('deeply nested components', function () {
@@ -193,31 +199,31 @@ describe('fold elligable components', function () {
         </x-card>
         HTML;
 
-        $output = <<<'HTML'
+        $output = blazeCompile($input);
+
+        // Alert component now uses allowed pattern ($message ?? $slot)
+        // All components should be folded
+        expect($output)->toBe(<<<'HTML'
         <div class="card">
             <div class="alert">
                 <button type="button">Save</button>
             </div>
         </div>
-        HTML;
-
-        // Alert component now uses allowed pattern ($message ?? $slot)
-        // All components should be folded
-        expect(blazeCompile($input))->toBe($output);
+        HTML);
     });
 
     it('self-closing component', function () {
         $input = '<x-alert message="Success!" />';
-        $output = '<div class="alert">Success!</div>';
+        $output = blazeCompile($input);
 
-        expect(blazeCompile($input))->toBe($output);
+        expect($output)->toBe('<div class="alert">Success!</div>');
     });
 
     it('component without @blaze is not folded', function () {
         $input = '<x-unfoldable-button>Save</x-unfoldable-button>';
-        $output = '<x-unfoldable-button>Save</x-unfoldable-button>';
+        $output = blazeCompile($input);
 
-        expect(blazeCompile($input))->toBe($output);
+        expect($output)->toBe('<x-unfoldable-button>Save</x-unfoldable-button>');
     });
 
     it('throws exception for invalid foldable usage with $pattern', function (string $pattern, string $expectedPattern) {
@@ -252,70 +258,61 @@ describe('fold elligable components', function () {
     Main content
 </x-modal>';
 
-        $output = '<div class="modal">
+        $output = blazeCompile($input);
+
+        expect($output)->toBe('<div class="modal">
     <div class="modal-header">Modal Title</div>
     <div class="modal-body">Main content</div>
     <div class="modal-footer">Footer Content</div>
-</div>';
-
-        expect(blazeCompile($input))->toBe($output);
+</div>');
     });
 
     it('supports folding aware components with single word attributes', function () {
         $input = '<x-group variant="primary"><x-foldable-item /></x-group>';
-        $output = '<div class="group group-primary" data-test="foo"><div class="item item-primary"></div></div>';
+        $output = blazeCompile($input);
 
-        expect(blazeCompile($input))->toBe($output);
+        expect($output)->toBe('<div class="group group-primary" data-test="foo"><div class="item item-primary"></div></div>');
     });
 
     it('supports folding aware components with hyphenated attributes', function () {
         $input = '<x-group variant="primary" second-variant="secondary"><x-foldable-item /></x-group>';
-        $output = '<div class="group group-primary" data-test="foo" data-second-variant="secondary"><div class="item item-primary item-secondary"></div></div>';
+        $output = blazeCompile($input);
 
-        expect(blazeCompile($input))->toBe($output);
+        expect($output)->toBe('<div class="group group-primary" data-test="foo" data-second-variant="secondary"><div class="item item-primary item-secondary"></div></div>');
     });
 
     it('supports folding aware components with two wrapping components both with the same prop the closest one wins', function () {
         $input = '<x-group variant="primary"><x-group variant="secondary"><x-foldable-item /></x-group></x-group>';
-        // The foldable-item should render the `secondary` variant because it is the closest one to the foldable-item...
-        $output = '<div class="group group-primary" data-test="foo"><div class="group group-secondary" data-test="foo"><div class="item item-secondary"></div></div></div>';
+        $output = blazeCompile($input);
 
-        expect(blazeCompile($input))->toBe($output);
+        // The foldable-item should render the `secondary` variant because it is the closest one to the foldable-item...
+        expect($output)->toBe('<div class="group group-primary" data-test="foo"><div class="group group-secondary" data-test="foo"><div class="item item-secondary"></div></div></div>');
     });
 
     it('supports aware on unfoldable components from folded parent with single word attributes', function () {
         $input = '<x-group variant="primary"><x-item /></x-group>';
+        $output = blazeCompile($input);
+        $rendered = \Illuminate\Support\Facades\Blade::render($output);
 
-        $output = '<div class="group group-primary" data-test="foo"><div class="item item-primary"></div></div>';
-
-        $compiled = blazeCompile($input);
-        $rendered = \Illuminate\Support\Facades\Blade::render($compiled);
-
-        expect($rendered)->toBe($output);
+        expect($rendered)->toBe('<div class="group group-primary" data-test="foo"><div class="item item-primary"></div></div>');
     });
 
     it('supports aware on unfoldable components from folded parent with hyphenated attributes', function () {
         $input = '<x-group variant="primary" second-variant="secondary"><x-item /></x-group>';
+        $output = blazeCompile($input);
+        $rendered = \Illuminate\Support\Facades\Blade::render($output);
 
-        $output = '<div class="group group-primary" data-test="foo" data-second-variant="secondary"><div class="item item-primary item-secondary"></div></div>';
-
-        $compiled = blazeCompile($input);
-        $rendered = \Illuminate\Support\Facades\Blade::render($compiled);
-
-        expect($rendered)->toBe($output);
+        expect($rendered)->toBe('<div class="group group-primary" data-test="foo" data-second-variant="secondary"><div class="item item-primary item-secondary"></div></div>');
     });
 
     it('supports aware on unfoldable components from folded parent with dynamic attributes', function () {
         $input = '<?php $result = "bar"; ?> <x-group variant="primary" :data-test="$result"><x-item /></x-group>';
+        $output = blazeCompile($input);
+        $rendered = \Illuminate\Support\Facades\Blade::render($output);
 
         // With simplified approach, group component won't be folded due to dynamic attribute
         // So the item component won't receive the variant through aware
-        $output = '<div class="group group-primary" data-test="bar"><div class="item item-"></div></div>';
-
-        $compiled = blazeCompile($input);
-        $rendered = \Illuminate\Support\Facades\Blade::render($compiled);
-
-        expect($rendered)->toBe($output);
+        expect($rendered)->toBe('<div class="group group-primary" data-test="bar"><div class="item item-"></div></div>');
     });
 
     it('supports verbatim blocks', function () {
@@ -327,68 +324,68 @@ describe('fold elligable components', function () {
 @endverbatim
 BLADE;
 
-        $output = <<<'BLADE'
+        $output = \Illuminate\Support\Facades\Blade::render($input);
+
+        expect($output)->toBe(<<<'BLADE'
 <x-card>
     <x-button>Save</x-button>
 </x-card>
 
-BLADE;
-
-        $rendered = \Illuminate\Support\Facades\Blade::render($input);
-
-        expect($rendered)->toBe($output);
+BLADE);
     });
 
     it('can fold static props that get formatted', function () {
         $input = '<x-date date="2025-07-11 13:22:41 UTC" />';
-        $output = '<div>Date is: Fri, Jul 11</div>';
+        $output = blazeCompile($input);
 
-        expect(blazeCompile($input))->toBe($output);
+        expect($output)->toBe('<div>Date is: Fri, Jul 11</div>');
     });
 
     it('folds component with safe dynamic prop', function () {
         $input = '<x-modal-safe :name="$modal" title="Hello">Content</x-modal-safe>';
+        $output = blazeCompile($input);
 
         // Should be folded because 'name' is in the safe list
-        $compiled = blazeCompile($input);
-        expect($compiled)->not->toContain('$__blaze->ensureCompiled');
-        expect($compiled)->toContain('data-name="{{ $modal }}"');
-        expect($compiled)->toContain('modal-title">Hello</div>');
+        expect($output)->not->toContain('$__blaze->ensureCompiled');
+        expect($output)->toContain('data-name="{{ $modal }}"');
+        expect($output)->toContain('modal-title">Hello</div>');
     });
 
     it('folds component with multiple safe dynamic props', function () {
         $input = '<x-modal-multi-safe :name="$modal" :id="$id" title="Hello">Content</x-modal-multi-safe>';
+        $output = blazeCompile($input);
 
         // Should be folded because 'name' and 'id' are both in the safe list
-        $compiled = blazeCompile($input);
-        expect($compiled)->not->toContain('$__blaze->ensureCompiled');
-        expect($compiled)->toContain('data-name="{{ $modal }}"');
-        expect($compiled)->toContain('data-id="{{ $id }}"');
+        expect($output)->not->toContain('$__blaze->ensureCompiled');
+        expect($output)->toContain('data-name="{{ $modal }}"');
+        expect($output)->toContain('data-id="{{ $id }}"');
     });
 
     it('does not fold component with unsafe dynamic prop even when safe list exists', function () {
         // 'title' is not in the safe list, so folding should be aborted
         $input = '<x-modal-safe :name="$modal" :title="$dynamicTitle">Content</x-modal-safe>';
+        $output = blazeCompile($input);
 
         // Should NOT be folded - expect function-based compilation
-        expect(blazeCompile($input))->toContain('$__blaze->ensureCompiled');
+        expect($output)->toContain('$__blaze->ensureCompiled');
     });
 
     it('folds component with safe echo attribute syntax', function () {
         $input = '<x-modal-safe name="{{ $modal }}" title="Hello">Content</x-modal-safe>';
+        $output = blazeCompile($input);
 
         // Should be folded because 'name' is in the safe list (echo syntax)
-        $compiled = blazeCompile($input);
-        expect($compiled)->not->toContain('$__blaze->ensureCompiled');
-        expect($compiled)->toContain('data-name="{{ $modal }}"');
+        expect($output)->not->toContain('$__blaze->ensureCompiled');
+        expect($output)->toContain('data-name="{{ $modal }}"');
     });
 
     it('does not fold component with unsafe echo attribute', function () {
         // 'title' is not in the safe list, so folding should be aborted
         $input = '<x-modal-safe name="{{ $modal }}" title="Hello {{ $suffix }}">Content</x-modal-safe>';
+        $output = blazeCompile($input);
 
         // Should NOT be folded - expect function-based compilation
-        expect(blazeCompile($input))->toContain('$__blaze->ensureCompiled');
+        expect($output)->toContain('$__blaze->ensureCompiled');
     });
 });
 
