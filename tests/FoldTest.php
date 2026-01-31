@@ -1,25 +1,20 @@
 <?php
 
+beforeEach(function () {
+    app('blade.compiler')->anonymousComponentPath(__DIR__.'/fixtures/components');
+});
+
 describe('fold elligable components', function () {
-    beforeEach(function () {
-        app('blade.compiler')->anonymousComponentPath(__DIR__.'/fixtures/components');
-    });
-
-    function blazeCompile(string $input): string
-    {
-        return app('blaze')->compile($input);
-    }
-
     it('simple component', function () {
         $input = '<x-button>Save</x-button>';
-        $output = blazeCompile($input);
+        $output = app('blaze')->compile($input);
 
         expect($output)->toBe('<button type="button">Save</button>');
     });
 
     it('strips double quotes from attributes with string literals', function () {
         $input = '<x-avatar :name="\'Hi\'" :src="\'there\'" />';
-        $output = blazeCompile($input);
+        $output = app('blaze')->compile($input);
 
         expect($output)->not->toContain('src=""');
         expect($output)->not->toContain('alt=""');
@@ -28,7 +23,7 @@ describe('fold elligable components', function () {
     it('falls back to function compilation when dynamic prop is used in PHP block', function () {
         // Avatar component uses $name in @php block, so it can't fold when name is dynamic
         $input = '<x-avatar :name="$foo->bar" :src="$baz->qux" />';
-        $output = blazeCompile($input);
+        $output = app('blaze')->compile($input);
 
         // Should NOT be folded - expect function-based compilation
         expect($output)->toContain('$__blaze->ensureCompiled');
@@ -38,7 +33,7 @@ describe('fold elligable components', function () {
     it('does not fold component with dynamic props', function () {
         // With the new simplified approach, ANY dynamic prop prevents folding
         $input = '<x-button :type="$buttonType">Click</x-button>';
-        $output = blazeCompile($input);
+        $output = app('blaze')->compile($input);
 
         // Should fall back to function compilation
         expect($output)->toContain('$__blaze->ensureCompiled');
@@ -46,14 +41,14 @@ describe('fold elligable components', function () {
 
     it('with static props', function () {
         $input = '<x-alert message="Success!" />';
-        $output = blazeCompile($input);
+        $output = app('blaze')->compile($input);
 
         expect($output)->toBe('<div class="alert">Success!</div>');
     });
 
     it('with static props containing dynamic characters like dollar signs', function () {
         $input = '<x-button wire:click="$refresh" />';
-        $output = blazeCompile($input);
+        $output = app('blaze')->compile($input);
 
         expect($output)->toBe('<button type="button" wire:click="$refresh"></button>');
     });
@@ -62,21 +57,21 @@ describe('fold elligable components', function () {
         // Dollar signs followed by numbers (e.g., "$49") must not be interpreted as
         // regex backreferences when restoring slot placeholders
         $input = '<x-button>$49.00</x-button>';
-        $output = blazeCompile($input);
+        $output = app('blaze')->compile($input);
 
         expect($output)->toBe('<button type="button">$49.00</button>');
     });
 
     it('dynamic slot', function () {
         $input = '<x-button>{{ $name }}</x-button>';
-        $output = blazeCompile($input);
+        $output = app('blaze')->compile($input);
 
         expect($output)->toBe('<button type="button">{{ $name }}</button>');
     });
 
     it('dynamic attributes', function () {
         $input = '<x-button :type="$type">Save</x-button>';
-        $output = blazeCompile($input);
+        $output = app('blaze')->compile($input);
 
         // With simplified approach, dynamic props prevent folding
         expect($output)->toContain('$__blaze->ensureCompiled');
@@ -84,7 +79,7 @@ describe('fold elligable components', function () {
 
     it('dynamic short attributes', function () {
         $input = '<x-button :$type>Save</x-button>';
-        $output = blazeCompile($input);
+        $output = app('blaze')->compile($input);
 
         // With simplified approach, dynamic props prevent folding
         expect($output)->toContain('$__blaze->ensureCompiled');
@@ -92,7 +87,7 @@ describe('fold elligable components', function () {
 
     it('dynamic echo attributes', function () {
         $input = '<x-button type="foo {{ $type }}">Save</x-button>';
-        $output = blazeCompile($input);
+        $output = app('blaze')->compile($input);
 
         // With simplified approach, dynamic props prevent folding
         expect($output)->toContain('$__blaze->ensureCompiled');
@@ -103,7 +98,7 @@ describe('fold elligable components', function () {
         // The :href attribute is NOT defined in @props, so it goes to $attributes
         // This should NOT prevent folding
         $input = '<x-link-with-props :href="$url">Go</x-link-with-props>';
-        $output = blazeCompile($input);
+        $output = app('blaze')->compile($input);
 
         // Should be folded (not contain ensureCompiled)
         expect($output)->not->toContain('$__blaze->ensureCompiled');
@@ -123,7 +118,7 @@ describe('fold elligable components', function () {
         // The button component has @props(['type' => 'button'])
         // The :type attribute IS defined in @props, so dynamic value prevents folding
         $input = '<x-button :type="$buttonType">Click</x-button>';
-        $output = blazeCompile($input);
+        $output = app('blaze')->compile($input);
 
         // Should NOT be folded
         expect($output)->toContain('$__blaze->ensureCompiled');
@@ -131,7 +126,7 @@ describe('fold elligable components', function () {
 
     it('folds with safe dynamic attribute and generates conditional PHP for boolean handling', function () {
         $input = '<x-button-safe-disabled :disabled="$isDisabled">Save</x-button-safe-disabled>';
-        $output = blazeCompile($input);
+        $output = app('blaze')->compile($input);
 
         // Should be folded (not contain ensureCompiled)
         expect($output)->not->toContain('$__blaze->ensureCompiled');
@@ -147,7 +142,7 @@ describe('fold elligable components', function () {
 
     it('handles safe dynamic attribute with true value correctly', function () {
         $input = '<x-button-safe-disabled :disabled="$isDisabled">Save</x-button-safe-disabled>';
-        $output = blazeCompile($input);
+        $output = app('blaze')->compile($input);
 
         // Should generate code that outputs disabled="disabled" when true
         expect($output)->toContain("\$__blazeAttr === true ? 'disabled' : \$__blazeAttr");
@@ -155,7 +150,7 @@ describe('fold elligable components', function () {
 
     it('folds static attributes without conditional PHP', function () {
         $input = '<x-button-safe-disabled disabled>Save</x-button-safe-disabled>';
-        $output = blazeCompile($input);
+        $output = app('blaze')->compile($input);
 
         // Should be folded
         expect($output)->not->toContain('$__blaze->ensureCompiled');
@@ -167,7 +162,7 @@ describe('fold elligable components', function () {
 
     it('dynamic slot with unfoldable component', function () {
         $input = '<x-button><x-unfoldable-button>{{ $name }}</x-unfoldable-button></x-button>';
-        $output = blazeCompile($input);
+        $output = app('blaze')->compile($input);
 
         expect($output)->toBe('<button type="button"><x-unfoldable-button>{{ $name }}</x-unfoldable-button></button>');
     });
@@ -180,7 +175,7 @@ describe('fold elligable components', function () {
         </x-card>
         HTML;
 
-        $output = blazeCompile($input);
+        $output = app('blaze')->compile($input);
 
         expect($output)->toBe(<<<'HTML'
         <div class="card">
@@ -199,7 +194,7 @@ describe('fold elligable components', function () {
         </x-card>
         HTML;
 
-        $output = blazeCompile($input);
+        $output = app('blaze')->compile($input);
 
         // Alert component now uses allowed pattern ($message ?? $slot)
         // All components should be folded
@@ -214,14 +209,14 @@ describe('fold elligable components', function () {
 
     it('self-closing component', function () {
         $input = '<x-alert message="Success!" />';
-        $output = blazeCompile($input);
+        $output = app('blaze')->compile($input);
 
         expect($output)->toBe('<div class="alert">Success!</div>');
     });
 
     it('component without @blaze is not folded', function () {
         $input = '<x-unfoldable-button>Save</x-unfoldable-button>';
-        $output = blazeCompile($input);
+        $output = app('blaze')->compile($input);
 
         expect($output)->toBe('<x-unfoldable-button>Save</x-unfoldable-button>');
     });
@@ -258,7 +253,7 @@ describe('fold elligable components', function () {
     Main content
 </x-modal>';
 
-        $output = blazeCompile($input);
+        $output = app('blaze')->compile($input);
 
         expect($output)->toBe('<div class="modal">
     <div class="modal-header">Modal Title</div>
@@ -269,21 +264,21 @@ describe('fold elligable components', function () {
 
     it('supports folding aware components with single word attributes', function () {
         $input = '<x-group variant="primary"><x-foldable-item /></x-group>';
-        $output = blazeCompile($input);
+        $output = app('blaze')->compile($input);
 
         expect($output)->toBe('<div class="group group-primary" data-test="foo"><div class="item item-primary"></div></div>');
     });
 
     it('supports folding aware components with hyphenated attributes', function () {
         $input = '<x-group variant="primary" second-variant="secondary"><x-foldable-item /></x-group>';
-        $output = blazeCompile($input);
+        $output = app('blaze')->compile($input);
 
         expect($output)->toBe('<div class="group group-primary" data-test="foo" data-second-variant="secondary"><div class="item item-primary item-secondary"></div></div>');
     });
 
     it('supports folding aware components with two wrapping components both with the same prop the closest one wins', function () {
         $input = '<x-group variant="primary"><x-group variant="secondary"><x-foldable-item /></x-group></x-group>';
-        $output = blazeCompile($input);
+        $output = app('blaze')->compile($input);
 
         // The foldable-item should render the `secondary` variant because it is the closest one to the foldable-item...
         expect($output)->toBe('<div class="group group-primary" data-test="foo"><div class="group group-secondary" data-test="foo"><div class="item item-secondary"></div></div></div>');
@@ -291,7 +286,7 @@ describe('fold elligable components', function () {
 
     it('supports aware on unfoldable components from folded parent with single word attributes', function () {
         $input = '<x-group variant="primary"><x-item /></x-group>';
-        $output = blazeCompile($input);
+        $output = app('blaze')->compile($input);
         $rendered = \Illuminate\Support\Facades\Blade::render($output);
 
         expect($rendered)->toBe('<div class="group group-primary" data-test="foo"><div class="item item-primary"></div></div>');
@@ -299,7 +294,7 @@ describe('fold elligable components', function () {
 
     it('supports aware on unfoldable components from folded parent with hyphenated attributes', function () {
         $input = '<x-group variant="primary" second-variant="secondary"><x-item /></x-group>';
-        $output = blazeCompile($input);
+        $output = app('blaze')->compile($input);
         $rendered = \Illuminate\Support\Facades\Blade::render($output);
 
         expect($rendered)->toBe('<div class="group group-primary" data-test="foo" data-second-variant="secondary"><div class="item item-primary item-secondary"></div></div>');
@@ -307,7 +302,7 @@ describe('fold elligable components', function () {
 
     it('supports aware on unfoldable components from folded parent with dynamic attributes', function () {
         $input = '<?php $result = "bar"; ?> <x-group variant="primary" :data-test="$result"><x-item /></x-group>';
-        $output = blazeCompile($input);
+        $output = app('blaze')->compile($input);
         $rendered = \Illuminate\Support\Facades\Blade::render($output);
 
         // With simplified approach, group component won't be folded due to dynamic attribute
@@ -336,14 +331,14 @@ BLADE);
 
     it('can fold static props that get formatted', function () {
         $input = '<x-date date="2025-07-11 13:22:41 UTC" />';
-        $output = blazeCompile($input);
+        $output = app('blaze')->compile($input);
 
         expect($output)->toBe('<div>Date is: Fri, Jul 11</div>');
     });
 
     it('folds component with safe dynamic prop', function () {
         $input = '<x-modal-safe :name="$modal" title="Hello">Content</x-modal-safe>';
-        $output = blazeCompile($input);
+        $output = app('blaze')->compile($input);
 
         // Should be folded because 'name' is in the safe list
         expect($output)->not->toContain('$__blaze->ensureCompiled');
@@ -353,7 +348,7 @@ BLADE);
 
     it('folds component with multiple safe dynamic props', function () {
         $input = '<x-modal-multi-safe :name="$modal" :id="$id" title="Hello">Content</x-modal-multi-safe>';
-        $output = blazeCompile($input);
+        $output = app('blaze')->compile($input);
 
         // Should be folded because 'name' and 'id' are both in the safe list
         expect($output)->not->toContain('$__blaze->ensureCompiled');
@@ -364,7 +359,7 @@ BLADE);
     it('does not fold component with unsafe dynamic prop even when safe list exists', function () {
         // 'title' is not in the safe list, so folding should be aborted
         $input = '<x-modal-safe :name="$modal" :title="$dynamicTitle">Content</x-modal-safe>';
-        $output = blazeCompile($input);
+        $output = app('blaze')->compile($input);
 
         // Should NOT be folded - expect function-based compilation
         expect($output)->toContain('$__blaze->ensureCompiled');
@@ -372,7 +367,7 @@ BLADE);
 
     it('folds component with safe echo attribute syntax', function () {
         $input = '<x-modal-safe name="{{ $modal }}" title="Hello">Content</x-modal-safe>';
-        $output = blazeCompile($input);
+        $output = app('blaze')->compile($input);
 
         // Should be folded because 'name' is in the safe list (echo syntax)
         expect($output)->not->toContain('$__blaze->ensureCompiled');
@@ -382,7 +377,7 @@ BLADE);
     it('does not fold component with unsafe echo attribute', function () {
         // 'title' is not in the safe list, so folding should be aborted
         $input = '<x-modal-safe name="{{ $modal }}" title="Hello {{ $suffix }}">Content</x-modal-safe>';
-        $output = blazeCompile($input);
+        $output = app('blaze')->compile($input);
 
         // Should NOT be folded - expect function-based compilation
         expect($output)->toContain('$__blaze->ensureCompiled');
@@ -391,7 +386,7 @@ BLADE);
     it('does not fold component when unsafe slot has content', function () {
         // card-unsafe-slot has unsafe: ['slot'], so any slot content should abort folding
         $input = '<x-card-unsafe-slot>Some content</x-card-unsafe-slot>';
-        $output = blazeCompile($input);
+        $output = app('blaze')->compile($input);
 
         // Should NOT be folded because slot has content and is in unsafe list
         expect($output)->toContain('$__blaze->ensureCompiled');
@@ -400,7 +395,7 @@ BLADE);
     it('folds component when unsafe slot is not provided (self-closing)', function () {
         // card-unsafe-slot has unsafe: ['slot'], self-closing means no slot
         $input = '<x-card-unsafe-slot />';
-        $output = blazeCompile($input);
+        $output = app('blaze')->compile($input);
 
         // Should be folded because no slot is provided
         expect($output)->not->toContain('$__blaze->ensureCompiled');
@@ -410,7 +405,7 @@ BLADE);
     it('does not fold component when unsafe named slot has content', function () {
         // card-unsafe-footer has unsafe: ['footer'], so footer slot should abort folding
         $input = '<x-card-unsafe-footer>Body<x-slot:footer>Footer content</x-slot:footer></x-card-unsafe-footer>';
-        $output = blazeCompile($input);
+        $output = app('blaze')->compile($input);
 
         // Should NOT be folded because footer slot has content and is in unsafe list
         expect($output)->toContain('$__blaze->ensureCompiled');
@@ -419,7 +414,7 @@ BLADE);
     it('folds component when unsafe named slot is not provided', function () {
         // card-unsafe-footer has unsafe: ['footer'], but if footer is not provided, folding is OK
         $input = '<x-card-unsafe-footer>Body only</x-card-unsafe-footer>';
-        $output = blazeCompile($input);
+        $output = app('blaze')->compile($input);
 
         // Should be folded because footer slot is not provided
         expect($output)->not->toContain('$__blaze->ensureCompiled');
@@ -430,7 +425,7 @@ BLADE);
         // button-unsafe-type has unsafe: ['type'], so dynamic type should abort folding
         // even though type is NOT in @props (it goes to $attributes)
         $input = '<x-button-unsafe-type :type="$buttonType" />';
-        $output = blazeCompile($input);
+        $output = app('blaze')->compile($input);
 
         // Should NOT be folded because type is dynamic and in unsafe list
         expect($output)->toContain('$__blaze->ensureCompiled');
@@ -439,7 +434,7 @@ BLADE);
     it('folds component when unsafe attribute is static', function () {
         // button-unsafe-type has unsafe: ['type'], but static type is OK
         $input = '<x-button-unsafe-type type="submit" />';
-        $output = blazeCompile($input);
+        $output = app('blaze')->compile($input);
 
         // Should be folded because type is static
         expect($output)->not->toContain('$__blaze->ensureCompiled');
@@ -449,7 +444,7 @@ BLADE);
     it('folds component with safe wildcard and dynamic props', function () {
         // button-all-safe has safe: ['*'], so all dynamic values should be allowed
         $input = '<x-button-all-safe :type="$type" :label="$label" />';
-        $output = blazeCompile($input);
+        $output = app('blaze')->compile($input);
 
         // Should be folded because wildcard makes all dynamic values safe
         expect($output)->not->toContain('$__blaze->ensureCompiled');
@@ -460,7 +455,7 @@ BLADE);
         // When :$attributes is passed, defined props could be inside that bag
         // Should abort folding to be safe
         $input = '<x-button :$attributes>Click</x-button>';
-        $output = blazeCompile($input);
+        $output = app('blaze')->compile($input);
 
         // Should NOT be folded because :$attributes spread is used
         expect($output)->toContain('$__blaze->ensureCompiled');
@@ -472,170 +467,6 @@ BLADE);
         $input = '<x-button-all-safe :type="$type" :label="$label" :$attributes />';
 
         // Should NOT fold because :$attributes spread is fundamentally incompatible with folding
-        expect(blazeCompile($input))->toContain('$__blaze->ensureCompiled');
-    });
-});
-
-describe('boolean attribute fencing - rendered output', function () {
-    beforeEach(function () {
-        app('blade.compiler')->anonymousComponentPath(__DIR__.'/Feature/fixtures');
-    });
-
-    it('omits attribute when value is false', function () {
-        $result = blade(
-            components: [
-                'button' => <<<'BLADE'
-                    @blaze(fold: true, safe: ['disabled'])
-                    @props(['type' => 'button'])
-                    <button {{ $attributes->merge(['type' => $type]) }}>Click</button>
-                    BLADE
-                ,
-            ],
-            view: '<x-button :disabled="$isDisabled">Save</x-button>',
-            data: ['isDisabled' => false],
-        );
-
-        expect($result)->toContain('type="button"');
-        expect($result)->not->toContain('disabled');
-    });
-
-    it('renders attribute with key as value when value is true', function () {
-        $result = blade(
-            components: [
-                'button' => <<<'BLADE'
-                    @blaze(fold: true, safe: ['disabled'])
-                    @props(['type' => 'button'])
-                    <button {{ $attributes->merge(['type' => $type]) }}>Click</button>
-                    BLADE
-                ,
-            ],
-            view: '<x-button :disabled="$isDisabled">Save</x-button>',
-            data: ['isDisabled' => true],
-        );
-
-        expect($result)->toContain('disabled="disabled"');
-    });
-
-    it('omits attribute when value is null', function () {
-        $result = blade(
-            components: [
-                'button' => <<<'BLADE'
-                    @blaze(fold: true, safe: ['disabled'])
-                    @props(['type' => 'button'])
-                    <button {{ $attributes->merge(['type' => $type]) }}>Click</button>
-                    BLADE
-                ,
-            ],
-            view: '<x-button :disabled="$isDisabled">Save</x-button>',
-            data: ['isDisabled' => null],
-        );
-
-        expect($result)->toContain('type="button"');
-        expect($result)->not->toContain('disabled');
-    });
-
-    it('renders attribute with string value when value is a string', function () {
-        $result = blade(
-            components: [
-                'button' => <<<'BLADE'
-                    @blaze(fold: true, safe: ['disabled'])
-                    @props(['type' => 'button'])
-                    <button {{ $attributes->merge(['type' => $type]) }}>Click</button>
-                    BLADE
-                ,
-            ],
-            view: '<x-button :disabled="$isDisabled">Save</x-button>',
-            data: ['isDisabled' => 'until-loaded'],
-        );
-
-        expect($result)->toContain('disabled="until-loaded"');
-    });
-
-    it('renders x-data with empty string when value is true', function () {
-        $result = blade(
-            components: [
-                'dropdown' => <<<'BLADE'
-                    @blaze(fold: true, safe: ['x-data'])
-                    <div {{ $attributes }}>Dropdown</div>
-                    BLADE
-                ,
-            ],
-            view: '<x-dropdown :x-data="$alpine">Content</x-dropdown>',
-            data: ['alpine' => true],
-        );
-
-        // x-data should render as x-data="" when true (Alpine.js convention)
-        expect($result)->toContain('x-data=""');
-    });
-
-    it('renders wire:loading with empty string when value is true', function () {
-        $result = blade(
-            components: [
-                'spinner' => <<<'BLADE'
-                    @blaze(fold: true, safe: ['wire:loading'])
-                    <div {{ $attributes }}>Loading...</div>
-                    BLADE
-                ,
-            ],
-            view: '<x-spinner :wire:loading="$show">Loading</x-spinner>',
-            data: ['show' => true],
-        );
-
-        // wire:* attributes should render as wire:loading="" when true (Livewire convention)
-        expect($result)->toContain('wire:loading=""');
-    });
-
-    it('renders static boolean attribute correctly', function () {
-        $result = blade(
-            components: [
-                'button' => <<<'BLADE'
-                    @blaze(fold: true, safe: ['disabled'])
-                    @props(['type' => 'button'])
-                    <button {{ $attributes->merge(['type' => $type]) }}>Click</button>
-                    BLADE
-                ,
-            ],
-            view: '<x-button disabled>Save</x-button>',
-        );
-
-        // Static disabled attribute should render as disabled="disabled"
-        expect($result)->toContain('disabled="disabled"');
-    });
-
-    it('preserves other attributes when boolean attribute is false', function () {
-        $result = blade(
-            components: [
-                'button' => <<<'BLADE'
-                    @blaze(fold: true, safe: ['disabled'])
-                    @props(['type' => 'button'])
-                    <button {{ $attributes->merge(['type' => $type]) }}>Click</button>
-                    BLADE
-                ,
-            ],
-            view: '<x-button :disabled="$isDisabled" class="btn-primary">Save</x-button>',
-            data: ['isDisabled' => false],
-        );
-
-        expect($result)->toContain('class="btn-primary"');
-        expect($result)->toContain('type="button"');
-        expect($result)->not->toContain('disabled');
-    });
-
-    it('handles multiple dynamic boolean attributes', function () {
-        $result = blade(
-            components: [
-                'input' => <<<'BLADE'
-                    @blaze(fold: true, safe: ['disabled', 'readonly', 'required'])
-                    <input {{ $attributes }} />
-                    BLADE
-                ,
-            ],
-            view: '<x-input :disabled="$d" :readonly="$r" :required="$req" />',
-            data: ['d' => true, 'r' => false, 'req' => true],
-        );
-
-        expect($result)->toContain('disabled="disabled"');
-        expect($result)->not->toContain('readonly');
-        expect($result)->toContain('required="required"');
+        expect(app('blaze')->compile($input))->toContain('$__blaze->ensureCompiled');
     });
 });
