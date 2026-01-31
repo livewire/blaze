@@ -50,6 +50,12 @@ class BladeService
             'path' => null,
         ]);
 
+        [$runtime, $restoreRuntime] = $this->freezeObjectProperties(app('blaze.runtime'), [
+            'compiled' => [],
+            'paths' => [],
+            'compiledPath' => $temporaryCachePath,
+        ]);
+
         try {
             // As we are rendering a string, Blade will generate a view for the string in the cache directory
             // and it doesn't use the `cachePath` property. Instead it uses the config `view.compiled` path
@@ -61,6 +67,7 @@ class BladeService
         } finally {
             $restore();
             $restoreFactory();
+            $restoreRuntime();
         }
 
         return $result;

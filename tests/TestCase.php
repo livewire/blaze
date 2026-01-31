@@ -25,7 +25,5 @@ class TestCase extends Orchestra
         $app['config']->set('view.paths', [
             __DIR__ . '/fixtures/views',
         ]);
-
-        $app['config']->set('view.compiled', sys_get_temp_dir() . '/views');
     }
 }
