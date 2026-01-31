@@ -161,3 +161,39 @@ it('handles multiple dynamic boolean attributes', function () {
     expect($result)->not->toContain('readonly');
     expect($result)->toContain('required="required"');
 });
+
+it('uses conditional logic for echo attribute with single expression', function () {
+    // Echo syntax disabled="{{ $isDisabled }}" should use boolean conditional handling
+    $result = blade(
+        components: [
+            'button' => <<<'BLADE'
+                @blaze(fold: true, safe: ['disabled'])
+                @props(['type' => 'button'])
+                <button {{ $attributes->merge(['type' => $type]) }}>{{ $slot }}</button>
+                BLADE
+            ,
+        ],
+        view: '<x-button disabled="{{ $isDisabled }}">Save</x-button>',
+        data: ['isDisabled' => false],
+    );
+
+    expect($result)->not->toContain('disabled');
+});
+
+it('handles attribute with mixed content and multiple blade echoes', function () {
+    // Mixed content like "prefix-{{ $a }}-{{ $b }}" should NOT use conditional boolean logic.
+    // It should render the interpolated values directly, not treat it as a boolean expression.
+    $result = blade(
+        components: [
+            'option' => <<<'BLADE'
+                @blaze(fold: true, safe: ['*'])
+                <ui-option {{ $attributes }}>{{ $slot }}</ui-option>
+                BLADE
+            ,
+        ],
+        view: '<x-option wire:key="opt-{{ $productId }}-{{ $optionId }}">Item</x-option>',
+        data: ['productId' => 42, 'optionId' => 7],
+    );
+
+    expect($result)->toContain('wire:key="opt-42-7"');
+});

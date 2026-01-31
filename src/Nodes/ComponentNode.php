@@ -275,7 +275,11 @@ class ComponentNode extends Node
                     $placeholder = $placeholderMatch[0];
                     $original = $attributePlaceholders[$placeholder] ?? null;
 
-                    if ($original && preg_match('/\{\{\s*(.+)\s*\}\}/s', $original, $exprMatch)) {
+                    // Only generate conditional PHP when the ENTIRE value is a single {{ expression }}.
+                    // This handles boolean semantics (e.g. disabled="{{ $isDisabled }}" → omit when false).
+                    // Mixed content like wire:key="opt-{{ $a }}-{{ $b }}" should NOT match—it always
+                    // has content and gets restored as-is for normal Blade compilation.
+                    if ($original && preg_match('/^\s*\{\{\s*(.+?)\s*\}\}\s*$/s', $original, $exprMatch)) {
                         $expression = trim($exprMatch[1]);
 
                         return self::generateConditionalAttribute($name, $expression);
