@@ -249,7 +249,7 @@ class Folder
 
         // Find all attributes with echo syntax
         // This regex matches: attribute="...{{...}}..."
-        if (preg_match_all('/([a-zA-Z0-9_-]+)\s*=\s*"[^"]*\{\{[^}]+\}\}[^"]*"/', $attributes, $matches)) {
+        if (preg_match_all('/([a-zA-Z0-9_:-]+)\s*=\s*"[^"]*\{\{[^}]+\}\}[^"]*"/', $attributes, $matches)) {
             // Check if any matched attribute should prevent folding
             foreach ($matches[1] as $attributeName) {
                 if ($this->isUnsafeDynamicAttribute($attributeName, $definedProps, $safeList, $unsafeList)) {
