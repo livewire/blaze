@@ -90,8 +90,8 @@ class TagCompiler
         $slotsVariableName = '$slots' . $hash;
         [$attributesArrayString, $boundKeysArrayString] = $this->getAttributesAndBoundKeysArrayStrings($node->attributes);
 
-        $output = '<' . '?php $__blaze->ensureCompiled(\'' . $componentPath . '\', __DIR__.\'/'. $hash . '.php\'); ?>' . "\n";
-        $output .= '<' . '?php require_once __DIR__.\'/'. $hash . '.php\'; ?>';
+        $output = '<' . '?php $__blaze->ensureCompiled(\'' . $componentPath . '\', $__blaze->compiledPath.\'/'. $hash . '.php\'); ?>' . "\n";
+        $output .= '<' . '?php require_once $__blaze->compiledPath.\'/'. $hash . '.php\'; ?>';
 
         $output .= "\n" . '<' . '?php $__blaze->pushData(' . $attributesArrayString . '); ?>';
 
@@ -115,7 +115,7 @@ class TagCompiler
         $componentName = "'flux::' . " . $attributesArray['component']['value'];
 
         $output = '<' . '?php $__resolved = $__blaze->resolve(' . $componentName . '); ?>' . "\n";
-        $output .= '<' . '?php require_once __DIR__ . \'/\' . $__resolved . \'.php\'; ?>' . "\n";
+        $output .= '<' . '?php require_once $__blaze->compiledPath . \'/\' . $__resolved . \'.php\'; ?>' . "\n";
 
         $slotsVariableName = '$slots' . hash('xxh128', $componentName);
 

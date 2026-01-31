@@ -16,3 +16,14 @@ it('compiles component that was previously folded', function () {
     Blade::render('<x-button>Folded button</x-button>');
     Blade::render('<x-button :type="$type">Direct button</x-button>', ['type' => 'submit']);
 })->expectNotToPerformAssertions();
+
+it('renders component that was previously compiled during folding', function () {
+    // This verifies that when a component is compiled during folding and then rendered without folding,
+    // its children will render correctly. This can be an issue because the component function 
+    // will only be defined once per request. We used to have __DIR__ in the compiled view,
+    // which caused an issue because when the component is rendered outside folding,
+    // the __DIR__ pointed to the temporary Blaze directory used during folding,
+    // but that directory was deleted by the time the component is rendered.
+    Blade::render('<x-foldable-wrapper-with-compiled-button />');
+    Blade::render('<x-foldable-wrapper-with-compiled-button :fold="false" />');
+})->expectNotToPerformAssertions();

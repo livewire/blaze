@@ -14,10 +14,10 @@ class BlazeRuntime
 
     public readonly Application $app;
 
+    public string $compiledPath;
+
     // $errors must be fetched lazily they're created later in request lifecycle
     protected ViewErrorBag $errors;
-
-    protected string $compiledPath;
 
     protected array $paths = [];
 
