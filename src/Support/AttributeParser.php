@@ -40,16 +40,18 @@ class AttributeParser
             return $whitespace . $variableName . '="' . $placeholder . '"';
         }, $attributesString);
 
-        // Echoes inside quoted attribute values: foo {{ $bar }}
-        $attributesString = preg_replace_callback('/(\s*[a-zA-Z0-9_-]+\s*=\s*")([^\"]*)(\{\{[^}]+\}\})([^\"]*)(")/', function ($matches) use (&$attributePlaceholders) {
-            $before = $matches[1] . $matches[2];
-            $echo = $matches[3];
-            $after = $matches[4] . $matches[5];
+        // Echoes inside quoted attribute values: foo="{{ $bar }}" or foo="{{ $bar }}-{{ $baz }}"
+        // Captures the entire attribute value when it contains any {{ }} echoes
+        $attributesString = preg_replace_callback('/(\s*)([a-zA-Z0-9_:-]+)\s*=\s*"((?:[^"]*\{\{.+?\}\}[^"]*)+)"/', function ($matches) use (&$attributePlaceholders, &$attributeNameToPlaceholder) {
+            $whitespace = $matches[1];
+            $attributeName = $matches[2];
+            $attributeValue = $matches[3];
 
             $placeholder = 'ATTR_PLACEHOLDER_' . count($attributePlaceholders);
-            $attributePlaceholders[$placeholder] = $echo;
+            $attributePlaceholders[$placeholder] = $attributeValue;
+            $attributeNameToPlaceholder[$attributeName] = $placeholder;
 
-            return $before . $placeholder . $after;
+            return $whitespace . $attributeName . '="' . $placeholder . '"';
         }, $attributesString);
 
         return $attributesString;

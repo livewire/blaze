@@ -45,7 +45,7 @@ describe('parse attributes', function () {
 
     it('parses and replaces dynamic attributes echoed within a value', function() {
         $input = 'name="foo {{ $type }}"';
-        $output = 'name="foo ATTR_PLACEHOLDER_0"';
+        $output = 'name="ATTR_PLACEHOLDER_0"';
 
         $attributePlaceholders = [];
         $attributeNameToPlaceholder = [];
@@ -55,10 +55,32 @@ describe('parse attributes', function () {
         expect($result)->toBe($output);
 
         expect($attributePlaceholders)->toBe([
-            'ATTR_PLACEHOLDER_0' => '{{ $type }}',
+            'ATTR_PLACEHOLDER_0' => 'foo {{ $type }}',
         ]);
 
-        expect($attributeNameToPlaceholder)->toBe([]);
+        expect($attributeNameToPlaceholder)->toBe([
+            'name' => 'ATTR_PLACEHOLDER_0',
+        ]);
+    });
+
+    it('parses and replaces attributes with colons containing echoes', function() {
+        $input = 'wire:model="{{ $name }}"';
+        $output = 'wire:model="ATTR_PLACEHOLDER_0"';
+
+        $attributePlaceholders = [];
+        $attributeNameToPlaceholder = [];
+
+        $result = (new AttributeParser)->parseAndReplaceDynamics($input, $attributePlaceholders, $attributeNameToPlaceholder);
+
+        expect($result)->toBe($output);
+
+        expect($attributePlaceholders)->toBe([
+            'ATTR_PLACEHOLDER_0' => '{{ $name }}',
+        ]);
+
+        expect($attributeNameToPlaceholder)->toBe([
+            'wire:model' => 'ATTR_PLACEHOLDER_0',
+        ]);
     });
 
     it('does not parse static attributes with colon in the name when used alone', function() {
