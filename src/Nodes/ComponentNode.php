@@ -265,7 +265,7 @@ class ComponentNode extends Node
     protected static function processFencedAttributes(string $html, array $attributePlaceholders): string
     {
         return preg_replace_callback(
-            '/<!--BLAZE_ATTR:([a-zA-Z0-9_:-]+)-->(.+?)<!--\/BLAZE_ATTR-->/',
+            '/<!--BLAZE_ATTR:([a-zA-Z0-9_.:-]+)-->(.+?)<!--\/BLAZE_ATTR-->/',
             function ($matches) use ($attributePlaceholders) {
                 $name = $matches[1];
                 $content = $matches[2];
