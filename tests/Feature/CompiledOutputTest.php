@@ -15,8 +15,8 @@ describe('call-site compilation', function () {
         $result = app('blade.compiler')->compileString('<x-simple-button type="submit" class="btn-primary" />');
 
         expect($result)->toBe(
-            '<?php $__blaze->ensureCompiled(\'' . $path . '\', __DIR__.\'/' . $hash . '.php\'); ?>' . "\n" .
-            '<?php require_once __DIR__.\'/' . $hash . '.php\'; ?>' . "\n" .
+            '<?php $__blaze->ensureCompiled(\'' . $path . '\', $__blaze->compiledPath.\'/' . $hash . '.php\'); ?>' . "\n" .
+            '<?php require_once $__blaze->compiledPath.\'/' . $hash . '.php\'; ?>' . "\n" .
             '<?php $__blaze->pushData([\'type\' => \'submit\',\'class\' => \'btn-primary\']); ?>' . "\n" .
             '<?php _' . $hash . '($__blaze, [\'type\' => \'submit\',\'class\' => \'btn-primary\'], [], []); ?>' . "\n" .
             '<?php $__blaze->popData(); ?>' . "\n"
@@ -30,8 +30,8 @@ describe('call-site compilation', function () {
         $result = app('blade.compiler')->compileString('<x-simple-button :type="$buttonType" :class="$classes" />');
 
         expect($result)->toBe(
-            '<?php $__blaze->ensureCompiled(\'' . $path . '\', __DIR__.\'/' . $hash . '.php\'); ?>' . "\n" .
-            '<?php require_once __DIR__.\'/' . $hash . '.php\'; ?>' . "\n" .
+            '<?php $__blaze->ensureCompiled(\'' . $path . '\', $__blaze->compiledPath.\'/' . $hash . '.php\'); ?>' . "\n" .
+            '<?php require_once $__blaze->compiledPath.\'/' . $hash . '.php\'; ?>' . "\n" .
             '<?php $__blaze->pushData([\'type\' => $buttonType,\'class\' => $classes]); ?>' . "\n" .
             '<?php _' . $hash . '($__blaze, [\'type\' => $buttonType,\'class\' => $classes], [], [\'type\', \'class\']); ?>' . "\n" .
             '<?php $__blaze->popData(); ?>' . "\n"
@@ -45,8 +45,8 @@ describe('call-site compilation', function () {
         $result = app('blade.compiler')->compileString('<x-simple-button :$type :$class />');
 
         expect($result)->toBe(
-            '<?php $__blaze->ensureCompiled(\'' . $path . '\', __DIR__.\'/' . $hash . '.php\'); ?>' . "\n" .
-            '<?php require_once __DIR__.\'/' . $hash . '.php\'; ?>' . "\n" .
+            '<?php $__blaze->ensureCompiled(\'' . $path . '\', $__blaze->compiledPath.\'/' . $hash . '.php\'); ?>' . "\n" .
+            '<?php require_once $__blaze->compiledPath.\'/' . $hash . '.php\'; ?>' . "\n" .
             '<?php $__blaze->pushData([\'type\' => $type,\'class\' => $class]); ?>' . "\n" .
             '<?php _' . $hash . '($__blaze, [\'type\' => $type,\'class\' => $class], [], [\'type\', \'class\']); ?>' . "\n" .
             '<?php $__blaze->popData(); ?>' . "\n"
@@ -60,8 +60,8 @@ describe('call-site compilation', function () {
         $result = app('blade.compiler')->compileString('<x-simple-button />');
 
         expect($result)->toBe(
-            '<?php $__blaze->ensureCompiled(\'' . $path . '\', __DIR__.\'/' . $hash . '.php\'); ?>' . "\n" .
-            '<?php require_once __DIR__.\'/' . $hash . '.php\'; ?>' . "\n" .
+            '<?php $__blaze->ensureCompiled(\'' . $path . '\', $__blaze->compiledPath.\'/' . $hash . '.php\'); ?>' . "\n" .
+            '<?php require_once $__blaze->compiledPath.\'/' . $hash . '.php\'; ?>' . "\n" .
             '<?php $__blaze->pushData([]); ?>' . "\n" .
             '<?php _' . $hash . '($__blaze, [], [], []); ?>' . "\n" .
             '<?php $__blaze->popData(); ?>' . "\n"
@@ -84,8 +84,8 @@ describe('call-site compilation', function () {
         $result = app('blade.compiler')->compileString('<x-simple-button wire:click="save" x-on:click="open = true" @click="handle" />');
 
         expect($result)->toBe(
-            '<?php $__blaze->ensureCompiled(\'' . $path . '\', __DIR__.\'/' . $hash . '.php\'); ?>' . "\n" .
-            '<?php require_once __DIR__.\'/' . $hash . '.php\'; ?>' . "\n" .
+            '<?php $__blaze->ensureCompiled(\'' . $path . '\', $__blaze->compiledPath.\'/' . $hash . '.php\'); ?>' . "\n" .
+            '<?php require_once $__blaze->compiledPath.\'/' . $hash . '.php\'; ?>' . "\n" .
             '<?php $__blaze->pushData([\'wire:click\' => \'save\',\'x-on:click\' => \'open = true\',\'@click\' => \'handle\']); ?>' . "\n" .
             '<?php _' . $hash . '($__blaze, [\'wire:click\' => \'save\',\'x-on:click\' => \'open = true\',\'@click\' => \'handle\'], [], []); ?>' . "\n" .
             '<?php $__blaze->popData(); ?>' . "\n"
@@ -140,8 +140,8 @@ describe('call-site compilation', function () {
         $result = app('blade.compiler')->compileString('<x-card>Hello World</x-card>');
 
         expect($result)
-            ->toContain("\$__blaze->ensureCompiled('{$path}', __DIR__.'/$hash.php')")
-            ->toContain("require_once __DIR__.'/$hash.php'")
+            ->toContain("\$__blaze->ensureCompiled('{$path}', \$__blaze->compiledPath.'/$hash.php')")
+            ->toContain("require_once \$__blaze->compiledPath.'/$hash.php'")
             ->toContain("\$slots$hash = []")
             ->toContain('ob_start()')
             ->toContain("['slot'] = new \\Illuminate\\View\\ComponentSlot(trim(ob_get_clean()), [])")
@@ -362,7 +362,7 @@ unset($__data[\'variant\']);
 unset($__defaults);
 $attributes = \Livewire\Blaze\Runtime\BlazeAttributeBag::sanitized($__data, $__bound);
 unset($__data, $__bound); ?><?php $__resolved = $__blaze->resolve(\'flux::\' . \'child.\' . $variant); ?>
-<?php require_once __DIR__ . \'/\' . $__resolved . \'.php\'; ?>
+<?php require_once $__blaze->compiledPath . \'/\' . $__resolved . \'.php\'; ?>
 <?php $slots' . $slotsHash . ' = []; ?>
 <?php ob_start(); ?>Hello World<?php $slots' . $slotsHash . '[\'slot\'] = new \Illuminate\View\ComponentSlot(trim(ob_get_clean()), []); ?>
 <?php $slots' . $slotsHash . ' = array_merge($__blaze->mergedComponentSlots(), $slots' . $slotsHash . '); ?>
@@ -380,7 +380,7 @@ unset($__data, $__bound); ?><?php $__resolved = $__blaze->resolve(\'flux::\' . \
         expect($result)->toBe(
             '@blaze
 <?php $__resolved = $__blaze->resolve(\'flux::\' . $type); ?>
-<?php require_once __DIR__ . \'/\' . $__resolved . \'.php\'; ?>
+<?php require_once $__blaze->compiledPath . \'/\' . $__resolved . \'.php\'; ?>
 <?php (\'_\' . $__resolved)($__blaze, $attributes->all(), $__blaze->mergedComponentSlots(), []); ?>
 <?php unset($__resolved) ?>
 '
@@ -395,7 +395,7 @@ unset($__data, $__bound); ?><?php $__resolved = $__blaze->resolve(\'flux::\' . \
         // Should contain the resolve call
         expect($compiled)->toContain('$__resolved = $__blaze->resolve(\'flux::\' . \'button.\' . $type)');
         // Should contain require_once with dynamic path
-        expect($compiled)->toContain('require_once __DIR__ . \'/\' . $__resolved . \'.php\'');
+        expect($compiled)->toContain('require_once $__blaze->compiledPath . \'/\' . $__resolved . \'.php\'');
         // Should contain slot initialization
         expect($compiled)->toContain('$slots');
         expect($compiled)->toContain('= [];');
