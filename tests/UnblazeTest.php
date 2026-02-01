@@ -1,6 +1,7 @@
 <?php
 
 use Illuminate\Support\Facades\View;
+use Illuminate\Support\Facades\Blade;
 
 describe('unblaze directive', function () {
     beforeEach(function () {
@@ -52,6 +53,11 @@ describe('unblaze directive', function () {
 
         // The scope should be captured and made available
         expect($compiled)->toContain('$scope');
+
+        $rendered = Blade::render($compiled);
+
+        // This fails. Rendered content has <div data-name="Hello World">{{ $message }}</div>
+        expect($rendered)->toContain('<div class="dynamic">Hello World</div>');
     });
 
     it('encodes scope into compiled view for runtime access', function () {
