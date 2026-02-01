@@ -116,9 +116,6 @@ class Folder
             $safeList = $directiveParameters['safe'] ?? [];
             $unsafeList = $directiveParameters['unsafe'] ?? [];
 
-            // Check for wildcard - all dynamic values are safe
-            $allSafe = in_array('*', $safeList);
-
             // Detect :$attributes spread - always abort folding
             // The attributes bag can't be evaluated at compile time
             if ($this->hasAttributesSpread($rawAttributes)) {

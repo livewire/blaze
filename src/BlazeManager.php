@@ -159,10 +159,7 @@ class BlazeManager
             preCallback: fn ($node) => $node,
             postCallback: function ($node) use (&$dataStack) {
                 $node = $this->memoizer->memoize($node);
-
-                if (cache()->memo()->get('blaze.compiler')) {
-                    $node = $this->tagCompiler->compile($node);
-                }
+                $node = $this->tagCompiler->compile($node);
 
                 return $node;
             },
