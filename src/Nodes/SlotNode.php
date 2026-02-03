@@ -6,30 +6,13 @@ class SlotNode extends Node
 {
     public function __construct(
         public string $name,
+        // TODO: Slots should have attributes as an array as well...
         public string $attributes = '',
         public string $slotStyle = 'standard',
         public array $children = [],
         public string $prefix = 'x-slot',
         public bool $closeHasName = false,
     ) {}
-
-    public function getType(): string
-    {
-        return 'slot';
-    }
-
-    public function toArray(): array
-    {
-        return [
-            'type' => $this->getType(),
-            'name' => $this->name,
-            'attributes' => $this->attributes,
-            'slot_style' => $this->slotStyle,
-            'prefix' => $this->prefix,
-            'close_has_name' => $this->closeHasName,
-            'children' => array_map(fn($child) => $child instanceof Node ? $child->toArray() : $child, $this->children),
-        ];
-    }
 
     public function render(): string
     {

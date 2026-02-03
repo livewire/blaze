@@ -8,17 +8,4 @@ class SlotCloseToken extends Token
         public ?string $name = null,
         public string $prefix = 'x-',
     ) {}
-
-    public function getType(): string
-    {
-        return 'slot_close';
-    }
-
-    public function toArray(): array
-    {
-        return [
-            'type' => $this->getType(),
-            'name' => $this->name,
-        ];
-    }
 }

@@ -88,7 +88,7 @@ class TagCompiler
         $hash = self::hash($componentPath);
         $functionName = '_' . $hash;
         $slotsVariableName = '$slots' . $hash;
-        [$attributesArrayString, $boundKeysArrayString] = $this->getAttributesAndBoundKeysArrayStrings($node->attributes);
+        [$attributesArrayString, $boundKeysArrayString] = $this->getAttributesAndBoundKeysArrayStrings($node->attributeString);
 
         $output = '<' . '?php $__blaze->ensureCompiled(\'' . $componentPath . '\', $__blaze->compiledPath.\'/'. $hash . '.php\'); ?>' . "\n";
         $output .= '<' . '?php require_once $__blaze->compiledPath.\'/'. $hash . '.php\'; ?>';
@@ -111,7 +111,7 @@ class TagCompiler
     protected function compileDelegateComponent(ComponentNode $node): string
     {
         $attributeParser = new AttributeParser;
-        $attributesArray = $attributeParser->parseAttributeStringToArray($node->attributes);
+        $attributesArray = $attributeParser->parseAttributeStringToArray($node->attributeString);
         $componentName = "'flux::' . " . $attributesArray['component']['value'];
 
         $output = '<' . '?php $__resolved = $__blaze->resolve(' . $componentName . '); ?>' . "\n";

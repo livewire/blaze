@@ -147,7 +147,7 @@ describe('Blaze::optimize() API', function () {
             $node = new \Livewire\Blaze\Nodes\ComponentNode(
                 name: 'test',
                 prefix: 'x-',
-                attributes: '',
+                attributeString: '',
                 children: [],
                 selfClosing: true
             );
@@ -184,7 +184,7 @@ describe('Blaze::optimize() API', function () {
             $node = new \Livewire\Blaze\Nodes\ComponentNode(
                 name: 'test',
                 prefix: 'x-',
-                attributes: '',
+                attributeString: '',
                 children: [],
                 selfClosing: true
             );
@@ -226,7 +226,7 @@ describe('Blaze::optimize() API', function () {
             $node = new \Livewire\Blaze\Nodes\ComponentNode(
                 name: 'test',
                 prefix: 'x-',
-                attributes: '',
+                attributeString: '',
                 children: [],
                 selfClosing: true
             );

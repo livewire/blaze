@@ -31,9 +31,11 @@ class BlazeServiceProvider extends ServiceProvider
     {
         $bladeService = new BladeService;
 
-        // Closure to get the OptimizeBuilder from the BlazeManager
-        // This deferred lookup allows the BlazeManager to be fully constructed first
+        // TODO: We should get rid of this...
         $getOptimizeBuilder = fn () => app('blaze')->optimizeBuilder();
+
+        $this->app->singleton(BlazeRuntime::class, fn () => new BlazeRuntime);
+        $this->app->singleton(BlazeConfig::class, fn () => new BlazeConfig);
 
         $this->app->singleton(BlazeManager::class, fn () => new BlazeManager(
             new Tokenizer,
@@ -41,6 +43,7 @@ class BlazeServiceProvider extends ServiceProvider
             new Walker,
             $tagCompiler = new TagCompiler(
                 componentNameToPath: fn ($name) => $bladeService->componentNameToPath($name),
+                // TODO: We should pass the BlazeConfig here instead of the OptimizeBuilder
                 getOptimizeBuilder: $getOptimizeBuilder,
             ),
             new Folder(
@@ -55,9 +58,8 @@ class BlazeServiceProvider extends ServiceProvider
                 getOptimizeBuilder: $getOptimizeBuilder,
             ),
             new ComponentCompiler,
+            $this->app->make(BlazeConfig::class),
         ));
-
-        $this->app->singleton(BlazeRuntime::class, fn () => new BlazeRuntime);
 
         $this->app->alias(BlazeManager::class, Blaze::class);
 

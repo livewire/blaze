@@ -36,8 +36,8 @@ class BlazeManager
         protected Folder $folder,
         protected Memoizer $memoizer,
         protected ComponentCompiler $componentCompiler,
+        protected BlazeConfig $config,
     ) {
-        $this->optimizeBuilder = new OptimizeBuilder;
         Event::listen(ComponentFolded::class, function (ComponentFolded $event) {
             $this->foldedEvents[] = $event;
         });
@@ -108,11 +108,16 @@ class BlazeManager
             nodes: $ast,
             preCallback: function ($node) use (&$dataStack) {
                 if ($node instanceof ComponentNode) {
-                    $node->setParentsAttributes($dataStack);
+                    // TODO: Verify if this is correct... we need to merge the attributes in reverse order from an array of attributes...
+                    $mergedAttributes = array_reduce(array_reverse($dataStack), function ($carry, $item) {
+                        return array_merge($carry, $item);
+                    }, []);
+
+                    $node->setParentsAttributes($mergedAttributes);
                 }
 
                 if (($node instanceof ComponentNode) && ! empty($node->children)) {
-                    array_push($dataStack, $node->attributes);
+                    $dataStack[] = $node->attributes;
                 }
 
                 return $node;
@@ -197,7 +202,7 @@ class BlazeManager
                 }
 
                 if (($node instanceof ComponentNode) && ! empty($node->children)) {
-                    array_push($dataStack, $node->attributes);
+                    array_push($dataStack, $node->attributeString);
                 }
 
                 return $node;

@@ -2,22 +2,53 @@
 
 namespace Livewire\Blaze\Nodes;
 
+use Illuminate\Support\Str;
 use Livewire\Blaze\Support\AttributeParser;
+use Livewire\Blaze\Support\Utils;
 
 class ComponentNode extends Node
 {
+    /** @var Attribute[] */
+    public array $attributes;
+
+    public array $slots;
+    
     public function __construct(
         public string $name,
         public string $prefix,
-        public string $attributes = '',
+        public string $attributeString = '',
         public array $children = [],
         public bool $selfClosing = false,
+        // TODO: This needs to be an array of attribute arrays, previously was an array of strings...
         public array $parentsAttributes = [],
-    ) {}
+    ) {
+        $attributes = Utils::parseAttributeStringToArray($attributeString);
 
-    public function getType(): string
-    {
-        return 'component';
+        foreach ($attributes as $key => $attribute) {
+            $this->attributes[$key] = new Attribute(
+                name: $attribute['name'],
+                value: $attribute['value'],
+                // TODO: Dynamic needs to also check for {{  }} in attribute value...
+                dynamic: $attribute['isDynamic'],
+                prefix: Str::match('/^(:\$?)/', $attribute['original']),
+            );
+        }
+
+        foreach ($this->children as $child) {
+            // TODO: Here we should handle the loose content, we'll need to figure out
+            // how Laravel handles it so that we can mirror it 100%, I think the handling below
+            // in 'replaceDynamicPortionsWithPlaceholders' is not 100% correct...
+
+            if ($child instanceof SlotNode) {
+                $this->slots[] = new Slot(
+                    name: $child->name,
+                    children: $child->children,
+                    node: $child,
+                );
+            }
+
+            
+        }
     }
 
     public function setParentsAttributes(array $parentsAttributes): void
@@ -25,28 +56,13 @@ class ComponentNode extends Node
         $this->parentsAttributes = $parentsAttributes;
     }
 
-    public function toArray(): array
-    {
-        $array = [
-            'type' => $this->getType(),
-            'name' => $this->name,
-            'prefix' => $this->prefix,
-            'attributes' => $this->attributes,
-            'children' => array_map(fn ($child) => $child instanceof Node ? $child->toArray() : $child, $this->children),
-            'self_closing' => $this->selfClosing,
-            'parents_attributes' => $this->parentsAttributes,
-        ];
-
-        return $array;
-    }
-
     public function render(): string
     {
         $name = $this->stripNamespaceFromName($this->name, $this->prefix);
 
         $output = "<{$this->prefix}{$name}";
-        if (! empty($this->attributes)) {
-            $output .= " {$this->attributes}";
+        if (! empty($this->attributeString)) {
+            $output .= " {$this->attributeString}";
         }
         if ($this->selfClosing) {
             return $output.' />';
@@ -64,7 +80,7 @@ class ComponentNode extends Node
     {
         $attributeParser = new AttributeParser;
 
-        $attributesArray = $attributeParser->parseAttributeStringToArray($this->attributes);
+        $attributesArray = $attributeParser->parseAttributeStringToArray($this->attributeString);
 
         return $attributeParser->parseAttributesArrayToRuntimeArrayString($attributesArray);
     }
@@ -74,7 +90,7 @@ class ComponentNode extends Node
         $attributePlaceholders = [];
         $attributeNameToPlaceholder = [];
         $processedAttributes = (new AttributeParser)->parseAndReplaceDynamics(
-            $this->attributes,
+            $this->attributeString,
             $attributePlaceholders,
             $attributeNameToPlaceholder
         );
@@ -90,7 +106,7 @@ class ComponentNode extends Node
         $processedNode = new self(
             name: $this->name,
             prefix: $this->prefix,
-            attributes: $processedAttributes,
+            attributeString: $processedAttributes,
             children: [],
             selfClosing: $this->selfClosing,
         );
@@ -170,7 +186,7 @@ class ComponentNode extends Node
             return $renderedHtml;
         };
 
-        return [$processedNode, $slotPlaceholders, $restore, $attributeNameToPlaceholder, $attributeNameToOriginal, $this->attributes];
+        return [$processedNode, $slotPlaceholders, $restore, $attributeNameToPlaceholder, $attributeNameToOriginal, $this->attributeString];
     }
 
     public function mergeAwareAttributes(array $awareAttributes): void
@@ -187,7 +203,7 @@ class ComponentNode extends Node
         //         'original' => ':name="$name"',
         //     ],
         // ]
-        $attributes = $attributeParser->parseAttributeStringToArray($this->attributes);
+        $attributes = $attributeParser->parseAttributeStringToArray($this->attributeString);
 
         $parentsAttributes = [];
 
@@ -239,7 +255,7 @@ class ComponentNode extends Node
 
         // Convert the parsed attributes back to a string with the original format:
         // `name1="value1" name2="value2" name3="value3"`
-        $this->attributes = $attributeParser->parseAttributesArrayToPropString($attributes);
+        $this->attributeString = $attributeParser->parseAttributesArrayToPropString($attributes);
     }
 
     protected function stripNamespaceFromName(string $name, string $prefix): string

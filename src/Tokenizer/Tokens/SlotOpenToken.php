@@ -10,19 +10,4 @@ class SlotOpenToken extends Token
         public string $slotStyle = 'standard',
         public string $prefix = 'x-',
     ) {}
-
-    public function getType(): string
-    {
-        return 'slot_open';
-    }
-
-    public function toArray(): array
-    {
-        return [
-            'type' => $this->getType(),
-            'name' => $this->name,
-            'attributes' => $this->attributes,
-            'slot_style' => $this->slotStyle,
-        ];
-    }
 }

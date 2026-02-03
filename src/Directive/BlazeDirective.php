@@ -38,7 +38,7 @@ class BlazeDirective
      *     'safe' => ['name', 'title'],
      * ]
      */
-    protected static function parseParameters(string $paramString): array
+    public static function parseParameters(string $paramString): array
     {
         $params = [];
 

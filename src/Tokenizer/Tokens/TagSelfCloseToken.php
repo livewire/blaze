@@ -10,20 +10,4 @@ class TagSelfCloseToken extends Token
         public string $namespace = '',
         public string $attributes = '',
     ) {}
-
-    public function getType(): string
-    {
-        return 'tag_self_close';
-    }
-
-    public function toArray(): array
-    {
-        return [
-            'type' => $this->getType(),
-            'name' => $this->name,
-            'prefix' => $this->prefix,
-            'namespace' => $this->namespace,
-            'attributes' => $this->attributes,
-        ];
-    }
 }
