@@ -5,6 +5,8 @@ namespace Livewire\Blaze;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\File;
+use Illuminate\Support\Str;
+use Illuminate\View\Compilers\ComponentTagCompiler;
 use ReflectionClass;
 
 class BladeService
@@ -176,13 +178,13 @@ class BladeService
 
     public function compileAttributeEchos(string $input): string
     {
-        $compiler = app('blade.compiler');
+        $compiler = new ComponentTagCompiler(blade: app('blade.compiler'));
 
         $reflection = new \ReflectionClass($compiler);
         $method = $reflection->getMethod('compileAttributeEchos');
         $method->setAccessible(true);
 
-        return $method->invoke($compiler, $input);
+        return Str::unwrap($method->invoke($compiler, $input), "'.", ".'");
     }
 
     public function viewCacheInvalidationHook(callable $callback)
