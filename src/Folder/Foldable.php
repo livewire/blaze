@@ -94,7 +94,7 @@ class Foldable
             }
 
             $this->renderable->attributes[$prop] ??= $this->node->parentsAttributes[$prop] ?? new Attribute(
-                name: $prop, // TODO: This imight need to be converted to snake-case?
+                name: $prop,
                 value: $default,
                 propName: $prop,
                 prefix: null,
@@ -152,11 +152,8 @@ class Foldable
         foreach ($this->renderable->attributes as $attribute) {
             $attribute = $this->attributeByPlaceholder[$attribute->value] ?? $attribute;
 
-            // TODO: Check if @aware is going to work if nested (foldable?) component has dynamic attributes
-            // I'm worried that the dynamic attribute might reference a variable that is not available in the outside scope
-            // Because the aware macros will be in the outer scope and the dynamic attributes will be picked up in the inner scope ?
             if ($attribute->bound()) {
-                $data[] = var_export($attribute->propName, true).' => '.var_export($attribute->value, true);
+                $data[] = var_export($attribute->propName, true).' => '.$attribute->value;
             } else {
                 $data[] = var_export($attribute->propName, true).' => '.Utils::compileAttributeEchos($attribute->value);
             }

@@ -346,6 +346,18 @@ describe('fold elligable components', function () {
         expect($rendered)->toBe('<div class="group group-primary" data-test="bar"><div class="item item-"></div></div>');
     });
 
+    it('supports aware on unfoldable components from folded parent with safe dynamic attributes', function () {
+        $input = '<?php $color = "primary"; ?><x-group-safe :variant="$color"><x-item /></x-group-safe>';
+        $output = app('blaze')->compile($input);
+        $rendered = \Illuminate\Support\Facades\Blade::render($output);
+
+        // The group-safe component folds (variant is in safe list), and wraps output
+        // with pushConsumableComponentData so non-Blaze children can use @aware.
+        // The child item should receive the runtime value of $color, not a literal string.
+        expect($rendered)->toContain('<div class="group group-primary">');
+        expect($rendered)->toContain('<div class="item item-primary">');
+    });
+
     it('supports verbatim blocks', function () {
         $input = <<<'BLADE'
 @verbatim
