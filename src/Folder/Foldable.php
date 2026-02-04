@@ -50,18 +50,16 @@ class Foldable
 
     protected function replaceAttributesWithPlaceholders(): void
     {
-        // TODO: Now that we have $attribute->prop (camelCase version of attribute), we don't have to rely on the keys anymore...
-        // They might still come useful for merging etc.
-        foreach ($this->renderable->attributes as $name => $attribute) {
+        foreach ($this->renderable->attributes as $attribute) {
             if ($attribute->dynamic) {
                 $placeholder = 'BLAZE_PLACEHOLDER_' . strtoupper(str()->random());
 
                 $this->attributeByPlaceholder[$placeholder] = $attribute;
 
-                $this->renderable->attributes[$name] = new Attribute(
+                $this->renderable->attributes[$attribute->propName] = new Attribute(
                     name: $attribute->name,
                     value: $placeholder,
-                    propName: $name,
+                    propName: $attribute->propName,
                     prefix: '',
                     dynamic: false,
                     quotes: '"',
