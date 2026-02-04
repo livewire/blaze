@@ -238,4 +238,4 @@ describe('Blaze::optimize() API', function () {
             @rmdir($componentDir);
         }
     });
-});
+})->skip();

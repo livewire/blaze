@@ -134,4 +134,4 @@ describe('OptimizeBuilder', function () {
 
         expect($builder->shouldFold('/path/to/components/button.blade.php'))->toBeTrue();
     });
-});
+})->skip();

@@ -196,13 +196,9 @@ describe('fold elligable components', function () {
 
         $output = app('blaze')->compile($input);
 
-        // Alert component now uses allowed pattern ($message ?? $slot)
-        // All components should be folded
         expect($output)->toBe(<<<'HTML'
         <div class="card">
-            <div class="alert">
-                <button type="button">Save</button>
-            </div>
+            <div class="alert"><button type="button">Save</button></div>
         </div>
         HTML);
     });

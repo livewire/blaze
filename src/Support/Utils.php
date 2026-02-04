@@ -28,17 +28,8 @@ class Utils
         return (new AttributeParser)->parseAttributeStringToArray($attributeString);
     }
 
-    /**
-     * Parse an array expression from a directive (e.g., @props, @aware).
-     * 
-     * Returns an associative array where keys are prop names and values are defaults.
-     */
     public static function parseArrayContent(string $expression): array
     {
-        try {
-            return (new ArrayParser)->parse($expression);
-        } catch (\Exception $e) {
-            return [];
-        }
+        return (new AttributeParser)->parseArrayStringIntoArray($expression);
     }
 }
