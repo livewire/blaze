@@ -7,6 +7,7 @@ use Livewire\Blaze\Events\ComponentFolded;
 use Livewire\Blaze\Exceptions\InvalidBlazeFoldUsageException;
 use Livewire\Blaze\Nodes\ComponentNode;
 use Livewire\Blaze\Nodes\Node;
+use Livewire\Blaze\Nodes\SlotNode;
 use Livewire\Blaze\Nodes\TextNode;
 use Livewire\Blaze\Support\ComponentSource;
 use Closure;
@@ -120,9 +121,24 @@ class Folder
             if (in_array($slot->name, $unsafe)) {
                 return false;
             }
+
+            if ($this->slotHasDynamicAttributes($slot)) {
+                return false;
+            }
         }
 
         return true;
+    }
+
+    protected function slotHasDynamicAttributes(SlotNode $slot): bool
+    {
+        foreach ($slot->attributes as $attribute) {
+            if ($attribute->dynamic) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     protected function checkProblematicPatterns(ComponentSource $source): void

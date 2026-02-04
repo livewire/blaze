@@ -258,6 +258,46 @@ describe('fold elligable components', function () {
 </div>');
     });
 
+    it('does not fold when slot has dynamic bound attributes', function () {
+        $input = '<x-modal>
+    <x-slot:header :class="\'text-bold\'">Modal Title</x-slot:header>
+    <x-slot name="footer">Footer Content</x-slot>
+    Main content
+</x-modal>';
+
+        $output = app('blaze')->compile($input);
+
+        // Should NOT be folded because slot has dynamic bound attribute
+        expect($output)->toContain('$__blaze->ensureCompiled');
+    });
+
+    it('does not fold when slot has dynamic echo attributes', function () {
+        $input = '<x-modal>
+    <x-slot:header class="{{ \'text-bold\' }}">Modal Title</x-slot:header>
+    <x-slot name="footer">Footer Content</x-slot>
+    Main content
+</x-modal>';
+
+        $output = app('blaze')->compile($input);
+
+        // Should NOT be folded because slot has dynamic echo attribute
+        expect($output)->toContain('$__blaze->ensureCompiled');
+    });
+
+    it('folds when slot has only static attributes', function () {
+        $input = '<x-modal>
+    <x-slot:header class="text-bold">Modal Title</x-slot:header>
+    <x-slot name="footer">Footer Content</x-slot>
+    Main content
+</x-modal>';
+
+        $output = app('blaze')->compile($input);
+
+        // Should be folded because slot attributes are static
+        expect($output)->not->toContain('$__blaze->ensureCompiled');
+        expect($output)->toContain('<div class="modal">');
+    });
+
     it('supports folding aware components with single word attributes', function () {
         $input = '<x-group variant="primary"><x-foldable-item /></x-group>';
         $output = app('blaze')->compile($input);

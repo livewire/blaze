@@ -78,9 +78,6 @@ class Foldable
             $this->slotByPlaceholder[$placeholder] = clone $slot;
 
             $slot->children = [new TextNode($placeholder)];
-
-            // TODO: Check that we're handling dynamic slot attributes correctly, I think we're not...
-            // Eg. <x-slot:foo :bar="$bar">...</x-slot:foo>
         }
         
         $this->renderable->children = $slots;

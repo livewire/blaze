@@ -2,25 +2,42 @@
 
 namespace Livewire\Blaze\Nodes;
 
+use Livewire\Blaze\Support\Utils;
+
 class SlotNode extends Node
 {
+    /** @var Attribute[] */
+    public array $attributes = [];
+
     public function __construct(
         public string $name,
-        // TODO: Slots should have attributes as an array as well...
-        public string $attributes = '',
+        public string $attributeString = '',
         public string $slotStyle = 'standard',
         public array $children = [],
         public string $prefix = 'x-slot',
         public bool $closeHasName = false,
-    ) {}
+    ) {
+        $attributes = Utils::parseAttributeStringToArray($this->attributeString);
+
+        foreach ($attributes as $key => $attribute) {
+            $this->attributes[$key] = new Attribute(
+                name: $attribute['name'],
+                value: $attribute['value'],
+                propName: $key,
+                dynamic: $attribute['isDynamic'] || str_contains($attribute['original'], '{{'),
+                prefix: \Illuminate\Support\Str::match('/^(:\$?)/', $attribute['original']),
+                quotes: $attribute['quotes'],
+            );
+        }
+    }
 
     public function render(): string
     {
         if ($this->slotStyle === 'short') {
             $output = "<{$this->prefix}:{$this->name}";
 
-            if (! empty($this->attributes)) {
-                $output .= " {$this->attributes}";
+            if (! empty($this->attributeString)) {
+                $output .= " {$this->attributeString}";
             }
 
             $output .= '>';
@@ -43,8 +60,8 @@ class SlotNode extends Node
             $output .= ' name="' . $this->name . '"';
         }
 
-        if (! empty($this->attributes)) {
-            $output .= " {$this->attributes}";
+        if (! empty($this->attributeString)) {
+            $output .= " {$this->attributeString}";
         }
 
         $output .= '>';

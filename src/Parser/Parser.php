@@ -68,7 +68,7 @@ class Parser
     {
         $node = new SlotNode(
             name: $token->name ?? '',
-            attributes: $token->attributes,
+            attributeString: $token->attributes,
             slotStyle: $token->slotStyle,
             children: [],
             prefix: $token->prefix,

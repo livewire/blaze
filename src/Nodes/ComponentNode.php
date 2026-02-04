@@ -53,7 +53,7 @@ class ComponentNode extends Node
         if ($looseContent && ! isset($slots['slot'])) {
             $slots['slot'] = new SlotNode(
                 name: 'slot',
-                attributes: '',
+                attributeString: '',
                 slotStyle: 'standard',
                 children: $looseContent,
                 prefix: 'x-slot',
@@ -75,7 +75,7 @@ class ComponentNode extends Node
         }
         
         // Standard syntax: extract name from attributes
-        if (preg_match('/(?:^|\s)name\s*=\s*["\']([^"\']+)["\']/', $slot->attributes, $matches)) {
+        if (preg_match('/(?:^|\s)name\s*=\s*["\']([^"\']+)["\']/', $slot->attributeString, $matches)) {
             return $matches[1];
         }
         

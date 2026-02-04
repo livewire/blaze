@@ -109,7 +109,7 @@ class SlotCompiler
      */
     protected function compileSlotAttributes(SlotNode $slot): string
     {
-        $attributeString = $slot->attributes;
+        $attributeString = $slot->attributeString;
 
         // For standard syntax, name="..." is the slot name, not an attribute
         if ($slot->slotStyle === 'standard') {
@@ -134,7 +134,7 @@ class SlotCompiler
 
         // Standard syntax: <x-slot name="header">
         if (empty($name)) {
-            $name = preg_match('/(?:^|\s)name\s*=\s*["\']([^"\']+)["\']/', $slot->attributes, $matches)
+            $name = preg_match('/(?:^|\s)name\s*=\s*["\']([^"\']+)["\']/', $slot->attributeString, $matches)
                 ? $matches[1]
                 : 'slot';
         }
