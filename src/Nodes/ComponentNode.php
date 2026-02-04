@@ -10,9 +10,6 @@ class ComponentNode extends Node
 {
     /** @var Attribute[] */
     public array $attributes = [];
-
-    /** @var Slot[] */
-    public array $slots = [];
     
     public function __construct(
         public string $name,
@@ -20,50 +17,69 @@ class ComponentNode extends Node
         public string $attributeString = '',
         public array $children = [],
         public bool $selfClosing = false,
-        // TODO: This needs to be an array of attribute arrays, previously was an array of strings...
         public array $parentsAttributes = [],
     ) {
-        $this->parseAttributes();
-        $this->parseSlots();
-    }
-
-    protected function parseAttributes(): void
-    {
         $attributes = Utils::parseAttributeStringToArray($this->attributeString);
 
         foreach ($attributes as $key => $attribute) {
             $this->attributes[$key] = new Attribute(
-                name: $key,
+                name: $attribute['name'],
                 value: $attribute['value'],
-                dynamic: $attribute['isDynamic'],
+                propName: $key,
+                dynamic: $attribute['isDynamic'] || str_contains($attribute['original'], '{{'),
                 prefix: Str::match('/^(:\$?)/', $attribute['original']),
+                quotes: $attribute['quotes'],
             );
         }
     }
 
-    protected function parseSlots(): void
+    public function slots(): array
     {
-        $defaultSlotChildren = [];
+        $slots = [];
+        $looseContent = [];
 
         foreach ($this->children as $child) {
             if ($child instanceof SlotNode) {
-                $this->slots[$child->name ?? 'slot'] = new Slot(
-                    name: $child->name ?? 'slot',
-                    children: $child->children,
-                    node: $child,
-                );
+                $slotName = $this->resolveSlotName($child);
+                
+                $slots[$slotName] = $child;
             } else {
-                $defaultSlotChildren[] = $child;
+                $looseContent[] = $child;
             }
         }
 
-        if ($defaultSlotChildren) {
-            $this->slots['slot'] ??= new Slot(
+        // If no explicit default slot, create a synthetic one from loose content
+        // Laravel behavior: explicit default slot takes precedence over loose content
+        if ($looseContent && ! isset($slots['slot'])) {
+            $slots['slot'] = new SlotNode(
                 name: 'slot',
-                children: $defaultSlotChildren,
-                node: null,
+                attributes: '',
+                slotStyle: 'standard',
+                children: $looseContent,
+                prefix: 'x-slot',
             );
         }
+
+        return $slots;
+    }
+
+    /**
+     * Resolve the slot name from a SlotNode.
+     * Handles both short syntax (<x-slot:name>) and standard syntax (<x-slot name="name">).
+     */
+    protected function resolveSlotName(SlotNode $slot): string
+    {
+        // Short syntax: name is directly on the node
+        if (!empty($slot->name)) {
+            return $slot->name;
+        }
+        
+        // Standard syntax: extract name from attributes
+        if (preg_match('/(?:^|\s)name\s*=\s*["\']([^"\']+)["\']/', $slot->attributes, $matches)) {
+            return $matches[1];
+        }
+        
+        return 'slot';
     }
 
     public function setParentsAttributes(array $parentsAttributes): void
@@ -71,23 +87,35 @@ class ComponentNode extends Node
         $this->parentsAttributes = $parentsAttributes;
     }
 
+    /**
+     * Render the component preserving the original structure.
+     * Use this for passthrough/round-trip rendering.
+     */
     public function render(): string
     {
         $name = $this->stripNamespaceFromName($this->name, $this->prefix);
 
         $output = "<{$this->prefix}{$name}";
-        
+
         foreach ($this->attributes as $attribute) {
-            $output .= " {$attribute->prefix}{$attribute->name}=\"{$attribute->value}\" ";
+            if ($attribute->value === true) {
+                $output .= ' ' . $attribute->name;
+            } else {
+                $output .= ' ' . $attribute->prefix . $attribute->name . '=' . $attribute->quotes . $attribute->value . $attribute->quotes;
+            }
         }
 
         if ($this->selfClosing) {
             return $output.' />';
         }
+        
         $output .= '>';
+        
+        // Iterate over original children to preserve structure
         foreach ($this->children as $child) {
-            $output .= $child instanceof Node ? $child->render() : (string) $child;
+            $output .= $child->render();
         }
+        
         $output .= "</{$this->prefix}{$name}>";
 
         return $output;
@@ -100,179 +128,6 @@ class ComponentNode extends Node
         $attributesArray = $attributeParser->parseAttributeStringToArray($this->attributeString);
 
         return $attributeParser->parseAttributesArrayToRuntimeArrayString($attributesArray);
-    }
-
-    public function replaceDynamicPortionsWithPlaceholders(callable $renderNodes): array
-    {
-        $attributePlaceholders = [];
-        $attributeNameToPlaceholder = [];
-        $processedAttributes = (new AttributeParser)->parseAndReplaceDynamics(
-            $this->attributeString,
-            $attributePlaceholders,
-            $attributeNameToPlaceholder
-        );
-
-        // Map attribute name => original dynamic content (if dynamic)
-        $attributeNameToOriginal = [];
-        foreach ($attributeNameToPlaceholder as $name => $placeholder) {
-            if (isset($attributePlaceholders[$placeholder])) {
-                $attributeNameToOriginal[$name] = $attributePlaceholders[$placeholder];
-            }
-        }
-
-        $processedNode = new self(
-            name: $this->name,
-            prefix: $this->prefix,
-            attributeString: $processedAttributes,
-            children: [],
-            selfClosing: $this->selfClosing,
-        );
-
-        $slotPlaceholders = [];
-        $defaultSlotChildren = [];
-        $namedSlotNames = [];
-
-        foreach ($this->children as $child) {
-            if ($child instanceof SlotNode) {
-                $slotName = $child->name;
-                if (! empty($slotName) && $slotName !== 'slot') {
-                    $slotContent = $renderNodes($child->children);
-                    $slotPlaceholders['NAMED_SLOT_'.$slotName] = $slotContent;
-                    $namedSlotNames[] = $slotName;
-                } else {
-                    foreach ($child->children as $grandChild) {
-                        $defaultSlotChildren[] = $grandChild;
-                    }
-                }
-            } else {
-                $defaultSlotChildren[] = $child;
-            }
-        }
-
-        // Emit real <x-slot> placeholder nodes for named slots and separate with zero-output PHP...
-        $count = count($namedSlotNames);
-        foreach ($namedSlotNames as $index => $name) {
-            if ($index > 0) {
-                $processedNode->children[] = new TextNode('<?php /*blaze_sep*/ ?>');
-            }
-            $processedNode->children[] = new SlotNode(
-                name: $name,
-                attributes: '',
-                slotStyle: 'standard',
-                children: [new TextNode('NAMED_SLOT_'.$name)],
-                prefix: 'x-slot',
-            );
-        }
-
-        $defaultPlaceholder = null;
-        if (! empty($defaultSlotChildren)) {
-            if ($count > 0) {
-                // Separate last named slot from default content with zero-output PHP...
-                $processedNode->children[] = new TextNode('<?php /*blaze_sep*/ ?>');
-            }
-            $defaultPlaceholder = 'SLOT_PLACEHOLDER_'.count($slotPlaceholders);
-            $renderedDefault = $renderNodes($defaultSlotChildren);
-            $slotPlaceholders[$defaultPlaceholder] = ($count > 0) ? trim($renderedDefault) : $renderedDefault;
-            $processedNode->children[] = new TextNode($defaultPlaceholder);
-        } else {
-            $processedNode->children[] = new TextNode('');
-        }
-
-        $restore = function (string $renderedHtml) use ($slotPlaceholders, $attributePlaceholders, $defaultPlaceholder): string {
-            // Replace slot placeholders first...
-            foreach ($slotPlaceholders as $placeholder => $content) {
-                if ($placeholder === $defaultPlaceholder) {
-                    // Trim whitespace immediately around the default placeholder position...
-                    // Use preg_replace_callback to avoid $N backreference interpretation in content
-                    // (e.g., "$49.00" would have "$49" interpreted as capture group 49)
-                    $pattern = '/\s*'.preg_quote($placeholder, '/').'\s*/';
-                    $renderedHtml = preg_replace_callback($pattern, fn () => $content, $renderedHtml);
-                } else {
-                    $renderedHtml = str_replace($placeholder, $content, $renderedHtml);
-                }
-            }
-
-            // Process fenced attributes (from $attributes rendering during folding)
-            $renderedHtml = self::processFencedAttributes($renderedHtml, $attributePlaceholders);
-
-            // Restore any remaining attribute placeholders (those not inside fences)
-            foreach ($attributePlaceholders as $placeholder => $original) {
-                $renderedHtml = str_replace($placeholder, $original, $renderedHtml);
-            }
-
-            return $renderedHtml;
-        };
-
-        return [$processedNode, $slotPlaceholders, $restore, $attributeNameToPlaceholder, $attributeNameToOriginal, $this->attributeString];
-    }
-
-    public function mergeAwareAttributes(array $awareAttributes): void
-    {
-        $attributeParser = new AttributeParser;
-
-        // Attributes are a string of attributes in the format:
-        // `name1="value1" name2="value2" name3="value3"`
-        // So we need to convert that attributes string to an array of attributes with the format:
-        // [
-        //     'name' => [
-        //         'isDynamic' => true,
-        //         'value' => '$name',
-        //         'original' => ':name="$name"',
-        //     ],
-        // ]
-        $attributes = $attributeParser->parseAttributeStringToArray($this->attributeString);
-
-        $parentsAttributes = [];
-
-        // Parents attributes are an array of attributes strings in the same format
-        // as above so we also need to convert them to an array of attributes...
-        foreach ($this->parentsAttributes as $parentAttributes) {
-            $parentsAttributes[] = $attributeParser->parseAttributeStringToArray($parentAttributes);
-        }
-
-        // Now we can take the aware attributes and merge them with the components attributes...
-        foreach ($awareAttributes as $key => $value) {
-            // As `$awareAttributes` is an array of attributes, which can either have just
-            // a value, which is the attribute name, or a key-value pair, which is the
-            // attribute name and a default value...
-            if (is_int($key)) {
-                $attributeName = $value;
-                $attributeValue = null;
-                $defaultValue = null;
-            } else {
-                $attributeName = $key;
-                $attributeValue = $value;
-                $defaultValue = [
-                    'isDynamic' => false,
-                    'value' => $attributeValue,
-                    'original' => $attributeName.'="'.$attributeValue.'"',
-                ];
-            }
-
-            if (isset($attributes[$attributeName])) {
-                continue;
-            }
-
-            // Loop through the parents attributes in reverse order so that the last parent
-            // attribute that matches the attribute name is used...
-            foreach (array_reverse($parentsAttributes) as $parsedParentAttributes) {
-                // If an attribute is found, then use it and stop searching...
-                if (isset($parsedParentAttributes[$attributeName])) {
-                    $attributes[$attributeName] = $parsedParentAttributes[$attributeName];
-                    break;
-                }
-            }
-
-            // If the attribute is not set then fall back to using the aware value.
-            // We need to add it in the same format as the other attributes...
-            if (! isset($attributes[$attributeName]) && $defaultValue !== null) {
-                $attributes[$attributeName] = $defaultValue;
-            }
-        }
-
-        // Convert the parsed attributes back to a string with the original format:
-        // `name1="value1" name2="value2" name3="value3"`
-        $this->attributeString = $attributeParser->parseAttributesArrayToPropString($attributes);
     }
 
     protected function stripNamespaceFromName(string $name, string $prefix): string
@@ -295,7 +150,7 @@ class ComponentNode extends Node
     /**
      * Process fenced attributes from folding, converting dynamic ones to conditional PHP.
      */
-    protected static function processFencedAttributes(string $html, array $attributePlaceholders): string
+    public static function processFencedAttributes(string $html, array $attributePlaceholders): string
     {
         return preg_replace_callback(
             '/<!--BLAZE_ATTR:([a-zA-Z0-9_.:-]+)-->(.+?)<!--\/BLAZE_ATTR-->/',
@@ -304,7 +159,7 @@ class ComponentNode extends Node
                 $content = $matches[2];
 
                 // Check if content contains a placeholder (dynamic attribute)
-                if (preg_match('/ATTR_PLACEHOLDER_\d+/', $content, $placeholderMatch)) {
+                if (preg_match('/ATTR_PLACEHOLDER_\d+|BLAZE_PLACEHOLDER_[A-Z0-9]+/', $content, $placeholderMatch)) {
                     $placeholder = $placeholderMatch[0];
                     $original = $attributePlaceholders[$placeholder] ?? null;
 
@@ -312,10 +167,16 @@ class ComponentNode extends Node
                     // This handles boolean semantics (e.g. disabled="{{ $isDisabled }}" → omit when false).
                     // Mixed content like wire:key="opt-{{ $a }}-{{ $b }}" should NOT match—it always
                     // has content and gets restored as-is for normal Blade compilation.
-                    if ($original && preg_match('/^\s*\{\{\s*(.+?)\s*\}\}\s*$/s', $original, $exprMatch)) {
-                        $expression = trim($exprMatch[1]);
+                    if ($original) {
+                        if (preg_match('/^\s*\{\{\s*(.+?)\s*\}\}\s*$/s', $original, $exprMatch)) {
+                            $expression = trim($exprMatch[1]);
 
-                        return self::generateConditionalAttribute($name, $expression);
+                            return self::generateConditionalAttribute($name, $expression);
+                        }
+
+                        if (! str_contains($original, '{{')) {
+                            return self::generateConditionalAttribute($name, trim($original));
+                        }
                     }
                 }
 

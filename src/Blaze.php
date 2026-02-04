@@ -17,7 +17,7 @@ use Illuminate\Support\Facades\Facade;
  * @method static \Livewire\Blaze\Parser\Parser parser()
  * @method static \Livewire\Blaze\Folder\Folder folder()
  * @method static array flushFoldedEvents()
- * @method static \Livewire\Blaze\OptimizeBuilder optimize()
+ * @method static \Livewire\Blaze\BlazeConfig optimize()
  *
  * @see \Livewire\Blaze\BlazeManager
  */

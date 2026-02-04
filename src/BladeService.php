@@ -184,7 +184,7 @@ class BladeService
         $method = $reflection->getMethod('compileAttributeEchos');
         $method->setAccessible(true);
 
-        return Str::unwrap($method->invoke($compiler, $input), "'.", ".'");
+        return Str::unwrap("'" . $method->invoke($compiler, $input) . "'", "''.", ".''");
     }
 
     public function viewCacheInvalidationHook(callable $callback)

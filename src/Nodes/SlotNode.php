@@ -49,12 +49,15 @@ class SlotNode extends Node
 
         $output .= '>';
 
-        foreach ($this->children as $child) {
-            $output .= $child instanceof Node ? $child->render() : (string) $child;
-        }
+        $output .= $this->content();
 
         $output .= "</{$this->prefix}>";
 
         return $output;
+    }
+
+    public function content(): string
+    {
+        return join('', array_map(fn ($child) => $child->render(), $this->children));
     }
 }

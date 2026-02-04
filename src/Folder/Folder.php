@@ -31,7 +31,6 @@ class Folder
         }
 
         $component = $node;
-        $component->syncSlots();
 
         $source = new ComponentSource($component->name);
 
@@ -110,13 +109,14 @@ class Folder
 
         // Check if any dynamic attributes are unsafe...
         foreach ($node->attributes as $attribute) {
-            if ($attribute->dynamic && in_array($attribute->name, $unsafe)) {
+            if ($attribute->dynamic && in_array($attribute->propName, $unsafe)) {
                 return false;
             }
         }
 
-        // Check if any slots are unsafe...
-        foreach ($node->slots as $slot) {
+        $slots = $node->slots();
+
+        foreach ($slots as $slot) {
             if (in_array($slot->name, $unsafe)) {
                 return false;
             }

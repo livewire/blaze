@@ -22,6 +22,18 @@ class BlazeConfig
         return $this;
     }
 
+    /**
+     * Clear all path configuration (primarily for testing).
+     */
+    public function clear(): self
+    {
+        $this->compile = [];
+        $this->memo = [];
+        $this->fold = [];
+
+        return $this;
+    }
+
     public function shouldCompile(string $file): bool
     {
         return $this->isEnabled($file, $this->compile);

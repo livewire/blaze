@@ -3,6 +3,7 @@
 namespace Livewire\Blaze\Runtime;
 
 use Illuminate\Support\Arr;
+use Illuminate\Support\Str;
 use Illuminate\View\AppendableAttributeValue;
 use Illuminate\View\ComponentAttributeBag;
 
@@ -216,7 +217,6 @@ class BlazeAttributeBag extends ComponentAttributeBag
      */
     public function __toString()
     {
-        $isFolding = app('blaze')->isFolding();
         $string = '';
 
         foreach ($this->attributes as $key => $value) {
@@ -231,9 +231,8 @@ class BlazeAttributeBag extends ComponentAttributeBag
 
             $attr = $key.'="'.str_replace('"', '\\"', trim($value)).'"';
 
-            if ($isFolding) {
-                // Put space OUTSIDE fence so trim() can remove it from first attribute
-                $string .= ' <!--BLAZE_ATTR:'.$key.'-->'.$attr.'<!--/BLAZE_ATTR-->';
+            if (Str::match('/^BLAZE_PLACEHOLDER_[A-Z0-9]+$/', $value)) {
+                $string .= ' [BLAZE_ATTR:'.$value.']';
             } else {
                 $string .= ' '.$attr;
             }

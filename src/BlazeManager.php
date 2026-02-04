@@ -26,8 +26,6 @@ class BlazeManager
 
     protected $expiredMemo = [];
 
-    protected OptimizeBuilder $optimizeBuilder;
-
     public function __construct(
         protected Tokenizer $tokenizer,
         protected Parser $parser,
@@ -272,13 +270,8 @@ class BlazeManager
         return $this->folder;
     }
 
-    public function optimize(): OptimizeBuilder
+    public function optimize(): BlazeConfig
     {
-        return $this->optimizeBuilder;
-    }
-
-    public function optimizeBuilder(): OptimizeBuilder
-    {
-        return $this->optimizeBuilder;
+        return $this->config;
     }
 }

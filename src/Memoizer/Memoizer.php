@@ -5,6 +5,7 @@ namespace Livewire\Blaze\Memoizer;
 use Livewire\Blaze\Nodes\ComponentNode;
 use Livewire\Blaze\Nodes\TextNode;
 use Livewire\Blaze\Nodes\Node;
+use Livewire\Blaze\BlazeConfig;
 use Livewire\Blaze\Directive\BlazeDirective;
 
 class Memoizer
@@ -12,13 +13,13 @@ class Memoizer
     protected $componentNameToPath;
     protected $compileNode;
 
-    protected $getOptimizeBuilder;
+    protected BlazeConfig $config;
 
-    public function __construct(callable $componentNameToPath, callable $compileNode, callable $getOptimizeBuilder)
+    public function __construct(callable $componentNameToPath, callable $compileNode, BlazeConfig $config)
     {
         $this->componentNameToPath = $componentNameToPath;
         $this->compileNode = $compileNode;
-        $this->getOptimizeBuilder = $getOptimizeBuilder;
+        $this->config = $config;
     }
 
     public function isMemoizable(Node $node): bool
@@ -38,22 +39,13 @@ class Memoizer
 
             $directiveParameters = BlazeDirective::getParameters($source);
 
-            // Get path-based default for memo
-            $optimizeBuilder = ($this->getOptimizeBuilder)();
-            $pathMemoDefault = $optimizeBuilder->shouldMemo($componentPath);
-
             // Component-level @blaze(memo: ...) takes priority over path config
             if (! is_null($directiveParameters) && isset($directiveParameters['memo'])) {
                 return $directiveParameters['memo'];
             }
 
-            // Use path-based default if available
-            if ($pathMemoDefault !== null) {
-                return $pathMemoDefault;
-            }
-
-            // Final fallback: false (memoization is opt-in)
-            return $directiveParameters['memo'] ?? false;
+            // Use path-based default
+            return $this->config->shouldMemoize($componentPath);
 
         } catch (\Exception $e) {
             return false;

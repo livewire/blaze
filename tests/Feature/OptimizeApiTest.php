@@ -1,30 +1,24 @@
 <?php
 
 use Livewire\Blaze\Blaze;
+use Livewire\Blaze\Support\ComponentSource;
 
 describe('Blaze::optimize() API', function () {
     beforeEach(function () {
-        // Clear any previous path configurations
-        Blaze::optimize()->in('__nonexistent__');
-
-        // Get fresh OptimizeBuilder state by re-registering
-        $reflection = new ReflectionClass(app('blaze'));
-        $prop = $reflection->getProperty('optimizeBuilder');
-        $prop->setAccessible(true);
-        $prop->setValue(app('blaze'), new \Livewire\Blaze\OptimizeBuilder);
+        Blaze::optimize()->clear();
     });
 
-    it('can access optimize builder via facade', function () {
-        $builder = Blaze::optimize();
+    it('can access optimize config via facade', function () {
+        $config = Blaze::optimize();
 
-        expect($builder)->toBeInstanceOf(\Livewire\Blaze\OptimizeBuilder::class);
+        expect($config)->toBeInstanceOf(\Livewire\Blaze\BlazeConfig::class);
     });
 
     it('returns same instance on multiple calls', function () {
-        $builder1 = Blaze::optimize();
-        $builder2 = Blaze::optimize();
+        $config1 = Blaze::optimize();
+        $config2 = Blaze::optimize();
 
-        expect($builder1)->toBe($builder2);
+        expect($config1)->toBe($config2);
     });
 
     it('compiles component in configured directory without @blaze directive', function () {
@@ -44,7 +38,7 @@ describe('Blaze::optimize() API', function () {
             // Verify the component is recognized as Blaze component
             $tagCompiler = new \Livewire\Blaze\Compiler\TagCompiler(
                 fn () => $componentPath,
-                fn () => Blaze::optimize()
+                Blaze::optimize()
             );
 
             $reflection = new ReflectionMethod($tagCompiler, 'isBlazeComponent');
@@ -77,7 +71,7 @@ describe('Blaze::optimize() API', function () {
         try {
             $tagCompiler = new \Livewire\Blaze\Compiler\TagCompiler(
                 fn () => $componentPath,
-                fn () => Blaze::optimize()
+                Blaze::optimize()
             );
 
             $reflection = new ReflectionMethod($tagCompiler, 'isBlazeComponent');
@@ -108,7 +102,7 @@ describe('Blaze::optimize() API', function () {
         try {
             $tagCompiler = new \Livewire\Blaze\Compiler\TagCompiler(
                 fn () => $componentPath,
-                fn () => Blaze::optimize()
+                Blaze::optimize()
             );
 
             $reflection = new ReflectionMethod($tagCompiler, 'isBlazeComponent');
@@ -137,22 +131,7 @@ describe('Blaze::optimize() API', function () {
         file_put_contents($componentPath, '<button>Static</button>');
 
         try {
-            $folder = new \Livewire\Blaze\Folder\Folder(
-                renderBlade: fn ($blade) => $blade,
-                renderNodes: fn ($nodes) => '',
-                componentNameToPath: fn () => $componentPath,
-                getOptimizeBuilder: fn () => Blaze::optimize()
-            );
-
-            $node = new \Livewire\Blaze\Nodes\ComponentNode(
-                name: 'test',
-                prefix: 'x-',
-                attributeString: '',
-                children: [],
-                selfClosing: true
-            );
-
-            expect($folder->shouldFold($node))->toBeTrue();
+            expect(Blaze::optimize()->shouldFold(realpath($componentPath)))->toBeTrue();
         } finally {
             // Cleanup
             @unlink($componentPath);
@@ -174,23 +153,21 @@ describe('Blaze::optimize() API', function () {
         file_put_contents($componentPath, "@blaze(fold: false)\n<button>Static</button>");
 
         try {
+            app('blade.compiler')->anonymousComponentPath(__DIR__.'/fixtures/path-config');
+            $source = new ComponentSource('cards2.card');
+
             $folder = new \Livewire\Blaze\Folder\Folder(
                 renderBlade: fn ($blade) => $blade,
                 renderNodes: fn ($nodes) => '',
                 componentNameToPath: fn () => $componentPath,
-                getOptimizeBuilder: fn () => Blaze::optimize()
+                config: Blaze::optimize(),
             );
 
-            $node = new \Livewire\Blaze\Nodes\ComponentNode(
-                name: 'test',
-                prefix: 'x-',
-                attributeString: '',
-                children: [],
-                selfClosing: true
-            );
+            $reflection = new ReflectionMethod($folder, 'shouldFold');
+            $reflection->setAccessible(true);
 
             // Component explicitly sets fold: false, overriding path default
-            expect($folder->shouldFold($node))->toBeFalse();
+            expect($reflection->invoke($folder, $source))->toBeFalse();
         } finally {
             // Cleanup
             @unlink($componentPath);
@@ -214,13 +191,13 @@ describe('Blaze::optimize() API', function () {
         try {
             $tagCompiler = new \Livewire\Blaze\Compiler\TagCompiler(
                 fn () => $componentPath,
-                fn () => Blaze::optimize()
+                Blaze::optimize()
             );
 
             $memoizer = new \Livewire\Blaze\Memoizer\Memoizer(
                 componentNameToPath: fn () => $componentPath,
                 compileNode: fn ($node) => $tagCompiler->compile($node)->render(),
-                getOptimizeBuilder: fn () => Blaze::optimize()
+                config: Blaze::optimize()
             );
 
             $node = new \Livewire\Blaze\Nodes\ComponentNode(
@@ -238,4 +215,4 @@ describe('Blaze::optimize() API', function () {
             @rmdir($componentDir);
         }
     });
-})->skip();
+});

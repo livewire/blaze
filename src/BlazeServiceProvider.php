@@ -31,11 +31,10 @@ class BlazeServiceProvider extends ServiceProvider
     {
         $bladeService = new BladeService;
 
-        // TODO: We should get rid of this...
-        $getOptimizeBuilder = fn () => app('blaze')->optimizeBuilder();
-
         $this->app->singleton(BlazeRuntime::class, fn () => new BlazeRuntime);
         $this->app->singleton(BlazeConfig::class, fn () => new BlazeConfig);
+
+        $config = $this->app->make(BlazeConfig::class);
 
         $this->app->singleton(BlazeManager::class, fn () => new BlazeManager(
             new Tokenizer,
@@ -43,22 +42,21 @@ class BlazeServiceProvider extends ServiceProvider
             new Walker,
             $tagCompiler = new TagCompiler(
                 componentNameToPath: fn ($name) => $bladeService->componentNameToPath($name),
-                // TODO: We should pass the BlazeConfig here instead of the OptimizeBuilder
-                getOptimizeBuilder: $getOptimizeBuilder,
+                config: $config,
             ),
             new Folder(
                 renderBlade: fn ($blade) => $bladeService->isolatedRender($blade),
                 renderNodes: fn ($nodes) => implode('', array_map(fn ($n) => $n->render(), $nodes)),
                 componentNameToPath: fn ($name) => $bladeService->componentNameToPath($name),
-                config: $this->app->make(BlazeConfig::class),
+                config: $config,
             ),
             new Memoizer(
                 componentNameToPath: fn ($name) => $bladeService->componentNameToPath($name),
                 compileNode: fn ($node) => $tagCompiler->compile($node)->render(),
-                getOptimizeBuilder: $getOptimizeBuilder,
+                config: $config,
             ),
             new ComponentCompiler,
-            $this->app->make(BlazeConfig::class),
+            $config,
         ));
 
         $this->app->alias(BlazeManager::class, Blaze::class);

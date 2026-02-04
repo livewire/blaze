@@ -9,20 +9,21 @@ use Livewire\Blaze\Nodes\SlotNode;
 use Livewire\Blaze\Nodes\TextNode;
 use Livewire\Blaze\Nodes\Node;
 use Closure;
+use Livewire\Blaze\BlazeConfig;
 use Livewire\Blaze\Support\AttributeParser;
 
 class TagCompiler
 {
     protected Closure $componentNameToPath;
 
-    protected Closure $getOptimizeBuilder;
+    protected BlazeConfig $config;
 
     protected ComponentTagCompiler $componentTagCompiler;
 
-    public function __construct(callable $componentNameToPath, callable $getOptimizeBuilder)
+    public function __construct(callable $componentNameToPath, BlazeConfig $config)
     {
         $this->componentNameToPath = $componentNameToPath;
-        $this->getOptimizeBuilder = $getOptimizeBuilder;
+        $this->config = $config;
         $this->componentTagCompiler = new ComponentTagCompiler(
             aliases: [],
             namespaces: [],
@@ -50,16 +51,7 @@ class TagCompiler
         }
 
         // Check path-based configuration
-        $optimizeBuilder = ($this->getOptimizeBuilder)();
-        $shouldCompile = $optimizeBuilder->shouldCompile($componentPath);
-
-        // If path config exists, use it
-        if ($shouldCompile !== null) {
-            return $shouldCompile;
-        }
-
-        // No directive and no path config - don't compile with Blaze
-        return false;
+        return $this->config->shouldCompile($componentPath);
     }
 
     /**

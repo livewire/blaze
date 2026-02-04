@@ -7,9 +7,10 @@ class Attribute
     public function __construct(
         public string $name,
         public mixed $value,
+        public string $propName, // camelCase
         public bool $dynamic,
         public ?string $prefix = null,
-        public string $original = '',
+        public string $quotes = '',
     ) {
     }
 

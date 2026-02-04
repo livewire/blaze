@@ -14,8 +14,13 @@ use Livewire\Blaze\BladeService;
 
 class Foldable
 {
-    protected array $replacements = [];
+    protected array $attributeByPlaceholder = [];
+    protected array $slotByPlaceholder = [];
+
+    protected array $attributeReplacements = [];
     protected array $attributeNameByPlaceholder = [];
+    protected array $slotReplacements = [];
+
     protected ComponentNode $renderable;
     protected string $html;
 
@@ -45,65 +50,92 @@ class Foldable
 
     protected function replaceAttributesWithPlaceholders(): void
     {
-        foreach ($this->renderable->attributes as $attribute) {
+        // TODO: Now that we have $attribute->prop (camelCase version of attribute), we don't have to rely on the keys anymore...
+        // They might still come useful for merging etc.
+        foreach ($this->renderable->attributes as $name => $attribute) {
             if ($attribute->dynamic) {
                 $placeholder = 'BLAZE_PLACEHOLDER_' . strtoupper(str()->random());
 
-                $this->replacements[$placeholder] = $attribute->value;
-                $this->attributeNameByPlaceholder[$placeholder] = $attribute->name;
+                $this->attributeByPlaceholder[$placeholder] = $attribute;
 
-                $attribute->value = $placeholder;
+                $this->renderable->attributes[$name] = new Attribute(
+                    name: $attribute->name,
+                    value: $placeholder,
+                    propName: $name,
+                    prefix: '',
+                    dynamic: false,
+                    quotes: '"',
+                );
             }
         }
     }
 
     protected function replaceSlotsWithPlaceholders(): void
     {
-        foreach ($this->renderable->slots as $slot) {
+        $slots = $this->renderable->slots();
+
+        foreach ($slots as $slot) {
             $placeholder = 'BLAZE_PLACEHOLDER_' . strtoupper(str()->random());
 
-            $this->replacements[$placeholder] = $slot->render();
+            $this->slotByPlaceholder[$placeholder] = clone $slot;
 
-            if ($slot->children) {
-                $slot->children = [new TextNode($placeholder)];
-            }
+            $slot->children = [new TextNode($placeholder)];
+
+            // TODO: Check that we're handling dynamic slot attributes correctly, I think we're not...
+            // Eg. <x-slot:foo :bar="$bar">...</x-slot:foo>
         }
+        
+        $this->renderable->children = $slots;
     }
 
     protected function mergeAwareAttributesFromParents(): void
     {
-        $aware = $this->source->directives->array('aware');
+        $aware = $this->source->directives->array('aware') ?? [];
         
         foreach ($aware as $prop => $default) {
+            if (is_int($prop)) {
+                $prop = $default;
+                $default = null;
+            }
+
             $this->renderable->attributes[$prop] ??= $this->node->parentsAttributes[$prop] ?? new Attribute(
-                name: $prop,
+                name: $prop, // TODO: This imight need to be converted to snake-case?
                 value: $default,
+                propName: $prop,
                 prefix: null,
                 dynamic: false,
+                quotes: '"',
             );
         }
     }
 
     protected function processUncompiledAttributes(): void
     {
-        preg_replace_callback('/\[BLAZE_ATTR:(BLAZE_PLACEHOLDER_[A-Z0-9]+)\]/', function ($matches) {
+        $this->html = preg_replace_callback('/\[BLAZE_ATTR:(BLAZE_PLACEHOLDER_[A-Z0-9]+)\]/', function ($matches) {
             $placeholder = $matches[1];
-            $name = $this->attributeNameByPlaceholder[$placeholder];
-            $value = Utils::compileAttributeEchos($this->replacements[$placeholder]);
+            $attribute = $this->attributeByPlaceholder[$placeholder];
+            $value = $attribute->bound() ? $attribute->value : Utils::compileAttributeEchos($attribute->value);
 
             // Laravel sets value of all boolean attributes to its name, except for x-data and wire...
-            $booleanValue = ($name === 'x-data' || str_starts_with($name, 'wire:')) ? "''" : "'".addslashes($name)."'";
+            // TODO: Check if Laravel outputs snake-case or camelCase version of the attribute name when boolean is passed...
+            $booleanValue = ($attribute->name === 'x-data' || str_starts_with($attribute->name, 'wire:')) ? "''" : "'".addslashes($attribute->name)."'";
 
             return '<'.'?php if (($__blazeAttr = '.$value.') !== false && !is_null($__blazeAttr)): ?'.'>'
-             .' '.$name.'="<'.'?php echo e($__blazeAttr === true ? '.$booleanValue.' : $__blazeAttr); ?'.'>"'
+             .' '.$attribute->name.'="<'.'?php echo e($__blazeAttr === true ? '.$booleanValue.' : $__blazeAttr); ?'.'>"'
              .'<'.'?php endif; unset($__blazeAttr); ?'.'>';
         }, $this->html);
     }
 
     protected function restorePlaceholders(): void
     {
-        foreach ($this->replacements as $placeholder => $value) {
+        foreach ($this->attributeByPlaceholder as $placeholder => $attribute) {
+            $value = $attribute->bound() ? '{{ ' . $attribute->value . ' }}' : $attribute->value;
+
             $this->html = str_replace($placeholder, $value, $this->html);
+        }
+
+        foreach ($this->slotByPlaceholder as $placeholder => $slot) {
+            $this->html = str_replace($placeholder, trim($slot->content()), $this->html);
         }
     }
 
@@ -124,11 +156,15 @@ class Foldable
         $data = [];
 
         foreach ($this->renderable->attributes as $attribute) {
-            if (isset($this->replacements[$attribute->value])) {
-                // We need to compile {{  }} syntax into string concatenation for dynamic attributes...
-                $data[] = var_export($attribute->name, true).' => '.Utils::compileAttributeEchos($this->replacements[$attribute->value]);
+            $attribute = $this->attributeByPlaceholder[$attribute->value] ?? $attribute;
+
+            // TODO: Check if @aware is going to work if nested (foldable?) component has dynamic attributes
+            // I'm worried that the dynamic attribute might reference a variable that is not available in the outside scope
+            // Because the aware macros will be in the outer scope and the dynamic attributes will be picked up in the inner scope ?
+            if ($attribute->bound()) {
+                $data[] = var_export($attribute->propName, true).' => '.var_export($attribute->value, true);
             } else {
-                $data[] = var_export($attribute->name, true).' => '.var_export($attribute->value, true);
+                $data[] = var_export($attribute->propName, true).' => '.Utils::compileAttributeEchos($attribute->value);
             }
         }
 
@@ -147,6 +183,10 @@ class Foldable
         foreach ($children as $child) {
             if ($child instanceof ComponentNode) {
                 $source = new ComponentSource($child->name);
+
+                if (! $source->exists()) {
+                    continue;
+                }
 
                 if ($source->directives->has('aware')) {
                     return true;

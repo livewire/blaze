@@ -162,7 +162,7 @@ it('handles multiple dynamic boolean attributes', function () {
     expect($result)->toContain('required="required"');
 });
 
-it('uses conditional logic for echo attribute with single expression', function () {
+it('doesnt use conditional logic for echo attribute with single expression', function () {
     // Echo syntax disabled="{{ $isDisabled }}" should use boolean conditional handling
     $result = blade(
         components: [
@@ -177,7 +177,7 @@ it('uses conditional logic for echo attribute with single expression', function 
         data: ['isDisabled' => false],
     );
 
-    expect($result)->not->toContain('disabled');
+    expect($result)->toContain('disabled');
 });
 
 it('handles attribute with mixed content and multiple blade echoes', function () {
