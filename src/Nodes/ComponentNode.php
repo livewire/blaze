@@ -9,9 +9,10 @@ use Livewire\Blaze\Support\Utils;
 class ComponentNode extends Node
 {
     /** @var Attribute[] */
-    public array $attributes;
+    public array $attributes = [];
 
-    public array $slots;
+    /** @var Slot[] */
+    public array $slots = [];
     
     public function __construct(
         public string $name,
@@ -22,32 +23,46 @@ class ComponentNode extends Node
         // TODO: This needs to be an array of attribute arrays, previously was an array of strings...
         public array $parentsAttributes = [],
     ) {
-        $attributes = Utils::parseAttributeStringToArray($attributeString);
+        $this->parseAttributes();
+        $this->parseSlots();
+    }
+
+    protected function parseAttributes(): void
+    {
+        $attributes = Utils::parseAttributeStringToArray($this->attributeString);
 
         foreach ($attributes as $key => $attribute) {
             $this->attributes[$key] = new Attribute(
-                name: $attribute['name'],
+                name: $key,
                 value: $attribute['value'],
-                // TODO: Dynamic needs to also check for {{  }} in attribute value...
                 dynamic: $attribute['isDynamic'],
                 prefix: Str::match('/^(:\$?)/', $attribute['original']),
             );
         }
+    }
+
+    protected function parseSlots(): void
+    {
+        $defaultSlotChildren = [];
 
         foreach ($this->children as $child) {
-            // TODO: Here we should handle the loose content, we'll need to figure out
-            // how Laravel handles it so that we can mirror it 100%, I think the handling below
-            // in 'replaceDynamicPortionsWithPlaceholders' is not 100% correct...
-
             if ($child instanceof SlotNode) {
-                $this->slots[] = new Slot(
-                    name: $child->name,
+                $this->slots[$child->name ?? 'slot'] = new Slot(
+                    name: $child->name ?? 'slot',
                     children: $child->children,
                     node: $child,
                 );
+            } else {
+                $defaultSlotChildren[] = $child;
             }
+        }
 
-            
+        if ($defaultSlotChildren) {
+            $this->slots['slot'] ??= new Slot(
+                name: 'slot',
+                children: $defaultSlotChildren,
+                node: null,
+            );
         }
     }
 
@@ -61,9 +76,11 @@ class ComponentNode extends Node
         $name = $this->stripNamespaceFromName($this->name, $this->prefix);
 
         $output = "<{$this->prefix}{$name}";
-        if (! empty($this->attributeString)) {
-            $output .= " {$this->attributeString}";
+        
+        foreach ($this->attributes as $attribute) {
+            $output .= " {$attribute->prefix}{$attribute->name}=\"{$attribute->value}\" ";
         }
+
         if ($this->selfClosing) {
             return $output.' />';
         }

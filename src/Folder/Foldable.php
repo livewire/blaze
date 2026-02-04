@@ -3,19 +3,21 @@
 namespace Livewire\Blaze\Folder;
 
 use Closure;
-use Illuminate\Support\Arr;
 use Illuminate\Support\Str;
 use Livewire\Blaze\Nodes\ComponentNode;
+use Livewire\Blaze\Nodes\SlotNode;
 use Livewire\Blaze\Nodes\TextNode;
 use Livewire\Blaze\Support\ComponentSource;
 use Livewire\Blaze\Nodes\Attribute;
 use Livewire\Blaze\Support\Utils;
+use Livewire\Blaze\BladeService;
 
 class Foldable
 {
     protected array $replacements = [];
     protected array $attributeNameByPlaceholder = [];
     protected ComponentNode $renderable;
+    protected string $html;
 
     public function __construct(
         protected ComponentNode $node,
@@ -30,14 +32,15 @@ class Foldable
 
         $this->replaceAttributesWithPlaceholders();
         $this->replaceSlotsWithPlaceholders();
-        $this->mergeAwareAttributes();
+        $this->mergeAwareAttributesFromParents();
 
-        $html = ($this->renderBlade)($this->renderable->render());
-        $html = $this->processUncompiledAttributes($html);
-        $html = $this->restorePlaceholders($html);
-        $html = $this->wrapWithAwareMacros($html);
+        $this->html = BladeService::render($this->renderable->render());
+        
+        $this->processUncompiledAttributes();
+        $this->restorePlaceholders();
+        $this->wrapWithAwareMacros();
 
-        return $html;
+        return $this->html;
     }
 
     protected function replaceAttributesWithPlaceholders(): void
@@ -59,7 +62,6 @@ class Foldable
         foreach ($this->renderable->slots as $slot) {
             $placeholder = 'BLAZE_PLACEHOLDER_' . strtoupper(str()->random());
 
-            // TODO: Slot rendering should ideally involve just joining the children together...
             $this->replacements[$placeholder] = $slot->render();
 
             if ($slot->children) {
@@ -68,23 +70,23 @@ class Foldable
         }
     }
 
-    protected function mergeAwareAttributes(): void
+    protected function mergeAwareAttributesFromParents(): void
     {
-        $aware = $this->source->directives->array('aware') ?? [];
+        $aware = $this->source->directives->array('aware');
         
         foreach ($aware as $prop => $default) {
-            $this->renderable->attributeString[$prop] ??= new Attribute(
+            $this->renderable->attributes[$prop] ??= $this->node->parentsAttributes[$prop] ?? new Attribute(
                 name: $prop,
-                value: $component->parentAttributes[$prop] ?? $default,
+                value: $default,
                 prefix: null,
                 dynamic: false,
             );
         }
     }
 
-    protected function processUncompiledAttributes($content): string
+    protected function processUncompiledAttributes(): void
     {
-        return preg_replace_callback('/\[BLAZE_ATTR:(BLAZE_PLACEHOLDER_[A-Z0-9]+)\]/', function ($matches) {
+        preg_replace_callback('/\[BLAZE_ATTR:(BLAZE_PLACEHOLDER_[A-Z0-9]+)\]/', function ($matches) {
             $placeholder = $matches[1];
             $name = $this->attributeNameByPlaceholder[$placeholder];
             $value = Utils::compileAttributeEchos($this->replacements[$placeholder]);
@@ -95,46 +97,68 @@ class Foldable
             return '<'.'?php if (($__blazeAttr = '.$value.') !== false && !is_null($__blazeAttr)): ?'.'>'
              .' '.$name.'="<'.'?php echo e($__blazeAttr === true ? '.$booleanValue.' : $__blazeAttr); ?'.'>"'
              .'<'.'?php endif; unset($__blazeAttr); ?'.'>';
-        }, $content);
+        }, $this->html);
     }
 
-    protected function restorePlaceholders($content): string
+    protected function restorePlaceholders(): void
     {
         foreach ($this->replacements as $placeholder => $value) {
-            $content = str_replace($placeholder, $value, $content);
+            $this->html = str_replace($placeholder, $value, $this->html);
         }
-
-        return $content;
     }
 
-    protected function wrapWithAwareMacros($content): string
+    protected function wrapWithAwareMacros(): void
     {
-        if (! $this->hasAwareDescendants()) {
-            return $content;
+        if (! $this->renderable->attributes) {
+            return;
         }
-        
-        $attributes = Arr::mapWithKeys($this->renderable->attributes, function ($attribute) {
-            $name = Str::camel($attribute->name);
-            $value = $this->replacements[$attribute->value] ?? $attribute->value;
-            $value = Utils::compileAttributeEchos($value);
-            
-            return [$name => $value];
-        });
 
-        // Is var_export the best solution for this?
-        return '<?php $__env->pushConsumableComponentData('.var_export($attributes, true).'); ?>'
-                .$content
-                .'<?php $__env->popConsumableComponentData(); ?>';
+        if (! $this->hasAwareDescendant($this->node)) {
+            return;
+        }
+
+        // To enable @aware to work in non-Blaze child components,
+        // we'll add a php block that pushes this component's data
+        // onto the @aware stack when the component is rendered.
+
+        $data = [];
+
+        foreach ($this->renderable->attributes as $attribute) {
+            if (isset($this->replacements[$attribute->value])) {
+                // We need to compile {{  }} syntax into string concatenation for dynamic attributes...
+                $data[] = var_export($attribute->name, true).' => '.Utils::compileAttributeEchos($this->replacements[$attribute->value]);
+            } else {
+                $data[] = var_export($attribute->name, true).' => '.var_export($attribute->value, true);
+            }
+        }
+
+        $this->html = Str::wrap($this->html,
+            '<?php $__env->pushConsumableComponentData(['.implode(', ', $data).']); ?>',
+            '<?php $__env->popConsumableComponentData(); ?>',
+        );
     }
     
-    protected function hasAwareDescendants(): bool
+    protected function hasAwareDescendant(ComponentNode | SlotNode $node): bool
     {
-        // TODO: This should be a recursive check...
-        foreach ($this->renderable->children as $child) {
+        $children = [];
+
+        $children = $node->children;
+
+        foreach ($children as $child) {
             if ($child instanceof ComponentNode) {
                 $source = new ComponentSource($child->name);
 
-                return $source->directives->has('aware');
+                if ($source->directives->has('aware')) {
+                    return true;
+                }
+
+                if ($this->hasAwareDescendant($child)) {
+                    return true;
+                }
+            } elseif ($child instanceof SlotNode) {
+                if ($this->hasAwareDescendant($child)) {
+                    return true;
+                }
             }
         }
 

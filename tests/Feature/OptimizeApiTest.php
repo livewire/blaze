@@ -152,7 +152,7 @@ describe('Blaze::optimize() API', function () {
                 selfClosing: true
             );
 
-            expect($folder->isFoldable($node))->toBeTrue();
+            expect($folder->shouldFold($node))->toBeTrue();
         } finally {
             // Cleanup
             @unlink($componentPath);
@@ -190,7 +190,7 @@ describe('Blaze::optimize() API', function () {
             );
 
             // Component explicitly sets fold: false, overriding path default
-            expect($folder->isFoldable($node))->toBeFalse();
+            expect($folder->shouldFold($node))->toBeFalse();
         } finally {
             // Cleanup
             @unlink($componentPath);

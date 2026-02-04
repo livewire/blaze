@@ -50,7 +50,7 @@ class BlazeServiceProvider extends ServiceProvider
                 renderBlade: fn ($blade) => $bladeService->isolatedRender($blade),
                 renderNodes: fn ($nodes) => implode('', array_map(fn ($n) => $n->render(), $nodes)),
                 componentNameToPath: fn ($name) => $bladeService->componentNameToPath($name),
-                getOptimizeBuilder: $getOptimizeBuilder,
+                config: $this->app->make(BlazeConfig::class),
             ),
             new Memoizer(
                 componentNameToPath: fn ($name) => $bladeService->componentNameToPath($name),

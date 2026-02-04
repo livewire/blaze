@@ -125,6 +125,7 @@ class AttributeParser
             if (isset($attributes[$attributeName])) continue;
 
             $attributes[$attributeName] = [
+                // TODO: isDynamic should be true when it has {{  }} in attribute value...
                 'isDynamic' => false,
                 'value' => $m[2],
                 'original' => trim($m[0]),

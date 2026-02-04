@@ -10,6 +10,8 @@ use Livewire\Blaze\Nodes\Node;
 use Livewire\Blaze\Nodes\TextNode;
 use Livewire\Blaze\Support\ComponentSource;
 use Closure;
+use Illuminate\Support\Arr;
+use Livewire\Blaze\Blaze;
 use Livewire\Blaze\BlazeConfig;
 
 class Folder
@@ -31,7 +33,7 @@ class Folder
         $component = $node;
         $source = new ComponentSource($component->name);
 
-        if (! $this->isFoldable($source)) {
+        if (! $this->shouldFold($source)) {
             return $component;
         }
 
@@ -42,11 +44,11 @@ class Folder
         $this->checkProblematicPatterns($source);
 
         try {
-            app('blaze')->startFolding();
+            Blaze::startFolding();
 
             $foldable = new Foldable($node, $source, $this->renderBlade);
 
-            $folded = $foldable->fold();
+            $html = $foldable->fold();
 
             Event::dispatch(new ComponentFolded(
                 name: $source->name,
@@ -54,19 +56,19 @@ class Folder
                 filemtime: filemtime($source->path),
             ));
 
-            return new TextNode($folded);
+            return new TextNode($html);
         } catch (\Exception $e) {
-            if (app('blaze')->isDebugging()) {
+            if (Blaze::isDebugging()) {
                 throw $e;
             }
 
             return $node;
         } finally {
-            app('blaze')->stopFolding();
+            Blaze::stopFolding();
         } 
     }
     
-    protected function isFoldable(ComponentSource $source): bool
+    protected function shouldFold(ComponentSource $source): bool
     {
         if ($source->directives->blaze('fold') === false) {
             return false;
@@ -79,23 +81,30 @@ class Folder
         return $this->config->shouldFold($source->path);
     }
 
-    protected function isSafeToFold(ComponentSource $source, ComponentNode $node)
+    protected function isSafeToFold(ComponentSource $source, ComponentNode $node): bool
     {
-        // We can't fold when entire attributes are passed through...
+        // We can't fold with :attributes / :$attributes spread...
         if ($node->attributes['attributes']?->dynamic) {
             return false;
         }
 
-        // Build a list of unsafe props: defined + unsafe - safe...
-        $unsafe = array_merge(array_keys($source->directives->array('props')), $source->directives->blaze('unsafe'));
-        $unsafe = array_diff($unsafe, array_keys($source->directives->array('safe')));
+        // Collect prop names and safe/unsafe parameters..
+        $props = array_keys($source->directives->array('props'));
+        $unsafe = Arr::wrap($source->directives->blaze('unsafe'));
+        $safe = Arr::wrap($source->directives->blaze('safe'));
 
+        // Build a final list of unsafe props = defined + unsafe - safe
+        $unsafe = array_merge($props, $unsafe);
+        $unsafe = array_diff($unsafe, $safe);
+
+        // Check if any dynamic attributes are unsafe...
         foreach ($node->attributes as $attribute) {
             if ($attribute->dynamic && in_array($attribute->name, $unsafe)) {
                 return false;
             }
         }
 
+        // Check if any slots are unsafe...
         foreach ($node->slots as $slot) {
             if (in_array($slot->name, $unsafe)) {
                 return false;

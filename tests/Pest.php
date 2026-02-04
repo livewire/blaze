@@ -6,6 +6,11 @@ use Livewire\Blaze\Tests\TestCase;
 
 uses(TestCase::class)->in(__DIR__);
 
+function fixture_path(string $filename): string
+{
+    return __DIR__ . '/fixtures/' . $filename;
+}
+
 /**
  * Compile a component fixture and return its compiled output.
  */

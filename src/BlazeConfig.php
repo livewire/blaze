@@ -22,32 +22,49 @@ class BlazeConfig
         return $this;
     }
 
-    public function shouldCompile(string $path): bool
+    public function shouldCompile(string $file): bool
     {
-        return $this->isInPaths($this->compile, $path);
+        return $this->isEnabled($file, $this->compile);
     }
 
-    public function shouldMemo(string $path): bool
+    public function shouldMemoize(string $file): bool
     {
-        return $this->isInPaths($this->memo, $path);
+        return $this->isEnabled($file, $this->memo);
     }
 
-    public function shouldFold(string $path): bool
+    public function shouldFold(string $file): bool
     {
-        return $this->isInPaths($this->fold, $path);
+        return $this->isEnabled($file, $this->fold);
     }
 
-    public function isInPaths(array $paths, string $path): bool
+    /**
+     * Check if the file is in the configured paths and return the value of the most specific path.
+     */
+    protected function isEnabled(string $file, array $config): bool
     {
-        // TODO: This also needs to handle the case where a folder has eg. fold: true
-        // and a subfolder has fold: false, in which case the subfolder should override the folder.
+        $file = realpath($file);
+
+        if ($file === false) {
+            return false;
+        }
+
+        $match = null;
+        $paths = array_keys($config);
+        $separator = DIRECTORY_SEPARATOR;
+
         foreach ($paths as $path) {
-            // TODO: Verify this is sufficient for checking file paths...
-            if (str_starts_with($path, $path)) {
-                return true;
+            $dir = realpath($path);
+            $dir = $dir ? rtrim($dir, $separator) . $separator : false;
+
+            if (! $dir || ! str_starts_with($file, $dir)) {
+                continue;
+            }
+
+            if (! $match || substr_count($dir, $separator) >= substr_count($match, $separator)) {
+                $match = $path;
             }
         }
 
-        return false;
+        return $config[$match] ?? false;
     }
 }

@@ -21,7 +21,7 @@ class Unblaze
 
     public static function processUnblazeDirectives(string $template)
     {
-        $compiler = static::getHackedBladeCompiler();
+        $compiler = BladeService::getHackedBladeCompiler();
 
         $expressionsByToken = [];
 
@@ -77,46 +77,5 @@ class Unblaze
         }
 
         return $template;
-    }
-
-    public static function getHackedBladeCompiler()
-    {
-        $instance = new class (
-            app('files'),
-            storage_path('framework/views'),
-        ) extends \Illuminate\View\Compilers\BladeCompiler {
-            /**
-             * Make this method public...
-             */
-            public function compileStatementsMadePublic($template)
-            {
-                return $this->compileStatements($template);
-            }
-
-            /**
-             * Tweak this method to only process custom directives so we
-             * can restrict rendering solely to @island related directives...
-             */
-            protected function compileStatement($match)
-            {
-                if (str_contains($match[1], '@')) {
-                    $match[0] = isset($match[3]) ? $match[1].$match[3] : $match[1];
-                } elseif (isset($this->customDirectives[$match[1]])) {
-                    $match[0] = $this->callCustomDirective($match[1], Arr::get($match, 3));
-                } elseif (method_exists($this, $method = 'compile'.ucfirst($match[1]))) {
-                    // Don't process through built-in directive methods...
-                    // $match[0] = $this->$method(Arr::get($match, 3));
-
-                    // Just return the original match...
-                    return $match[0];
-                } else {
-                    return $match[0];
-                }
-
-                return isset($match[3]) ? $match[0] : $match[0].$match[2];
-            }
-        };
-
-        return $instance;
     }
 }
