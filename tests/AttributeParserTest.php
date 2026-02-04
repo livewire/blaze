@@ -123,14 +123,18 @@ describe('parse attributes', function () {
         $input = 'name="Bob" searchable="true"';
         $output = [
             'name' => [
+                'name' => 'name',
                 'isDynamic' => false,
                 'value' => 'Bob',
                 'original' => 'name="Bob"',
+                'quotes' => '"',
             ],
             'searchable' => [
+                'name' => 'searchable',
                 'isDynamic' => false,
                 'value' => 'true',
                 'original' => 'searchable="true"',
+                'quotes' => '"',
             ],
         ];
 
@@ -143,14 +147,18 @@ describe('parse attributes', function () {
         $input = ':name="$name" :searchable="true"';
         $output = [
             'name' => [
+                'name' => 'name',
                 'isDynamic' => true,
                 'value' => '$name',
                 'original' => ':name="$name"',
+                'quotes' => '"',
             ],
             'searchable' => [
+                'name' => 'searchable',
                 'isDynamic' => true,
                 'value' => 'true',
                 'original' => ':searchable="true"',
+                'quotes' => '"',
             ],
         ];
 
@@ -163,9 +171,11 @@ describe('parse attributes', function () {
         $input = ':$name';
         $output = [
             'name' => [
+                'name' => 'name',
                 'isDynamic' => true,
                 'value' => '$name',
                 'original' => ':$name',
+                'quotes' => '"',
             ],
         ];
 
@@ -178,9 +188,11 @@ describe('parse attributes', function () {
         $input = 'searchable';
         $output = [
             'searchable' => [
+                'name' => 'searchable',
                 'isDynamic' => false,
                 'value' => true,
                 'original' => 'searchable',
+                'quotes' => '',
             ],
         ];
 
@@ -193,9 +205,11 @@ describe('parse attributes', function () {
         $input = 'type="{{ $type }}"';
         $output = [
             'type' => [
+                'name' => 'type',
                 'isDynamic' => false,
                 'value' => '{{ $type }}',
                 'original' => 'type="{{ $type }}"',
+                'quotes' => '"',
             ],
         ];
 
@@ -208,14 +222,18 @@ describe('parse attributes', function () {
         $input = 'data-test="foo" second-variant="secondary"';
         $output = [
             'dataTest' => [
+                'name' => 'data-test',
                 'isDynamic' => false,
                 'value' => 'foo',
                 'original' => 'data-test="foo"',
+                'quotes' => '"',
             ],
             'secondVariant' => [
+                'name' => 'second-variant',
                 'isDynamic' => false,
                 'value' => 'secondary',
                 'original' => 'second-variant="secondary"',
+                'quotes' => '"',
             ],
         ];
 
@@ -228,14 +246,18 @@ describe('parse attributes', function () {
         $input = ':data-test="$test" :second-variant="true"';
         $output = [
             'dataTest' => [
+                'name' => 'data-test',
                 'isDynamic' => true,
                 'value' => '$test',
                 'original' => ':data-test="$test"',
+                'quotes' => '"',
             ],
             'secondVariant' => [
+                'name' => 'second-variant',
                 'isDynamic' => true,
                 'value' => 'true',
                 'original' => ':second-variant="true"',
+                'quotes' => '"',
             ],
         ];
 
@@ -248,9 +270,11 @@ describe('parse attributes', function () {
         $input = ':$data-test';
         $output = [
             'dataTest' => [
+                'name' => 'data-test',
                 'isDynamic' => true,
                 'value' => '$data-test',
                 'original' => ':$data-test',
+                'quotes' => '"',
             ],
         ];
 
@@ -263,14 +287,18 @@ describe('parse attributes', function () {
         $input = 'icon:trailing="chevrons-up-down" wire:sort:item="{{ $id }}"';
         $output = [
             'icon:trailing' => [
+                'name' => 'icon:trailing',
                 'isDynamic' => false,
                 'value' => 'chevrons-up-down',
                 'original' => 'icon:trailing="chevrons-up-down"',
+                'quotes' => '"',
             ],
             'wire:sort:item' => [
+                'name' => 'wire:sort:item',
                 'isDynamic' => false,
                 'value' => '{{ $id }}',
                 'original' => 'wire:sort:item="{{ $id }}"',
+                'quotes' => '"',
             ],
         ];
 
@@ -353,9 +381,11 @@ describe('parse attributes', function () {
         $input = 'class="rounded-lg w-full h-10 opacity-75"';
         $output = [
             'class' => [
+                'name' => 'class',
                 'isDynamic' => false,
                 'value' => 'rounded-lg w-full h-10 opacity-75',
                 'original' => 'class="rounded-lg w-full h-10 opacity-75"',
+                'quotes' => '"',
             ],
         ];
 

@@ -2,6 +2,8 @@
 
 namespace Livewire\Blaze\Support;
 
+use Illuminate\Support\Arr;
+
 class AttributeParser
 {
     public function parseAndReplaceDynamics(
@@ -92,60 +94,121 @@ class AttributeParser
         $attributes = [];
 
         // Handle :name="..." syntax
-        preg_match_all('/(?:^|\s):([A-Za-z0-9_:-]+)\s*=\s*"([^"]*)"/', $attributesString, $matches, PREG_SET_ORDER);
+        preg_match_all('/(?:^|\s):([A-Za-z0-9_:-]+)\s*=\s*"([^"]*)"/', $attributesString, $matches, PREG_SET_ORDER | PREG_OFFSET_CAPTURE);
         foreach ($matches as $m) {
+            $pos = $m[0][1];
+            $m = array_column($m, 0);
             $attributeName = str($m[1])->camel()->toString();
             if (isset($attributes[$attributeName])) continue;
 
             $attributes[$attributeName] = [
+                'name' => $m[1],
                 'isDynamic' => true,
                 'value' => $m[2],
                 'original' => trim($m[0]),
+                'quotes' => '"',
+                'position' => $pos,
+            ];
+        }
+
+        // Handle :name='...' syntax
+        preg_match_all("/(?:^|\s):([A-Za-z0-9_:-]+)\s*=\s*'([^']*)'/", $attributesString, $matches, PREG_SET_ORDER | PREG_OFFSET_CAPTURE);
+        foreach ($matches as $m) {
+            $pos = $m[0][1];
+            $m = array_column($m, 0);
+            $attributeName = str($m[1])->camel()->toString();
+            if (isset($attributes[$attributeName])) continue;
+
+            $attributes[$attributeName] = [
+                'name' => $m[1],
+                'isDynamic' => true,
+                'value' => $m[2],
+                'original' => trim($m[0]),
+                'quotes' => "'",
+                'position' => $pos,
             ];
         }
 
         // Handle short :$var syntax (expands to :var="$var")
-        preg_match_all('/(?:^|\s):\$([A-Za-z0-9_:-]+)(?=\s|$)/', $attributesString, $matches, PREG_SET_ORDER);
+        preg_match_all('/(?:^|\s):\$([A-Za-z0-9_:-]+)(?=\s|$)/', $attributesString, $matches, PREG_SET_ORDER | PREG_OFFSET_CAPTURE);
         foreach ($matches as $m) {
+            $pos = $m[0][1];
+            $m = array_column($m, 0);
             $raw = $m[1];
             $attributeName = str($raw)->camel()->toString();
             if (isset($attributes[$attributeName])) continue;
 
             $attributes[$attributeName] = [
+                'name' => $m[1],
                 'isDynamic' => true,
                 'value' => '$' . $raw,
                 'original' => trim($m[0]),
+                'quotes' => '"',
+                'position' => $pos,
             ];
         }
 
         // Handle regular name="value" syntax
-        preg_match_all('/(?:^|\s)(?!:)([A-Za-z0-9_:-]+)\s*=\s*"([^"]*)"/', $attributesString, $matches, PREG_SET_ORDER);
+        preg_match_all('/(?:^|\s)(?!:)([A-Za-z0-9_:-]+)\s*=\s*"([^"]*)"/', $attributesString, $matches, PREG_SET_ORDER | PREG_OFFSET_CAPTURE);
         foreach ($matches as $m) {
+            $pos = $m[0][1];
+            $m = array_column($m, 0);
             $attributeName = str($m[1])->camel()->toString();
             if (isset($attributes[$attributeName])) continue;
 
             $attributes[$attributeName] = [
-                // TODO: isDynamic should be true when it has {{  }} in attribute value...
+                'name' => $m[1],
                 'isDynamic' => false,
                 'value' => $m[2],
                 'original' => trim($m[0]),
+                'quotes' => '"',
+                'position' => $pos,
+            ];
+        }
+
+        // Handle regular name='value' syntax
+        preg_match_all("/(?:^|\s)(?!:)([A-Za-z0-9_:-]+)\s*=\s*'([^']*)'/", $attributesString, $matches, PREG_SET_ORDER | PREG_OFFSET_CAPTURE);
+        foreach ($matches as $m) {
+            $pos = $m[0][1];
+            $m = array_column($m, 0);
+            $attributeName = str($m[1])->camel()->toString();
+            if (isset($attributes[$attributeName])) continue;
+
+            $attributes[$attributeName] = [
+                'name' => $m[1],
+                'isDynamic' => false,
+                'value' => $m[2],
+                'original' => trim($m[0]),
+                'quotes' => "'",
+                'position' => $pos,
             ];
         }
 
         // Handle boolean attributes (single words without values)
         // First strip quoted values so we don't match words inside them
         $stripped = preg_replace('/"[^"]*"/', '""', $attributesString);
-        preg_match_all('/(?:^|\s)([A-Za-z0-9_:-]+)(?=\s|$)/', $stripped, $matches, PREG_SET_ORDER);
+        $stripped = preg_replace("/'[^']*'/", "''", $stripped);
+        preg_match_all('/(?:^|\s)([A-Za-z0-9_:-]+)(?=\s|$)/', $stripped, $matches, PREG_SET_ORDER | PREG_OFFSET_CAPTURE);
         foreach ($matches as $m) {
+            $pos = $m[0][1];
+            $m = array_column($m, 0);
             $attributeName = str($m[1])->camel()->toString();
             if (isset($attributes[$attributeName])) continue;
 
             $attributes[$attributeName] = [
+                'name' => $m[1],
                 'isDynamic' => false,
                 'value' => true,
                 'original' => trim($m[0]),
+                'quotes' => '',
+                'position' => $pos,
             ];
         }
+
+        $attributes = Arr::sort($attributes, fn ($a) => $a['position']);
+        $attributes = Arr::map($attributes, fn ($a) => tap($a, function (&$a) {
+            unset($a['position']);
+        }));
 
         return $attributes;
     }
