@@ -112,7 +112,6 @@ class Foldable
             $value = $attribute->bound() ? $attribute->value : Utils::compileAttributeEchos($attribute->value);
 
             // Laravel sets value of all boolean attributes to its name, except for x-data and wire...
-            // TODO: Check if Laravel outputs snake-case or camelCase version of the attribute name when boolean is passed...
             $booleanValue = ($attribute->name === 'x-data' || str_starts_with($attribute->name, 'wire:')) ? "''" : "'".addslashes($attribute->name)."'";
 
             return '<'.'?php if (($__blazeAttr = '.$value.') !== false && !is_null($__blazeAttr)): ?'.'>'
