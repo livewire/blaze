@@ -18,8 +18,6 @@ class BladeService
 
     public static function compileDirective(string $template, string $directive, callable $callback)
     {
-        // TODO: This should also handle comments and verbatim blocks...
-        // We also do this in BlazeManager::compile()...
         $compiler = static::getHackedBladeCompiler();
 
         $compiler->directive($directive, $callback);
@@ -38,7 +36,12 @@ class BladeService
              */
             public function compileStatementsMadePublic($template)
             {
-                return $this->compileStatements($template);
+                $template = $this->storeUncompiledBlocks($template);
+                $template = $this->compileComments($template);
+                $template = $this->compileStatements($template);
+                $template = $this->restoreRawContent($template);
+
+                return $template;
             }
 
             /**
