@@ -13,12 +13,12 @@ class ComponentSource
     {
         $this->name = $name;
         $this->path = Utils::componentNameToPath($name);
+        $this->content = file_exists($this->path) ? file_get_contents($this->path) : '';
+        $this->directives = new Directives($this);
+    }
 
-        if (! file_exists($this->path)) {
-            throw new \Exception("Source file for component [{$name}] not found at path [{$this->path}]");
-        }
-
-        $this->content = file_get_contents($this->path);
-        $this->directives = new Directives($this->content);
+    public function exists(): bool
+    {
+        return file_exists($this->path);
     }
 }

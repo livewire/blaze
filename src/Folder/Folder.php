@@ -31,7 +31,13 @@ class Folder
         }
 
         $component = $node;
+        $component->syncSlots();
+
         $source = new ComponentSource($component->name);
+
+        if (! $source->exists()) {
+            return $component;
+        }
 
         if (! $this->shouldFold($source)) {
             return $component;
@@ -84,14 +90,19 @@ class Folder
     protected function isSafeToFold(ComponentSource $source, ComponentNode $node): bool
     {
         // We can't fold with :attributes / :$attributes spread...
-        if ($node->attributes['attributes']?->dynamic) {
+        if (($node->attributes['attributes'] ?? null)?->dynamic) {
             return false;
         }
 
-        // Collect prop names and safe/unsafe parameters..
-        $props = array_keys($source->directives->array('props'));
-        $unsafe = Arr::wrap($source->directives->blaze('unsafe'));
         $safe = Arr::wrap($source->directives->blaze('safe'));
+
+        if (in_array('*', $safe)) {
+            return true;
+        }
+
+        // Collect prop names and safe/unsafe parameters..
+        $props = array_keys($source->directives->array('props') ?? []);
+        $unsafe = Arr::wrap($source->directives->blaze('unsafe'));
 
         // Build a final list of unsafe props = defined + unsafe - safe
         $unsafe = array_merge($props, $unsafe);
