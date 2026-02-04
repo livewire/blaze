@@ -186,27 +186,10 @@ class BlazeManager
 
         $ast = $this->parser->parse($tokens);
 
-        $dataStack = [];
-
         $ast = $this->walker->walk(
             nodes: $ast,
-            preCallback: function ($node) use (&$dataStack) {
-                // Track parent attributes for @aware support
-                if ($node instanceof ComponentNode) {
-                    $node->setParentsAttributes($dataStack);
-                }
-
-                if (($node instanceof ComponentNode) && ! empty($node->children)) {
-                    array_push($dataStack, $node->attributeString);
-                }
-
-                return $node;
-            },
+            preCallback: fn ($node) => $node,
             postCallback: function ($node) use (&$dataStack) {
-                if (($node instanceof ComponentNode) && ! empty($node->children)) {
-                    array_pop($dataStack);
-                }
-
                 // Only tag compiler, no folder or memoizer
                 return $this->tagCompiler->compile($node);
             },
