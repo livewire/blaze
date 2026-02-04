@@ -50,13 +50,13 @@ class Foldable
 
     protected function replaceAttributesWithPlaceholders(): void
     {
-        foreach ($this->renderable->attributes as $attribute) {
+        foreach ($this->renderable->attributes as $key =>$attribute) {
             if ($attribute->dynamic) {
                 $placeholder = 'BLAZE_PLACEHOLDER_' . strtoupper(str()->random());
 
                 $this->attributeByPlaceholder[$placeholder] = $attribute;
 
-                $this->renderable->attributes[$attribute->propName] = new Attribute(
+                $this->renderable->attributes[$key] = new Attribute(
                     name: $attribute->name,
                     value: $placeholder,
                     propName: $attribute->propName,
@@ -109,14 +109,19 @@ class Foldable
         $this->html = preg_replace_callback('/\[BLAZE_ATTR:(BLAZE_PLACEHOLDER_[A-Z0-9]+)\]/', function ($matches) {
             $placeholder = $matches[1];
             $attribute = $this->attributeByPlaceholder[$placeholder];
-            $value = $attribute->bound() ? $attribute->value : Utils::compileAttributeEchos($attribute->value);
 
-            // Laravel sets value of all boolean attributes to its name, except for x-data and wire...
-            $booleanValue = ($attribute->name === 'x-data' || str_starts_with($attribute->name, 'wire:')) ? "''" : "'".addslashes($attribute->name)."'";
+            if ($attribute->bound()) {
+                // Laravel sets value of all boolean attributes to its name, except for x-data and wire...
+                $booleanValue = ($attribute->name === 'x-data' || str_starts_with($attribute->name, 'wire:')) ? "''" : "'".addslashes($attribute->name)."'";
 
-            return '<'.'?php if (($__blazeAttr = '.$value.') !== false && !is_null($__blazeAttr)): ?'.'>'
-             .' '.$attribute->name.'="<'.'?php echo e($__blazeAttr === true ? '.$booleanValue.' : $__blazeAttr); ?'.'>"'
-             .'<'.'?php endif; unset($__blazeAttr); ?'.'>';
+                return '<'.'?php if (($__blazeAttr = '.$attribute->value.') !== false && !is_null($__blazeAttr)): ?'.'>'
+                .' '.$attribute->name.'="<'.'?php echo e($__blazeAttr === true ? '.$booleanValue.' : $__blazeAttr); ?'.'>"'
+                .'<'.'?php endif; unset($__blazeAttr); ?'.'>';
+            } else {
+                // Dynamic non-bound attributes with {{ expressions }} will never be false or null,
+                // therefore we can just return the attribute name and value as is.
+                return $attribute->name.'="'.$attribute->value.'"';
+            }
         }, $this->html);
     }
 
