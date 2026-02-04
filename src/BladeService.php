@@ -2,6 +2,7 @@
 
 namespace Livewire\Blaze;
 
+use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\File;
 use ReflectionClass;
@@ -10,7 +11,7 @@ class BladeService
 {
     public static function render(string $template): string
     {
-        (new self)->isolatedRender($template);    
+        return (new self)->isolatedRender($template);
     }
 
     public static function compileDirective(string $template, string $directive, callable $callback)

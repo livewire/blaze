@@ -107,13 +107,8 @@ class BlazeManager
         $ast = $this->walker->walk(
             nodes: $ast,
             preCallback: function ($node) use (&$dataStack) {
-                if ($node instanceof ComponentNode) {
-                    // TODO: Verify if this is correct... we need to merge the attributes in reverse order from an array of attributes...
-                    $mergedAttributes = array_reduce(array_reverse($dataStack), function ($carry, $item) {
-                        return array_merge($carry, $item);
-                    }, []);
-
-                    $node->setParentsAttributes($mergedAttributes);
+                if ($dataStack && $node instanceof ComponentNode) {
+                    $node->setParentsAttributes(array_merge(...$dataStack));
                 }
 
                 if (($node instanceof ComponentNode) && ! empty($node->children)) {

@@ -28,7 +28,7 @@ class Directives
     {
         $result = null;
 
-        BladeService::compileDirective($this->source->content, $name, function ($expression) {
+        BladeService::compileDirective($this->source->content, $name, function ($expression) use (&$result) {
             $result = $expression;
         });
         
