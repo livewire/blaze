@@ -127,12 +127,29 @@ class Foldable
 
     protected function restorePlaceholders(): void
     {
+        // TODO: What is slots are outputted as variables? {{ $footer }}
+
+        // Replace placeholders inside PHP blocks...
+        $this->html = preg_replace_callback('/<\?php.*?\?>/s', function ($match) {
+            $content = $match[0];
+
+            foreach ($this->attributeByPlaceholder as $placeholder => $attribute) {
+                $value = $attribute->bound() ? $attribute->value : Utils::compileAttributeEchos($attribute->value);
+
+                $content = str_replace("'" . $placeholder . "'", $value, $content);
+            }
+
+            return $content;
+        }, $this->html);
+
+        // Replace remaining placeholders in HTML context with Blade echos...
         foreach ($this->attributeByPlaceholder as $placeholder => $attribute) {
             $value = $attribute->bound() ? '{{ ' . $attribute->value . ' }}' : $attribute->value;
 
             $this->html = str_replace($placeholder, $value, $this->html);
         }
 
+        // Replace slot placeholders with their original content...
         foreach ($this->slotByPlaceholder as $placeholder => $slot) {
             $this->html = str_replace($placeholder, trim($slot->content()), $this->html);
         }
