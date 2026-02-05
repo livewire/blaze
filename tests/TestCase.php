@@ -25,5 +25,12 @@ class TestCase extends Orchestra
         $app['config']->set('view.paths', [
             __DIR__ . '/fixtures/views',
         ]);
+
+        // Isolate compiled view paths for parallel testing to prevent
+        // processes from clearing each other's compiled views.
+        if ($token = $_SERVER['TEST_TOKEN'] ?? null) {
+            $basePath = $app['config']->get('view.compiled');
+            $app['config']->set('view.compiled', $basePath . '/test_' . $token);
+        }
     }
 }

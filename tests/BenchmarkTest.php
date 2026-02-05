@@ -28,7 +28,8 @@ function render($viewFile, $enabled = false) {
 }
 
 function clearCache() {
-    $files = glob(__DIR__ . '/../vendor/orchestra/testbench-core/laravel/storage/framework/views/*');
+    $compiledPath = config('view.compiled');
+    $files = glob($compiledPath . '/*');
     foreach ($files as $file) {
         if (!str_ends_with($file, '.gitignore')) {
            if (is_dir($file)) {

@@ -29,7 +29,7 @@ class BladeService
     {
         $instance = new class (
             app('files'),
-            storage_path('framework/views'),
+            config('view.compiled'),
         ) extends \Illuminate\View\Compilers\BladeCompiler {
             /**
              * Make this method public...
@@ -73,7 +73,7 @@ class BladeService
     
     public function getTemporaryCachePath(): string
     {
-        return storage_path('framework/views/blaze');
+        return config('view.compiled') . '/blaze';
     }
 
     public function isolatedRender(string $template): string
