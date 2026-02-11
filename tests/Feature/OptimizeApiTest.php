@@ -102,8 +102,6 @@ describe('Blaze::optimize() API', function () {
         Blaze::optimize()->in(dirname($source->path), fold: true);
 
         $folder = new \Livewire\Blaze\Folder\Folder(
-            renderBlade: fn ($blade) => $blade,
-            renderNodes: fn ($nodes) => '',
             config: Blaze::optimize(),
         );
 
@@ -128,7 +126,7 @@ describe('Blaze::optimize() API', function () {
         $tagCompiler = new TagCompiler(config: Blaze::optimize());
 
         $memoizer = new Memoizer(
-            compileNode: fn ($node) => $tagCompiler->compile($node)->render(),
+            compileTag: fn ($node) => $tagCompiler->compile($node)->render(),
             config: Blaze::optimize(),
         );
 

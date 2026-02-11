@@ -42,12 +42,11 @@ class BlazeServiceProvider extends ServiceProvider
                 config: $config,
             ),
             new Folder(
-                renderNodes: fn ($nodes) => implode('', array_map(fn ($n) => $n->render(), $nodes)),
                 config: $config,
             ),
             new Memoizer(
-                compileNode: fn ($node) => $tagCompiler->compile($node)->render(),
                 config: $config,
+                compileTag: fn ($node) => $tagCompiler->compile($node)->render(),
             ),
             new ComponentCompiler,
             $config,

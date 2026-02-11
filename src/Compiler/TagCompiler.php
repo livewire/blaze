@@ -28,26 +28,6 @@ class TagCompiler
     }
 
     /**
-     * Check if a component should be compiled with Blaze.
-     *
-     * Priority:
-     * 1. If component has @blaze directive, use it (returns true)
-     * 2. If path matches a configured directory with compile: false, return false
-     * 3. If path matches a configured directory with compile: true, return true
-     * 4. If no path config, return false (component must opt-in via @blaze or directory config)
-     */
-    protected function isBlazeComponent(ComponentSource $source): bool
-    {
-        // Component-level @blaze directive takes highest priority
-        if ($source->directives->blaze() !== null) {
-            return true;
-        }
-
-        // Check path-based configuration
-        return $this->config->shouldCompile($source->path);
-    }
-
-    /**
      * Compile a component node into ensureCompiled + require_once + function call.
      */
     public function compile(Node $node): Node
@@ -62,7 +42,7 @@ class TagCompiler
 
         $source = new ComponentSource($node->name);
 
-        if (! $source->exists() || ! $this->isBlazeComponent($source)) {
+        if (! $source->exists() || ! $this->isCompilable($source)) {
             return $node;
         }
 
@@ -91,6 +71,18 @@ class TagCompiler
         $output .= "\n" . '<' . '?php $__blaze->popData(); ?>' . "\n";
 
         return new TextNode($output);
+    }
+
+    /**
+     * Check if a component should be compiled with Blaze.
+     */
+    protected function isCompilable(ComponentSource $source): bool
+    {
+        if ($source->directives->blaze() !== null) {
+            return true;
+        }
+
+        return $this->config->shouldCompile($source->path);
     }
 
     protected function compileDelegateComponent(ComponentNode $node): string
@@ -133,7 +125,7 @@ class TagCompiler
     protected function hasDynamicSlotNames(ComponentNode $node): bool
     {
         foreach ($node->children as $child) {
-            if ($child instanceof SlotNode && str_starts_with($child->name, '$')) {
+            if ($child instanceof SlotNode && str_starts_with($child->name, '$')) { // TODO: Double check this
                 return true;
             }
         }

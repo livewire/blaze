@@ -14,9 +14,9 @@ class Memoizer
 
     protected BlazeConfig $config;
 
-    public function __construct(callable $compileNode, BlazeConfig $config)
+    public function __construct(BlazeConfig $config, callable $compileTag)
     {
-        $this->compileNode = $compileNode;
+        $this->compileNode = $compileTag;
         $this->config = $config;
     }
 

@@ -18,7 +18,6 @@ use Livewire\Blaze\BlazeConfig;
 class Folder
 {
     public function __construct(
-        protected Closure $renderNodes,
         protected BlazeConfig $config,
     ) {
     }
