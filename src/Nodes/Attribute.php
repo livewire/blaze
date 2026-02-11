@@ -21,8 +21,6 @@ class Attribute
 
     public function isStaticValue(): bool
     {
-        if (! $this->bound()) return false;
-
-        return in_array($this->value, ['true', 'false', 'null'], true);
+        return $this->dynamic === false || in_array($this->value, ['true', 'false', 'null'], true);
     }
 }

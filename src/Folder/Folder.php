@@ -126,7 +126,7 @@ class Folder
 
         // Check if any dynamic attributes are unsafe...
         foreach ($node->attributes as $attribute) {
-            if ($attribute->dynamic && ! $attribute->isStaticValue() && in_array($attribute->propName, $unsafe)) {
+            if (! $attribute->isStaticValue() && in_array($attribute->propName, $unsafe)) {
                 return false;
             }
         }
@@ -149,7 +149,7 @@ class Folder
     protected function slotHasDynamicAttributes(SlotNode $slot): bool
     {
         foreach ($slot->attributes as $attribute) {
-            if ($attribute->dynamic && ! $attribute->isStaticValue()) {
+            if (! $attribute->isStaticValue()) {
                 return true;
             }
         }
