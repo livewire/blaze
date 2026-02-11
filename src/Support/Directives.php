@@ -7,7 +7,7 @@ use Livewire\Blaze\BladeService;
 class Directives
 {
     public function __construct(
-        protected ComponentSource $source,
+        protected string $content,
     ) {
     }
 
@@ -15,7 +15,7 @@ class Directives
     {
         $result = false;
         
-        BladeService::compileDirective($this->source->content, $name, function () use (&$result) {
+        BladeService::compileDirective($this->content, $name, function () use (&$result) {
             $result = true;
         });
         
@@ -26,7 +26,7 @@ class Directives
     {
         $result = null;
 
-        BladeService::compileDirective($this->source->content, $name, function ($expression) use (&$result) {
+        BladeService::compileDirective($this->content, $name, function ($expression) use (&$result) {
             $result = $expression;
         });
         
