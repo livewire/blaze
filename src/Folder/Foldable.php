@@ -23,7 +23,6 @@ class Foldable
     public function __construct(
         protected ComponentNode $node,
         protected ComponentSource $source,
-        protected Closure $renderBlade,
     ) {
     }
 

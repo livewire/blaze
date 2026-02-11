@@ -18,7 +18,6 @@ use Livewire\Blaze\BlazeConfig;
 class Folder
 {
     public function __construct(
-        protected Closure $renderBlade,
         protected Closure $renderNodes,
         protected BlazeConfig $config,
     ) {
@@ -51,7 +50,7 @@ class Folder
         try {
             Blaze::startFolding();
 
-            $foldable = new Foldable($node, $source, $this->renderBlade);
+            $foldable = new Foldable($node, $source);
 
             $html = $foldable->fold();
 

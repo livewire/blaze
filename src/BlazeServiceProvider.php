@@ -42,7 +42,6 @@ class BlazeServiceProvider extends ServiceProvider
                 config: $config,
             ),
             new Folder(
-                renderBlade: fn ($blade) => BladeService::isolatedRender($blade),
                 renderNodes: fn ($nodes) => implode('', array_map(fn ($n) => $n->render(), $nodes)),
                 config: $config,
             ),
