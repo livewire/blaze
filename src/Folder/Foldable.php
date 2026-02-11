@@ -17,10 +17,6 @@ class Foldable
     protected array $attributeByPlaceholder = [];
     protected array $slotByPlaceholder = [];
 
-    protected array $attributeReplacements = [];
-    protected array $attributeNameByPlaceholder = [];
-    protected array $slotReplacements = [];
-
     protected ComponentNode $renderable;
     protected string $html;
 
@@ -33,7 +29,14 @@ class Foldable
 
     public function fold(): string
     {
-        $this->renderable = clone $this->node;
+        $this->renderable = new ComponentNode(
+            name: $this->node->name,
+            prefix: $this->node->prefix,
+            attributeString: '',
+            children: [],
+            selfClosing: $this->node->selfClosing,
+            parentsAttributes: $this->node->parentsAttributes,
+        );
 
         $this->replaceAttributesWithPlaceholders();
         $this->replaceSlotsWithPlaceholders();
@@ -50,7 +53,7 @@ class Foldable
 
     protected function replaceAttributesWithPlaceholders(): void
     {
-        foreach ($this->renderable->attributes as $key =>$attribute) {
+        foreach ($this->renderable->attributes as $key => $attribute) {
             if (! $attribute->isStaticValue()) {
                 $placeholder = 'BLAZE_PLACEHOLDER_' . strtoupper(str()->random());
 
@@ -70,14 +73,50 @@ class Foldable
 
     protected function replaceSlotsWithPlaceholders(): void
     {
-        $slots = $this->renderable->slots();
+        $slots = [];
+        $looseContent = [];
 
-        foreach ($slots as $slot) {
+        foreach ($this->node->children as $child) {
+            if ($child instanceof SlotNode) {
+                $placeholder = 'BLAZE_PLACEHOLDER_' . strtoupper(str()->random());
+
+                $this->slotByPlaceholder[$placeholder] = $child;
+
+                $slots[] = new SlotNode(
+                    name: $child->name,
+                    attributeString: $child->attributeString,
+                    slotStyle: $child->slotStyle,
+                    children: [new TextNode($placeholder)],
+                    prefix: $child->prefix,
+                    closeHasName: $child->closeHasName,
+                );
+            } else {
+                $looseContent[] = $child;
+            }
+        }
+
+        // If no explicit default slot, create a synthetic one from loose content
+        // Laravel behavior: explicit default slot takes precedence over loose content
+        if ($looseContent && ! isset($slots['slot'])) {
             $placeholder = 'BLAZE_PLACEHOLDER_' . strtoupper(str()->random());
 
-            $this->slotByPlaceholder[$placeholder] = clone $slot;
+            $defaultSlot = new SlotNode(
+                name: 'slot',
+                attributeString: '',
+                slotStyle: 'standard',
+                children: $looseContent,
+                prefix: 'x-slot',
+            );
 
-            $slot->children = [new TextNode($placeholder)];
+            $this->slotByPlaceholder[$placeholder] = $defaultSlot;
+
+            $slots[] = new SlotNode(
+                name: 'slot',
+                attributeString: '',
+                slotStyle: 'standard',
+                children: [new TextNode($placeholder)],
+                prefix: 'x-slot',
+            );
         }
         
         $this->renderable->children = $slots;

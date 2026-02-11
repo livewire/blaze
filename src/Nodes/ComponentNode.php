@@ -33,36 +33,6 @@ class ComponentNode extends Node
         }
     }
 
-    public function slots(): array
-    {
-        $slots = [];
-        $looseContent = [];
-
-        foreach ($this->children as $child) {
-            if ($child instanceof SlotNode) {
-                $slotName = $this->resolveSlotName($child);
-                
-                $slots[$slotName] = $child;
-            } else {
-                $looseContent[] = $child;
-            }
-        }
-
-        // If no explicit default slot, create a synthetic one from loose content
-        // Laravel behavior: explicit default slot takes precedence over loose content
-        if ($looseContent && ! isset($slots['slot'])) {
-            $slots['slot'] = new SlotNode(
-                name: 'slot',
-                attributeString: '',
-                slotStyle: 'standard',
-                children: $looseContent,
-                prefix: 'x-slot',
-            );
-        }
-
-        return $slots;
-    }
-
     /**
      * Resolve the slot name from a SlotNode.
      * Handles both short syntax (<x-slot:name>) and standard syntax (<x-slot name="name">).

@@ -89,15 +89,15 @@ class Folder
 
     protected function isSafeToFold(ComponentSource $source, ComponentNode $node): bool
     {
-        // We can't fold with :attributes / :$attributes spread...
-        if (($node->attributes['attributes'] ?? null)?->dynamic) {
+        $dynamicAttributes = array_filter($node->attributes, fn ($attribute) => ! $attribute->isStaticValue());
+
+        // Check for attributes forwarding...
+        if (array_key_exists('attributes', $dynamicAttributes)) {
             return false;
         }
 
-        // Collect prop names and safe/unsafe parameters..
-        $props = array_keys($source->directives->array('props') ?? []);
         $safe = Arr::wrap($source->directives->blaze('safe'));
-        $unsafe = array_merge($props, Arr::wrap($source->directives->blaze('unsafe')));
+        $unsafe = Arr::wrap($source->directives->blaze('unsafe'));
 
         // Check for safe wildcard..
         if (in_array('*', $safe)) {
@@ -108,6 +108,15 @@ class Folder
         if (in_array('*', $unsafe)) {
             return false;
         }
+
+        // Check for any loose content if default slot is unsafe...
+        if (in_array('slot', $unsafe) && array_filter($node->children, fn ($child) => ! $child instanceof SlotNode)) {
+            return false;
+        }
+
+        // Defined props are unsafe by default...
+        $props = array_keys($source->directives->array('props') ?? []);
+        $unsafe = array_merge($unsafe, $props);
 
         // Expand safe 'attributes' keyword into the actual non-prop attribute names..
         if (in_array('attributes', $safe)) {
@@ -125,21 +134,22 @@ class Folder
         $unsafe = array_diff(array_merge($props, $unsafe), $safe);
 
         // Check if any dynamic attributes are unsafe...
-        foreach ($node->attributes as $attribute) {
-            if (! $attribute->isStaticValue() && in_array($attribute->propName, $unsafe)) {
+        foreach ($dynamicAttributes as $attribute) {
+            if (in_array($attribute->propName, $unsafe)) {
                 return false;
             }
         }
 
-        $slots = $node->slots();
+        // Check if any named slots are unsafe...
+        foreach ($node->children as $child) {
+            if ($child instanceof SlotNode) {
+                if (in_array($child->name, $unsafe)) {
+                    return false;
+                }
 
-        foreach ($slots as $slot) {
-            if (in_array($slot->name, $unsafe)) {
-                return false;
-            }
-
-            if ($this->slotHasDynamicAttributes($slot)) {
-                return false;
+                if ($this->slotHasDynamicAttributes($child)) {
+                    return false;
+                }
             }
         }
 
