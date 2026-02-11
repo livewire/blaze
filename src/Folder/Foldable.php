@@ -51,7 +51,7 @@ class Foldable
     protected function replaceAttributesWithPlaceholders(): void
     {
         foreach ($this->renderable->attributes as $key =>$attribute) {
-            if ($attribute->dynamic) {
+            if ($attribute->dynamic && ! $attribute->isStaticValue()) {
                 $placeholder = 'BLAZE_PLACEHOLDER_' . strtoupper(str()->random());
 
                 $this->attributeByPlaceholder[$placeholder] = $attribute;

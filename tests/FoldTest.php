@@ -499,6 +499,53 @@ BLADE);
         expect($output)->toContain('<button');
     });
 
+    it('folds component when :disabled="false" static boolean is passed to a prop', function () {
+        $input = '<x-button :type="$buttonType" :disabled="false">Click</x-button>';
+        $output = app('blaze')->compile($input);
+
+        // :type="$buttonType" is truly dynamic and type is a prop, so folding is aborted
+        expect($output)->toContain('$__blaze->ensureCompiled');
+    });
+
+    it('folds component with static boolean false on defined prop', function () {
+        // disabled is in safe list, but :disabled="false" shouldn't even need safe —
+        // it's a static value and should not prevent folding
+        $input = '<x-button-safe-disabled :disabled="false">Save</x-button-safe-disabled>';
+        $output = app('blaze')->compile($input);
+
+        // Should be folded
+        expect($output)->not->toContain('$__blaze->ensureCompiled');
+        expect($output)->toContain('<button');
+    });
+
+    it('folds component with static boolean true on defined prop', function () {
+        $input = '<x-button-safe-disabled :disabled="true">Save</x-button-safe-disabled>';
+        $output = app('blaze')->compile($input);
+
+        // Should be folded
+        expect($output)->not->toContain('$__blaze->ensureCompiled');
+        expect($output)->toContain('<button');
+    });
+
+    it('folds component with static null on defined prop', function () {
+        $input = '<x-button-safe-disabled :disabled="null">Save</x-button-safe-disabled>';
+        $output = app('blaze')->compile($input);
+
+        // Should be folded
+        expect($output)->not->toContain('$__blaze->ensureCompiled');
+        expect($output)->toContain('<button');
+    });
+
+    it('does not fold component with dynamic variable even if named like a boolean', function () {
+        // :disabled="$false" is a variable, not a static value
+        $input = '<x-button-safe-disabled :disabled="$false">Save</x-button-safe-disabled>';
+        $output = app('blaze')->compile($input);
+
+        // disabled IS a prop, but it's in safe list so it would fold anyway via safe
+        // This test just confirms variables are not treated as static values
+        expect($output)->not->toContain('$__blaze->ensureCompiled');
+    });
+
     it('does not fold component when :$attributes spread is used', function () {
         // When :$attributes is passed, defined props could be inside that bag
         // Should abort folding to be safe

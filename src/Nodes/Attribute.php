@@ -18,4 +18,11 @@ class Attribute
     {
         return $this->prefix === ':' || $this->prefix === ':$';
     }
+
+    public function isStaticValue(): bool
+    {
+        if (! $this->bound()) return false;
+
+        return in_array($this->value, ['true', 'false', 'null'], true);
+    }
 }

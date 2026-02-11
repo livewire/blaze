@@ -180,6 +180,59 @@ it('doesnt use conditional logic for echo attribute with single expression', fun
     expect($result)->toContain('disabled');
 });
 
+it('folds and omits attribute when static :disabled="false" is used', function () {
+    $result = blade(
+        components: [
+            'button' => <<<'BLADE'
+                @blaze(fold: true)
+                @props(['disabled' => false])
+                <button {{ $attributes->merge(['type' => 'button']) }}>Click</button>
+                BLADE
+            ,
+        ],
+        view: '<x-button :disabled="false">Save</x-button>',
+    );
+
+    // :disabled="false" is static — folding should proceed without needing safe list
+    expect($result)->toContain('type="button"');
+    expect($result)->not->toContain('disabled');
+});
+
+it('folds and renders attribute when static :disabled="true" is used', function () {
+    $result = blade(
+        components: [
+            'button' => <<<'BLADE'
+                @blaze(fold: true)
+                @props(['disabled' => false])
+                <button {{ $attributes->merge(['type' => 'button', 'disabled' => $disabled]) }}>Click</button>
+                BLADE
+            ,
+        ],
+        view: '<x-button :disabled="true">Save</x-button>',
+    );
+
+    // :disabled="true" is static — should fold and render disabled="disabled"
+    expect($result)->toContain('disabled="disabled"');
+});
+
+it('folds and omits attribute when static :disabled="null" is used', function () {
+    $result = blade(
+        components: [
+            'button' => <<<'BLADE'
+                @blaze(fold: true)
+                @props(['disabled' => false])
+                <button {{ $attributes->merge(['type' => 'button']) }}>Click</button>
+                BLADE
+            ,
+        ],
+        view: '<x-button :disabled="null">Save</x-button>',
+    );
+
+    // :disabled="null" is static — should fold and omit the attribute
+    expect($result)->toContain('type="button"');
+    expect($result)->not->toContain('disabled');
+});
+
 it('handles attribute with mixed content and multiple blade echoes', function () {
     // Mixed content like "prefix-{{ $a }}-{{ $b }}" should NOT use conditional boolean logic.
     // It should render the interpolated values directly, not treat it as a boolean expression.
