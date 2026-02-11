@@ -38,6 +38,8 @@ class AttributeParser
      */
     public function parseAttributeStringToArray(string $attributesString): array
     {
+        $attributesString = $this->transformDirectiveAttributes($attributesString);
+
         $attributes = [];
 
         // Handle ::name="..." escaped attribute syntax (literal passthrough, not PHP-bound)
@@ -188,12 +190,56 @@ class AttributeParser
             ];
         }
 
+        $this->validateNoUnsupportedDirectives($attributesString);
+
         $attributes = Arr::sort($attributes, fn ($a) => $a['position']);
         $attributes = Arr::map($attributes, fn ($a) => tap($a, function (&$a) {
             unset($a['position']);
         }));
 
         return $attributes;
+    }
+
+    /**
+     * Transform @class/@style directives into bound :class/:style attributes.
+     *
+     * @class(['active' => $cond]) → :class="\Illuminate\Support\Arr::toCssClasses(['active' => $cond])"
+     * @style(['color: red' => $cond]) → :style="\Illuminate\Support\Arr::toCssStyles(['color: red' => $cond])"
+     */
+    protected function transformDirectiveAttributes(string $attributesString): string
+    {
+        return preg_replace_callback(
+            '/@(class|style)(\( ( (?>[^()]+) | (?2) )* \))/x',
+            function ($match) {
+                $directive = $match[1];
+                $args = str_replace('"', "'", $match[2]);
+
+                $method = $directive === 'class'
+                    ? '\Illuminate\Support\Arr::toCssClasses'
+                    : '\Illuminate\Support\Arr::toCssStyles';
+
+                return ":{$directive}=\"{$method}{$args}\"";
+            },
+            $attributesString
+        );
+    }
+
+    /**
+     * Validate that no unsupported directives remain in the attribute string.
+     *
+     * Directives like @checked, @disabled, @selected, etc. are not supported
+     * on component tags (they also cause fatal errors in standard Laravel Blade).
+     */
+    protected function validateNoUnsupportedDirectives(string $attributesString): void
+    {
+        if (preg_match('/@(\w+)\s*\(/', $attributesString, $match)) {
+            $directive = $match[1];
+
+            throw new \InvalidArgumentException(
+                "[@{$directive}(...)] is not supported on component tags. "
+                . "Use :{$directive}=\"\$condition\" instead."
+            );
+        }
     }
 
     /**
