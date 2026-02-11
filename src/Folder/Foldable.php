@@ -83,6 +83,7 @@ class Foldable
             if ($child instanceof SlotNode) {
                 $placeholder = 'BLAZE_PLACEHOLDER_' . strtoupper(str()->random());
 
+                // Store the original slot for later replacement...
                 $this->slotByPlaceholder[$placeholder] = $child;
 
                 $slots[$child->name] = new SlotNode(
@@ -111,6 +112,7 @@ class Foldable
                 prefix: 'x-slot',
             );
 
+            // Store the slot for later replacement...
             $this->slotByPlaceholder[$placeholder] = $defaultSlot;
 
             $slots['slot'] = new SlotNode(
@@ -122,6 +124,7 @@ class Foldable
             );
         }
         
+        // Replace slots with placeholder slots...
         $this->renderable->children = $slots;
     }
 
@@ -135,7 +138,7 @@ class Foldable
                 $default = null;
             }
 
-            $this->renderable->attributes[$prop] ??= $this->node->parentsAttributes[$prop] ?? new Attribute(
+            $attribute = $this->node->parentsAttributes[$prop] ?? new Attribute(
                 name: $prop,
                 value: $default,
                 propName: $prop,
@@ -143,6 +146,8 @@ class Foldable
                 dynamic: false,
                 quotes: '"',
             );
+
+            $this->renderable->attributes[$prop] ??= $attribute;
         }
     }
 
@@ -213,9 +218,7 @@ class Foldable
 
         $data = [];
 
-        foreach ($this->renderable->attributes as $attribute) {
-            $attribute = $this->attributeByPlaceholder[$attribute->value] ?? $attribute;
-
+        foreach ($this->node->attributes as $attribute) {
             if ($attribute->bound()) {
                 $data[] = var_export($attribute->propName, true).' => '.$attribute->value;
             } else {
