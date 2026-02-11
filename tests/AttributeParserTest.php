@@ -377,6 +377,64 @@ describe('parse attributes', function () {
         expect($attributes)->toBe($output);
     });
 
+    it('parses escaped :: attributes as static with name preserved', function () {
+        $input = '::class="{ danger: isDeleting }"';
+        $output = [
+            'class' => [
+                'name' => 'class',
+                'isDynamic' => false,
+                'value' => '{ danger: isDeleting }',
+                'original' => '::class="{ danger: isDeleting }"',
+                'quotes' => '"',
+            ],
+        ];
+
+        $attributes = (new AttributeParser())->parseAttributeStringToArray($input);
+
+        expect($attributes)->toBe($output);
+    });
+
+    it('parses escaped :: attributes alongside bound : attributes', function () {
+        $input = ':name="$name" ::class="{ danger: isDeleting }"';
+        $output = [
+            'name' => [
+                'name' => 'name',
+                'isDynamic' => true,
+                'value' => '$name',
+                'original' => ':name="$name"',
+                'quotes' => '"',
+            ],
+            'class' => [
+                'name' => 'class',
+                'isDynamic' => false,
+                'value' => '{ danger: isDeleting }',
+                'original' => '::class="{ danger: isDeleting }"',
+                'quotes' => '"',
+            ],
+        ];
+
+        $attributes = (new AttributeParser())->parseAttributeStringToArray($input);
+
+        expect($attributes)->toBe($output);
+    });
+
+    it('parses escaped :: attributes with single quotes', function () {
+        $input = "::class='{ danger: isDeleting }'";
+        $output = [
+            'class' => [
+                'name' => 'class',
+                'isDynamic' => false,
+                'value' => '{ danger: isDeleting }',
+                'original' => "::class='{ danger: isDeleting }'",
+                'quotes' => "'",
+            ],
+        ];
+
+        $attributes = (new AttributeParser())->parseAttributeStringToArray($input);
+
+        expect($attributes)->toBe($output);
+    });
+
     it('does not parse words within quoted class attribute values as boolean attributes', function () {
         $input = 'class="rounded-lg w-full h-10 opacity-75"';
         $output = [

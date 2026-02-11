@@ -93,8 +93,44 @@ class AttributeParser
     {
         $attributes = [];
 
-        // Handle :name="..." syntax
-        preg_match_all('/(?:^|\s):([A-Za-z0-9_:-]+)\s*=\s*"([^"]*)"/', $attributesString, $matches, PREG_SET_ORDER | PREG_OFFSET_CAPTURE);
+        // Handle ::name="..." escaped attribute syntax (literal passthrough, not PHP-bound)
+        preg_match_all('/(?:^|\s)::([A-Za-z0-9_-]+)\s*=\s*"([^"]*)"/', $attributesString, $matches, PREG_SET_ORDER | PREG_OFFSET_CAPTURE);
+        foreach ($matches as $m) {
+            $pos = $m[0][1];
+            $m = array_column($m, 0);
+            $attributeName = str($m[1])->camel()->toString();
+            if (isset($attributes[$attributeName])) continue;
+
+            $attributes[$attributeName] = [
+                'name' => $m[1],
+                'isDynamic' => false,
+                'value' => $m[2],
+                'original' => trim($m[0]),
+                'quotes' => '"',
+                'position' => $pos,
+            ];
+        }
+
+        // Handle ::name='...' escaped attribute syntax (literal passthrough, not PHP-bound)
+        preg_match_all("/(?:^|\s)::([A-Za-z0-9_-]+)\s*=\s*'([^']*)'/", $attributesString, $matches, PREG_SET_ORDER | PREG_OFFSET_CAPTURE);
+        foreach ($matches as $m) {
+            $pos = $m[0][1];
+            $m = array_column($m, 0);
+            $attributeName = str($m[1])->camel()->toString();
+            if (isset($attributes[$attributeName])) continue;
+
+            $attributes[$attributeName] = [
+                'name' => $m[1],
+                'isDynamic' => false,
+                'value' => $m[2],
+                'original' => trim($m[0]),
+                'quotes' => "'",
+                'position' => $pos,
+            ];
+        }
+
+        // Handle :name="..." syntax (skip :: which is handled above)
+        preg_match_all('/(?:^|\s):(?!:)([A-Za-z0-9_:-]+)\s*=\s*"([^"]*)"/', $attributesString, $matches, PREG_SET_ORDER | PREG_OFFSET_CAPTURE);
         foreach ($matches as $m) {
             $pos = $m[0][1];
             $m = array_column($m, 0);
@@ -111,8 +147,8 @@ class AttributeParser
             ];
         }
 
-        // Handle :name='...' syntax
-        preg_match_all("/(?:^|\s):([A-Za-z0-9_:-]+)\s*=\s*'([^']*)'/", $attributesString, $matches, PREG_SET_ORDER | PREG_OFFSET_CAPTURE);
+        // Handle :name='...' syntax (skip :: which is handled above)
+        preg_match_all("/(?:^|\s):(?!:)([A-Za-z0-9_:-]+)\s*=\s*'([^']*)'/", $attributesString, $matches, PREG_SET_ORDER | PREG_OFFSET_CAPTURE);
         foreach ($matches as $m) {
             $pos = $m[0][1];
             $m = array_column($m, 0);

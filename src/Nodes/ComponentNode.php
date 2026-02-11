@@ -27,7 +27,7 @@ class ComponentNode extends Node
                 value: $attribute['value'],
                 propName: $key,
                 dynamic: $attribute['isDynamic'] || str_contains($attribute['original'], '{{'),
-                prefix: Str::match('/^(:\$?)/', $attribute['original']),
+                prefix: Str::match('/^(::|\:\$|:)/', $attribute['original']),
                 quotes: $attribute['quotes'],
             );
         }

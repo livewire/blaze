@@ -233,6 +233,25 @@ it('folds and omits attribute when static :disabled="null" is used', function ()
     expect($result)->not->toContain('disabled');
 });
 
+it('passes through :: escaped attributes as literal :attr in folded output', function () {
+    $result = blade(
+        components: [
+            'button' => <<<'BLADE'
+                @blaze(fold: true)
+                @props(['type' => 'button'])
+                <button {{ $attributes->merge(['type' => $type]) }}>{{ $slot }}</button>
+                BLADE
+            ,
+        ],
+        view: '<x-button ::class="{ danger: isDeleting }">Submit</x-button>',
+    );
+
+    // :: should be stripped to : in the output (Alpine.js passthrough)
+    expect($result)->toContain(':class="{ danger: isDeleting }"');
+    // Should NOT try to evaluate as PHP
+    expect($result)->not->toContain('$__blazeAttr');
+});
+
 it('handles attribute with mixed content and multiple blade echoes', function () {
     // Mixed content like "prefix-{{ $a }}-{{ $b }}" should NOT use conditional boolean logic.
     // It should render the interpolated values directly, not treat it as a boolean expression.
