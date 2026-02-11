@@ -41,17 +41,14 @@ class BlazeServiceProvider extends ServiceProvider
             new Parser,
             new Walker,
             $tagCompiler = new TagCompiler(
-                componentNameToPath: fn ($name) => $bladeService->componentNameToPath($name),
                 config: $config,
             ),
             new Folder(
                 renderBlade: fn ($blade) => $bladeService->isolatedRender($blade),
                 renderNodes: fn ($nodes) => implode('', array_map(fn ($n) => $n->render(), $nodes)),
-                componentNameToPath: fn ($name) => $bladeService->componentNameToPath($name),
                 config: $config,
             ),
             new Memoizer(
-                componentNameToPath: fn ($name) => $bladeService->componentNameToPath($name),
                 compileNode: fn ($node) => $tagCompiler->compile($node)->render(),
                 config: $config,
             ),

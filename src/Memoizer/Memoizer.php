@@ -6,18 +6,16 @@ use Livewire\Blaze\Nodes\ComponentNode;
 use Livewire\Blaze\Nodes\TextNode;
 use Livewire\Blaze\Nodes\Node;
 use Livewire\Blaze\BlazeConfig;
-use Livewire\Blaze\Directive\BlazeDirective;
+use Livewire\Blaze\Support\ComponentSource;
 
 class Memoizer
 {
-    protected $componentNameToPath;
     protected $compileNode;
 
     protected BlazeConfig $config;
 
-    public function __construct(callable $componentNameToPath, callable $compileNode, BlazeConfig $config)
+    public function __construct(callable $compileNode, BlazeConfig $config)
     {
-        $this->componentNameToPath = $componentNameToPath;
         $this->compileNode = $compileNode;
         $this->config = $config;
     }
@@ -29,23 +27,21 @@ class Memoizer
         }
 
         try {
-            $componentPath = ($this->componentNameToPath)($node->name);
+            $source = new ComponentSource($node->name);
 
-            if (empty($componentPath) || ! file_exists($componentPath)) {
+            if (! $source->exists()) {
                 return false;
             }
 
-            $source = file_get_contents($componentPath);
-
-            $directiveParameters = BlazeDirective::getParameters($source);
-
             // Component-level @blaze(memo: ...) takes priority over path config
-            if (! is_null($directiveParameters) && isset($directiveParameters['memo'])) {
-                return $directiveParameters['memo'];
+            $memo = $source->directives->blaze('memo');
+
+            if (! is_null($memo)) {
+                return $memo;
             }
 
             // Use path-based default
-            return $this->config->shouldMemoize($componentPath);
+            return $this->config->shouldMemoize($source->path);
 
         } catch (\Exception $e) {
             return false;

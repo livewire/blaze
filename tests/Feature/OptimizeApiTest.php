@@ -1,11 +1,16 @@
 <?php
 
 use Livewire\Blaze\Blaze;
+use Livewire\Blaze\Compiler\TagCompiler;
+use Livewire\Blaze\Memoizer\Memoizer;
+use Livewire\Blaze\Nodes\ComponentNode;
+use Livewire\Blaze\Nodes\TextNode;
 use Livewire\Blaze\Support\ComponentSource;
 
 describe('Blaze::optimize() API', function () {
     beforeEach(function () {
         Blaze::optimize()->clear();
+        app('blade.compiler')->anonymousComponentPath(__DIR__.'/fixtures/path-config');
     });
 
     it('can access optimize config via facade', function () {
@@ -22,197 +27,119 @@ describe('Blaze::optimize() API', function () {
     });
 
     it('compiles component in configured directory without @blaze directive', function () {
-        $componentPath = __DIR__.'/fixtures/path-config/button.blade.php';
-        $componentDir = dirname($componentPath);
+        // Register directory — button.blade.php has no @blaze directive
+        $source = new ComponentSource('button');
 
-        // Register directory
-        Blaze::optimize()->in($componentDir);
+        Blaze::optimize()->in(dirname($source->path));
 
-        // Create test component without @blaze directive
-        if (! is_dir($componentDir)) {
-            mkdir($componentDir, 0755, true);
-        }
-        file_put_contents($componentPath, '<button {{ $attributes }}>{{ $slot }}</button>');
+        $tagCompiler = new TagCompiler(config: Blaze::optimize());
 
-        try {
-            // Verify the component is recognized as Blaze component
-            $tagCompiler = new \Livewire\Blaze\Compiler\TagCompiler(
-                fn () => $componentPath,
-                Blaze::optimize()
-            );
+        $node = new ComponentNode(
+            name: 'button',
+            prefix: 'x-',
+            attributeString: '',
+            children: [],
+            selfClosing: true,
+        );
 
-            $reflection = new ReflectionMethod($tagCompiler, 'isBlazeComponent');
-            $reflection->setAccessible(true);
-
-            expect($reflection->invoke($tagCompiler, $componentPath))->toBeTrue();
-        } finally {
-            // Cleanup
-            @unlink($componentPath);
-            @rmdir($componentDir);
-        }
+        // Component in configured directory should compile to a TextNode
+        expect($tagCompiler->compile($node))->toBeInstanceOf(TextNode::class);
     });
 
     it('excludes component in directory with compile: false', function () {
-        $componentPath = __DIR__.'/fixtures/path-config/legacy/old.blade.php';
-        $componentDir = dirname($componentPath);
-        $parentDir = dirname($componentDir);
+        $source = new ComponentSource('legacy.old');
 
-        // Register directories
+        // Register parent directory, then exclude subdirectory
         Blaze::optimize()
-            ->in($parentDir)
-            ->in($componentDir, compile: false);
+            ->in(dirname(dirname($source->path)))
+            ->in(dirname($source->path), compile: false);
 
-        // Create test component without @blaze directive
-        if (! is_dir($componentDir)) {
-            mkdir($componentDir, 0755, true);
-        }
-        file_put_contents($componentPath, '<button>{{ $slot }}</button>');
+        $tagCompiler = new TagCompiler(config: Blaze::optimize());
 
-        try {
-            $tagCompiler = new \Livewire\Blaze\Compiler\TagCompiler(
-                fn () => $componentPath,
-                Blaze::optimize()
-            );
+        $node = new ComponentNode(
+            name: 'legacy.old',
+            prefix: 'x-',
+            attributeString: '',
+            children: [],
+            selfClosing: true,
+        );
 
-            $reflection = new ReflectionMethod($tagCompiler, 'isBlazeComponent');
-            $reflection->setAccessible(true);
-
-            expect($reflection->invoke($tagCompiler, $componentPath))->toBeFalse();
-        } finally {
-            // Cleanup
-            @unlink($componentPath);
-            @rmdir($componentDir);
-            @rmdir($parentDir);
-        }
+        // Component in excluded directory should NOT compile (returns original ComponentNode)
+        expect($tagCompiler->compile($node))->toBeInstanceOf(ComponentNode::class);
     });
 
     it('component @blaze directive overrides path compile: false', function () {
-        $componentPath = __DIR__.'/fixtures/path-config/legacy2/overridden.blade.php';
-        $componentDir = dirname($componentPath);
+        $source = new ComponentSource('legacy2.overridden');
 
         // Register directory with compile: false
-        Blaze::optimize()->in($componentDir, compile: false);
+        Blaze::optimize()->in(dirname($source->path), compile: false);
 
-        // Create test component WITH @blaze directive
-        if (! is_dir($componentDir)) {
-            mkdir($componentDir, 0755, true);
-        }
-        file_put_contents($componentPath, "@blaze\n<button>{{ \$slot }}</button>");
+        $tagCompiler = new TagCompiler(config: Blaze::optimize());
 
-        try {
-            $tagCompiler = new \Livewire\Blaze\Compiler\TagCompiler(
-                fn () => $componentPath,
-                Blaze::optimize()
-            );
+        $node = new ComponentNode(
+            name: 'legacy2.overridden',
+            prefix: 'x-',
+            attributeString: '',
+            children: [],
+            selfClosing: true,
+        );
 
-            $reflection = new ReflectionMethod($tagCompiler, 'isBlazeComponent');
-            $reflection->setAccessible(true);
-
-            // Component has @blaze directive, so it should be compiled even though path says compile: false
-            expect($reflection->invoke($tagCompiler, $componentPath))->toBeTrue();
-        } finally {
-            // Cleanup
-            @unlink($componentPath);
-            @rmdir($componentDir);
-        }
+        // Component has @blaze directive, so it should be compiled even though path says compile: false
+        expect($tagCompiler->compile($node))->toBeInstanceOf(TextNode::class);
     });
 
     it('path-based fold setting acts as default', function () {
-        $componentPath = __DIR__.'/fixtures/path-config/cards/card.blade.php';
-        $componentDir = dirname($componentPath);
+        $source = new ComponentSource('button');
 
-        // Register directory with fold: true
-        Blaze::optimize()->in($componentDir, fold: true);
+        Blaze::optimize()->in(dirname($source->path), fold: true);
 
-        // Create test component without fold parameter in @blaze
-        if (! is_dir($componentDir)) {
-            mkdir($componentDir, 0755, true);
-        }
-        file_put_contents($componentPath, '<button>Static</button>');
-
-        try {
-            expect(Blaze::optimize()->shouldFold(realpath($componentPath)))->toBeTrue();
-        } finally {
-            // Cleanup
-            @unlink($componentPath);
-            @rmdir($componentDir);
-        }
+        expect(Blaze::optimize()->shouldFold(realpath($source->path)))->toBeTrue();
     });
 
     it('component @blaze(fold: false) overrides path fold: true', function () {
-        $componentPath = __DIR__.'/fixtures/path-config/cards2/card.blade.php';
-        $componentDir = dirname($componentPath);
+        $source = new ComponentSource('cards2.card');
 
-        // Register directory with fold: true
-        Blaze::optimize()->in($componentDir, fold: true);
+        Blaze::optimize()->in(dirname($source->path), fold: true);
 
-        // Create test component WITH explicit fold: false
-        if (! is_dir($componentDir)) {
-            mkdir($componentDir, 0755, true);
-        }
-        file_put_contents($componentPath, "@blaze(fold: false)\n<button>Static</button>");
+        $folder = new \Livewire\Blaze\Folder\Folder(
+            renderBlade: fn ($blade) => $blade,
+            renderNodes: fn ($nodes) => '',
+            config: Blaze::optimize(),
+        );
 
-        try {
-            app('blade.compiler')->anonymousComponentPath(__DIR__.'/fixtures/path-config');
-            $source = new ComponentSource('cards2.card');
+        $node = new ComponentNode(
+            name: 'cards2.card',
+            prefix: 'x-',
+            attributeString: '',
+            children: [],
+            selfClosing: true,
+        );
 
-            $folder = new \Livewire\Blaze\Folder\Folder(
-                renderBlade: fn ($blade) => $blade,
-                renderNodes: fn ($nodes) => '',
-                componentNameToPath: fn () => $componentPath,
-                config: Blaze::optimize(),
-            );
-
-            $reflection = new ReflectionMethod($folder, 'shouldFold');
-            $reflection->setAccessible(true);
-
-            // Component explicitly sets fold: false, overriding path default
-            expect($reflection->invoke($folder, $source))->toBeFalse();
-        } finally {
-            // Cleanup
-            @unlink($componentPath);
-            @rmdir($componentDir);
-        }
+        // Component explicitly sets fold: false, so it should NOT be folded (returns original ComponentNode)
+        expect($folder->fold($node))->toBeInstanceOf(ComponentNode::class);
     });
 
     it('path-based memo setting acts as default', function () {
-        $componentPath = __DIR__.'/fixtures/path-config/icons/icon.blade.php';
-        $componentDir = dirname($componentPath);
+        $source = new ComponentSource('icons.icon');
 
         // Register directory with memo: true
-        Blaze::optimize()->in($componentDir, memo: true);
+        Blaze::optimize()->in(dirname($source->path), memo: true);
 
-        // Create test component without memo parameter in @blaze
-        if (! is_dir($componentDir)) {
-            mkdir($componentDir, 0755, true);
-        }
-        file_put_contents($componentPath, '<svg></svg>');
+        $tagCompiler = new TagCompiler(config: Blaze::optimize());
 
-        try {
-            $tagCompiler = new \Livewire\Blaze\Compiler\TagCompiler(
-                fn () => $componentPath,
-                Blaze::optimize()
-            );
+        $memoizer = new Memoizer(
+            compileNode: fn ($node) => $tagCompiler->compile($node)->render(),
+            config: Blaze::optimize(),
+        );
 
-            $memoizer = new \Livewire\Blaze\Memoizer\Memoizer(
-                componentNameToPath: fn () => $componentPath,
-                compileNode: fn ($node) => $tagCompiler->compile($node)->render(),
-                config: Blaze::optimize()
-            );
+        $node = new ComponentNode(
+            name: 'icons.icon',
+            prefix: 'x-',
+            attributeString: '',
+            children: [],
+            selfClosing: true,
+        );
 
-            $node = new \Livewire\Blaze\Nodes\ComponentNode(
-                name: 'test',
-                prefix: 'x-',
-                attributeString: '',
-                children: [],
-                selfClosing: true
-            );
-
-            expect($memoizer->isMemoizable($node))->toBeTrue();
-        } finally {
-            // Cleanup
-            @unlink($componentPath);
-            @rmdir($componentDir);
-        }
+        expect($memoizer->isMemoizable($node))->toBeTrue();
     });
 });

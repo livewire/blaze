@@ -20,7 +20,6 @@ class Folder
     public function __construct(
         protected Closure $renderBlade,
         protected Closure $renderNodes,
-        protected Closure $componentNameToPath,
         protected BlazeConfig $config,
     ) {
     }

@@ -3,7 +3,6 @@
 namespace Livewire\Blaze\Support;
 
 use Livewire\Blaze\BladeService;
-use Livewire\Blaze\Compiler\ArrayParser;
 use Livewire\Blaze\Directive\BlazeDirective;
 
 class Utils

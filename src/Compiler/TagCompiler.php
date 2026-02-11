@@ -3,26 +3,22 @@
 namespace Livewire\Blaze\Compiler;
 
 use Illuminate\View\Compilers\ComponentTagCompiler;
-use Livewire\Blaze\Directive\BlazeDirective;
 use Livewire\Blaze\Nodes\ComponentNode;
 use Livewire\Blaze\Nodes\SlotNode;
 use Livewire\Blaze\Nodes\TextNode;
 use Livewire\Blaze\Nodes\Node;
-use Closure;
 use Livewire\Blaze\BlazeConfig;
 use Livewire\Blaze\Support\AttributeParser;
+use Livewire\Blaze\Support\ComponentSource;
 
 class TagCompiler
 {
-    protected Closure $componentNameToPath;
-
     protected BlazeConfig $config;
 
     protected ComponentTagCompiler $componentTagCompiler;
 
-    public function __construct(callable $componentNameToPath, BlazeConfig $config)
+    public function __construct(BlazeConfig $config)
     {
-        $this->componentNameToPath = $componentNameToPath;
         $this->config = $config;
         $this->componentTagCompiler = new ComponentTagCompiler(
             aliases: [],
@@ -40,18 +36,15 @@ class TagCompiler
      * 3. If path matches a configured directory with compile: true, return true
      * 4. If no path config, return false (component must opt-in via @blaze or directory config)
      */
-    protected function isBlazeComponent(string $componentPath): bool
+    protected function isBlazeComponent(ComponentSource $source): bool
     {
-        $source = file_get_contents($componentPath);
-        $params = BlazeDirective::getParameters($source);
-
         // Component-level @blaze directive takes highest priority
-        if (! is_null($params)) {
+        if ($source->directives->blaze() !== null) {
             return true;
         }
 
         // Check path-based configuration
-        return $this->config->shouldCompile($componentPath);
+        return $this->config->shouldCompile($source->path);
     }
 
     /**
@@ -67,9 +60,9 @@ class TagCompiler
             return new TextNode($this->compileDelegateComponent($node));
         }
 
-        $componentPath = ($this->componentNameToPath)($node->name);
+        $source = new ComponentSource($node->name);
 
-        if (empty($componentPath) || ! $this->isBlazeComponent($componentPath)) {
+        if (! $source->exists() || ! $this->isBlazeComponent($source)) {
             return $node;
         }
 
@@ -77,12 +70,12 @@ class TagCompiler
             return $node;
         }
 
-        $hash = self::hash($componentPath);
+        $hash = self::hash($source->path);
         $functionName = '_' . $hash;
         $slotsVariableName = '$slots' . $hash;
         [$attributesArrayString, $boundKeysArrayString] = $this->getAttributesAndBoundKeysArrayStrings($node->attributeString);
 
-        $output = '<' . '?php $__blaze->ensureCompiled(\'' . $componentPath . '\', $__blaze->compiledPath.\'/'. $hash . '.php\'); ?>' . "\n";
+        $output = '<' . '?php $__blaze->ensureCompiled(\'' . $source->path . '\', $__blaze->compiledPath.\'/'. $hash . '.php\'); ?>' . "\n";
         $output .= '<' . '?php require_once $__blaze->compiledPath.\'/'. $hash . '.php\'; ?>';
 
         $output .= "\n" . '<' . '?php $__blaze->pushData(' . $attributesArrayString . '); ?>';

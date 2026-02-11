@@ -188,7 +188,6 @@ class BlazeManager
             nodes: $ast,
             preCallback: fn ($node) => $node,
             postCallback: function ($node) use (&$dataStack) {
-                // Only tag compiler, no folder or memoizer
                 return $this->tagCompiler->compile($node);
             },
         );
