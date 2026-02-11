@@ -6,59 +6,6 @@ use Illuminate\Support\Arr;
 
 class AttributeParser
 {
-    public function parseAndReplaceDynamics(
-        string $attributesString,
-        array &$attributePlaceholders,
-        array &$attributeNameToPlaceholder
-    ): string {
-        // Early exit unless bound syntax or echo present (support start or whitespace before colon)...
-        $hasBound = (bool) preg_match('/(^|\s):[A-Za-z$]/', $attributesString);
-        if (! $hasBound && strpos($attributesString, '{{') === false) {
-            return $attributesString;
-        }
-
-        // :name="..."
-        $attributesString = preg_replace_callback('/(?<!\S)(\s*):([A-Za-z0-9_:-]+)\s*=\s*"([^"]*)"/', function ($matches) use (&$attributePlaceholders, &$attributeNameToPlaceholder) {
-            $whitespace = $matches[1];
-            $attributeName = $matches[2];
-            $attributeValue = $matches[3];
-
-            $placeholder = 'ATTR_PLACEHOLDER_' . count($attributePlaceholders);
-            $attributePlaceholders[$placeholder] = '{{ ' . $attributeValue . ' }}';
-            $attributeNameToPlaceholder[$attributeName] = $placeholder;
-
-            return $whitespace . $attributeName . '="' . $placeholder . '"';
-        }, $attributesString);
-
-        // Short :$var
-        $attributesString = preg_replace_callback('/(\s*):\$([a-zA-Z0-9_]+)/', function ($matches) use (&$attributePlaceholders, &$attributeNameToPlaceholder) {
-            $whitespace = $matches[1];
-            $variableName = $matches[2];
-
-            $placeholder = 'ATTR_PLACEHOLDER_' . count($attributePlaceholders);
-            $attributePlaceholders[$placeholder] = '{{ $' . $variableName . ' }}';
-            $attributeNameToPlaceholder[$variableName] = $placeholder;
-
-            return $whitespace . $variableName . '="' . $placeholder . '"';
-        }, $attributesString);
-
-        // Echoes inside quoted attribute values: foo="{{ $bar }}" or foo="{{ $bar }}-{{ $baz }}"
-        // Captures the entire attribute value when it contains any {{ }} echoes
-        $attributesString = preg_replace_callback('/(\s*)([a-zA-Z0-9_:-]+)\s*=\s*"((?:[^"]*\{\{.+?\}\}[^"]*)+)"/', function ($matches) use (&$attributePlaceholders, &$attributeNameToPlaceholder) {
-            $whitespace = $matches[1];
-            $attributeName = $matches[2];
-            $attributeValue = $matches[3];
-
-            $placeholder = 'ATTR_PLACEHOLDER_' . count($attributePlaceholders);
-            $attributePlaceholders[$placeholder] = $attributeValue;
-            $attributeNameToPlaceholder[$attributeName] = $placeholder;
-
-            return $whitespace . $attributeName . '="' . $placeholder . '"';
-        }, $attributesString);
-
-        return $attributesString;
-    }
-
     /**
      * Parse an attribute string into an array of attributes.
      *
