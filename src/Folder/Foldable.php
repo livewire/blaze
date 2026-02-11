@@ -38,9 +38,9 @@ class Foldable
             parentsAttributes: $this->node->parentsAttributes,
         );
 
-        $this->replaceAttributesWithPlaceholders();
-        $this->replaceSlotsWithPlaceholders();
-        $this->mergeAwareAttributesFromParents();
+        $this->setupAttributes();
+        $this->setupSlots();
+        $this->mergeAwareProps();
 
         $this->html = BladeService::render($this->renderable->render());
         
@@ -51,10 +51,11 @@ class Foldable
         return $this->html;
     }
 
-    protected function replaceAttributesWithPlaceholders(): void
+    protected function setupAttributes(): void
     {
-        foreach ($this->renderable->attributes as $key => $attribute) {
+        foreach ($this->node->attributes as $key => $attribute) {
             if (! $attribute->isStaticValue()) {
+                // Replace dynamic attributes with placeholders...
                 $placeholder = 'BLAZE_PLACEHOLDER_' . strtoupper(str()->random());
 
                 $this->attributeByPlaceholder[$placeholder] = $attribute;
@@ -67,11 +68,13 @@ class Foldable
                     dynamic: false,
                     quotes: '"',
                 );
+            } else {
+                $this->renderable->attributes[$key] = clone $attribute;
             }
         }
     }
 
-    protected function replaceSlotsWithPlaceholders(): void
+    protected function setupSlots(): void
     {
         $slots = [];
         $looseContent = [];
@@ -82,7 +85,7 @@ class Foldable
 
                 $this->slotByPlaceholder[$placeholder] = $child;
 
-                $slots[] = new SlotNode(
+                $slots[$child->name] = new SlotNode(
                     name: $child->name,
                     attributeString: $child->attributeString,
                     slotStyle: $child->slotStyle,
@@ -110,7 +113,7 @@ class Foldable
 
             $this->slotByPlaceholder[$placeholder] = $defaultSlot;
 
-            $slots[] = new SlotNode(
+            $slots['slot'] = new SlotNode(
                 name: 'slot',
                 attributeString: '',
                 slotStyle: 'standard',
@@ -122,7 +125,7 @@ class Foldable
         $this->renderable->children = $slots;
     }
 
-    protected function mergeAwareAttributesFromParents(): void
+    protected function mergeAwareProps(): void
     {
         $aware = $this->source->directives->array('aware') ?? [];
         
