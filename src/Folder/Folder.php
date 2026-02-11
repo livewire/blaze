@@ -104,6 +104,17 @@ class Folder
         $props = array_keys($source->directives->array('props') ?? []);
         $unsafe = Arr::wrap($source->directives->blaze('unsafe'));
 
+        // Expand 'attributes' keyword into the actual non-prop attribute names..
+        $nonPropAttributes = array_diff(array_keys($node->attributes), $props);
+
+        if (in_array('attributes', $safe)) {
+            $safe = array_merge(array_diff($safe, ['attributes']), $nonPropAttributes);
+        }
+
+        if (in_array('attributes', $unsafe)) {
+            $unsafe = array_merge(array_diff($unsafe, ['attributes']), $nonPropAttributes);
+        }
+
         // Build a final list of unsafe props = defined + unsafe - safe
         $unsafe = array_merge($props, $unsafe);
         $unsafe = array_diff($unsafe, $safe);

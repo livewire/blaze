@@ -517,4 +517,32 @@ BLADE);
         // Should NOT fold because :$attributes spread is fundamentally incompatible with folding
         expect(app('blaze')->compile($input))->toContain('$__blaze->ensureCompiled');
     });
+
+    it('folds with safe attributes keyword and dynamic non-prop attributes', function () {
+        $input = '<x-link-safe-attributes :href="$url" :class="$classes" />';
+        $output = app('blaze')->compile($input);
+
+        expect($output)->not->toContain('$__blaze->ensureCompiled');
+        expect($output)->toContain('<a');
+    });
+
+    it('does not fold with safe attributes keyword when a dynamic prop is passed', function () {
+        $input = '<x-link-safe-attributes :label="$text" href="/about" />';
+
+        expect(app('blaze')->compile($input))->toContain('$__blaze->ensureCompiled');
+    });
+
+    it('does not fold with unsafe attributes keyword when dynamic non-prop attribute is passed', function () {
+        $input = '<x-link-unsafe-attributes :href="$url" />';
+
+        expect(app('blaze')->compile($input))->toContain('$__blaze->ensureCompiled');
+    });
+
+    it('folds with unsafe attributes keyword when non-prop attributes are static', function () {
+        $input = '<x-link-unsafe-attributes href="/about" class="link" />';
+        $output = app('blaze')->compile($input);
+
+        expect($output)->not->toContain('$__blaze->ensureCompiled');
+        expect($output)->toContain('<a');
+    });
 });
