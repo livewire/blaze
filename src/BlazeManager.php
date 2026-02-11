@@ -92,9 +92,8 @@ class BlazeManager
     {
         $source = $template;
 
-        $bladeService = new BladeService;
-        $template = $bladeService->preStoreUncompiledBlocks($template);
-        $template = $bladeService->compileComments($template);
+        $template = BladeService::preStoreUncompiledBlocks($template);
+        $template = BladeService::compileComments($template);
 
         $tokens = $this->tokenizer->tokenize($template);
 
@@ -137,16 +136,15 @@ class BlazeManager
             $output = $this->componentCompiler->compile($output, $currentPath, $source);
         }
 
-        (new BladeService)->deleteTemporaryCacheDirectory();
+        BladeService::deleteTemporaryCacheDirectory();
 
         return $output;
     }
 
     public function compileTags(string $template): string
     {
-        $bladeService = new BladeService;
-        $template = $bladeService->preStoreUncompiledBlocks($template);
-        $template = $bladeService->compileComments($template);
+        $template = BladeService::preStoreUncompiledBlocks($template);
+        $template = BladeService::compileComments($template);
 
         $tokens = $this->tokenizer->tokenize($template);
 
@@ -176,9 +174,8 @@ class BlazeManager
     {
         $source = $template;
 
-        $bladeService = new BladeService;
-        $template = $bladeService->preStoreUncompiledBlocks($template);
-        $template = $bladeService->compileComments($template);
+        $template = BladeService::preStoreUncompiledBlocks($template);
+        $template = BladeService::compileComments($template);
 
         $tokens = $this->tokenizer->tokenize($template);
 

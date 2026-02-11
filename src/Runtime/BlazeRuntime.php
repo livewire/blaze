@@ -64,7 +64,7 @@ class BlazeRuntime
         if (isset($this->paths[$component])) {
             $path = $this->paths[$component];
         } else {
-            $path = $this->paths[$component] = (new BladeService)->componentNameToPath($component);
+            $path = $this->paths[$component] = BladeService::componentNameToPath($component);
         }
 
         $hash = TagCompiler::hash($path);

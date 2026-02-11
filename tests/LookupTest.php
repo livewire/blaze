@@ -9,49 +9,49 @@ describe('lookup component paths', function () {
     });
 
     it('anonymous component', function () {
-        $path = (new BladeService)->componentNameToPath('button');
+        $path = BladeService::componentNameToPath('button');
 
         expect($path)->toBe(__DIR__ . '/fixtures/components/button.blade.php');
     });
 
     it('namespaced anonymous component', function () {
-        $path = (new BladeService)->componentNameToPath('pages::dashboard');
+        $path = BladeService::componentNameToPath('pages::dashboard');
 
         expect($path)->toBe(__DIR__ . '/fixtures/pages/dashboard.blade.php');
     });
 
     it('sub-component', function () {
-        $path = (new BladeService)->componentNameToPath('form.input');
+        $path = BladeService::componentNameToPath('form.input');
 
         expect($path)->toBe(__DIR__ . '/fixtures/components/form/input.blade.php');
     });
 
     it('nested sub-component', function () {
-        $path = (new BladeService)->componentNameToPath('form.fields.text');
+        $path = BladeService::componentNameToPath('form.fields.text');
 
         expect($path)->toBe(__DIR__ . '/fixtures/components/form/fields/text.blade.php');
     });
 
     it('root component with index file', function () {
-        $path = (new BladeService)->componentNameToPath('form');
+        $path = BladeService::componentNameToPath('form');
 
         expect($path)->toBe(__DIR__ . '/fixtures/components/form/index.blade.php');
     });
 
     it('root component with same-name file', function () {
-        $path = (new BladeService)->componentNameToPath('panel');
+        $path = BladeService::componentNameToPath('panel');
 
         expect($path)->toBe(__DIR__ . '/fixtures/components/panel/panel.blade.php');
     });
 
     it('namespaced sub-component', function () {
-        $path = (new BladeService)->componentNameToPath('pages::auth.login');
+        $path = BladeService::componentNameToPath('pages::auth.login');
 
         expect($path)->toBe(__DIR__ . '/fixtures/pages/auth/login.blade.php');
     });
 
     it('namespaced root component', function () {
-        $path = (new BladeService)->componentNameToPath('pages::auth');
+        $path = BladeService::componentNameToPath('pages::auth');
 
         expect($path)->toBe(__DIR__ . '/fixtures/pages/auth/index.blade.php');
     });

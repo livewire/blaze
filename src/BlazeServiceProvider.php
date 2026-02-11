@@ -29,8 +29,6 @@ class BlazeServiceProvider extends ServiceProvider
 
     protected function registerBlazeManager(): void
     {
-        $bladeService = new BladeService;
-
         $this->app->singleton(BlazeRuntime::class, fn () => new BlazeRuntime);
         $this->app->singleton(BlazeConfig::class, fn () => new BlazeConfig);
 
@@ -44,7 +42,7 @@ class BlazeServiceProvider extends ServiceProvider
                 config: $config,
             ),
             new Folder(
-                renderBlade: fn ($blade) => $bladeService->isolatedRender($blade),
+                renderBlade: fn ($blade) => BladeService::isolatedRender($blade),
                 renderNodes: fn ($nodes) => implode('', array_map(fn ($n) => $n->render(), $nodes)),
                 config: $config,
             ),
@@ -100,10 +98,10 @@ class BlazeServiceProvider extends ServiceProvider
     {
         $blaze = app(BlazeManager::class);
 
-        (new BladeService)->earliestPreCompilationHook(function ($input) use ($blaze) {
+        BladeService::earliestPreCompilationHook(function ($input) use ($blaze) {
             if ($blaze->isDisabled()) return $input;
 
-            if ((new BladeService)->containsLaravelExceptionView($input)) return $input;
+            if (BladeService::containsLaravelExceptionView($input)) return $input;
 
             return $blaze->collectAndAppendFrontMatter($input, function ($input) use ($blaze) {
                 return $blaze->compile($input);
@@ -115,7 +113,7 @@ class BlazeServiceProvider extends ServiceProvider
     {
         $blaze = app(BlazeManager::class);
 
-        (new BladeService)->viewCacheInvalidationHook(function ($view, $invalidate) use ($blaze) {
+        BladeService::viewCacheInvalidationHook(function ($view, $invalidate) use ($blaze) {
             if ($blaze->isDisabled()) return;
 
             if ($blaze->viewContainsExpiredFrontMatter($view)) {

@@ -13,7 +13,7 @@ class BladeService
 {
     public static function render(string $template): string
     {
-        return (new self)->isolatedRender($template);
+        return static::isolatedRender($template);
     }
 
     public static function compileDirective(string $template, string $directive, callable $callback)
@@ -71,22 +71,22 @@ class BladeService
         return $instance;
     }
     
-    public function getTemporaryCachePath(): string
+    public static function getTemporaryCachePath(): string
     {
         return config('view.compiled') . '/blaze';
     }
 
-    public function isolatedRender(string $template): string
+    public static function isolatedRender(string $template): string
     {
         $compiler = app('blade.compiler');
 
-        $temporaryCachePath = $this->getTemporaryCachePath();
+        $temporaryCachePath = static::getTemporaryCachePath();
 
         File::ensureDirectoryExists($temporaryCachePath);
 
         $factory = app('view');
 
-        [$factory, $restoreFactory] = $this->freezeObjectProperties($factory, [
+        [$factory, $restoreFactory] = static::freezeObjectProperties($factory, [
             'componentStack' => [],
             'componentData' => [],
             'currentComponentData' => [],
@@ -95,7 +95,7 @@ class BladeService
             'renderCount' => 0,
         ]);
 
-        [$compiler, $restore] = $this->freezeObjectProperties($compiler, [
+        [$compiler, $restore] = static::freezeObjectProperties($compiler, [
             'cachePath' => $temporaryCachePath,
             'rawBlocks',
             'prepareStringsForCompilationUsing' => [
@@ -104,8 +104,7 @@ class BladeService
                         $input = Unblaze::processUnblazeDirectives($input);
                     }
 
-                    // Run Blaze compilation (tag compiler + component compiler only, no folding)
-                    $input = app('blaze')->compileForFolding($input);
+                    $input = Blaze::compileForFolding($input);
 
                     return $input;
                 },
@@ -113,7 +112,7 @@ class BladeService
             'path' => null,
         ]);
 
-        [$runtime, $restoreRuntime] = $this->freezeObjectProperties(app('blaze.runtime'), [
+        [$runtime, $restoreRuntime] = static::freezeObjectProperties(app('blaze.runtime'), [
             'compiled' => [],
             'paths' => [],
             'compiledPath' => $temporaryCachePath,
@@ -136,17 +135,17 @@ class BladeService
         return $result;
     }
 
-    public function deleteTemporaryCacheDirectory()
+    public static function deleteTemporaryCacheDirectory(): void
     {
-        File::deleteDirectory($this->getTemporaryCachePath());
+        File::deleteDirectory(static::getTemporaryCachePath());
     }
 
-    public function containsLaravelExceptionView(string $input): bool
+    public static function containsLaravelExceptionView(string $input): bool
     {
         return str_contains($input, 'laravel-exceptions');
     }
 
-    public function earliestPreCompilationHook(callable $callback)
+    public static function earliestPreCompilationHook(callable $callback): void
     {
         app()->booted(function () use ($callback) {
             app('blade.compiler')->prepareStringsForCompilationUsing(function ($input) use ($callback) {
@@ -157,7 +156,7 @@ class BladeService
         });
     }
 
-    public function preStoreUncompiledBlocks(string $input): string
+    public static function preStoreUncompiledBlocks(string $input): string
     {
         $compiler = app('blade.compiler');
 
@@ -168,7 +167,7 @@ class BladeService
         return $storeVerbatimBlocks->invoke($compiler, $input);
     }
 
-    public function compileComments(string $input): string
+    public static function compileComments(string $input): string
     {
         $compiler = app('blade.compiler');
 
@@ -179,7 +178,7 @@ class BladeService
         return $compileComments->invoke($compiler, $input);
     }
 
-    public function compileAttributeEchos(string $input): string
+    public static function compileAttributeEchos(string $input): string
     {
         $compiler = new ComponentTagCompiler(blade: app('blade.compiler'));
 
@@ -190,7 +189,7 @@ class BladeService
         return Str::unwrap("'" . $method->invoke($compiler, $input) . "'", "''.", ".''");
     }
 
-    public function viewCacheInvalidationHook(callable $callback)
+    public static function viewCacheInvalidationHook(callable $callback): void
     {
         Event::listen('composing:*', function ($event, $params) use ($callback) {
             $view = $params[0];
@@ -205,7 +204,7 @@ class BladeService
         });
     }
 
-    public function componentNameToPath($name): string
+    public static function componentNameToPath($name): string
     {
         $compiler = app('blade.compiler');
         $viewFinder = app('view.finder');
@@ -296,7 +295,7 @@ class BladeService
         }
     }
 
-    protected function freezeObjectProperties(object $object, array $properties)
+    protected static function freezeObjectProperties(object $object, array $properties)
     {
         $reflection = new ReflectionClass($object);
 

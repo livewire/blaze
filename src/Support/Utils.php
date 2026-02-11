@@ -9,12 +9,12 @@ class Utils
 {
     public static function componentNameToPath(string $name): string
     {
-        return (new BladeService)->componentNameToPath($name);
+        return BladeService::componentNameToPath($name);
     }
         
     public static function compileAttributeEchos(string $value): string
     {
-        return (new BladeService)->compileAttributeEchos($value);
+        return BladeService::compileAttributeEchos($value);
     }
 
     public static function parseBlazeDirective(string $expression): array
