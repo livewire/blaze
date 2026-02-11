@@ -94,30 +94,35 @@ class Folder
             return false;
         }
 
+        // Collect prop names and safe/unsafe parameters..
+        $props = array_keys($source->directives->array('props') ?? []);
         $safe = Arr::wrap($source->directives->blaze('safe'));
+        $unsafe = array_merge($props, Arr::wrap($source->directives->blaze('unsafe')));
 
+        // Check for safe wildcard..
         if (in_array('*', $safe)) {
             return true;
         }
 
-        // Collect prop names and safe/unsafe parameters..
-        $props = array_keys($source->directives->array('props') ?? []);
-        $unsafe = Arr::wrap($source->directives->blaze('unsafe'));
+        // Check for unesafe wildcard..
+        if (in_array('*', $unsafe)) {
+            return false;
+        }
 
-        // Expand 'attributes' keyword into the actual non-prop attribute names..
-        $nonPropAttributes = array_diff(array_keys($node->attributes), $props);
-
+        // Expand safe 'attributes' keyword into the actual non-prop attribute names..
         if (in_array('attributes', $safe)) {
+            $nonPropAttributes = array_diff(array_keys($node->attributes), $props);
             $safe = array_merge(array_diff($safe, ['attributes']), $nonPropAttributes);
         }
 
+        // Expand unsafe 'attributes' keyword into the actual non-prop attribute names..
         if (in_array('attributes', $unsafe)) {
+            $nonPropAttributes = array_diff(array_keys($node->attributes), $props);
             $unsafe = array_merge(array_diff($unsafe, ['attributes']), $nonPropAttributes);
         }
 
-        // Build a final list of unsafe props = defined + unsafe - safe
-        $unsafe = array_merge($props, $unsafe);
-        $unsafe = array_diff($unsafe, $safe);
+        // Build a final list of unsafe attributes = props + unsafe - safe...
+        $unsafe = array_diff(array_merge($props, $unsafe), $safe);
 
         // Check if any dynamic attributes are unsafe...
         foreach ($node->attributes as $attribute) {
