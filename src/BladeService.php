@@ -18,11 +18,18 @@ class BladeService
 
     public static function compileDirective(string $template, string $directive, callable $callback)
     {
+        // Protect raw block placeholders from the main Blade compiler so
+        // our hacked compiler's restoreRawContent doesn't try to resolve them.
+        $template = preg_replace('/@__raw_block_(\d+)__@/', '__BLAZE_RAW_BLOCK_$1__', $template);
+
         $compiler = static::getHackedBladeCompiler();
 
         $compiler->directive($directive, $callback);
 
-        return $compiler->compileStatementsMadePublic($template);
+        $result = $compiler->compileStatementsMadePublic($template);
+
+        // Restore raw block placeholders.
+        return preg_replace('/__BLAZE_RAW_BLOCK_(\d+)__/', '@__raw_block_$1__@', $result);
     }
 
     public static function getHackedBladeCompiler()

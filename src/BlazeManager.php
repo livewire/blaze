@@ -44,6 +44,8 @@ class BlazeManager
 
     public function compile(string $template): string
     {
+        $source = $template;
+
         $template = BladeService::preStoreUncompiledBlocks($template);
         $template = BladeService::compileComments($template);
 
@@ -80,10 +82,10 @@ class BlazeManager
         $output = $this->render($ast);
 
         $path = app('blade.compiler')->getPath();
-        $directives = new Directives($template);
+        $directives = new Directives($source);
 
-        if ($directives->blaze()) {
-            $output = $this->wrapper->wrap($output, $path, $template);
+        if ($path && $directives->blaze()) {
+            $output = $this->wrapper->wrap($output, $path, $source);
         }
 
         BladeService::deleteTemporaryCacheDirectory();

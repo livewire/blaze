@@ -42,8 +42,7 @@ class SlotCompiler
             }
         }
 
-        return "\n"
-            . '<' . '?php ' . $slotsVariableName . ' = []; ?>'
+        return '<' . '?php ' . $slotsVariableName . ' = []; ?>' . "\n"
             . implode("\n", $output);
     }
 

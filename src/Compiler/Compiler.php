@@ -59,7 +59,7 @@ class Compiler
      */
     protected function shouldCompile(ComponentSource $source): bool
     {
-        if ($source->directives->blaze() !== null) {
+        if ($source->directives->blaze()) {
             return true;
         }
 

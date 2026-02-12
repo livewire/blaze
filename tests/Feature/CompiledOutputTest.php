@@ -1,6 +1,5 @@
 <?php
-use Livewire\Blaze\Compiler\Compiler as Compiler;
-use Livewire\Blaze\Compiler\Compiler;
+use Livewire\Blaze\Support\Utils;
 use Illuminate\Support\Facades\File;
 
 beforeEach(function () {
@@ -10,7 +9,7 @@ beforeEach(function () {
 describe('call-site compilation', function () {
     it('compiles blaze component with static attributes', function () {
         $path = __DIR__ . '/fixtures/simple-button.blade.php';
-        $hash = Compiler::hash($path);
+        $hash = Utils::hash($path);
 
         $result = app('blade.compiler')->compileString('<x-simple-button type="submit" class="btn-primary" />');
 
@@ -25,7 +24,7 @@ describe('call-site compilation', function () {
 
     it('compiles blaze component with dynamic attributes', function () {
         $path = __DIR__ . '/fixtures/simple-button.blade.php';
-        $hash = Compiler::hash($path);
+        $hash = Utils::hash($path);
 
         $result = app('blade.compiler')->compileString('<x-simple-button :type="$buttonType" :class="$classes" />');
 
@@ -40,7 +39,7 @@ describe('call-site compilation', function () {
 
     it('compiles blaze component with shorthand dynamic attributes', function () {
         $path = __DIR__ . '/fixtures/simple-button.blade.php';
-        $hash = Compiler::hash($path);
+        $hash = Utils::hash($path);
 
         $result = app('blade.compiler')->compileString('<x-simple-button :$type :$class />');
 
@@ -55,7 +54,7 @@ describe('call-site compilation', function () {
 
     it('compiles blaze component with no attributes', function () {
         $path = __DIR__ . '/fixtures/simple-button.blade.php';
-        $hash = Compiler::hash($path);
+        $hash = Utils::hash($path);
 
         $result = app('blade.compiler')->compileString('<x-simple-button />');
 
@@ -79,7 +78,7 @@ describe('call-site compilation', function () {
 
     it('compiles blaze component with wire and alpine attributes', function () {
         $path = __DIR__ . '/fixtures/simple-button.blade.php';
-        $hash = Compiler::hash($path);
+        $hash = Utils::hash($path);
 
         $result = app('blade.compiler')->compileString('<x-simple-button wire:click="save" x-on:click="open = true" @click="handle" />');
 
@@ -115,7 +114,7 @@ describe('call-site compilation', function () {
 
     it('wraps @aware component call with pushData/popData', function () {
         $path = __DIR__ . '/fixtures/aware-menu.blade.php';
-        $hash = Compiler::hash($path);
+        $hash = Utils::hash($path);
         
         $result = app('blade.compiler')->compileString('<x-aware-menu color="blue" size="lg">Content</x-aware-menu>');
 
@@ -135,7 +134,7 @@ describe('call-site compilation', function () {
 
     it('compiles component with default slot', function () {
         $path = __DIR__ . '/fixtures/card.blade.php';
-        $hash = Compiler::hash($path);
+        $hash = Utils::hash($path);
 
         $result = app('blade.compiler')->compileString('<x-card>Hello World</x-card>');
 
@@ -175,7 +174,7 @@ describe('call-site compilation', function () {
     });
 
     it('compiles self-closing component without slots parameter', function () {
-        $hash = Compiler::hash(__DIR__ . '/fixtures/simple-button.blade.php');
+        $hash = Utils::hash(__DIR__ . '/fixtures/simple-button.blade.php');
 
         $result = app('blade.compiler')->compileString('<x-simple-button />');
 
@@ -216,7 +215,7 @@ describe('call-site compilation', function () {
 describe('component wrapper compilation', function () {
     it('compiles blaze component source into function wrapper', function () {
         $path = __DIR__ . '/fixtures/simple-button.blade.php';
-        $hash = Compiler::hash($path);
+        $hash = Utils::hash($path);
         $compiled = compile('simple-button.blade.php');
 
         expect($compiled)->toBe(
@@ -240,7 +239,7 @@ unset($__data, $__bound); ?><button <?php echo e($attributes); ?>>Click</button>
 
     it('generates props code for component with defaults', function () {
         $path = __DIR__ . '/fixtures/props-button.blade.php';
-        $hash = Compiler::hash($path);
+        $hash = Utils::hash($path);
         $compiled = compile('props-button.blade.php');
 
         expect($compiled)->toContain("function _$hash(\$__blaze, \$__data = [], \$__slots = [], \$__bound = [])");
@@ -319,7 +318,7 @@ unset($__data, $__bound); ?><button <?php echo e($attributes); ?>>Click</button>
     });
 
     it('includes $__slots parameter in function signature', function () {
-        $hash = Compiler::hash(__DIR__ . '/fixtures/card.blade.php');
+        $hash = Utils::hash(__DIR__ . '/fixtures/card.blade.php');
         $compiled = compile('card.blade.php');
 
         expect($compiled)
@@ -343,7 +342,7 @@ describe('delegate component compilation', function () {
 
     it('compiles delegate-component with slot content', function () {
         $path = __DIR__ . '/fixtures/delegate/delegate-parent.blade.php';
-        $hash = Compiler::hash($path);
+        $hash = Utils::hash($path);
         $compiled = compile('delegate/delegate-parent.blade.php');
 
         // The slots variable name is a hash of the component expression
@@ -389,7 +388,7 @@ unset($__data, $__bound); ?><?php $__resolved = $__blaze->resolve(\'flux::\' . \
 
     it('compiles delegate-component with named slots', function () {
         $path = __DIR__ . '/fixtures/delegate/delegate-with-slot.blade.php';
-        $hash = Compiler::hash($path);
+        $hash = Utils::hash($path);
         $compiled = compile('delegate/delegate-with-slot.blade.php');
 
         // Should contain the resolve call

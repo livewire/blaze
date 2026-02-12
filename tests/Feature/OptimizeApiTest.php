@@ -126,7 +126,6 @@ describe('Blaze::optimize() API', function () {
         $tagCompiler = new Compiler(config: Blaze::optimize());
 
         $memoizer = new Memoizer(
-            compileTag: fn ($node) => $tagCompiler->compile($node)->render(),
             config: Blaze::optimize(),
         );
 

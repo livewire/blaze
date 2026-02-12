@@ -1,6 +1,5 @@
 <?php
-use Livewire\Blaze\Compiler\Compiler as Compiler;
-use Livewire\Blaze\Compiler\Compiler;
+use Livewire\Blaze\Support\Utils;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\MessageBag;
 use Illuminate\Support\ViewErrorBag;
@@ -75,7 +74,7 @@ describe('nested component folding', function () {
 
     it('compiles wrapper with function wrapper and folded child', function () {
         $wrapperPath = __DIR__ . '/fixtures/nested/wrapper.blade.php';
-        $hash = Compiler::hash($wrapperPath);
+        $hash = Utils::hash($wrapperPath);
         $compiledPath = app('blade.compiler')->getCompiledPath($wrapperPath);
 
         if (File::exists($compiledPath)) {

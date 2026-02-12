@@ -2,8 +2,10 @@
 
 describe('exercise without folding', function () {
     function compileBlade(string $input): string {
-        $tokens = app('blaze')->tokenizer()->tokenize($input);
-        $ast = app('blaze')->parser()->parse($tokens);
+        $tokenizer = new \Livewire\Blaze\Tokenizer\Tokenizer;
+        $parser = new \Livewire\Blaze\Parser\Parser;
+        $tokens = $tokenizer->tokenize($input);
+        $ast = $parser->parse($tokens);
         $output = implode('', array_map(fn ($n) => $n->render(), $ast));
         return $output;
     }

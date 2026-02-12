@@ -62,7 +62,7 @@ class Unblaze
                 $token = $matches[2];
 
                 $innerContent = static::$unblazeReplacements[$token];
-                $innerContent = app('blaze')->compileTags($innerContent);
+                $innerContent = app('blaze')->compileForUnblaze($innerContent);
 
                 $scope = static::$unblazeScopes[$token];
 

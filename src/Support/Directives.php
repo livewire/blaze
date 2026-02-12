@@ -47,7 +47,7 @@ class Directives
      */
     public function props(): array
     {
-        return Arr::map($this->array('props') ?? [], fn ($key, $value) => is_int($key) ? $value : $key);
+        return array_values(Arr::map($this->array('props') ?? [], fn ($value, $key) => is_int($key) ? $value : $key));
     }
 
     public function blaze(?string $param = null): mixed
