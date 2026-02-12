@@ -23,6 +23,7 @@ use Illuminate\Support\Facades\Facade;
  */
 class Blaze extends Facade
 {
+    /** {@inheritdoc} */
     public static function getFacadeAccessor()
     {
         return 'blaze';

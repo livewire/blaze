@@ -2,6 +2,9 @@
 
 namespace Livewire\Blaze\Tokenizer;
 
+/**
+ * Tokenizer FSM states for Blade template lexing.
+ */
 enum State: string
 {
     case TEXT = 'TEXT';

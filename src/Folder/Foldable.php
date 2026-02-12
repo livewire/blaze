@@ -12,6 +12,12 @@ use Livewire\Blaze\Nodes\Attribute;
 use Livewire\Blaze\Support\Utils;
 use Livewire\Blaze\BladeService;
 
+/**
+ * Performs compile-time folding of a component by rendering it with placeholder substitution.
+ *
+ * Dynamic attributes and slot contents are replaced with placeholders before rendering,
+ * then restored afterward so they evaluate at runtime.
+ */
 class Foldable
 {
     protected array $attributeByPlaceholder = [];
@@ -26,6 +32,9 @@ class Foldable
     ) {
     }
 
+    /**
+     * Fold the component: render with placeholders, then restore dynamic values.
+     */
     public function fold(): string
     {
         $this->renderable = new ComponentNode(
@@ -50,11 +59,13 @@ class Foldable
         return $this->html;
     }
 
+    /**
+     * Replace dynamic attributes with placeholders, keep static ones as-is.
+     */
     protected function setupAttributes(): void
     {
         foreach ($this->node->attributes as $key => $attribute) {
             if (! $attribute->isStaticValue()) {
-                // Replace dynamic attributes with placeholders...
                 $placeholder = 'BLAZE_PLACEHOLDER_' . strtoupper(str()->random());
 
                 $this->attributeByPlaceholder[$placeholder] = $attribute;
@@ -73,6 +84,9 @@ class Foldable
         }
     }
 
+    /**
+     * Replace slot children with placeholders for rendering, storing originals for restoration.
+     */
     protected function setupSlots(): void
     {
         $slots = [];
@@ -82,14 +96,12 @@ class Foldable
             if ($child instanceof SlotNode) {
                 $placeholder = 'BLAZE_PLACEHOLDER_' . strtoupper(str()->random());
 
-                // Store the original slot for later replacement...
                 $this->slotByPlaceholder[$placeholder] = $child;
 
                 $slots[$child->name] = new SlotNode(
                     name: $child->name,
                     attributeString: $child->attributeString,
                     slotStyle: $child->slotStyle,
-                    // Replace slot children with placeholder...
                     children: [new TextNode($placeholder)],
                     prefix: $child->prefix,
                     closeHasName: $child->closeHasName,
@@ -99,8 +111,7 @@ class Foldable
             }
         }
 
-        // If no explicit default slot, create a synthetic one from loose content
-        // Laravel behavior: explicit default slot takes precedence over loose content
+        // Synthesize a default slot from loose content when no explicit one exists
         if ($looseContent && ! isset($slots['slot'])) {
             $placeholder = 'BLAZE_PLACEHOLDER_' . strtoupper(str()->random());
 
@@ -112,23 +123,23 @@ class Foldable
                 prefix: 'x-slot',
             );
 
-            // Store the slot for later replacement...
             $this->slotByPlaceholder[$placeholder] = $defaultSlot;
 
             $slots['slot'] = new SlotNode(
                 name: 'slot',
                 attributeString: '',
                 slotStyle: 'standard',
-                // Replace slot children with placeholder...
                 children: [new TextNode($placeholder)],
                 prefix: 'x-slot',
             );
         }
-        
-        // Replace children with placeholder slots...
+
         $this->renderable->children = $slots;
     }
 
+    /**
+     * Merge @aware-declared props from parent attributes into the renderable node.
+     */
     protected function mergeAwareProps(): void
     {
         $aware = $this->source->directives->array('aware') ?? [];
@@ -152,6 +163,9 @@ class Foldable
         }
     }
 
+    /**
+     * Convert [BLAZE_ATTR:...] markers into conditional PHP for dynamic attributes.
+     */
     protected function processUncompiledAttributes(): void
     {
         $this->html = preg_replace_callback('/\[BLAZE_ATTR:(BLAZE_PLACEHOLDER_[A-Z0-9]+)\]/', function ($matches) {
@@ -159,25 +173,26 @@ class Foldable
             $attribute = $this->attributeByPlaceholder[$placeholder];
 
             if ($attribute->bound()) {
-                // Laravel sets value of all boolean attributes to its name, except for x-data and wire...
+                // x-data and wire:* get empty string for true, others get key name
                 $booleanValue = ($attribute->name === 'x-data' || str_starts_with($attribute->name, 'wire:')) ? "''" : "'".addslashes($attribute->name)."'";
 
                 return '<'.'?php if (($__blazeAttr = '.$attribute->value.') !== false && !is_null($__blazeAttr)): ?'.'>'
                 .' '.$attribute->name.'="<'.'?php echo e($__blazeAttr === true ? '.$booleanValue.' : $__blazeAttr); ?'.'>"'
                 .'<'.'?php endif; unset($__blazeAttr); ?'.'>';
             } else {
-                // Dynamic non-bound attributes with {{ expressions }} will never be false or null,
-                // therefore we can just return the attribute name and value as is.
                 return $attribute->name.'="'.$attribute->value.'"';
             }
         }, $this->html);
     }
 
+    /**
+     * Replace all placeholders with their original dynamic values or slot content.
+     */
     protected function restorePlaceholders(): void
     {
-        // TODO: What is slots are outputted as variables? {{ $footer }}
+        // TODO: What if slots are outputted as variables? {{ $footer }}
 
-        // Replace placeholders inside PHP blocks...
+        // Attribute placeholders inside PHP blocks need raw values
         $this->html = preg_replace_callback('/<\?php.*?\?>/s', function ($match) {
             $content = $match[0];
 
@@ -190,19 +205,21 @@ class Foldable
             return $content;
         }, $this->html);
 
-        // Replace remaining placeholders in HTML context with Blade echos...
+        // Attribute placeholders in HTML context need Blade echo syntax
         foreach ($this->attributeByPlaceholder as $placeholder => $attribute) {
             $value = $attribute->bound() ? '{{ ' . $attribute->value . ' }}' : $attribute->value;
 
             $this->html = str_replace($placeholder, $value, $this->html);
         }
 
-        // Replace slot placeholders with their original content...
         foreach ($this->slotByPlaceholder as $placeholder => $slot) {
             $this->html = str_replace($placeholder, trim($slot->content()), $this->html);
         }
     }
 
+    /**
+     * Wrap output with pushConsumableComponentData calls if descendants use @aware.
+     */
     protected function wrapWithAwareMacros(): void
     {
         if (! $this->renderable->attributes) {
@@ -212,10 +229,6 @@ class Foldable
         if (! $this->hasAwareDescendant($this->node)) {
             return;
         }
-
-        // To enable @aware to work in non-Blaze child components,
-        // we'll add a php block that pushes this component's data
-        // onto the @aware stack when the component is rendered.
 
         $data = [];
 
@@ -233,10 +246,11 @@ class Foldable
         );
     }
     
+    /**
+     * Recursively check if any descendant component uses @aware.
+     */
     protected function hasAwareDescendant(ComponentNode | SlotNode $node): bool
     {
-        $children = [];
-
         $children = $node->children;
 
         foreach ($children as $child) {

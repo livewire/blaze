@@ -7,13 +7,13 @@ use Illuminate\Support\Str;
 use Illuminate\View\AppendableAttributeValue;
 use Illuminate\View\ComponentAttributeBag;
 
+/**
+ * Optimized ComponentAttributeBag replacement avoiding Collection overhead.
+ */
 class BlazeAttributeBag extends ComponentAttributeBag
 {
     /**
-     * Create an attribute bag with sanitized values for safe HTML rendering.
-     *
-     * @param  array  $attributes  All attributes passed to the component
-     * @param  array  $boundKeys  Keys of attributes that were bound (from PHP expressions)
+     * Create an attribute bag with bound values sanitized for safe HTML rendering.
      */
     public static function sanitized(array $attributes, array $boundKeys = []): static
     {
@@ -26,11 +26,7 @@ class BlazeAttributeBag extends ComponentAttributeBag
         return new static($attributes);
     }
 
-    /**
-     * Merge additional attributes / values into the attribute bag.
-     *
-     * Optimized to avoid Collection usage for ~4x speedup.
-     */
+    /** {@inheritdoc} */
     public function merge(array $attributeDefaults = [], $escape = true): static
     {
         if ($escape) {
@@ -89,11 +85,7 @@ class BlazeAttributeBag extends ComponentAttributeBag
         return new static(array_merge($attributeDefaults, $attributes));
     }
 
-    /**
-     * Conditionally merge classes into the attribute bag.
-     *
-     * Optimized to avoid Arr::toCssClasses overhead.
-     */
+    /** {@inheritdoc} */
     public function class($classList): static
     {
         $classes = $this->toCssClasses(Arr::wrap($classList));
@@ -101,11 +93,7 @@ class BlazeAttributeBag extends ComponentAttributeBag
         return $this->merge(['class' => $classes]);
     }
 
-    /**
-     * Conditionally merge styles into the attribute bag.
-     *
-     * Optimized to avoid Arr::toCssStyles overhead.
-     */
+    /** {@inheritdoc} */
     public function style($styleList): static
     {
         $styles = $this->toCssStyles((array) $styleList);
@@ -149,12 +137,7 @@ class BlazeAttributeBag extends ComponentAttributeBag
         return implode(' ', $styles);
     }
 
-    /**
-     * Filter the attributes, returning a bag of attributes that pass the filter.
-     *
-     * @param  callable  $callback
-     * @return static
-     */
+    /** {@inheritdoc} */
     public function filter($callback)
     {
         $filtered = [];
@@ -167,12 +150,7 @@ class BlazeAttributeBag extends ComponentAttributeBag
         return new static($filtered);
     }
 
-    /**
-     * Return a bag of attributes that have keys starting with the given value / pattern.
-     *
-     * @param  string|string[]  $needles
-     * @return static
-     */
+    /** {@inheritdoc} */
     public function whereStartsWith($needles)
     {
         $needles = (array) $needles;
@@ -188,12 +166,7 @@ class BlazeAttributeBag extends ComponentAttributeBag
         });
     }
 
-    /**
-     * Return a bag of attributes with keys that do not start with the given value / pattern.
-     *
-     * @param  string|string[]  $needles
-     * @return static
-     */
+    /** {@inheritdoc} */
     public function whereDoesntStartWith($needles)
     {
         $needles = (array) $needles;
@@ -210,10 +183,7 @@ class BlazeAttributeBag extends ComponentAttributeBag
     }
 
     /**
-     * Render attributes as HTML string.
-     *
-     * When folding is active, wraps each attribute with fence markers
-     * so dynamic attributes can be converted to conditional PHP during restore.
+     * Render attributes as HTML, wrapping placeholders with fence markers for folding.
      */
     public function __toString()
     {
@@ -225,7 +195,6 @@ class BlazeAttributeBag extends ComponentAttributeBag
             }
 
             if ($value === true) {
-                // Match Laravel's behavior: x-data and wire:* get empty string, others get key name
                 $value = $key === 'x-data' || str_starts_with($key, 'wire:') ? '' : $key;
             }
 

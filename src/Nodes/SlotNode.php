@@ -4,6 +4,9 @@ namespace Livewire\Blaze\Nodes;
 
 use Livewire\Blaze\Support\Utils;
 
+/**
+ * Represents an <x-slot> tag in the AST.
+ */
 class SlotNode extends Node
 {
     /** @var Attribute[] */
@@ -31,6 +34,7 @@ class SlotNode extends Node
         }
     }
 
+    /** {@inheritdoc} */
     public function render(): string
     {
         if ($this->slotStyle === 'short') {
@@ -73,6 +77,9 @@ class SlotNode extends Node
         return $output;
     }
 
+    /**
+     * Render the slot's children to a string.
+     */
     public function content(): string
     {
         return join('', array_map(fn ($child) => $child->render(), $this->children));

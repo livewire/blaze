@@ -2,6 +2,9 @@
 
 namespace Livewire\Blaze\Support;
 
+/**
+ * Resolves and caches a component's file path, content, and directive metadata.
+ */
 class ComponentSource
 {
     public readonly string $name;
@@ -17,6 +20,9 @@ class ComponentSource
         $this->directives = new Directives($this->content);
     }
 
+    /**
+     * Check if the component file exists on disk.
+     */
     public function exists(): bool
     {
         return file_exists($this->path);

@@ -14,30 +14,19 @@ use PhpParser\Node\Stmt\Expression;
 use PhpParser\ParserFactory;
 
 /**
- * Parses PHP array expressions using nikic/php-parser.
+ * Parses PHP array expressions into native arrays using nikic/php-parser.
  *
- * Validates array syntax and extracts variable names from component
- * directive expressions like @props and @aware.
- *
- * Returns a natural PHP array mirroring the input expression:
- * - Numeric keys: string values (variable names without defaults)
- * - String keys: variable names with their default values
- *
- * Use is_int($key) to distinguish required variables from those with defaults.
+ * Use is_int($key) to distinguish required variables (numeric keys)
+ * from those with defaults (string keys).
  */
 class ArrayParser
 {
     /**
      * Parse a PHP array expression into a native PHP array.
      *
-     * Items without a key (numeric index) are variable names without defaults.
-     * Items with a string key have the key as the variable name and the value
-     * as the default.
-     *
      * For example: "['label', 'type' => 'button', 'disabled' => false]"
      * Returns:     ['label', 'type' => 'button', 'disabled' => false]
      *
-     * @param string $expression The array expression to parse
      * @return array<int|string, mixed>
      * @throws ArrayParserException
      */
@@ -53,14 +42,12 @@ class ArrayParser
             }
 
             if ($item->key === null) {
-                // Numeric key — value must be a string literal (variable name)
                 if (! $item->value instanceof String_) {
                     throw new ArrayParserException($expression, 'value must be a string literal');
                 }
 
                 $items[] = $item->value->value;
             } else {
-                // String key — variable name with default value
                 if (! $item->key instanceof String_) {
                     throw new ArrayParserException($expression, 'key must be a string literal');
                 }
@@ -73,7 +60,7 @@ class ArrayParser
     }
 
     /**
-     * Parse expression string to Array_ node.
+     * Parse an expression string into a php-parser Array_ node.
      */
     protected static function parseToArrayNode(string $expression): Array_
     {
@@ -102,9 +89,8 @@ class ArrayParser
     /**
      * Evaluate an AST node to a PHP value.
      *
-     * Returns the actual value for simple scalar types (string, int, float,
-     * bool, null). For complex expressions (closures, function calls, etc.),
-     * returns true as a marker indicating a default exists.
+     * Returns actual values for scalars. Complex expressions (closures, etc.)
+     * return true as a marker indicating a default exists.
      */
     protected static function evaluateNode(Node $node): mixed
     {

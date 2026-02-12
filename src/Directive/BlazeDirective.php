@@ -5,16 +5,20 @@ namespace Livewire\Blaze\Directive;
 use Illuminate\Support\Facades\Blade;
 use Livewire\Blaze\Compiler\ArrayParser;
 
+/**
+ * Parses @blaze directive expressions and their key:value parameters.
+ */
 class BlazeDirective
 {
+    /**
+     * Extract parameters from a @blaze directive in source, or null if absent.
+     */
     public static function getParameters(string $source): ?array
     {
-        // If there is no @blaze directive, return null
         if (! preg_match('/^\s*(?:\/\*.*?\*\/\s*)*@blaze(?:\s*\(([^)]+)\))?/s', $source, $matches)) {
             return null;
         }
 
-        // If there are no parameters, return an empty array
         if (empty($matches[1])) {
             return [];
         }
@@ -23,22 +27,13 @@ class BlazeDirective
     }
 
     /**
-     * Parse directive parameters
-     *
-     * For example, the string:
-     * "fold: true, safe: ['name', 'title']"
-     *
-     * will be parsed into the array:
-     * [
-     *     'fold' => true,
-     *     'safe' => ['name', 'title'],
-     * ]
+     * Parse a parameter string like "fold: true, safe: ['name', 'title']" into an array.
      */
     public static function parseParameters(string $paramString): array
     {
         $params = [];
 
-        // First, handle array parameters (e.g., safe: ['name', 'title'])
+        // Extract array parameters first (e.g., safe: ['name', 'title'])
         if (preg_match_all('/(\w+)\s*:\s*\[([^\]]*)\]/', $paramString, $arrayMatches, PREG_SET_ORDER)) {
             foreach ($arrayMatches as $match) {
                 $key = $match[1];
@@ -46,17 +41,15 @@ class BlazeDirective
                 $params[$key] = ArrayParser::parse("[{$arrayContent}]");
             }
 
-            // Remove array parameters from string before processing scalar parameters
             $paramString = preg_replace('/(\w+)\s*:\s*\[[^\]]*\]/', '', $paramString);
         }
 
-        // Then handle scalar parameter parsing for key:value pairs
+        // Then extract scalar key:value pairs
         if (preg_match_all('/(\w+)\s*:\s*(\w+)/', $paramString, $matches, PREG_SET_ORDER)) {
             foreach ($matches as $match) {
                 $key = $match[1];
                 $value = $match[2];
 
-                // Convert string boolean values
                 if (in_array(strtolower($value), ['true', 'false'])) {
                     $params[$key] = strtolower($value) === 'true';
                 } else {

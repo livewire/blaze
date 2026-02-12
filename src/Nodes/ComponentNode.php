@@ -6,6 +6,9 @@ use Illuminate\Support\Str;
 use Livewire\Blaze\Support\AttributeParser;
 use Livewire\Blaze\Support\Utils;
 
+/**
+ * Represents an <x-component> or <flux:component> tag in the AST.
+ */
 class ComponentNode extends Node
 {
     /** @var Attribute[] */
@@ -34,17 +37,14 @@ class ComponentNode extends Node
     }
 
     /**
-     * Resolve the slot name from a SlotNode.
-     * Handles both short syntax (<x-slot:name>) and standard syntax (<x-slot name="name">).
+     * Resolve the slot name, handling both short (<x-slot:name>) and standard syntax.
      */
     protected function resolveSlotName(SlotNode $slot): string
     {
-        // Short syntax: name is directly on the node
         if (!empty($slot->name)) {
             return $slot->name;
         }
         
-        // Standard syntax: extract name from attributes
         if (preg_match('/(?:^|\s)name\s*=\s*["\']([^"\']+)["\']/', $slot->attributeString, $matches)) {
             return $matches[1];
         }
@@ -52,15 +52,15 @@ class ComponentNode extends Node
         return 'slot';
     }
 
+    /**
+     * Set the accumulated parent component attributes for @aware resolution.
+     */
     public function setParentsAttributes(array $parentsAttributes): void
     {
         $this->parentsAttributes = $parentsAttributes;
     }
 
-    /**
-     * Render the component preserving the original structure.
-     * Use this for passthrough/round-trip rendering.
-     */
+    /** {@inheritdoc} */
     public function render(): string
     {
         $name = $this->stripNamespaceFromName($this->name, $this->prefix);
@@ -91,6 +91,9 @@ class ComponentNode extends Node
         return $output;
     }
 
+    /**
+     * Convert attributes to a PHP array string for runtime evaluation.
+     */
     public function getAttributesAsRuntimeArrayString(): string
     {
         $attributeParser = new AttributeParser;
@@ -100,6 +103,9 @@ class ComponentNode extends Node
         return $attributeParser->parseAttributesArrayToRuntimeArrayString($attributesArray);
     }
 
+    /**
+     * Strip the namespace prefix from a component name for tag rendering.
+     */
     protected function stripNamespaceFromName(string $name, string $prefix): string
     {
         $prefixes = [
@@ -133,10 +139,8 @@ class ComponentNode extends Node
                     $placeholder = $placeholderMatch[0];
                     $original = $attributePlaceholders[$placeholder] ?? null;
 
-                    // Only generate conditional PHP when the ENTIRE value is a single {{ expression }}.
-                    // This handles boolean semantics (e.g. disabled="{{ $isDisabled }}" → omit when false).
-                    // Mixed content like wire:key="opt-{{ $a }}-{{ $b }}" should NOT match—it always
-                    // has content and gets restored as-is for normal Blade compilation.
+                    // Only generate conditional PHP for single {{ expression }} values
+                    // (boolean semantics). Mixed content gets restored as-is.
                     if ($original) {
                         if (preg_match('/^\s*\{\{\s*(.+?)\s*\}\}\s*$/s', $original, $exprMatch)) {
                             $expression = trim($exprMatch[1]);
@@ -150,7 +154,6 @@ class ComponentNode extends Node
                     }
                 }
 
-                // Static attribute - return content without fence markers
                 return $content;
             },
             $html
@@ -162,7 +165,7 @@ class ComponentNode extends Node
      */
     protected static function generateConditionalAttribute(string $name, string $expression): string
     {
-        // Match Laravel's behavior: x-data and wire:* get empty string for true, others get key name
+        // x-data and wire:* get empty string for true, others get key name (Laravel convention)
         $trueValue = ($name === 'x-data' || str_starts_with($name, 'wire:'))
             ? "''"
             : "'".addslashes($name)."'";

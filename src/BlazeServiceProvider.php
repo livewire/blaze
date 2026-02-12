@@ -17,6 +17,7 @@ use Illuminate\Support\Facades\View;
 
 class BlazeServiceProvider extends ServiceProvider
 {
+    /** {@inheritdoc} */
     public function register(): void
     {
         $this->registerBlazeManager();
@@ -27,6 +28,9 @@ class BlazeServiceProvider extends ServiceProvider
         $this->interceptViewCacheInvalidation();
     }
 
+    /**
+     * Register the BlazeManager singleton and its aliases.
+     */
     protected function registerBlazeManager(): void
     {
         $this->app->singleton(BlazeRuntime::class, fn () => new BlazeRuntime);
@@ -51,11 +55,17 @@ class BlazeServiceProvider extends ServiceProvider
         $this->app->bind('blaze.runtime', fn ($app) => $app->make(BlazeRuntime::class));
     }
 
+    /**
+     * Share the BlazeRuntime instance with all views.
+     */
     protected function registerBlazeRuntime(): void
     {
         View::share('__blaze', $this->app->make(BlazeRuntime::class));
     }
 
+    /**
+     * Register @blaze, @unblaze, and @endunblaze Blade directives.
+     */
     protected function registerBlazeDirectives(): void
     {
         Blade::directive('blaze', function () {
@@ -74,6 +84,9 @@ class BlazeServiceProvider extends ServiceProvider
         });
     }
 
+    /**
+     * Register view factory macros for consumable component data (@aware support).
+     */
     protected function registerBladeMacros(): void
     {
         $this->app->make('view')->macro('pushConsumableComponentData', function ($data) {
@@ -87,6 +100,9 @@ class BlazeServiceProvider extends ServiceProvider
         });
     }
 
+    /**
+     * Hook into Blade's pre-compilation phase to run the Blaze pipeline.
+     */
     protected function interceptBladeCompilation(): void
     {
         $blaze = app(BlazeManager::class);
@@ -102,6 +118,9 @@ class BlazeServiceProvider extends ServiceProvider
         });
     }
 
+    /**
+     * Recompile views when folded component dependencies have changed.
+     */
     protected function interceptViewCacheInvalidation(): void
     {
         $blaze = app(BlazeManager::class);
@@ -115,8 +134,9 @@ class BlazeServiceProvider extends ServiceProvider
         });
     }
 
+    /** {@inheritdoc} */
     public function boot(): void
     {
-        // Bootstrap services
+        //
     }
 }

@@ -2,6 +2,9 @@
 
 namespace Livewire\Blaze;
 
+/**
+ * Manages path-based optimization settings for compile, memo, and fold strategies.
+ */
 class Config
 {
     protected $fold = [];
@@ -16,6 +19,9 @@ class Config
         return $this->add($path, $compile, $memo, $fold);
     }
 
+    /**
+     * Register optimization settings for a given path.
+     */
     public function add(string $path, ?bool $compile = true, ?bool $memo = false, ?bool $fold = false): self
     {
         $this->compile[$path] = $compile;
@@ -25,23 +31,32 @@ class Config
         return $this;
     }
 
+    /**
+     * Check if a file should be compiled based on path configuration.
+     */
     public function shouldCompile(string $file): bool
     {
         return $this->isEnabled($file, $this->compile);
     }
 
+    /**
+     * Check if a file should be memoized based on path configuration.
+     */
     public function shouldMemoize(string $file): bool
     {
         return $this->isEnabled($file, $this->memo);
     }
 
+    /**
+     * Check if a file should be folded based on path configuration.
+     */
     public function shouldFold(string $file): bool
     {
         return $this->isEnabled($file, $this->fold);
     }
 
     /**
-     * Check if the file is in the configured paths and return the value of the most specific path.
+     * Resolve the most specific matching path and return its configured value.
      */
     protected function isEnabled(string $file, array $config): bool
     {

@@ -72,8 +72,7 @@ class Wrapper
      */
     protected function strip(string $content, string $directive): string
     {
-        // Protect raw block placeholders from the main Blade compiler so
-        // our hacked compiler's restoreRawContent doesn't try to resolve them.
+        // Protect raw block placeholders so restoreRawContent doesn't resolve them
         $content = preg_replace('/@__raw_block_(\d+)__@/', '__BLAZE_RAW_BLOCK_$1__', $content);
 
         $marker = '__BLAZE_STRIP__';
@@ -82,10 +81,8 @@ class Wrapper
             return $marker;
         });
 
-        // Remove the marker along with the line it sits on.
         $content = preg_replace('/^[ \t]*' . preg_quote($marker, '/') . '\s*/m', '', $content);
 
-        // Restore raw block placeholders.
         $content = preg_replace('/__BLAZE_RAW_BLOCK_(\d+)__/', '@__raw_block_$1__@', $content);
 
         return $content;

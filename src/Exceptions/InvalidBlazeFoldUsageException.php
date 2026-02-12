@@ -2,6 +2,9 @@
 
 namespace Livewire\Blaze\Exceptions;
 
+/**
+ * Thrown when a component uses @blaze fold with incompatible patterns (e.g., $errors, @csrf, session()).
+ */
 class InvalidBlazeFoldUsageException extends \Exception
 {
     protected string $componentPath;
@@ -18,16 +21,23 @@ class InvalidBlazeFoldUsageException extends \Exception
         parent::__construct($message);
     }
 
+    /**
+     * Get the path of the component that triggered the exception.
+     */
     public function getComponentPath(): string
     {
         return $this->componentPath;
     }
 
+    /**
+     * Get the pattern that caused the exception.
+     */
     public function getProblematicPattern(): string
     {
         return $this->problematicPattern;
     }
 
+    /** Create exception for @aware usage. */
     public static function forAware(string $componentPath): self
     {
         return new self(
@@ -37,6 +47,7 @@ class InvalidBlazeFoldUsageException extends \Exception
         );
     }
 
+    /** Create exception for $errors usage. */
     public static function forErrors(string $componentPath): self
     {
         return new self(
@@ -46,6 +57,7 @@ class InvalidBlazeFoldUsageException extends \Exception
         );
     }
 
+    /** Create exception for session() usage. */
     public static function forSession(string $componentPath): self
     {
         return new self(
@@ -55,6 +67,7 @@ class InvalidBlazeFoldUsageException extends \Exception
         );
     }
 
+    /** Create exception for @error usage. */
     public static function forError(string $componentPath): self
     {
         return new self(
@@ -64,6 +77,7 @@ class InvalidBlazeFoldUsageException extends \Exception
         );
     }
 
+    /** Create exception for @csrf usage. */
     public static function forCsrf(string $componentPath): self
     {
         return new self(
@@ -73,6 +87,7 @@ class InvalidBlazeFoldUsageException extends \Exception
         );
     }
 
+    /** Create exception for auth() usage. */
     public static function forAuth(string $componentPath): self
     {
         return new self(
@@ -82,6 +97,7 @@ class InvalidBlazeFoldUsageException extends \Exception
         );
     }
 
+    /** Create exception for request() usage. */
     public static function forRequest(string $componentPath): self
     {
         return new self(
@@ -91,6 +107,7 @@ class InvalidBlazeFoldUsageException extends \Exception
         );
     }
 
+    /** Create exception for old() usage. */
     public static function forOld(string $componentPath): self
     {
         return new self(
@@ -100,6 +117,7 @@ class InvalidBlazeFoldUsageException extends \Exception
         );
     }
 
+    /** Create exception for @once usage. */
     public static function forOnce(string $componentPath): self
     {
         return new self(

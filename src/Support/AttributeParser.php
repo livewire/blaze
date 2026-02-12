@@ -4,37 +4,15 @@ namespace Livewire\Blaze\Support;
 
 use Illuminate\Support\Arr;
 
+/**
+ * Parses component attribute strings into structured arrays, handling all Blade syntaxes.
+ */
 class AttributeParser
 {
     /**
-     * Parse an attribute string into an array of attributes.
+     * Parse an attribute string into a keyed array of attribute metadata.
      *
-     * For example, the string:
-     * `foo="bar" :name="$name" :$baz searchable`
-     *
-     * will be parsed into the array:
-     * [
-     *     'foo' => [
-     *         'isDynamic' => false,
-     *         'value' => 'bar',
-     *         'original' => 'foo="bar"',
-     *     ],
-     *     'name' => [
-     *         'isDynamic' => true,
-     *         'value' => '$name',
-     *         'original' => ':name="$name"',
-     *     ],
-     *     'baz' => [
-     *         'isDynamic' => true,
-     *         'value' => '$baz',
-     *         'original' => ':$baz',
-     *     ],
-     *     'searchable' => [
-     *         'isDynamic' => false,
-     *         'value' => true,
-     *         'original' => 'searchable',
-     *     ],
-     * ]
+     * Handles ::attr, :attr, :$var, attr="val", and boolean syntaxes.
      */
     public function parseAttributeStringToArray(string $attributesString): array
     {
@@ -42,7 +20,6 @@ class AttributeParser
 
         $attributes = [];
 
-        // Handle ::name="..." escaped attribute syntax (literal passthrough, not PHP-bound)
         preg_match_all('/(?:^|\s)::([A-Za-z0-9_-]+)\s*=\s*"([^"]*)"/', $attributesString, $matches, PREG_SET_ORDER | PREG_OFFSET_CAPTURE);
         foreach ($matches as $m) {
             $pos = $m[0][1];
@@ -60,7 +37,6 @@ class AttributeParser
             ];
         }
 
-        // Handle ::name='...' escaped attribute syntax (literal passthrough, not PHP-bound)
         preg_match_all("/(?:^|\s)::([A-Za-z0-9_-]+)\s*=\s*'([^']*)'/", $attributesString, $matches, PREG_SET_ORDER | PREG_OFFSET_CAPTURE);
         foreach ($matches as $m) {
             $pos = $m[0][1];
@@ -78,7 +54,6 @@ class AttributeParser
             ];
         }
 
-        // Handle :name="..." syntax (skip :: which is handled above)
         preg_match_all('/(?:^|\s):(?!:)([A-Za-z0-9_:-]+)\s*=\s*"([^"]*)"/', $attributesString, $matches, PREG_SET_ORDER | PREG_OFFSET_CAPTURE);
         foreach ($matches as $m) {
             $pos = $m[0][1];
@@ -96,7 +71,6 @@ class AttributeParser
             ];
         }
 
-        // Handle :name='...' syntax (skip :: which is handled above)
         preg_match_all("/(?:^|\s):(?!:)([A-Za-z0-9_:-]+)\s*=\s*'([^']*)'/", $attributesString, $matches, PREG_SET_ORDER | PREG_OFFSET_CAPTURE);
         foreach ($matches as $m) {
             $pos = $m[0][1];
@@ -114,7 +88,6 @@ class AttributeParser
             ];
         }
 
-        // Handle short :$var syntax (expands to :var="$var")
         preg_match_all('/(?:^|\s):\$([A-Za-z0-9_:-]+)(?=\s|$)/', $attributesString, $matches, PREG_SET_ORDER | PREG_OFFSET_CAPTURE);
         foreach ($matches as $m) {
             $pos = $m[0][1];
@@ -133,7 +106,6 @@ class AttributeParser
             ];
         }
 
-        // Handle regular name="value" syntax
         preg_match_all('/(?:^|\s)(?!:)([A-Za-z0-9_:-]+)\s*=\s*"([^"]*)"/', $attributesString, $matches, PREG_SET_ORDER | PREG_OFFSET_CAPTURE);
         foreach ($matches as $m) {
             $pos = $m[0][1];
@@ -151,7 +123,6 @@ class AttributeParser
             ];
         }
 
-        // Handle regular name='value' syntax
         preg_match_all("/(?:^|\s)(?!:)([A-Za-z0-9_:-]+)\s*=\s*'([^']*)'/", $attributesString, $matches, PREG_SET_ORDER | PREG_OFFSET_CAPTURE);
         foreach ($matches as $m) {
             $pos = $m[0][1];
@@ -169,8 +140,7 @@ class AttributeParser
             ];
         }
 
-        // Handle boolean attributes (single words without values)
-        // First strip quoted values so we don't match words inside them
+        // Boolean attributes - strip quoted values first to avoid false matches
         $stripped = preg_replace('/"[^"]*"/', '""', $attributesString);
         $stripped = preg_replace("/'[^']*'/", "''", $stripped);
         preg_match_all('/(?:^|\s)([A-Za-z0-9_:-]+)(?=\s|$)/', $stripped, $matches, PREG_SET_ORDER | PREG_OFFSET_CAPTURE);
@@ -202,9 +172,6 @@ class AttributeParser
 
     /**
      * Transform @class/@style directives into bound :class/:style attributes.
-     *
-     * @class(['active' => $cond]) → :class="\Illuminate\Support\Arr::toCssClasses(['active' => $cond])"
-     * @style(['color: red' => $cond]) → :style="\Illuminate\Support\Arr::toCssStyles(['color: red' => $cond])"
      */
     protected function transformDirectiveAttributes(string $attributesString): string
     {
@@ -225,10 +192,7 @@ class AttributeParser
     }
 
     /**
-     * Validate that no unsupported directives remain in the attribute string.
-     *
-     * Directives like @checked, @disabled, @selected, etc. are not supported
-     * on component tags (they also cause fatal errors in standard Laravel Blade).
+     * Throw if unsupported directives like @checked or @disabled remain in the attribute string.
      */
     protected function validateNoUnsupportedDirectives(string $attributesString): void
     {
@@ -243,34 +207,7 @@ class AttributeParser
     }
 
     /**
-     * Parse an array of attributes into an attributes string.
-     *
-     * For example, the array:
-     * [
-     *     'foo' => [
-     *         'isDynamic' => false,
-     *         'value' => 'bar',
-     *         'original' => 'foo="bar"',
-     *     ],
-     *     'name' => [
-     *         'isDynamic' => true,
-     *         'value' => '$name',
-     *         'original' => ':name="$name"',
-     *     ],
-     *     'baz' => [
-     *         'isDynamic' => true,
-     *         'value' => '$baz',
-     *         'original' => ':$baz',
-     *     ],
-     *     'searchable' => [
-     *         'isDynamic' => false,
-     *         'value' => true,
-     *         'original' => 'searchable',
-     *     ],
-     * ]
-     *
-     * will be parsed into the string:
-     * `foo="bar" :name="$name" :$baz searchable`
+     * Reconstruct the original attribute string from parsed attribute data.
      */
     public function parseAttributesArrayToPropString(array $attributes): string
     {
@@ -283,37 +220,8 @@ class AttributeParser
         return trim($attributesString);
     }
 
-
     /**
-     *
-     * Parse an array of attributes into a runtime array string.
-     *
-     * For example, the array:
-     * [
-     *     'foo' => [
-     *         'isDynamic' => false,
-     *         'value' => 'bar',
-     *         'original' => 'foo="bar"',
-     *     ],
-     *     'name' => [
-     *         'isDynamic' => true,
-     *         'value' => '$name',
-     *         'original' => ':name="$name"',
-     *     ],
-     *     'baz' => [
-     *         'isDynamic' => true,
-     *         'value' => '$baz',
-     *         'original' => ':$baz',
-     *     ],
-     *     'searchable' => [
-     *         'isDynamic' => false,
-     *         'value' => true,
-     *         'original' => 'searchable',
-     *     ],
-     * ]
-     *
-     * will be parsed into the string:
-     * `['foo' => 'bar', 'name' => $name, 'baz' => $baz, 'searchable' => true]`
+     * Convert parsed attributes into a PHP array string for runtime evaluation.
      */
     public function parseAttributesArrayToRuntimeArrayString(array $attributes): string
     {
@@ -327,7 +235,6 @@ class AttributeParser
 
             $value = $attributeData['value'];
 
-            // Handle different value types
             if (is_bool($value)) {
                 $valueString = $value ? 'true' : 'false';
             } elseif (is_string($value)) {

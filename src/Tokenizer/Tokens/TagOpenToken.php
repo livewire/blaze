@@ -2,6 +2,9 @@
 
 namespace Livewire\Blaze\Tokenizer\Tokens;
 
+/**
+ * Represents an opening component tag (<x-button ...>).
+ */
 class TagOpenToken extends Token
 {
     public function __construct(

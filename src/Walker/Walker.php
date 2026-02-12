@@ -5,8 +5,14 @@ namespace Livewire\Blaze\Walker;
 use Livewire\Blaze\Nodes\ComponentNode;
 use Livewire\Blaze\Nodes\SlotNode;
 
+/**
+ * Depth-first tree walker that applies pre/post callbacks to each AST node.
+ */
 class Walker
 {
+    /**
+     * Walk the AST, applying pre-callback before children and post-callback after.
+     */
     public function walk(array $nodes, callable $preCallback, callable $postCallback): array
     {
         $result = [];

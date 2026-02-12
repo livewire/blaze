@@ -2,6 +2,9 @@
 
 namespace Livewire\Blaze\Tokenizer\Tokens;
 
+/**
+ * Represents a self-closing component tag (<x-button ... />).
+ */
 class TagSelfCloseToken extends Token
 {
     public function __construct(

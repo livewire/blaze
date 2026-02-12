@@ -10,6 +10,9 @@ use Livewire\Blaze\Tokenizer\Tokens\TagOpenToken;
 use Livewire\Blaze\Tokenizer\Tokens\TextToken;
 use Livewire\Blaze\Tokenizer\Tokens\Token;
 
+/**
+ * Finite state machine that lexes Blade templates into component/slot/text tokens.
+ */
 class Tokenizer
 {
     protected array $prefixes = [
@@ -45,6 +48,9 @@ class Tokenizer
 
     protected string $currentSlotPrefix = '';
 
+    /**
+     * Tokenize a Blade template into an array of tokens.
+     */
     public function tokenize(string $content): array
     {
         $this->resetTokenizer($content);
@@ -69,6 +75,9 @@ class Tokenizer
         return $this->tokens;
     }
 
+    /**
+     * Reset all tokenizer state for a new tokenization pass.
+     */
     protected function resetTokenizer(string $content): void
     {
         $this->content = $content;
@@ -82,11 +91,13 @@ class Tokenizer
         $this->currentSlotPrefix = '';
     }
 
+    /**
+     * Process text state, detecting component/slot tag boundaries.
+     */
     protected function handleTextState(): State
     {
         $char = $this->current();
 
-        // Check for slot tags first...
         if ($char === '<') {
             if ($slotInfo = $this->matchSlotOpen()) {
                 $this->flushBuffer();
@@ -153,7 +164,6 @@ class Tokenizer
             }
         }
 
-        // Regular text...
         $this->buffer .= $char;
 
         $this->advance();
@@ -161,6 +171,9 @@ class Tokenizer
         return State::TEXT;
     }
 
+    /**
+     * Process tag open state, extracting the component name.
+     */
     protected function handleTagOpenState(): State
     {
         if ($name = $this->matchTagName()) {
@@ -178,6 +191,9 @@ class Tokenizer
         return State::TAG_OPEN;
     }
 
+    /**
+     * Process closing tag state, extracting the component name.
+     */
     protected function handleTagCloseState(): State
     {
         if ($name = $this->matchTagName()) {
@@ -201,18 +217,19 @@ class Tokenizer
         return State::TAG_CLOSE;
     }
 
+    /**
+     * Process attribute collection state, handling self-closing detection.
+     */
     protected function handleAttributeState(): State
     {
         $char = $this->current();
 
-        // Skip whitespace...
         if ($char === ' ') {
             $this->advance();
 
             return State::ATTRIBUTE_NAME;
         }
 
-        // End of tag...
         if ($char === '>') {
             $this->tokens[] = $this->currentToken;
 
@@ -221,7 +238,6 @@ class Tokenizer
             return State::TEXT;
         }
 
-        // Self-closing tag...
         if ($char === '/' && $this->peek() === '>') {
             $this->currentToken = new TagSelfCloseToken(
                 name: $this->currentToken->name,
@@ -248,6 +264,9 @@ class Tokenizer
         return State::ATTRIBUTE_NAME;
     }
 
+    /**
+     * Process standard slot tag state.
+     */
     protected function handleSlotState(): State
     {
         $char = $this->current();
@@ -258,7 +277,6 @@ class Tokenizer
             return State::SLOT;
         }
 
-        // Check for name attribute
         if ($this->match('/^name="([^"]+)"/')) {
             $matches = [];
 
@@ -284,9 +302,11 @@ class Tokenizer
         return State::SLOT;
     }
 
+    /**
+     * Process closing slot tag state.
+     */
     protected function handleSlotCloseState(): State
     {
-        // Check for slot:name pattern...
         if ($this->match('/^:[a-zA-Z0-9-]+/')) {
             $matches = [];
 
@@ -310,6 +330,9 @@ class Tokenizer
         return State::SLOT_CLOSE;
     }
 
+    /**
+     * Process short slot syntax state (<x-slot:name>).
+     */
     protected function handleShortSlotState(): State
     {
         if ($name = $this->matchSlotName()) {
@@ -317,7 +340,6 @@ class Tokenizer
 
             $this->advance(strlen($name));
 
-            // Collect attributes until >...
             $attrBuffer = '';
             while (! $this->isAtEnd() && $this->current() !== '>') {
                 $attrBuffer .= $this->current();
@@ -343,6 +365,9 @@ class Tokenizer
         return State::SHORT_SLOT;
     }
 
+    /**
+     * Collect the full attribute string, respecting nested quotes and brackets.
+     */
     protected function collectAttributes(): ?string
     {
         $attrString = '';
@@ -357,14 +382,12 @@ class Tokenizer
 
             $prevChar = $this->position > 0 ? $this->content[$this->position - 1] : '';
 
-            // Track quote state...
             if ($char === '"' && !$inSingleQuote && $prevChar !== '\\') {
                 $inDoubleQuote = !$inDoubleQuote;
             } elseif ($char === "'" && !$inDoubleQuote && $prevChar !== '\\') {
                 $inSingleQuote = !$inSingleQuote;
             }
 
-            // Track nesting only outside quotes...
             if (!$inSingleQuote && !$inDoubleQuote) {
                 match($char) {
                     '{' => $braceCount++,
@@ -377,7 +400,6 @@ class Tokenizer
                 };
             }
 
-            // Check for end of attributes...
             if (($char === '>' || ($char === '/' && $this->peek() === '>')) &&
                 !$inSingleQuote && !$inDoubleQuote &&
 
@@ -394,17 +416,18 @@ class Tokenizer
         return trim($attrString) !== '' ? trim($attrString) : null;
     }
 
+    /**
+     * Try to match a slot opening tag at the current position.
+     */
     protected function matchSlotOpen(): ?array
     {
         foreach ($this->prefixes as $prefix => $config) {
             $slotPrefix = $config['slot'];
 
-            // Check for short slot syntax...
             if ($this->matchesAt('<' . $slotPrefix . ':')) {
                 return ['prefix' => $slotPrefix, 'isShort' => true];
             }
 
-            // Check for standard slot syntax...
             if ($this->matchesAt('<' . $slotPrefix)) {
                 $nextChar = $this->peek(strlen('<' . $slotPrefix));
 
@@ -417,6 +440,9 @@ class Tokenizer
         return null;
     }
 
+    /**
+     * Try to match a slot closing tag at the current position.
+     */
     protected function matchSlotClose(): ?array
     {
         foreach ($this->prefixes as $prefix => $config) {
@@ -430,6 +456,9 @@ class Tokenizer
         return null;
     }
 
+    /**
+     * Try to match a component opening tag at the current position.
+     */
     protected function matchComponentOpen(): ?array
     {
         foreach ($this->prefixes as $prefix => $config) {
@@ -444,6 +473,9 @@ class Tokenizer
         return null;
     }
 
+    /**
+     * Try to match a component closing tag at the current position.
+     */
     protected function matchComponentClose(): ?array
     {
         foreach ($this->prefixes as $prefix => $config) {
@@ -458,6 +490,9 @@ class Tokenizer
         return null;
     }
 
+    /**
+     * Match a tag name (alphanumeric, hyphens, dots, colons) at the current position.
+     */
     protected function matchTagName(): ?string
     {
         if (preg_match('/^[a-zA-Z0-9-\.:]+/', $this->remaining(), $matches)) {
@@ -467,6 +502,9 @@ class Tokenizer
         return null;
     }
 
+    /**
+     * Match a slot name (alphanumeric, hyphens) at the current position.
+     */
     protected function matchSlotName(): ?string
     {
         if (preg_match('/^[a-zA-Z0-9-]+/', $this->remaining(), $matches)) {
@@ -476,21 +514,33 @@ class Tokenizer
         return null;
     }
 
+    /**
+     * Test a regex pattern against the remaining content.
+     */
     protected function match(string $pattern): bool
     {
         return preg_match($pattern, $this->remaining()) === 1;
     }
 
+    /**
+     * Check if a literal string matches at the current position.
+     */
     protected function matchesAt(string $string): bool
     {
         return substr($this->content, $this->position, strlen($string)) === $string;
     }
 
+    /**
+     * Get the character at the current position.
+     */
     protected function current(): string
     {
         return $this->isAtEnd() ? '' : $this->content[$this->position];
     }
 
+    /**
+     * Peek at a character at an offset from the current position.
+     */
     protected function peek(int $offset = 1): string
     {
         $pos = $this->position + $offset;
@@ -498,21 +548,33 @@ class Tokenizer
         return $pos >= $this->length ? '' : $this->content[$pos];
     }
 
+    /**
+     * Get the remaining content from the current position.
+     */
     protected function remaining(): string
     {
         return substr($this->content, $this->position);
     }
 
+    /**
+     * Advance the position by a number of characters.
+     */
     protected function advance(int $count = 1): void
     {
         $this->position += $count;
     }
 
+    /**
+     * Check if the tokenizer has reached the end of input.
+     */
     protected function isAtEnd(): bool
     {
         return $this->position >= $this->length;
     }
 
+    /**
+     * Emit any accumulated text buffer as a TextToken.
+     */
     protected function flushBuffer(): void
     {
         if ($this->buffer !== '') {

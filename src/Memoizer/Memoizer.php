@@ -9,6 +9,9 @@ use Livewire\Blaze\Config;
 use Livewire\Blaze\Support\ComponentSource;
 use Livewire\Blaze\Compiler\Compiler;
 
+/**
+ * Wraps compiled component output with runtime memoization logic.
+ */
 class Memoizer
 {
     protected Config $config;
@@ -20,6 +23,9 @@ class Memoizer
         $this->compiler = new Compiler($config);
     }
 
+    /**
+     * Check if a node should be memoized based on directive and config settings.
+     */
     public function isMemoizable(Node $node): bool
     {
         if (! $node instanceof ComponentNode) {
@@ -48,6 +54,9 @@ class Memoizer
         }
     }
 
+    /**
+     * Wrap a self-closing component with memoization output buffering.
+     */
     public function memoize(Node $node): Node
     {
         if (! $node instanceof ComponentNode) {

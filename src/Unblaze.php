@@ -4,21 +4,34 @@ namespace Livewire\Blaze;
 
 use Illuminate\Support\Arr;
 
+/**
+ * Handles @unblaze directives by extracting their content from the Blaze pipeline
+ * and re-injecting it after compilation with scope isolation.
+ */
 class Unblaze
 {
     static $unblazeScopes = [];
     static $unblazeReplacements = [];
 
+    /**
+     * Store runtime scope data for an @unblaze token.
+     */
     public static function storeScope($token, $scope = [])
     {
         static::$unblazeScopes[$token] = $scope;
     }
 
+    /**
+     * Check if a template contains @unblaze directives.
+     */
     public static function hasUnblaze(string $template): bool
     {
         return str_contains($template, '@unblaze');
     }
 
+    /**
+     * Replace @unblaze/@endunblaze blocks with placeholders before Blaze compilation.
+     */
     public static function processUnblazeDirectives(string $template)
     {
         $compiler = BladeService::getHackedBladeCompiler();
@@ -55,6 +68,9 @@ class Unblaze
         return $result;
     }
 
+    /**
+     * Restore @unblaze placeholders with their compiled content and scope wrappers.
+     */
     public static function replaceUnblazePrecompiledDirectives(string $template)
     {
         if (str_contains($template, '[STARTCOMPILEDUNBLAZE')) {

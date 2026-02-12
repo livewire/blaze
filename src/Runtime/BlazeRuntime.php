@@ -8,6 +8,9 @@ use Illuminate\Support\ViewErrorBag;
 use Livewire\Blaze\BladeService;
 use Livewire\Blaze\Support\Utils;
 
+/**
+ * Runtime context shared with all Blaze-compiled components via $__blaze.
+ */
 class BlazeRuntime
 {
     public readonly Factory $env;
@@ -16,7 +19,6 @@ class BlazeRuntime
 
     public string $compiledPath;
 
-    // $errors must be fetched lazily they're created later in request lifecycle
     protected ViewErrorBag $errors;
 
     protected array $paths = [];
@@ -33,17 +35,21 @@ class BlazeRuntime
         $this->compiledPath = config('view.compiled');
     }
 
+    /**
+     * Lazy-load $errors since middleware sets them after BlazeRuntime is constructed.
+     */
     public function __get(string $name): mixed
     {
         if ($name === 'errors') {
-            // Cache errors after first access - middleware sets them after
-            // BlazeRuntime is constructed, but they don't change during request
             return $this->errors ??= $this->env->shared('errors') ?? new ViewErrorBag;
         }
 
         throw new \InvalidArgumentException("Property {$name} does not exist");
     }
 
+    /**
+     * Compile a component if its source is newer than the cached output.
+     */
     public function ensureCompiled(string $path, string $compiledPath): void
     {
         if (isset($this->compiled[$path])) {
@@ -59,6 +65,9 @@ class BlazeRuntime
         app('blade.compiler')->compile($path);
     }
 
+    /**
+     * Resolve a component name to its compiled hash, compiling if needed.
+     */
     public function resolve(string $component): string
     {
         if (isset($this->paths[$component])) {
@@ -149,12 +158,10 @@ class BlazeRuntime
     }
 
     /**
-     * Get consumable data from parent components for @aware.
-     * At each level, checks slots first (they override data), then walks up the stack.
+     * Walk the data stack to find a value for @aware, checking slots before data at each level.
      */
     public function getConsumableData(string $key, mixed $default = null): mixed
     {
-        // Walk backward through stack, checking slots then data at each level
         for ($i = count($this->dataStack) - 1; $i >= 0; $i--) {
             if (array_key_exists($key, $this->slotsStack[$i])) {
                 return $this->slotsStack[$i][$key];
@@ -167,12 +174,18 @@ class BlazeRuntime
         return value($default);
     }
 
+    /**
+     * Increment the render count for a component function (debug mode).
+     */
     public function increment(string $name): void
     {
         $this->counts[$name] ??= 0;
         $this->counts[$name]++;
     }
     
+    /**
+     * Get the render counts for all components (debug mode).
+     */
     public function getCounts(): array
     {
         return $this->counts;

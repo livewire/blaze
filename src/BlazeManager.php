@@ -42,6 +42,9 @@ class BlazeManager
         });
     }
 
+    /**
+     * Compile a Blade template through the full Blaze pipeline.
+     */
     public function compile(string $template): string
     {
         $source = $template;
@@ -93,6 +96,9 @@ class BlazeManager
         return $output;
     }
 
+    /**
+     * Compile a template within an @unblaze block (no folding, no wrapping).
+     */
     public function compileForUnblaze(string $template): string
     {
         $template = BladeService::preStoreUncompiledBlocks($template);
@@ -153,6 +159,9 @@ class BlazeManager
         return $output;
     }
 
+    /**
+     * Flush and return all collected ComponentFolded events.
+     */
     public function flushFoldedEvents()
     {
         return tap($this->foldedEvents, function ($events) {
@@ -162,6 +171,9 @@ class BlazeManager
         });
     }
 
+    /**
+     * Run a compilation callback and prepend front matter from any folded components.
+     */
     public function collectAndAppendFrontMatter($template, $callback)
     {
         $this->flushFoldedEvents();
@@ -175,6 +187,9 @@ class BlazeManager
         return $frontmatter.$output;
     }
 
+    /**
+     * Check if a view's compiled output contains stale folded component references.
+     */
     public function viewContainsExpiredFrontMatter($view): bool
     {
         $path = $view->getPath();
@@ -200,56 +215,89 @@ class BlazeManager
         return $isExpired;
     }
 
+    /**
+     * Render an array of AST nodes to their string output.
+     */
     public function render(array $nodes): string
     {
         return implode('', array_map(fn ($n) => $n->render(), $nodes));
     }
 
+    /**
+     * Enable Blaze compilation.
+     */
     public function enable()
     {
         $this->enabled = true;
     }
 
+    /**
+     * Disable Blaze compilation.
+     */
     public function disable()
     {
         $this->enabled = false;
     }
 
+    /**
+     * Enable debug mode.
+     */
     public function debug()
     {
         $this->debug = true;
     }
 
+    /**
+     * Mark the beginning of a fold operation.
+     */
     public function startFolding(): void
     {
         $this->folding = true;
     }
 
+    /**
+     * Mark the end of a fold operation.
+     */
     public function stopFolding(): void
     {
         $this->folding = false;
     }
 
+    /**
+     * Check if Blaze compilation is enabled.
+     */
     public function isEnabled()
     {
         return $this->enabled;
     }
 
+    /**
+     * Check if Blaze compilation is disabled.
+     */
     public function isDisabled()
     {
         return ! $this->enabled;
     }
 
+    /**
+     * Check if debug mode is active.
+     */
     public function isDebugging()
     {
         return $this->debug;
     }
 
+    /**
+     * Check if a fold operation is currently in progress.
+     */
     public function isFolding(): bool
     {
         return $this->folding;
     }
 
+    /**
+     * Access the optimization configuration.
+     */
     public function optimize(): Config
     {
         return $this->config;

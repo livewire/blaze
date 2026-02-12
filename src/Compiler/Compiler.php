@@ -11,6 +11,9 @@ use Livewire\Blaze\Config;
 use Livewire\Blaze\Support\ComponentSource;
 use Livewire\Blaze\Support\Utils;
 
+/**
+ * Compiles component nodes into PHP require_once + function call output.
+ */
 class Compiler
 {
     protected Config $config;
@@ -80,6 +83,9 @@ class Compiler
         return false;
     }
 
+    /**
+     * Compile a standard component tag into ensureCompiled + require_once + function call.
+     */
     protected function compileComponentTag(ComponentNode $node, ComponentSource $source): string
     {
         $hash = Utils::hash($source->path);
@@ -105,6 +111,9 @@ class Compiler
         return $output;
     }
 
+    /**
+     * Compile a flux:delegate-component tag into dynamic resolution code.
+     */
     protected function compileDelegateComponentTag(ComponentNode $node): string
     {
         $attributesArray = Utils::parseAttributeStringToArray($node->attributeString);
