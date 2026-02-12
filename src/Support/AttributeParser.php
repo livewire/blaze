@@ -58,7 +58,7 @@ class AttributeParser
             ];
         }
 
-        preg_match_all('/(?:^|\s):(?!:)([A-Za-z0-9_:-]+)\s*=\s*"([^"]*)"/', $attributesString, $matches, PREG_SET_ORDER | PREG_OFFSET_CAPTURE);
+        preg_match_all('/(?:^|\s):(?!:)([A-Za-z0-9_.:-]+)\s*=\s*"([^"]*)"/', $attributesString, $matches, PREG_SET_ORDER | PREG_OFFSET_CAPTURE);
         foreach ($matches as $m) {
             $pos = $m[0][1];
             $m = array_column($m, 0);
@@ -77,7 +77,7 @@ class AttributeParser
             ];
         }
 
-        preg_match_all("/(?:^|\s):(?!:)([A-Za-z0-9_:-]+)\s*=\s*'([^']*)'/", $attributesString, $matches, PREG_SET_ORDER | PREG_OFFSET_CAPTURE);
+        preg_match_all("/(?:^|\s):(?!:)([A-Za-z0-9_.:-]+)\s*=\s*'([^']*)'/", $attributesString, $matches, PREG_SET_ORDER | PREG_OFFSET_CAPTURE);
         foreach ($matches as $m) {
             $pos = $m[0][1];
             $m = array_column($m, 0);
@@ -96,7 +96,7 @@ class AttributeParser
             ];
         }
 
-        preg_match_all('/(?:^|\s):\$([A-Za-z0-9_:-]+)(?=\s|$)/', $attributesString, $matches, PREG_SET_ORDER | PREG_OFFSET_CAPTURE);
+        preg_match_all('/(?:^|\s):\$([A-Za-z0-9_.:-]+)(?=\s|$)/', $attributesString, $matches, PREG_SET_ORDER | PREG_OFFSET_CAPTURE);
         foreach ($matches as $m) {
             $pos = $m[0][1];
             $m = array_column($m, 0);
@@ -116,7 +116,7 @@ class AttributeParser
             ];
         }
 
-        preg_match_all('/(?:^|\s)(?!:)([A-Za-z0-9_:-]+)\s*=\s*"([^"]*)"/', $attributesString, $matches, PREG_SET_ORDER | PREG_OFFSET_CAPTURE);
+        preg_match_all('/(?:^|\s)(?!:)([A-Za-z0-9_.:-]+)\s*=\s*"([^"]*)"/', $attributesString, $matches, PREG_SET_ORDER | PREG_OFFSET_CAPTURE);
         foreach ($matches as $m) {
             $pos = $m[0][1];
             $m = array_column($m, 0);
@@ -135,7 +135,7 @@ class AttributeParser
             ];
         }
 
-        preg_match_all("/(?:^|\s)(?!:)([A-Za-z0-9_:-]+)\s*=\s*'([^']*)'/", $attributesString, $matches, PREG_SET_ORDER | PREG_OFFSET_CAPTURE);
+        preg_match_all("/(?:^|\s)(?!:)([A-Za-z0-9_.:-]+)\s*=\s*'([^']*)'/", $attributesString, $matches, PREG_SET_ORDER | PREG_OFFSET_CAPTURE);
         foreach ($matches as $m) {
             $pos = $m[0][1];
             $m = array_column($m, 0);
@@ -157,7 +157,7 @@ class AttributeParser
         // Boolean attributes - strip quoted values first to avoid false matches
         $stripped = preg_replace('/"[^"]*"/', '""', $attributesString);
         $stripped = preg_replace("/'[^']*'/", "''", $stripped);
-        preg_match_all('/(?:^|\s)([A-Za-z0-9_:-]+)(?=\s|$)/', $stripped, $matches, PREG_SET_ORDER | PREG_OFFSET_CAPTURE);
+        preg_match_all('/(?:^|\s)([A-Za-z0-9_.:-]+)(?=\s|$)/', $stripped, $matches, PREG_SET_ORDER | PREG_OFFSET_CAPTURE);
         foreach ($matches as $m) {
             $pos = $m[0][1];
             $m = array_column($m, 0);

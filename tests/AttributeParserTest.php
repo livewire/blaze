@@ -2,7 +2,6 @@
 
 use Livewire\Blaze\Compiler\ArrayParser;
 use Livewire\Blaze\Support\AttributeParser;
-use Livewire\Blaze\Support\Utils;
 
 describe('parse attributes', function () {
     it('parses static attributes', function () {
@@ -24,7 +23,7 @@ describe('parse attributes', function () {
             ],
         ];
 
-        $attributes = (new AttributeParser())->parseAttributeStringToArray($input);
+        $attributes = (new AttributeParser)->parseAttributeStringToArray($input);
 
         expect($attributes)->toBe($output);
     });
@@ -48,7 +47,7 @@ describe('parse attributes', function () {
             ],
         ];
 
-        $attributes = (new AttributeParser())->parseAttributeStringToArray($input);
+        $attributes = (new AttributeParser)->parseAttributeStringToArray($input);
 
         expect($attributes)->toBe($output);
     });
@@ -65,7 +64,7 @@ describe('parse attributes', function () {
             ],
         ];
 
-        $attributes = (new AttributeParser())->parseAttributeStringToArray($input);
+        $attributes = (new AttributeParser)->parseAttributeStringToArray($input);
 
         expect($attributes)->toBe($output);
     });
@@ -82,7 +81,7 @@ describe('parse attributes', function () {
             ],
         ];
 
-        $attributes = (new AttributeParser())->parseAttributeStringToArray($input);
+        $attributes = (new AttributeParser)->parseAttributeStringToArray($input);
 
         expect($attributes)->toBe($output);
     });
@@ -99,7 +98,7 @@ describe('parse attributes', function () {
             ],
         ];
 
-        $attributes = (new AttributeParser())->parseAttributeStringToArray($input);
+        $attributes = (new AttributeParser)->parseAttributeStringToArray($input);
 
         expect($attributes)->toBe($output);
     });
@@ -123,7 +122,7 @@ describe('parse attributes', function () {
             ],
         ];
 
-        $attributes = (new AttributeParser())->parseAttributeStringToArray($input);
+        $attributes = (new AttributeParser)->parseAttributeStringToArray($input);
 
         expect($attributes)->toBe($output);
     });
@@ -147,7 +146,7 @@ describe('parse attributes', function () {
             ],
         ];
 
-        $attributes = (new AttributeParser())->parseAttributeStringToArray($input);
+        $attributes = (new AttributeParser)->parseAttributeStringToArray($input);
 
         expect($attributes)->toBe($output);
     });
@@ -164,7 +163,7 @@ describe('parse attributes', function () {
             ],
         ];
 
-        $attributes = (new AttributeParser())->parseAttributeStringToArray($input);
+        $attributes = (new AttributeParser)->parseAttributeStringToArray($input);
 
         expect($attributes)->toBe($output);
     });
@@ -188,9 +187,118 @@ describe('parse attributes', function () {
             ],
         ];
 
-        $attributes = (new AttributeParser())->parseAttributeStringToArray($input);
+        $attributes = (new AttributeParser)->parseAttributeStringToArray($input);
 
         expect($attributes)->toBe($output);
+    });
+
+    it('parses static attributes with Alpine dot modifiers', function () {
+        $input = 'x-on:scroll.window="handleScroll()" x-on:click.prevent="save()"';
+        $output = [
+            'xOn:scroll.window' => [
+                'name' => 'x-on:scroll.window',
+                'isDynamic' => false,
+                'value' => 'handleScroll()',
+                'original' => 'x-on:scroll.window="handleScroll()"',
+                'quotes' => '"',
+            ],
+            'xOn:click.prevent' => [
+                'name' => 'x-on:click.prevent',
+                'isDynamic' => false,
+                'value' => 'save()',
+                'original' => 'x-on:click.prevent="save()"',
+                'quotes' => '"',
+            ],
+        ];
+
+        $attributes = (new AttributeParser)->parseAttributeStringToArray($input);
+
+        expect($attributes)->toBe($output);
+    });
+
+    it('parses dynamic attributes with Alpine dot modifiers', function () {
+        $input = ':x-on:click.prevent="$handler"';
+        $output = [
+            'xOn:click.prevent' => [
+                'name' => 'x-on:click.prevent',
+                'isDynamic' => true,
+                'value' => '$handler',
+                'original' => ':x-on:click.prevent="$handler"',
+                'quotes' => '"',
+            ],
+        ];
+
+        $attributes = (new AttributeParser)->parseAttributeStringToArray($input);
+
+        expect($attributes)->toBe($output);
+    });
+
+    it('parses Livewire attributes with dot modifiers', function () {
+        $input = 'wire:model.live="search" wire:loading.remove="true"';
+        $output = [
+            'wire:model.live' => [
+                'name' => 'wire:model.live',
+                'isDynamic' => false,
+                'value' => 'search',
+                'original' => 'wire:model.live="search"',
+                'quotes' => '"',
+            ],
+            'wire:loading.remove' => [
+                'name' => 'wire:loading.remove',
+                'isDynamic' => false,
+                'value' => 'true',
+                'original' => 'wire:loading.remove="true"',
+                'quotes' => '"',
+            ],
+        ];
+
+        $attributes = (new AttributeParser)->parseAttributeStringToArray($input);
+
+        expect($attributes)->toBe($output);
+    });
+
+    it('parses boolean attributes with dot modifiers', function () {
+        $input = 'wire:loading.remove';
+        $output = [
+            'wire:loading.remove' => [
+                'name' => 'wire:loading.remove',
+                'isDynamic' => false,
+                'value' => true,
+                'original' => 'wire:loading.remove',
+                'quotes' => '',
+            ],
+        ];
+
+        $attributes = (new AttributeParser)->parseAttributeStringToArray($input);
+
+        expect($attributes)->toBe($output);
+    });
+
+    it('parses attributes with multiple dot modifiers', function () {
+        $input = 'x-on:keydown.shift.enter="submit()"';
+        $output = [
+            'xOn:keydown.shift.enter' => [
+                'name' => 'x-on:keydown.shift.enter',
+                'isDynamic' => false,
+                'value' => 'submit()',
+                'original' => 'x-on:keydown.shift.enter="submit()"',
+                'quotes' => '"',
+            ],
+        ];
+
+        $attributes = (new AttributeParser)->parseAttributeStringToArray($input);
+
+        expect($attributes)->toBe($output);
+    });
+
+    it('parses dot-modified attributes alongside plain attributes', function () {
+        $input = 'class="mt-4" x-on:scroll.window="handler()" x-init="setup()" wire:model.live="name"';
+        $attributes = (new AttributeParser)->parseAttributeStringToArray($input);
+
+        expect($attributes)->toHaveCount(4);
+        expect($attributes)->toHaveKeys(['class', 'xOn:scroll.window', 'xInit', 'wire:model.live']);
+        expect($attributes['xOn:scroll.window']['name'])->toBe('x-on:scroll.window');
+        expect($attributes['xOn:scroll.window']['value'])->toBe('handler()');
     });
 
     it('parses an attributes array and converts it to an attributes string', function () {
@@ -219,7 +327,7 @@ describe('parse attributes', function () {
 
         $output = 'foo="bar" :name="$name" :$baz searchable';
 
-        $attributes = (new AttributeParser())->parseAttributesArrayToPropString($input);
+        $attributes = (new AttributeParser)->parseAttributesArrayToPropString($input);
 
         expect($attributes)->toBe($output);
     });
@@ -275,7 +383,7 @@ describe('parse attributes', function () {
             ],
         ];
 
-        $attributes = (new AttributeParser())->parseAttributeStringToArray($input);
+        $attributes = (new AttributeParser)->parseAttributeStringToArray($input);
 
         expect($attributes)->toBe($output);
     });
@@ -299,7 +407,7 @@ describe('parse attributes', function () {
             ],
         ];
 
-        $attributes = (new AttributeParser())->parseAttributeStringToArray($input);
+        $attributes = (new AttributeParser)->parseAttributeStringToArray($input);
 
         expect($attributes)->toBe($output);
     });
@@ -316,7 +424,7 @@ describe('parse attributes', function () {
             ],
         ];
 
-        $attributes = (new AttributeParser())->parseAttributeStringToArray($input);
+        $attributes = (new AttributeParser)->parseAttributeStringToArray($input);
 
         expect($attributes)->toBe($output);
     });
@@ -333,7 +441,7 @@ describe('parse attributes', function () {
             ],
         ];
 
-        $attributes = (new AttributeParser())->parseAttributeStringToArray($input);
+        $attributes = (new AttributeParser)->parseAttributeStringToArray($input);
 
         expect($attributes)->toBe($output);
     });
