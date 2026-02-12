@@ -28,10 +28,10 @@ class ComponentCompiler
         $source ??= $compiled;
         $name = '_'.Utils::hash($path);
 
-        $sourceDirectives = new Directives($source);
+        $directives = new Directives($source);
 
-        $propsExpression = $sourceDirectives->get('props');
-        $awareExpression = $sourceDirectives->get('aware');
+        $propsExpression = $directives->get('props');
+        $awareExpression = $directives->get('aware');
 
         $propAssignments = $propsExpression ? $this->propsCompiler->compile($propsExpression) : null;
         $awareAssignments = $awareExpression ? $this->awareCompiler->compile($awareExpression) : null;

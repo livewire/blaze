@@ -108,14 +108,14 @@ class BlazeManager
                     $node->setParentsAttributes(array_merge(...$dataStack));
                 }
 
-                if (($node instanceof ComponentNode) && ! empty($node->children)) {
+                if (($node instanceof ComponentNode) && $node->children) {
                     $dataStack[] = $node->attributes;
                 }
 
                 return $node;
             },
             postCallback: function ($node) use (&$dataStack) {
-                if (($node instanceof ComponentNode) && ! empty($node->children)) {
+                if (($node instanceof ComponentNode) && $node->children) {
                     array_pop($dataStack);
                 }
 
