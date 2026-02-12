@@ -1,4 +1,5 @@
 <?php
+use Livewire\Blaze\Blaze;
 use Livewire\Blaze\Support\Utils;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\MessageBag;
@@ -142,5 +143,44 @@ describe('shared view variables', function () {
         );
 
         expect($result)->toContain('No errors');
+    });
+});
+
+describe('path-based optimization via Blaze::optimize()', function () {
+    beforeEach(function () {
+        Blaze::optimize()->clear();
+        app('blade.compiler')->anonymousComponentPath(__DIR__ . '/fixtures/path-config');
+    });
+
+    afterEach(function () {
+        Blaze::optimize()->clear();
+    });
+
+    it('renders a component enabled via Blaze::optimize() without @blaze directive', function () {
+        Blaze::optimize()->in(__DIR__ . '/fixtures/path-config');
+
+        $result = \Illuminate\Support\Facades\Blade::render('<x-button type="submit">Click me</x-button>');
+
+        expect($result)->toContain('<button');
+        expect($result)->toContain('Click me');
+        expect($result)->toContain('type="submit"');
+    });
+
+    it('wraps component source in function when enabled via Blaze::optimize()', function () {
+        Blaze::optimize()->in(__DIR__ . '/fixtures/path-config');
+
+        $path = __DIR__ . '/fixtures/path-config/button.blade.php';
+        $hash = Utils::hash($path);
+
+        $compiledPath = app('blade.compiler')->getCompiledPath($path);
+
+        if (File::exists($compiledPath)) {
+            File::delete($compiledPath);
+        }
+
+        app('blade.compiler')->compile($path);
+        $compiled = File::get($compiledPath);
+
+        expect($compiled)->toContain("function _$hash(\$__blaze, \$__data = [], \$__slots = [], \$__bound = [])");
     });
 });

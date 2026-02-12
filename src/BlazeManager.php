@@ -89,7 +89,7 @@ class BlazeManager
         $path = app('blade.compiler')->getPath();
         $directives = new Directives($source);
 
-        if ($path && $directives->blaze()) {
+        if ($path && ($directives->blaze() || $this->config->shouldCompile($path))) {
             $output = $this->wrapper->wrap($output, $path, $source);
         }
 
