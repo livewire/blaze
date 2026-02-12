@@ -89,6 +89,7 @@ class Foldable
                     name: $child->name,
                     attributeString: $child->attributeString,
                     slotStyle: $child->slotStyle,
+                    // Replace slot children with placeholder...
                     children: [new TextNode($placeholder)],
                     prefix: $child->prefix,
                     closeHasName: $child->closeHasName,
@@ -118,12 +119,13 @@ class Foldable
                 name: 'slot',
                 attributeString: '',
                 slotStyle: 'standard',
+                // Replace slot children with placeholder...
                 children: [new TextNode($placeholder)],
                 prefix: 'x-slot',
             );
         }
         
-        // Replace slots with placeholder slots...
+        // Replace children with placeholder slots...
         $this->renderable->children = $slots;
     }
 
