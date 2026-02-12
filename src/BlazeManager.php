@@ -11,6 +11,7 @@ use Livewire\Blaze\Folder\Folder;
 use Livewire\Blaze\Memoizer\Memoizer;
 use Livewire\Blaze\Nodes\ComponentNode;
 use Livewire\Blaze\Parser\Parser;
+use Livewire\Blaze\Support\ComponentSource;
 use Livewire\Blaze\Tokenizer\Tokenizer;
 use Livewire\Blaze\Walker\Walker;
 
@@ -130,9 +131,9 @@ class BlazeManager
         $output = $this->render($ast);
 
         $currentPath = app('blade.compiler')->getPath();
-        $params = BlazeDirective::getParameters($template);
+        $source = new ComponentSource($currentPath);
 
-        if ($currentPath && $params !== null) {
+        if ($source->exists() && $source->directives->blaze()) {
             $output = $this->componentCompiler->compile($output, $currentPath, $source);
         }
 
@@ -141,7 +142,7 @@ class BlazeManager
         return $output;
     }
 
-    public function compileTags(string $template): string
+    public function compileForUnblaze(string $template): string
     {
         $template = BladeService::preStoreUncompiledBlocks($template);
         $template = BladeService::compileComments($template);
