@@ -166,6 +166,9 @@ class DebuggerMiddleware
 
         $compiled = file_get_contents($compiledPath);
 
+        // Record which view was wrapped with the render timer.
+        app('blaze.runtime')->debugger->setTimerView($this->resolveViewName($view));
+
         // Already injected (persisted from a previous request).
         if (str_contains($compiled, '__blaze_timer')) {
             return true;
@@ -177,6 +180,30 @@ class DebuggerMiddleware
         file_put_contents($compiledPath, $start . $compiled . $stop);
 
         return true;
+    }
+
+    /**
+     * Resolve a human-readable name for the view being timed.
+     *
+     * For Livewire SFCs the view path points to an extracted blade file
+     * (e.g. storage/.../livewire/views/6ea59dbe.blade.php) which isn't
+     * meaningful. In that case we pull the component name from Livewire's
+     * shared view data instead.
+     */
+    protected function resolveViewName(\Illuminate\View\View $view): string
+    {
+        $path = $view->getPath();
+
+        // Livewire SFC extracted views live inside a "livewire/views" cache directory.
+        if ($path && str_contains($path, '/livewire/views/')) {
+            $livewire = app('view')->shared('__livewire');
+
+            if ($livewire && method_exists($livewire, 'getName')) {
+                return $livewire->getName();
+            }
+        }
+
+        return $view->name();
     }
 
     /**

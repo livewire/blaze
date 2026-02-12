@@ -8,6 +8,8 @@ class Debugger
 
     protected float $renderTime = 0.0;
 
+    protected ?string $timerView = null;
+
     protected array $components = [];
 
     protected int $bladeComponentCount = 0;
@@ -106,6 +108,11 @@ class Debugger
         $this->recordComponent($hash, $name, $duration);
     }
 
+    public function setTimerView(string $name): void
+    {
+        $this->timerView = $name;
+    }
+
     public function startRenderTimer(): void
     {
         $this->renderStart = hrtime(true);
@@ -194,6 +201,7 @@ class Debugger
                 ->values()
                 ->all(),
             'components' => $components,
+            'timerView' => $this->timerView,
         ];
     }
 
@@ -353,23 +361,34 @@ class Debugger
             ? ' <span style="color: #94a3b8; font-size: 9px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; background: rgba(148, 163, 184, 0.1); border: 1px solid rgba(148, 163, 184, 0.2); padding: 3px 6px; border-radius: 9999px; line-height: 1;">cold</span>'
             : '';
 
+        $timerViewHtml = '';
+        if ($data['timerView']) {
+            $viewName = htmlspecialchars($data['timerView']);
+            $timerViewHtml = '<div style="color: #475569; font-size: 10px; margin-top: 4px; font-family: ui-monospace, SFMono-Regular, monospace; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">' . $viewName . '</div>';
+        }
+
         $savingsHtml = $this->renderSavingsBlock($data);
         $detailHtml = $this->renderComponentDetail($data);
 
         return <<<HTML
         <div id="blaze-card">
-            <div style="display: flex; align-items: center; gap: 7px; margin-bottom: 12px;">
+            <div style="display: flex; align-items: center; gap: 7px; margin-bottom: 4px;">
                 <span style="color: {$accentColor}; font-weight: 700; font-size: 12px; letter-spacing: 0.03em; text-transform: uppercase;">{$modeName}</span>
+                <button id="blaze-card-close" title="Close" style="margin-left: auto; background: none; border: none; cursor: pointer; color: #475569; padding: 2px; line-height: 1; font-size: 16px; transition: color 0.15s ease;" onmouseover="this.style.color='#cbd5e1'" onmouseout="this.style.color='#475569'">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6L6 18"/><path d="M6 6l12 12"/></svg>
+                </button>
             </div>
 
             <div style="display: flex; align-items: center; gap: 8px;">
-                <span style="color: #f1f5f9; font-weight: 700; font-size: 28px; font-family: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, monospace; letter-spacing: -1.5px; line-height: 1;">{$timeFormatted}</span>
+                <span style="color: #f1f5f9; font-weight: 700; font-size: 28px; font-family: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, monospace; letter-spacing: -1.5px; line-height: 1; font-variant-numeric: tabular-nums;">{$timeFormatted}</span>
                 {$coldTag}
             </div>
 
+            {$timerViewHtml}
+
             {$savingsHtml}
 
-            <div style="margin-top: 14px; padding-top: 12px; border-top: 1px solid #1e293b;">
+            <div style="margin-top: 8px; padding: 4px 0 ;">
                 <div id="blaze-detail-toggle" style="color: #94a3b8; font-size: 11px; cursor: pointer; user-select: none; display: flex; align-items: center; gap: 5px; font-weight: 500;">
                     <span id="blaze-detail-arrow" style="font-size: 8px; transition: transform 0.2s ease; display: inline-block;">▶</span>
                     <span>{$componentsFormatted} components</span>
@@ -464,7 +483,7 @@ class Debugger
                 <div style="display: flex; align-items: baseline; gap: 6px;">
                     <span style="color: {$color}; font-weight: 800; font-size: 20px; letter-spacing: -0.5px; line-height: 1;">{$multiplierFormatted}</span>
                     <span style="color: {$color}; font-size: 11px; font-weight: 600;">{$word}</span>
-                    <span style="color: #475569; font-size: 10px; margin-left: auto;">{$type}</span>
+                    <span style="color: #475569; font-size: 10px; margin-left: auto; align-self: start;">{$type}</span>
                 </div>
                 <div style="color: #64748b; font-size: 11px; margin-top: 5px; font-family: ui-monospace, SFMono-Regular, monospace;">
                     {$otherFormatted} → {$currentFormatted}
@@ -474,14 +493,14 @@ class Debugger
         }
 
         return <<<HTML
-        <div style="background: rgba({$rgb}, 0.05); border: 1px solid rgba({$rgb}, 0.12); border-radius: 8px; padding: 7px 12px; display: flex; align-items: center; justify-content: space-between;">
-            <div style="display: flex; align-items: center; gap: 6px;">
-                <span style="color: {$color}; font-weight: 700; font-size: 13px; line-height: 1;">{$multiplierFormatted}</span>
+        <div style="background: rgba({$rgb}, 0.05); border: 1px solid rgba({$rgb}, 0.12); border-radius: 8px; padding: 8px 12px;">
+            <div style="display: flex; align-items: baseline; gap: 6px;">
+                <span style="color: {$color}; font-weight: 700; font-size: 13px;">{$multiplierFormatted}</span>
                 <span style="color: {$color}; font-size: 10px; font-weight: 600;">{$word}</span>
+                <span style="color: #475569; font-size: 9px; margin-left: auto; align-self: start;">{$type}</span>
             </div>
-            <div style="display: flex; align-items: center; gap: 4px;">
-                <span style="color: #64748b; font-size: 10px; font-family: ui-monospace, SFMono-Regular, monospace;">{$otherFormatted} → {$currentFormatted}</span>
-                <span style="color: #475569; font-size: 9px; margin-left: 4px;">{$type}</span>
+            <div style="color: #64748b; font-size: 10px; margin-top: 2px; font-family: ui-monospace, SFMono-Regular, monospace;">
+                {$otherFormatted} → {$currentFormatted}
             </div>
         </div>
         HTML;
@@ -603,12 +622,43 @@ class Debugger
             var toggle = document.getElementById('blaze-detail-toggle');
             var panel = document.getElementById('blaze-detail-panel');
             var arrow = document.getElementById('blaze-detail-arrow');
+            var card = document.getElementById('blaze-card');
+            var closeBtn = document.getElementById('blaze-card-close');
+            var bubble = document.getElementById('blaze-bubble');
+            var hoverTimer = null;
+
             if (toggle && panel) {
                 toggle.addEventListener('click', function(e) {
                     e.stopPropagation();
                     var isHidden = panel.style.display === 'none';
                     panel.style.display = isHidden ? 'block' : 'none';
                     if (arrow) arrow.style.transform = isHidden ? 'rotate(90deg)' : '';
+                });
+            }
+
+            if (closeBtn && card) {
+                closeBtn.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    card.style.display = 'none';
+                });
+            }
+
+            if (bubble && card) {
+                bubble.addEventListener('mouseenter', function() {
+                    if (card.style.display === 'none') {
+                        hoverTimer = setTimeout(function() {
+                            card.style.display = '';
+                            card.style.animation = 'blaze-card-in 0.35s cubic-bezier(0.34, 1.56, 0.64, 1)';
+                        }, 400);
+                    }
+                });
+
+                bubble.addEventListener('mouseleave', function() {
+                    if (hoverTimer) {
+                        clearTimeout(hoverTimer);
+                        hoverTimer = null;
+                    }
                 });
             }
         })();
