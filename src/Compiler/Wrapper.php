@@ -36,12 +36,12 @@ class Wrapper
         $propAssignments = $propsExpression ? $this->propsCompiler->compile($propsExpression) : null;
         $awareAssignments = $awareExpression ? $this->awareCompiler->compile($awareExpression) : null;
 
-        $compiled = $this->strip($compiled, 'blaze');
-        $compiled = $this->strip($compiled, 'props');
-        $compiled = $this->strip($compiled, 'aware');
+        $compiled = $this->stripDirective($compiled, 'blaze');
+        $compiled = $this->stripDirective($compiled, 'props');
+        $compiled = $this->stripDirective($compiled, 'aware');
 
         $propsUseAttributes = str_contains($propAssignments, '$attributes');
-        $sourceUsesAttributes = str_contains($this->strip($source, 'props'), '$attributes') || str_contains($source, '<flux:delegate-component');
+        $sourceUsesAttributes = str_contains($this->stripDirective($source, 'props'), '$attributes') || str_contains($source, '<flux:delegate-component');
         $needsEchoHandler = $this->hasEchoHandlers() && $this->hasEchoSyntax($source);
 
         return implode('', array_filter([
@@ -70,7 +70,7 @@ class Wrapper
     /**
      * Strip a directive and its surrounding whitespace from content.
      */
-    protected function strip(string $content, string $directive): string
+    protected function stripDirective(string $content, string $directive): string
     {
         // Protect raw block placeholders so restoreRawContent doesn't resolve them
         $content = preg_replace('/@__raw_block_(\d+)__@/', '__BLAZE_RAW_BLOCK_$1__', $content);

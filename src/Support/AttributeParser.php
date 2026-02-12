@@ -160,8 +160,6 @@ class AttributeParser
             ];
         }
 
-        $this->validateNoUnsupportedDirectives($attributesString);
-
         $attributes = Arr::sort($attributes, fn ($a) => $a['position']);
         $attributes = Arr::map($attributes, fn ($a) => tap($a, function (&$a) {
             unset($a['position']);
@@ -189,21 +187,6 @@ class AttributeParser
             },
             $attributesString
         );
-    }
-
-    /**
-     * Throw if unsupported directives like @checked or @disabled remain in the attribute string.
-     */
-    protected function validateNoUnsupportedDirectives(string $attributesString): void
-    {
-        if (preg_match('/@(\w+)\s*\(/', $attributesString, $match)) {
-            $directive = $match[1];
-
-            throw new \InvalidArgumentException(
-                "[@{$directive}(...)] is not supported on component tags. "
-                . "Use :{$directive}=\"\$condition\" instead."
-            );
-        }
     }
 
     /**

@@ -10,7 +10,6 @@ use Livewire\Blaze\Tokenizer\Tokenizer;
 use Livewire\Blaze\Parser\Parser;
 use Livewire\Blaze\Memoizer\Memoizer;
 use Livewire\Blaze\Folder\Folder;
-use Livewire\Blaze\Directive\BlazeDirective;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Support\Facades\Blade;
 use Illuminate\Support\Facades\View;
@@ -46,7 +45,7 @@ class BlazeServiceProvider extends ServiceProvider
             new Folder($config),
             new Memoizer($config),
             new Wrapper,
-            $this->app->make(Config::class),
+            app(Config::class),
         ));
 
         $this->app->alias(BlazeManager::class, Blaze::class);
