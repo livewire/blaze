@@ -7,26 +7,21 @@ use Livewire\Blaze\Nodes\ComponentNode;
 use Livewire\Blaze\Nodes\SlotNode;
 use Livewire\Blaze\Nodes\TextNode;
 use Livewire\Blaze\Nodes\Node;
-use Livewire\Blaze\BlazeConfig;
+use Livewire\Blaze\Config;
 use Livewire\Blaze\Support\ComponentSource;
 use Livewire\Blaze\Support\Utils;
 
-class TagCompiler
+class Compiler
 {
-    protected BlazeConfig $config;
+    protected Config $config;
     protected ComponentTagCompiler $blade;
     protected SlotCompiler $slotCompiler;
 
-    public function __construct(
-        BlazeConfig $config,
-    ) {
+    public function __construct(Config $config)
+    {
         $this->config = $config;
         $this->slotCompiler = new SlotCompiler(fn (string $str) => $this->getAttributesAndBoundKeysArrayStrings($str, true)[0]);
-        $this->blade = new ComponentTagCompiler(
-            aliases: [],
-            namespaces: [],
-            blade: app('blade.compiler'),
-        );
+        $this->blade = new ComponentTagCompiler([], [], app('blade.compiler'));
     }
 
     /**

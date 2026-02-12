@@ -162,7 +162,6 @@ class BladeService
 
         $reflection = new \ReflectionClass($compiler);
         $storeVerbatimBlocks = $reflection->getMethod('storeUncompiledBlocks');
-        $storeVerbatimBlocks->setAccessible(true);
 
         return $storeVerbatimBlocks->invoke($compiler, $input);
     }
@@ -173,7 +172,6 @@ class BladeService
 
         $reflection = new \ReflectionClass($compiler);
         $compileComments = $reflection->getMethod('compileComments');
-        $compileComments->setAccessible(true);
 
         return $compileComments->invoke($compiler, $input);
     }
@@ -184,7 +182,6 @@ class BladeService
 
         $reflection = new \ReflectionClass($compiler);
         $method = $reflection->getMethod('compileAttributeEchos');
-        $method->setAccessible(true);
 
         return Str::unwrap("'" . $method->invoke($compiler, $input) . "'", "''.", ".''");
     }

@@ -37,9 +37,7 @@ class Directives
 
     public function array(string $name): array|null
     {
-        $expression = $this->get($name);
-
-        return $expression ? ArrayParser::parse($expression) : null;
+        return ($expression = $this->get($name)) ? ArrayParser::parse($expression) : null;
     }
 
     /**
@@ -54,18 +52,14 @@ class Directives
 
     public function blaze(?string $param = null): mixed
     {
-        if (is_null($param) && $this->has('blaze')) {
-            return true;
+        if (is_null($param)) {
+            return $this->has('blaze');
         }
 
-        $expression = $this->get('blaze');
-
-        if ($expression === null) {
-            return null;
+        if ($expression = $this->get('blaze')) {
+            return Utils::parseBlazeDirective($expression)[$param] ?? null;
         }
 
-        $params = Utils::parseBlazeDirective($expression);
-
-        return $params[$param] ?? null;
+        return null;
     }
 }

@@ -13,12 +13,12 @@ use Livewire\Blaze\Support\ComponentSource;
 use Closure;
 use Illuminate\Support\Arr;
 use Livewire\Blaze\Blaze;
-use Livewire\Blaze\BlazeConfig;
+use Livewire\Blaze\Config;
 
 class Folder
 {
     public function __construct(
-        protected BlazeConfig $config,
+        protected Config $config,
     ) {
     }
 

@@ -7,11 +7,6 @@ use Livewire\Blaze\Compiler\ArrayParser;
 
 class BlazeDirective
 {
-    public static function registerFallback(): void
-    {
-        Blade::directive('blaze', fn () => '');
-    }
-
     public static function getParameters(string $source): ?array
     {
         // If there is no @blaze directive, return null

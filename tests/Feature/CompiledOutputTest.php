@@ -1,6 +1,6 @@
 <?php
-use Livewire\Blaze\Compiler\TagCompiler as Compiler;
-use Livewire\Blaze\Compiler\TagCompiler;
+use Livewire\Blaze\Compiler\Compiler as Compiler;
+use Livewire\Blaze\Compiler\Compiler;
 use Illuminate\Support\Facades\File;
 
 beforeEach(function () {

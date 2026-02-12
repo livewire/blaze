@@ -2,34 +2,25 @@
 
 namespace Livewire\Blaze;
 
-class BlazeConfig
+class Config
 {
     protected $fold = [];
     protected $memo = [];
     protected $compile = [];
 
-    public function in(
-        string $path,
-        ?bool $compile = true,
-        ?bool $memo = false,
-        ?bool $fold = false,
-    ): self
+    /**
+     * Alias for add(), used as Blaze::optimize()->in(...).
+     */
+    public function in(string $path, bool $compile = true, bool $memo = false, bool $fold = false): self
+    {
+        return $this->add($path, $compile, $memo, $fold);
+    }
+
+    public function add(string $path, ?bool $compile = true, ?bool $memo = false, ?bool $fold = false): self
     {
         $this->compile[$path] = $compile;
         $this->memo[$path] = $memo;
         $this->fold[$path] = $fold;
-
-        return $this;
-    }
-
-    /**
-     * Clear all path configuration (primarily for testing).
-     */
-    public function clear(): self
-    {
-        $this->compile = [];
-        $this->memo = [];
-        $this->fold = [];
 
         return $this;
     }
@@ -78,5 +69,17 @@ class BlazeConfig
         }
 
         return $config[$match] ?? false;
+    }
+
+    /**
+     * Clear all path configuration (primarily for testing).
+     */
+    public function clear(): self
+    {
+        $this->compile = [];
+        $this->memo = [];
+        $this->fold = [];
+
+        return $this;
     }
 }

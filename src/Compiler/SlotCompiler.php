@@ -4,18 +4,17 @@ namespace Livewire\Blaze\Compiler;
 
 use Illuminate\Support\Str;
 use Livewire\Blaze\Nodes\SlotNode;
+use Closure;
 
 /**
  * Compiles slot nodes into output buffering PHP code.
  */
 class SlotCompiler
 {
-    /**
-     * @param callable(string): string $getAttributesArrayString
-     */
     public function __construct(
-        protected \Closure $getAttributesArrayString,
-    ) {}
+        protected Closure $getAttributesArrayString
+    ) {
+    }
 
     /**
      * Compile component children into slot assignments.

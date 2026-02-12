@@ -5,19 +5,19 @@ namespace Livewire\Blaze\Memoizer;
 use Livewire\Blaze\Nodes\ComponentNode;
 use Livewire\Blaze\Nodes\TextNode;
 use Livewire\Blaze\Nodes\Node;
-use Livewire\Blaze\BlazeConfig;
+use Livewire\Blaze\Config;
 use Livewire\Blaze\Support\ComponentSource;
-use Livewire\Blaze\Compiler\TagCompiler;
+use Livewire\Blaze\Compiler\Compiler;
 
 class Memoizer
 {
-    protected BlazeConfig $config;
-    protected TagCompiler $compiler;
+    protected Config $config;
+    protected Compiler $compiler;
 
-    public function __construct(BlazeConfig $config)
+    public function __construct(Config $config)
     {
         $this->config = $config;
-        $this->compiler = new TagCompiler($config);
+        $this->compiler = new Compiler($config);
     }
 
     public function isMemoizable(Node $node): bool

@@ -9,7 +9,7 @@ use Livewire\Blaze\Support\Utils;
 /**
  * Compiles Blaze component templates into PHP function definitions.
  */
-class ComponentCompiler
+class Wrapper
 {
     public function __construct(
         protected PropsCompiler $propsCompiler = new PropsCompiler,
@@ -23,7 +23,7 @@ class ComponentCompiler
      * @param  string  $path  The component file path
      * @param  string|null  $source  The original source template (for detecting $slot usage)
      */
-    public function compile(string $compiled, string $path, ?string $source = null): string
+    public function wrap(string $compiled, string $path, ?string $source = null): string
     {
         $source ??= $compiled;
         $name = '_'.Utils::hash($path);

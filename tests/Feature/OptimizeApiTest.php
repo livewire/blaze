@@ -1,7 +1,7 @@
 <?php
 
 use Livewire\Blaze\Blaze;
-use Livewire\Blaze\Compiler\TagCompiler;
+use Livewire\Blaze\Compiler\Compiler;
 use Livewire\Blaze\Memoizer\Memoizer;
 use Livewire\Blaze\Nodes\ComponentNode;
 use Livewire\Blaze\Nodes\TextNode;
@@ -16,7 +16,7 @@ describe('Blaze::optimize() API', function () {
     it('can access optimize config via facade', function () {
         $config = Blaze::optimize();
 
-        expect($config)->toBeInstanceOf(\Livewire\Blaze\BlazeConfig::class);
+        expect($config)->toBeInstanceOf(\Livewire\Blaze\Config::class);
     });
 
     it('returns same instance on multiple calls', function () {
@@ -32,7 +32,7 @@ describe('Blaze::optimize() API', function () {
 
         Blaze::optimize()->in(dirname($source->path));
 
-        $tagCompiler = new TagCompiler(config: Blaze::optimize());
+        $tagCompiler = new Compiler(config: Blaze::optimize());
 
         $node = new ComponentNode(
             name: 'button',
@@ -54,7 +54,7 @@ describe('Blaze::optimize() API', function () {
             ->in(dirname(dirname($source->path)))
             ->in(dirname($source->path), compile: false);
 
-        $tagCompiler = new TagCompiler(config: Blaze::optimize());
+        $tagCompiler = new Compiler(config: Blaze::optimize());
 
         $node = new ComponentNode(
             name: 'legacy.old',
@@ -74,7 +74,7 @@ describe('Blaze::optimize() API', function () {
         // Register directory with compile: false
         Blaze::optimize()->in(dirname($source->path), compile: false);
 
-        $tagCompiler = new TagCompiler(config: Blaze::optimize());
+        $tagCompiler = new Compiler(config: Blaze::optimize());
 
         $node = new ComponentNode(
             name: 'legacy2.overridden',
@@ -123,7 +123,7 @@ describe('Blaze::optimize() API', function () {
         // Register directory with memo: true
         Blaze::optimize()->in(dirname($source->path), memo: true);
 
-        $tagCompiler = new TagCompiler(config: Blaze::optimize());
+        $tagCompiler = new Compiler(config: Blaze::optimize());
 
         $memoizer = new Memoizer(
             compileTag: fn ($node) => $tagCompiler->compile($node)->render(),

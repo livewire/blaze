@@ -3,17 +3,17 @@
 namespace Livewire\Blaze;
 
 use Illuminate\Support\Facades\Event;
-use Livewire\Blaze\Compiler\ComponentCompiler;
-use Livewire\Blaze\Compiler\TagCompiler;
+use Livewire\Blaze\Compiler\Wrapper;
+use Livewire\Blaze\Compiler\Compiler;
 use Livewire\Blaze\Directive\BlazeDirective;
 use Livewire\Blaze\Events\ComponentFolded;
 use Livewire\Blaze\Folder\Folder;
 use Livewire\Blaze\Memoizer\Memoizer;
 use Livewire\Blaze\Nodes\ComponentNode;
 use Livewire\Blaze\Parser\Parser;
-use Livewire\Blaze\Support\ComponentSource;
 use Livewire\Blaze\Tokenizer\Tokenizer;
 use Livewire\Blaze\Walker\Walker;
+use Livewire\Blaze\Support\Directives;
 
 class BlazeManager
 {
@@ -31,15 +31,124 @@ class BlazeManager
         protected Tokenizer $tokenizer,
         protected Parser $parser,
         protected Walker $walker,
-        protected TagCompiler $tagCompiler,
+        protected Compiler $compiler,
         protected Folder $folder,
         protected Memoizer $memoizer,
-        protected ComponentCompiler $componentCompiler,
-        protected BlazeConfig $config,
+        protected Wrapper $wrapper,
+        protected Config $config,
     ) {
         Event::listen(ComponentFolded::class, function (ComponentFolded $event) {
             $this->foldedEvents[] = $event;
         });
+    }
+
+    public function compile(string $template): string
+    {
+        $template = BladeService::preStoreUncompiledBlocks($template);
+        $template = BladeService::compileComments($template);
+
+        $dataStack = [];
+
+        $tokens = $this->tokenizer->tokenize($template);
+        $ast = $this->parser->parse($tokens);
+        $ast = $this->walker->walk(
+            nodes: $ast,
+            preCallback: function ($node) use (&$dataStack) {
+                if ($dataStack && $node instanceof ComponentNode) {
+                    $node->setParentsAttributes(array_merge(...$dataStack));
+                }
+
+                if (($node instanceof ComponentNode) && $node->children) {
+                    $dataStack[] = $node->attributes;
+                }
+
+                return $node;
+            },
+            postCallback: function ($node) use (&$dataStack) {
+                if (($node instanceof ComponentNode) && $node->children) {
+                    array_pop($dataStack);
+                }
+
+                $node = $this->folder->fold($node);
+                $node = $this->memoizer->memoize($node);
+                $node = $this->compiler->compile($node);
+
+                return $node;
+            },
+        );
+
+        $output = $this->render($ast);
+
+        $path = app('blade.compiler')->getPath();
+        $directives = new Directives($template);
+
+        if ($directives->blaze()) {
+            $output = $this->wrapper->wrap($output, $path, $template);
+        }
+
+        BladeService::deleteTemporaryCacheDirectory();
+
+        return $output;
+    }
+
+    public function compileForUnblaze(string $template): string
+    {
+        $template = BladeService::preStoreUncompiledBlocks($template);
+        $template = BladeService::compileComments($template);
+
+        $tokens = $this->tokenizer->tokenize($template);
+
+        $ast = $this->parser->parse($tokens);
+
+        $ast = $this->walker->walk(
+            nodes: $ast,
+            preCallback: fn ($node) => $node,
+            postCallback: function ($node) use (&$dataStack) {
+                $node = $this->memoizer->memoize($node);
+                $node = $this->compiler->compile($node);
+
+                return $node;
+            },
+        );
+
+        $output = $this->render($ast);
+
+        return $output;
+    }
+
+    /**
+     * Compile for folding context - only tag compiler and component compiler.
+     * No folding or memoization to avoid infinite recursion.
+     */
+    public function compileForFolding(string $template): string
+    {
+        $source = $template;
+
+        $template = BladeService::preStoreUncompiledBlocks($template);
+        $template = BladeService::compileComments($template);
+
+        $tokens = $this->tokenizer->tokenize($template);
+
+        $ast = $this->parser->parse($tokens);
+
+        $ast = $this->walker->walk(
+            nodes: $ast,
+            preCallback: fn ($node) => $node,
+            postCallback: function ($node) use (&$dataStack) {
+                return $this->compiler->compile($node);
+            },
+        );
+
+        $output = $this->render($ast);
+
+        $currentPath = app('blade.compiler')->getPath();
+        $params = BlazeDirective::getParameters($template);
+
+        if ($currentPath && $params !== null) {
+            $output = $this->wrapper->wrap($output, $currentPath, $source);
+        }
+
+        return $output;
     }
 
     public function flushFoldedEvents()
@@ -89,132 +198,9 @@ class BlazeManager
         return $isExpired;
     }
 
-    public function compile(string $template): string
-    {
-        $source = $template;
-
-        $template = BladeService::preStoreUncompiledBlocks($template);
-        $template = BladeService::compileComments($template);
-
-        $tokens = $this->tokenizer->tokenize($template);
-
-        $ast = $this->parser->parse($tokens);
-
-        $dataStack = [];
-
-        $ast = $this->walker->walk(
-            nodes: $ast,
-            preCallback: function ($node) use (&$dataStack) {
-                if ($dataStack && $node instanceof ComponentNode) {
-                    $node->setParentsAttributes(array_merge(...$dataStack));
-                }
-
-                if (($node instanceof ComponentNode) && $node->children) {
-                    $dataStack[] = $node->attributes;
-                }
-
-                return $node;
-            },
-            postCallback: function ($node) use (&$dataStack) {
-                if (($node instanceof ComponentNode) && $node->children) {
-                    array_pop($dataStack);
-                }
-
-                $node = $this->folder->fold($node);
-                $node = $this->memoizer->memoize($node);
-                $node = $this->tagCompiler->compile($node);
-
-                return $node;
-            },
-        );
-
-        $output = $this->render($ast);
-
-        $currentPath = app('blade.compiler')->getPath();
-        $source = new ComponentSource($currentPath);
-
-        if ($source->exists() && $source->directives->blaze()) {
-            $output = $this->componentCompiler->compile($output, $currentPath, $source);
-        }
-
-        BladeService::deleteTemporaryCacheDirectory();
-
-        return $output;
-    }
-
-    public function compileForUnblaze(string $template): string
-    {
-        $template = BladeService::preStoreUncompiledBlocks($template);
-        $template = BladeService::compileComments($template);
-
-        $tokens = $this->tokenizer->tokenize($template);
-
-        $ast = $this->parser->parse($tokens);
-
-        $ast = $this->walker->walk(
-            nodes: $ast,
-            preCallback: fn ($node) => $node,
-            postCallback: function ($node) use (&$dataStack) {
-                $node = $this->memoizer->memoize($node);
-                $node = $this->tagCompiler->compile($node);
-
-                return $node;
-            },
-        );
-
-        $output = $this->render($ast);
-
-        return $output;
-    }
-
-    /**
-     * Compile for folding context - only tag compiler and component compiler.
-     * No folding or memoization to avoid infinite recursion.
-     */
-    public function compileForFolding(string $template): string
-    {
-        $source = $template;
-
-        $template = BladeService::preStoreUncompiledBlocks($template);
-        $template = BladeService::compileComments($template);
-
-        $tokens = $this->tokenizer->tokenize($template);
-
-        $ast = $this->parser->parse($tokens);
-
-        $ast = $this->walker->walk(
-            nodes: $ast,
-            preCallback: fn ($node) => $node,
-            postCallback: function ($node) use (&$dataStack) {
-                return $this->tagCompiler->compile($node);
-            },
-        );
-
-        $output = $this->render($ast);
-
-        $currentPath = app('blade.compiler')->getPath();
-        $params = BlazeDirective::getParameters($template);
-
-        if ($currentPath && $params !== null) {
-            $output = $this->componentCompiler->compile($output, $currentPath, $source);
-        }
-
-        return $output;
-    }
-
     public function render(array $nodes): string
     {
         return implode('', array_map(fn ($n) => $n->render(), $nodes));
-    }
-
-    public function isEnabled()
-    {
-        return $this->enabled;
-    }
-
-    public function isDisabled()
-    {
-        return ! $this->enabled;
     }
 
     public function enable()
@@ -232,11 +218,6 @@ class BlazeManager
         $this->debug = true;
     }
 
-    public function isDebugging()
-    {
-        return $this->debug;
-    }
-
     public function startFolding(): void
     {
         $this->folding = true;
@@ -247,27 +228,27 @@ class BlazeManager
         $this->folding = false;
     }
 
+    public function isEnabled()
+    {
+        return $this->enabled;
+    }
+
+    public function isDisabled()
+    {
+        return ! $this->enabled;
+    }
+
+    public function isDebugging()
+    {
+        return $this->debug;
+    }
+
     public function isFolding(): bool
     {
         return $this->folding;
     }
 
-    public function tokenizer(): Tokenizer
-    {
-        return $this->tokenizer;
-    }
-
-    public function parser(): Parser
-    {
-        return $this->parser;
-    }
-
-    public function folder(): Folder
-    {
-        return $this->folder;
-    }
-
-    public function optimize(): BlazeConfig
+    public function optimize(): Config
     {
         return $this->config;
     }

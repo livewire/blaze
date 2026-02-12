@@ -2,8 +2,8 @@
 
 namespace Livewire\Blaze;
 
-use Livewire\Blaze\Compiler\ComponentCompiler;
-use Livewire\Blaze\Compiler\TagCompiler;
+use Livewire\Blaze\Compiler\Wrapper;
+use Livewire\Blaze\Compiler\Compiler;
 use Livewire\Blaze\Runtime\BlazeRuntime;
 use Livewire\Blaze\Walker\Walker;
 use Livewire\Blaze\Tokenizer\Tokenizer;
@@ -21,7 +21,7 @@ class BlazeServiceProvider extends ServiceProvider
     {
         $this->registerBlazeManager();
         $this->registerBlazeRuntime();
-        $this->registerBlazeDirectiveFallbacks();
+        $this->registerBlazeDirectives();
         $this->registerBladeMacros();
         $this->interceptBladeCompilation();
         $this->interceptViewCacheInvalidation();
@@ -30,19 +30,19 @@ class BlazeServiceProvider extends ServiceProvider
     protected function registerBlazeManager(): void
     {
         $this->app->singleton(BlazeRuntime::class, fn () => new BlazeRuntime);
-        $this->app->singleton(BlazeConfig::class, fn () => new BlazeConfig);
+        $this->app->singleton(Config::class, fn () => new Config);
 
-        $config = $this->app->make(BlazeConfig::class);
+        $config = $this->app->make(Config::class);
 
         $this->app->singleton(BlazeManager::class, fn () => new BlazeManager(
             new Tokenizer,
             new Parser,
             new Walker,
-            new TagCompiler($config),
+            new Compiler($config),
             new Folder($config),
             new Memoizer($config),
-            new ComponentCompiler,
-            $this->app->make(BlazeConfig::class),
+            new Wrapper,
+            $this->app->make(Config::class),
         ));
 
         $this->app->alias(BlazeManager::class, Blaze::class);
@@ -56,8 +56,12 @@ class BlazeServiceProvider extends ServiceProvider
         View::share('__blaze', $this->app->make(BlazeRuntime::class));
     }
 
-    protected function registerBlazeDirectiveFallbacks(): void
+    protected function registerBlazeDirectives(): void
     {
+        Blade::directive('blaze', function () {
+            return '';
+        });
+
         Blade::directive('unblaze', function ($expression) {
             return ''
                 . '<'.'?php $__getScope = fn($scope = []) => $scope; ?>'
@@ -68,8 +72,6 @@ class BlazeServiceProvider extends ServiceProvider
         Blade::directive('endunblaze', function () {
             return '<'.'?php if (isset($__scope)) { $scope = $__scope; unset($__scope); } ?>';
         });
-
-        BlazeDirective::registerFallback();
     }
 
     protected function registerBladeMacros(): void

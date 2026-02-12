@@ -1,9 +1,9 @@
 <?php
 
-use Livewire\Blaze\BlazeConfig;
+use Livewire\Blaze\Config;
 
 test('returns parameters', function () {
-    $config = new BlazeConfig;
+    $config = new Config;
 
     $config->in(fixture_path('views/components'), compile: true, memo: true, fold: true);
     $config->in(fixture_path('views/components/ui')); // Defaults to compile: true
@@ -18,7 +18,7 @@ test('returns parameters', function () {
 });
 
 test('resolves by most specific path', function () {
-    $config = new BlazeConfig;
+    $config = new Config;
 
     $config->in(fixture_path('views/components'), fold: true);
     $config->in(fixture_path('views/components/ui'), fold: false);
@@ -28,7 +28,7 @@ test('resolves by most specific path', function () {
 });
 
 test('handles conflicting paths', function () {
-    $config = new BlazeConfig;
+    $config = new Config;
 
     $config->in(fixture_path('views/components'), fold: true);
 
@@ -36,7 +36,7 @@ test('handles conflicting paths', function () {
 });
 
 test('handles trailing slashes', function () {
-    $config = new BlazeConfig;
+    $config = new Config;
 
     $config->in(fixture_path('views/components/'), fold: true);
 
@@ -44,7 +44,7 @@ test('handles trailing slashes', function () {
 });
 
 test('handles nonexisting paths', function () {
-    $config = new BlazeConfig;
+    $config = new Config;
 
     $config->in(fixture_path('views/components'));
 
