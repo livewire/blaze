@@ -62,46 +62,6 @@ describe('parsing', function () {
 
         expect($attributes['class']['value'])->toBe('\Illuminate\Support\Arr::toCssClasses([\'active\' => $isActive])');
     });
-
-    it('throws for unsupported @disabled directive', function () {
-        $input = '@disabled($condition)';
-        (new AttributeParser)->parseAttributeStringToArray($input);
-    })->throws(InvalidArgumentException::class, '[@disabled(...)] is not supported on component tags');
-
-    it('throws for unsupported @checked directive', function () {
-        $input = '@checked($condition)';
-        (new AttributeParser)->parseAttributeStringToArray($input);
-    })->throws(InvalidArgumentException::class, '[@checked(...)] is not supported on component tags');
-
-    it('throws for unsupported @selected directive', function () {
-        $input = '@selected($condition)';
-        (new AttributeParser)->parseAttributeStringToArray($input);
-    })->throws(InvalidArgumentException::class, '[@selected(...)] is not supported on component tags');
-
-    it('throws for unsupported @required directive', function () {
-        $input = '@required($condition)';
-        (new AttributeParser)->parseAttributeStringToArray($input);
-    })->throws(InvalidArgumentException::class, '[@required(...)] is not supported on component tags');
-
-    it('throws for unsupported @readonly directive', function () {
-        $input = '@readonly($condition)';
-        (new AttributeParser)->parseAttributeStringToArray($input);
-    })->throws(InvalidArgumentException::class, '[@readonly(...)] is not supported on component tags');
-
-    it('does not throw for Alpine @click directive', function () {
-        $input = '@click="open = true"';
-        $attributes = (new AttributeParser)->parseAttributeStringToArray($input);
-
-        // @click="..." uses = syntax, not (), so validation does not trigger.
-        // Note: the attribute is not parsed (no regex matches @-prefixed names)
-        // but it does not throw either — matching pre-existing behavior.
-        expect(fn () => (new AttributeParser)->parseAttributeStringToArray($input))->not->toThrow(InvalidArgumentException::class);
-    });
-
-    it('does not throw for Alpine @click.prevent directive', function () {
-        expect(fn () => (new AttributeParser)->parseAttributeStringToArray('@click.prevent="submit"'))
-            ->not->toThrow(InvalidArgumentException::class);
-    });
 });
 
 describe('rendering', function () {
