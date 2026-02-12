@@ -18,6 +18,10 @@ use Illuminate\Support\Facades\Facade;
  * @method static \Livewire\Blaze\Folder\Folder folder()
  * @method static array flushFoldedEvents()
  * @method static \Livewire\Blaze\Config optimize()
+ * @method static void throw()
+ * @method static bool shouldThrow()
+ * @method static void debug()
+ * @method static bool isDebugging()
  *
  * @see \Livewire\Blaze\BlazeManager
  */

@@ -21,6 +21,8 @@ class BlazeManager
 
     protected $enabled = true;
 
+    protected $throw = false;
+
     protected $debug = false;
 
     protected $folding = false;
@@ -240,6 +242,14 @@ class BlazeManager
     }
 
     /**
+     * Enable throw mode.
+     */
+    public function throw()
+    {
+        $this->throw = true;
+    }
+
+    /**
      * Enable debug mode.
      */
     public function debug()
@@ -277,6 +287,14 @@ class BlazeManager
     public function isDisabled()
     {
         return ! $this->enabled;
+    }
+
+    /**
+     * Check if throw mode is active.
+     */
+    public function shouldThrow()
+    {
+        return $this->throw;
     }
 
     /**

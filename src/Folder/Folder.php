@@ -67,7 +67,7 @@ class Folder
 
             return new TextNode($html);
         } catch (\Exception $e) {
-            if (Blaze::isDebugging()) {
+            if (Blaze::shouldThrow()) {
                 throw $e;
             }
 
