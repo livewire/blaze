@@ -42,7 +42,7 @@ class BlazeServiceProvider extends ServiceProvider
             new Folder($config),
             new Memoizer($config),
             new ComponentCompiler,
-            $config,
+            $this->app->make(BlazeConfig::class),
         ));
 
         $this->app->alias(BlazeManager::class, Blaze::class);

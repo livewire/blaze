@@ -2,6 +2,7 @@
 
 namespace Livewire\Blaze\Support;
 
+use Illuminate\Support\Arr;
 use Livewire\Blaze\BladeService;
 use Livewire\Blaze\Compiler\ArrayParser;
 
@@ -48,18 +49,12 @@ class Directives
      */
     public function props(): array
     {
-        $parsed = $this->array('props') ?? [];
-
-        return array_map(
-            fn ($key, $value) => is_int($key) ? $value : $key,
-            array_keys($parsed),
-            $parsed,
-        );
+        return Arr::map($this->array('props') ?? [], fn ($key, $value) => is_int($key) ? $value : $key);
     }
 
     public function blaze(?string $param = null): mixed
     {
-        if ($this->has('blaze') && is_null($param)) {
+        if (is_null($param) && $this->has('blaze')) {
             return true;
         }
 
