@@ -11,10 +11,6 @@ use Illuminate\Support\Str;
  */
 class PropsCompiler
 {
-    public function __construct(
-        protected ArrayParser $parser = new ArrayParser,
-    ) {}
-
     /**
      * Compile a @props expression into PHP code.
      *
@@ -23,7 +19,7 @@ class PropsCompiler
     public function compile(string $expression): string
     {
         try {
-            $items = $this->parser->parse($expression);
+            $items = ArrayParser::parse($expression);
         } catch (ArrayParserException $e) {
             throw new InvalidPropsDefinitionException($e->expression, $e->getMessage());
         }
@@ -36,13 +32,16 @@ class PropsCompiler
 
         $output .= '$__defaults = ' . $expression . ';' . "\n";
 
-        foreach ($items as $name => $default) {
+        foreach ($items as $key => $value) {
+            $name = is_int($key) ? $value : $key;
+            $hasDefault = ! is_int($key);
+
             $kebab = Str::kebab($name);
             $hasKebabVariant = $kebab !== $name;
 
             $output .= ($hasKebabVariant
-                ? $this->compileKebabAssignment($name, $kebab, $default)
-                : $this->compileAssignment($name, $default)) . "\n";
+                ? $this->compileKebabAssignment($name, $kebab, $hasDefault)
+                : $this->compileAssignment($name, $hasDefault)) . "\n";
 
             $output .= ($hasKebabVariant
                 ? sprintf('unset($__data[\'%s\'], $__data[\'%s\']);', $name, $kebab)
@@ -57,9 +56,9 @@ class PropsCompiler
     /**
      * Generate variable assignment for a prop without kebab variant.
      */
-    protected function compileAssignment(string $name, ?string $default): string
+    protected function compileAssignment(string $name, bool $hasDefault): string
     {
-        if ($default !== null) {
+        if ($hasDefault) {
             return sprintf('$%s ??= $__data[\'%s\'] ?? $__defaults[\'%s\'];', $name, $name, $name);
         }
 
@@ -69,9 +68,9 @@ class PropsCompiler
     /**
      * Generate variable assignment for a prop with kebab variant.
      */
-    protected function compileKebabAssignment(string $name, string $kebab, ?string $default): string
+    protected function compileKebabAssignment(string $name, string $kebab, bool $hasDefault): string
     {
-        if ($default !== null) {
+        if ($hasDefault) {
             return sprintf('$%s ??= $__data[\'%s\'] ?? $__data[\'%s\'] ?? $__defaults[\'%s\'];', $name, $kebab, $name, $name);
         }
 

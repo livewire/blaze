@@ -235,7 +235,7 @@ unset($__data, $__bound); ?><button <?php echo e($attributes); ?>>Click</button>
     it('generates @aware lookup code', function () {
         $compiled = compile('aware-menu-item.blade.php');
 
-        expect($compiled)->toContain("\$color = \$__blaze->getConsumableData('color', 'gray')");
+        expect($compiled)->toContain("\$color = \$__blaze->getConsumableData('color', \$__awareDefaults['color'])");
     });
 
     it('generates props code for component with defaults', function () {

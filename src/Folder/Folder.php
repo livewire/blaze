@@ -112,7 +112,7 @@ class Folder
         }
 
         // Defined props are unsafe by default...
-        $props = array_keys($source->directives->array('props') ?? []);
+        $props = $source->directives->props();
         $unsafe = array_merge($unsafe, $props);
 
         // Expand safe 'attributes' keyword into the actual non-prop attribute names..

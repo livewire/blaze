@@ -9,7 +9,11 @@ describe('basic compilation', function () {
 
         $result = $compiler->compile("['color' => 'gray']");
 
-        expect($result)->toBe("\$color = \$__blaze->getConsumableData('color', 'gray');\n");
+        expect($result)->toBe(
+            "\$__awareDefaults = ['color' => 'gray'];\n" .
+            "\$color = \$__blaze->getConsumableData('color', \$__awareDefaults['color']);\n" .
+            "unset(\$__awareDefaults);\n"
+        );
     });
 
     it('compiles single variable without default', function () {
@@ -17,7 +21,11 @@ describe('basic compilation', function () {
 
         $result = $compiler->compile("['color']");
 
-        expect($result)->toBe("\$color = \$__blaze->getConsumableData('color');\n");
+        expect($result)->toBe(
+            "\$__awareDefaults = ['color'];\n" .
+            "\$color = \$__blaze->getConsumableData('color');\n" .
+            "unset(\$__awareDefaults);\n"
+        );
     });
 
     it('compiles multiple variables with defaults', function () {
@@ -26,8 +34,10 @@ describe('basic compilation', function () {
         $result = $compiler->compile("['color' => 'gray', 'size' => 'md']");
 
         expect($result)->toBe(
-            "\$color = \$__blaze->getConsumableData('color', 'gray');\n" .
-            "\$size = \$__blaze->getConsumableData('size', 'md');\n"
+            "\$__awareDefaults = ['color' => 'gray', 'size' => 'md'];\n" .
+            "\$color = \$__blaze->getConsumableData('color', \$__awareDefaults['color']);\n" .
+            "\$size = \$__blaze->getConsumableData('size', \$__awareDefaults['size']);\n" .
+            "unset(\$__awareDefaults);\n"
         );
     });
 
@@ -37,9 +47,11 @@ describe('basic compilation', function () {
         $result = $compiler->compile("['color' => 'gray', 'size', 'disabled' => false]");
 
         expect($result)->toBe(
-            "\$color = \$__blaze->getConsumableData('color', 'gray');\n" .
+            "\$__awareDefaults = ['color' => 'gray', 'size', 'disabled' => false];\n" .
+            "\$color = \$__blaze->getConsumableData('color', \$__awareDefaults['color']);\n" .
             "\$size = \$__blaze->getConsumableData('size');\n" .
-            "\$disabled = \$__blaze->getConsumableData('disabled', false);\n"
+            "\$disabled = \$__blaze->getConsumableData('disabled', \$__awareDefaults['disabled']);\n" .
+            "unset(\$__awareDefaults);\n"
         );
     });
 
@@ -58,7 +70,7 @@ describe('default value types', function () {
 
         $result = $compiler->compile("['variant' => 'primary']");
 
-        expect($result)->toContain("'primary'");
+        expect($result)->toContain("['variant' => 'primary']");
     });
 
     it('compiles boolean defaults', function () {
@@ -158,7 +170,7 @@ describe('edge cases', function () {
 
         $result = $compiler->compile("['color' => 'gray',]");
 
-        expect($result)->toBe("\$color = \$__blaze->getConsumableData('color', 'gray');\n");
+        expect($result)->toContain("\$color = \$__blaze->getConsumableData('color', \$__awareDefaults['color']);");
     });
 
     it('handles multiline array', function () {
@@ -169,8 +181,8 @@ describe('edge cases', function () {
             'size' => 'md',
         ]");
 
-        expect($result)->toContain("\$color = \$__blaze->getConsumableData('color', 'gray')");
-        expect($result)->toContain("\$size = \$__blaze->getConsumableData('size', 'md')");
+        expect($result)->toContain("\$color = \$__blaze->getConsumableData('color', \$__awareDefaults['color'])");
+        expect($result)->toContain("\$size = \$__blaze->getConsumableData('size', \$__awareDefaults['size'])");
     });
 
     it('handles empty string default', function () {
@@ -189,5 +201,3 @@ describe('edge cases', function () {
         expect($result)->toContain('Hello');
     });
 });
-
-

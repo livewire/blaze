@@ -10,10 +10,6 @@ use Livewire\Blaze\Exceptions\InvalidAwareDefinitionException;
  */
 class AwareCompiler
 {
-    public function __construct(
-        protected ArrayParser $parser = new ArrayParser,
-    ) {}
-
     /**
      * Compile an @aware expression into PHP code.
      *
@@ -22,7 +18,7 @@ class AwareCompiler
     public function compile(string $expression): string
     {
         try {
-            $items = $this->parser->parse($expression);
+            $items = ArrayParser::parse($expression);
         } catch (ArrayParserException $e) {
             throw new InvalidAwareDefinitionException($e->expression, $e->getMessage());
         }
@@ -31,14 +27,23 @@ class AwareCompiler
             return '';
         }
 
-        $output = [];
+        $output = '';
 
-        foreach ($items as $name => $default) {
-            $output[] = $default !== null
-                ? sprintf('$%s = $__blaze->getConsumableData(\'%s\', %s);', $name, $name, $default)
+        $output .= '$__awareDefaults = ' . $expression . ';' . "\n";
+
+        foreach ($items as $key => $value) {
+            $name = is_int($key) ? $value : $key;
+            $hasDefault = ! is_int($key);
+
+            $output .= $hasDefault
+                ? sprintf('$%s = $__blaze->getConsumableData(\'%s\', $__awareDefaults[\'%s\']);', $name, $name, $name)
                 : sprintf('$%s = $__blaze->getConsumableData(\'%s\');', $name, $name);
+
+            $output .= "\n";
         }
 
-        return implode("\n", $output) . "\n";
+        $output .= 'unset($__awareDefaults);' . "\n";
+
+        return $output;
     }
 }

@@ -26,9 +26,4 @@ class Utils
     {
         return (new AttributeParser)->parseAttributeStringToArray($attributeString);
     }
-
-    public static function parseArrayContent(string $expression): array
-    {
-        return (new AttributeParser)->parseArrayStringIntoArray($expression);
-    }
 }

@@ -3,6 +3,7 @@
 namespace Livewire\Blaze\Support;
 
 use Livewire\Blaze\BladeService;
+use Livewire\Blaze\Compiler\ArrayParser;
 
 class Directives
 {
@@ -37,7 +38,23 @@ class Directives
     {
         $expression = $this->get($name);
 
-        return $expression ? Utils::parseArrayContent($expression) : null;
+        return $expression ? ArrayParser::parse($expression) : null;
+    }
+
+    /**
+     * Get the variable names declared by @props.
+     *
+     * @return string[]
+     */
+    public function props(): array
+    {
+        $parsed = $this->array('props') ?? [];
+
+        return array_map(
+            fn ($key, $value) => is_int($key) ? $value : $key,
+            array_keys($parsed),
+            $parsed,
+        );
     }
 
     public function blaze(?string $param = null): mixed

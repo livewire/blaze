@@ -3,6 +3,7 @@
 namespace Livewire\Blaze\Directive;
 
 use Illuminate\Support\Facades\Blade;
+use Livewire\Blaze\Compiler\ArrayParser;
 
 class BlazeDirective
 {
@@ -47,7 +48,7 @@ class BlazeDirective
             foreach ($arrayMatches as $match) {
                 $key = $match[1];
                 $arrayContent = $match[2];
-                $params[$key] = self::parseArrayContent($arrayContent);
+                $params[$key] = ArrayParser::parse("[{$arrayContent}]");
             }
 
             // Remove array parameters from string before processing scalar parameters
@@ -70,26 +71,5 @@ class BlazeDirective
         }
 
         return $params;
-    }
-
-    /**
-     * Parse array content from a directive parameter.
-     *
-     * For example, the string:
-     * "'name', 'title'"
-     *
-     * will be parsed into the array:
-     * ['name', 'title']
-     */
-    protected static function parseArrayContent(string $content): array
-    {
-        $items = [];
-
-        // Match quoted strings (single or double quotes)
-        if (preg_match_all('/[\'"]([^\'"]+)[\'"]/', $content, $matches)) {
-            $items = $matches[1];
-        }
-
-        return $items;
     }
 }

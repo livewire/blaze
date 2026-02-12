@@ -1,6 +1,8 @@
 <?php
 
+use Livewire\Blaze\Compiler\ArrayParser;
 use Livewire\Blaze\Support\AttributeParser;
+use Livewire\Blaze\Support\Utils;
 
 describe('parse attributes', function () {
     it('parses static attributes', function () {
@@ -229,7 +231,7 @@ describe('parse attributes', function () {
             'secondVariant' => null,
         ];
 
-        $attributes = (new AttributeParser())->parseArrayStringIntoArray($input);
+        $attributes = ArrayParser::parse($input);
 
         expect($attributes)->toBe($output);
     });
@@ -244,7 +246,7 @@ describe('parse attributes', function () {
             'secondVariant' => null,
         ];
 
-        $attributes = (new AttributeParser())->parseArrayStringIntoArray($input);
+        $attributes = ArrayParser::parse($input);
 
         expect($attributes)->toBe($output);
     });
@@ -256,7 +258,7 @@ describe('parse attributes', function () {
             'secondVariant' => null,
         ];
 
-        $attributes = (new AttributeParser())->parseArrayStringIntoArray($input);
+        $attributes = ArrayParser::parse($input);
 
         expect($attributes)->toBe($output);
     });
