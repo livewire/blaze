@@ -8,20 +8,21 @@ use Livewire\Blaze\Nodes\SlotNode;
 use Livewire\Blaze\Nodes\TextNode;
 use Livewire\Blaze\Nodes\Node;
 use Livewire\Blaze\BlazeConfig;
-use Livewire\Blaze\Support\AttributeParser;
 use Livewire\Blaze\Support\ComponentSource;
 use Livewire\Blaze\Support\Utils;
 
 class TagCompiler
 {
     protected BlazeConfig $config;
+    protected ComponentTagCompiler $blade;
+    protected SlotCompiler $slotCompiler;
 
-    protected ComponentTagCompiler $componentTagCompiler;
-
-    public function __construct(BlazeConfig $config)
-    {
+    public function __construct(
+        BlazeConfig $config,
+    ) {
         $this->config = $config;
-        $this->componentTagCompiler = new ComponentTagCompiler(
+        $this->slotCompiler = new SlotCompiler(fn (string $str) => $this->getAttributesAndBoundKeysArrayStrings($str, true)[0]);
+        $this->blade = new ComponentTagCompiler(
             aliases: [],
             namespaces: [],
             blade: app('blade.compiler'),
@@ -38,12 +39,16 @@ class TagCompiler
         }
 
         if ($node->name === 'flux::delegate-component') {
-            return new TextNode($this->compileDelegateComponent($node));
+            return new TextNode($this->compileDelegateComponentTag($node));
         }
 
         $source = new ComponentSource($node->name);
 
-        if (! $source->exists() || ! $this->isCompilable($source)) {
+        if (! $source->exists()) {
+            return $node;
+        }
+        
+        if (! $this->shouldCompile($source)) {
             return $node;
         }
 
@@ -51,73 +56,19 @@ class TagCompiler
             return $node;
         }
 
-        $hash = Utils::hash($source->path);
-        $functionName = '_' . $hash;
-        $slotsVariableName = '$slots' . $hash;
-        [$attributesArrayString, $boundKeysArrayString] = $this->getAttributesAndBoundKeysArrayStrings($node->attributeString);
-
-        $output = '<' . '?php $__blaze->ensureCompiled(\'' . $source->path . '\', $__blaze->compiledPath.\'/'. $hash . '.php\'); ?>' . "\n";
-        $output .= '<' . '?php require_once $__blaze->compiledPath.\'/'. $hash . '.php\'; ?>';
-
-        $output .= "\n" . '<' . '?php $__blaze->pushData(' . $attributesArrayString . '); ?>';
-
-        if ($node->selfClosing) {
-            $output .= "\n" . '<' . '?php ' . $functionName . '($__blaze, ' . $attributesArrayString . ', [], ' . $boundKeysArrayString . '); ?>';
-        } else {
-            $output .= "\n" . $this->compileSlots($node, $slotsVariableName);
-            $output .= "\n" . '<' . '?php $__blaze->pushSlots(' . $slotsVariableName . '); ?>';
-            $output .= "\n" . '<' . '?php ' . $functionName . '($__blaze, ' . $attributesArrayString . ', ' . $slotsVariableName . ', ' . $boundKeysArrayString . '); ?>';
-        }
-
-        $output .= "\n" . '<' . '?php $__blaze->popData(); ?>' . "\n";
-
-        return new TextNode($output);
+        return new TextNode($this->compileComponentTag($node, $source));
     }
 
     /**
      * Check if a component should be compiled with Blaze.
      */
-    protected function isCompilable(ComponentSource $source): bool
+    protected function shouldCompile(ComponentSource $source): bool
     {
         if ($source->directives->blaze() !== null) {
             return true;
         }
 
         return $this->config->shouldCompile($source->path);
-    }
-
-    protected function compileDelegateComponent(ComponentNode $node): string
-    {
-        $attributeParser = new AttributeParser;
-        $attributesArray = $attributeParser->parseAttributeStringToArray($node->attributeString);
-        $componentName = "'flux::' . " . $attributesArray['component']['value'];
-
-        $output = '<' . '?php $__resolved = $__blaze->resolve(' . $componentName . '); ?>' . "\n";
-        $output .= '<' . '?php require_once $__blaze->compiledPath . \'/\' . $__resolved . \'.php\'; ?>' . "\n";
-
-        $slotsVariableName = '$slots' . hash('xxh128', $componentName);
-
-        if ($node->selfClosing) {
-            $output .= '<' . '?php (\'_\' . $__resolved)($__blaze, $attributes->all(), $__blaze->mergedComponentSlots(), []); ?>';
-        } else {
-            $output .= $this->compileSlots($node, $slotsVariableName);
-            $output .= "\n" . '<' . '?php ' . $slotsVariableName . ' = array_merge($__blaze->mergedComponentSlots(), ' . $slotsVariableName . '); ?>';
-            $output .= "\n" . '<' . '?php (\'_\' . $__resolved)($__blaze, $attributes->all(), ' . $slotsVariableName . ', []); ?>';
-        }
-
-        $output .= "\n" . '<' . '?php unset($__resolved) ?>' . "\n";
-
-        return $output;
-    }
-
-    protected function compileSlots(ComponentNode $node, string $slotsVariableName): string
-    {
-        $slotCompiler = new SlotCompiler($slotsVariableName, fn ($str) => $this->getAttributesAndBoundKeysArrayStrings($str, true)[0]);
-
-        $output = '<' . '?php ' . $slotsVariableName . ' = []; ?>';
-        $output .= $slotCompiler->compile($node->children);
-
-        return $output;
     }
 
     /**
@@ -132,6 +83,54 @@ class TagCompiler
         }
 
         return false;
+    }
+
+    protected function compileComponentTag(ComponentNode $node, ComponentSource $source): string
+    {
+        $hash = Utils::hash($source->path);
+        $functionName = '_' . $hash;
+        $slotsVariableName = '$slots' . $hash;
+        [$attributesArrayString, $boundKeysArrayString] = $this->getAttributesAndBoundKeysArrayStrings($node->attributeString);
+
+        $output = '<' . '?php $__blaze->ensureCompiled(\'' . $source->path . '\', $__blaze->compiledPath.\'/'. $hash . '.php\'); ?>' . "\n";
+        $output .= '<' . '?php require_once $__blaze->compiledPath.\'/'. $hash . '.php\'; ?>';
+
+        $output .= "\n" . '<' . '?php $__blaze->pushData(' . $attributesArrayString . '); ?>';
+
+        if ($node->selfClosing) {
+            $output .= "\n" . '<' . '?php ' . $functionName . '($__blaze, ' . $attributesArrayString . ', [], ' . $boundKeysArrayString . '); ?>';
+        } else {
+            $output .= "\n" . $this->slotCompiler->compile($slotsVariableName, $node->children);
+            $output .= "\n" . '<' . '?php $__blaze->pushSlots(' . $slotsVariableName . '); ?>';
+            $output .= "\n" . '<' . '?php ' . $functionName . '($__blaze, ' . $attributesArrayString . ', ' . $slotsVariableName . ', ' . $boundKeysArrayString . '); ?>';
+        }
+
+        $output .= "\n" . '<' . '?php $__blaze->popData(); ?>' . "\n";
+
+        return $output;
+    }
+
+    protected function compileDelegateComponentTag(ComponentNode $node): string
+    {
+        $attributesArray = Utils::parseAttributeStringToArray($node->attributeString);
+        $componentName = "'flux::' . " . $attributesArray['component']['value'];
+
+        $output = '<' . '?php $__resolved = $__blaze->resolve(' . $componentName . '); ?>' . "\n";
+        $output .= '<' . '?php require_once $__blaze->compiledPath . \'/\' . $__resolved . \'.php\'; ?>' . "\n";
+
+        $slotsVariableName = '$slots' . hash('xxh128', $componentName);
+
+        if ($node->selfClosing) {
+            $output .= '<' . '?php (\'_\' . $__resolved)($__blaze, $attributes->all(), $__blaze->mergedComponentSlots(), []); ?>';
+        } else {
+            $output .= $this->slotCompiler->compile($slotsVariableName, $node->children);
+            $output .= "\n" . '<' . '?php ' . $slotsVariableName . ' = array_merge($__blaze->mergedComponentSlots(), ' . $slotsVariableName . '); ?>';
+            $output .= "\n" . '<' . '?php (\'_\' . $__resolved)($__blaze, $attributes->all(), ' . $slotsVariableName . ', []); ?>';
+        }
+
+        $output .= "\n" . '<' . '?php unset($__resolved) ?>' . "\n";
+
+        return $output;
     }
 
     /**
@@ -162,7 +161,7 @@ class TagCompiler
             $boundKeysString = '[' . implode(', ', array_map(fn ($k) => "'{$k}'", $boundKeys)) . ']';
 
             return [$attributesString, $boundKeysString];
-        })->call($this->componentTagCompiler, $attributeString, $escapeBound);
+        })->call($this->blade, $attributeString, $escapeBound);
     }
 
 }

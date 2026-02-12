@@ -11,10 +11,13 @@ use Livewire\Blaze\Compiler\TagCompiler;
 
 class Memoizer
 {
-    public function __construct(
-        protected BlazeConfig $config,
-        protected TagCompiler $compiler,
-    ) {
+    protected BlazeConfig $config;
+    protected TagCompiler $compiler;
+
+    public function __construct(BlazeConfig $config)
+    {
+        $this->config = $config;
+        $this->compiler = new TagCompiler($config);
     }
 
     public function isMemoizable(Node $node): bool

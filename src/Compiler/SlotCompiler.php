@@ -4,7 +4,6 @@ namespace Livewire\Blaze\Compiler;
 
 use Illuminate\Support\Str;
 use Livewire\Blaze\Nodes\SlotNode;
-use Closure;
 
 /**
  * Compiles slot nodes into output buffering PHP code.
@@ -15,8 +14,7 @@ class SlotCompiler
      * @param callable(string): string $getAttributesArrayString
      */
     public function __construct(
-        protected string $slotsVariableName,
-        protected Closure $getAttributesArrayString,
+        protected \Closure $getAttributesArrayString,
     ) {}
 
     /**
@@ -24,13 +22,13 @@ class SlotCompiler
      *
      * @param array<Node> $children
      */
-    public function compile(array $children): string
+    public function compile(string $slotsVariableName, array $children): string
     {
         $output = [];
 
         // Compile implicit default slot from loose content (non-SlotNode children)
         if (! $this->hasExplicitDefaultSlot($children)) {
-            $output[] = $this->compileSlot('slot', $this->renderLooseContent($children), '[]');
+            $output[] = $this->compileSlot('slot', $this->renderLooseContent($children), '[]', $slotsVariableName);
         }
 
         // Compile each named slot
@@ -40,11 +38,14 @@ class SlotCompiler
                     $this->resolveSlotName($child),
                     $this->renderChildren($child->children),
                     $this->compileSlotAttributes($child),
+                    $slotsVariableName,
                 );
             }
         }
 
-        return "\n" . implode("\n", $output);
+        return "\n"
+            . '<' . '?php ' . $slotsVariableName . ' = []; ?>'
+            . implode("\n", $output);
     }
 
     /**
@@ -97,11 +98,11 @@ class SlotCompiler
     /**
      * Compile a slot into ob_start/ob_get_clean code.
      */
-    protected function compileSlot(string $name, string $content, string $attributes): string
+    protected function compileSlot(string $name, string $content, string $attributes, string $slotsVariableName): string
     {
         return '<' . '?php ob_start(); ?>'
             . $content
-            . '<' . '?php ' . $this->slotsVariableName . '[\'' . $name . '\'] = new \Illuminate\View\ComponentSlot(trim(ob_get_clean()), ' . $attributes . '); ?>';
+            . '<' . '?php ' . $slotsVariableName . '[\'' . $name . '\'] = new \Illuminate\View\ComponentSlot(trim(ob_get_clean()), ' . $attributes . '); ?>';
     }
 
     /**

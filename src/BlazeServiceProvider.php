@@ -38,16 +38,9 @@ class BlazeServiceProvider extends ServiceProvider
             new Tokenizer,
             new Parser,
             new Walker,
-            $tagCompiler = new TagCompiler(
-                config: $config,
-            ),
-            new Folder(
-                config: $config,
-            ),
-            new Memoizer(
-                config: $config,
-                compileTag: fn ($node) => $tagCompiler->compile($node)->render(),
-            ),
+            new TagCompiler($config),
+            new Folder($config),
+            new Memoizer($config),
             new ComponentCompiler,
             $config,
         ));
