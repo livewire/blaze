@@ -25,7 +25,9 @@ class AttributeParser
             $pos = $m[0][1];
             $m = array_column($m, 0);
             $attributeName = str($m[1])->camel()->toString();
-            if (isset($attributes[$attributeName])) continue;
+            if (isset($attributes[$attributeName])) {
+                continue;
+            }
 
             $attributes[$attributeName] = [
                 'name' => $m[1],
@@ -42,7 +44,9 @@ class AttributeParser
             $pos = $m[0][1];
             $m = array_column($m, 0);
             $attributeName = str($m[1])->camel()->toString();
-            if (isset($attributes[$attributeName])) continue;
+            if (isset($attributes[$attributeName])) {
+                continue;
+            }
 
             $attributes[$attributeName] = [
                 'name' => $m[1],
@@ -59,7 +63,9 @@ class AttributeParser
             $pos = $m[0][1];
             $m = array_column($m, 0);
             $attributeName = str($m[1])->camel()->toString();
-            if (isset($attributes[$attributeName])) continue;
+            if (isset($attributes[$attributeName])) {
+                continue;
+            }
 
             $attributes[$attributeName] = [
                 'name' => $m[1],
@@ -76,7 +82,9 @@ class AttributeParser
             $pos = $m[0][1];
             $m = array_column($m, 0);
             $attributeName = str($m[1])->camel()->toString();
-            if (isset($attributes[$attributeName])) continue;
+            if (isset($attributes[$attributeName])) {
+                continue;
+            }
 
             $attributes[$attributeName] = [
                 'name' => $m[1],
@@ -94,12 +102,14 @@ class AttributeParser
             $m = array_column($m, 0);
             $raw = $m[1];
             $attributeName = str($raw)->camel()->toString();
-            if (isset($attributes[$attributeName])) continue;
+            if (isset($attributes[$attributeName])) {
+                continue;
+            }
 
             $attributes[$attributeName] = [
                 'name' => $m[1],
                 'isDynamic' => true,
-                'value' => '$' . $raw,
+                'value' => '$'.$raw,
                 'original' => trim($m[0]),
                 'quotes' => '"',
                 'position' => $pos,
@@ -111,7 +121,9 @@ class AttributeParser
             $pos = $m[0][1];
             $m = array_column($m, 0);
             $attributeName = str($m[1])->camel()->toString();
-            if (isset($attributes[$attributeName])) continue;
+            if (isset($attributes[$attributeName])) {
+                continue;
+            }
 
             $attributes[$attributeName] = [
                 'name' => $m[1],
@@ -128,7 +140,9 @@ class AttributeParser
             $pos = $m[0][1];
             $m = array_column($m, 0);
             $attributeName = str($m[1])->camel()->toString();
-            if (isset($attributes[$attributeName])) continue;
+            if (isset($attributes[$attributeName])) {
+                continue;
+            }
 
             $attributes[$attributeName] = [
                 'name' => $m[1],
@@ -148,7 +162,9 @@ class AttributeParser
             $pos = $m[0][1];
             $m = array_column($m, 0);
             $attributeName = str($m[1])->camel()->toString();
-            if (isset($attributes[$attributeName])) continue;
+            if (isset($attributes[$attributeName])) {
+                continue;
+            }
 
             $attributes[$attributeName] = [
                 'name' => $m[1],
@@ -197,7 +213,7 @@ class AttributeParser
         $attributesString = '';
 
         foreach ($attributes as $attributeName => $attributeValue) {
-            $attributesString .= $attributeValue['original'] . ' ';
+            $attributesString .= $attributeValue['original'].' ';
         }
 
         return trim($attributesString);
@@ -212,7 +228,8 @@ class AttributeParser
 
         foreach ($attributes as $attributeName => $attributeData) {
             if ($attributeData['isDynamic']) {
-                $arrayParts[] = "'" . addslashes($attributeName) . "' => " . $attributeData['value'];
+                $arrayParts[] = "'".addslashes($attributeName)."' => ".$attributeData['value'];
+
                 continue;
             }
 
@@ -220,18 +237,22 @@ class AttributeParser
 
             if (is_bool($value)) {
                 $valueString = $value ? 'true' : 'false';
+            } elseif (is_string($value) && str_contains($value, '{{')) {
+                // Blade echo syntax (e.g. {{ $order->avatar }}) must be compiled
+                // to a PHP expression so the runtime value is used (not the literal template string).
+                // This is critical for memoization keys to be unique per evaluated value.
+                $valueString = Utils::compileAttributeEchos($value);
             } elseif (is_string($value)) {
-                $valueString = "'" . addslashes($value) . "'";
+                $valueString = "'".addslashes($value)."'";
             } elseif (is_null($value)) {
                 $valueString = 'null';
             } else {
                 $valueString = (string) $value;
             }
 
-            $arrayParts[] = "'" . addslashes($attributeName) . "' => " . $valueString;
+            $arrayParts[] = "'".addslashes($attributeName)."' => ".$valueString;
         }
 
-        return '[' . implode(', ', $arrayParts) . ']';
+        return '['.implode(', ', $arrayParts).']';
     }
-
 }

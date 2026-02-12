@@ -41,10 +41,8 @@ class BladeService
      */
     public static function getHackedBladeCompiler()
     {
-        $instance = new class (
-            app('files'),
-            config('view.compiled'),
-        ) extends \Illuminate\View\Compilers\BladeCompiler {
+        $instance = new class(app('files'), config('view.compiled')) extends \Illuminate\View\Compilers\BladeCompiler
+        {
             public function compileStatementsMadePublic($template)
             {
                 $template = $this->storeUncompiledBlocks($template);
@@ -76,13 +74,13 @@ class BladeService
 
         return $instance;
     }
-    
+
     /**
      * Get the temporary cache directory path used during isolated rendering.
      */
     public static function getTemporaryCachePath(): string
     {
-        return config('view.compiled') . '/blaze';
+        return config('view.compiled').'/blaze';
     }
 
     /**
@@ -107,14 +105,22 @@ class BladeService
             'renderCount' => 0,
         ]);
 
+        $isTopLevelTemplate = true;
+
         [$compiler, $restore] = static::freezeObjectProperties($compiler, [
             'cachePath' => $temporaryCachePath,
             'rawBlocks',
             'prepareStringsForCompilationUsing' => [
-                function ($input) {
-                    if (Unblaze::hasUnblaze($input)) {
+                function ($input) use (&$isTopLevelTemplate) {
+                    // Only process @unblaze for the top-level template being folded.
+                    // Nested compilations (triggered by ensureCompiled for inner components)
+                    // should not have their @unblaze processed here, as the markers would
+                    // end up in the compiled function files without being replaced.
+                    if ($isTopLevelTemplate && Unblaze::hasUnblaze($input)) {
                         $input = Unblaze::processUnblazeDirectives($input);
                     }
+                    
+                    $isTopLevelTemplate = false;
 
                     $input = Blaze::compileForFolding($input);
 
@@ -211,7 +217,7 @@ class BladeService
         $reflection = new \ReflectionClass($compiler);
         $method = $reflection->getMethod('compileAttributeEchos');
 
-        return Str::unwrap("'" . $method->invoke($compiler, $input) . "'", "''.", ".''");
+        return Str::unwrap("'".$method->invoke($compiler, $input)."'", "''.", ".''");
     }
 
     /**
