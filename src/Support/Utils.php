@@ -26,4 +26,12 @@ class Utils
     {
         return (new AttributeParser)->parseAttributeStringToArray($attributeString);
     }
+
+    /**
+     * Generate a unique hash for a component path.
+     */
+    public static function hash(string $componentPath): string
+    {
+        return hash('xxh128', 'v2' . $componentPath);
+    }
 }

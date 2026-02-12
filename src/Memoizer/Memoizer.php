@@ -7,17 +7,14 @@ use Livewire\Blaze\Nodes\TextNode;
 use Livewire\Blaze\Nodes\Node;
 use Livewire\Blaze\BlazeConfig;
 use Livewire\Blaze\Support\ComponentSource;
+use Livewire\Blaze\Compiler\TagCompiler;
 
 class Memoizer
 {
-    protected $compileNode;
-
-    protected BlazeConfig $config;
-
-    public function __construct(BlazeConfig $config, callable $compileTag)
-    {
-        $this->compileNode = $compileTag;
-        $this->config = $config;
+    public function __construct(
+        protected BlazeConfig $config,
+        protected TagCompiler $compiler,
+    ) {
     }
 
     public function isMemoizable(Node $node): bool
@@ -68,7 +65,7 @@ class Memoizer
         $output = '<' . '?php $blaze_memoized_key = \Livewire\Blaze\Memoizer\Memo::key("' . $name . '", ' . $attributes . '); ?>';
         $output .= '<' . '?php if (! \Livewire\Blaze\Memoizer\Memo::has($blaze_memoized_key)) : ?>';
         $output .= '<' . '?php ob_start(); ?>';
-        $output .= ($this->compileNode)($node);
+        $output .= $this->compiler->compile($node)->render();
         $output .= '<' . '?php \Livewire\Blaze\Memoizer\Memo::put($blaze_memoized_key, ob_get_clean()); ?>';
         $output .= '<' . '?php endif; ?>';
         $output .= '<' . '?php echo \Livewire\Blaze\Memoizer\Memo::get($blaze_memoized_key); ?>';

@@ -6,7 +6,7 @@ use Illuminate\Contracts\View\Factory;
 use Illuminate\Foundation\Application;
 use Illuminate\Support\ViewErrorBag;
 use Livewire\Blaze\BladeService;
-use Livewire\Blaze\Compiler\TagCompiler;
+use Livewire\Blaze\Support\Utils;
 
 class BlazeRuntime
 {
@@ -67,7 +67,7 @@ class BlazeRuntime
             $path = $this->paths[$component] = BladeService::componentNameToPath($component);
         }
 
-        $hash = TagCompiler::hash($path);
+        $hash = Utils::hash($path);
         $compiled = $this->compiledPath.'/'.$hash.'.php';
 
         if (! isset($this->compiled[$path])) {

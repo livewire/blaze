@@ -10,6 +10,7 @@ use Livewire\Blaze\Nodes\Node;
 use Livewire\Blaze\BlazeConfig;
 use Livewire\Blaze\Support\AttributeParser;
 use Livewire\Blaze\Support\ComponentSource;
+use Livewire\Blaze\Support\Utils;
 
 class TagCompiler
 {
@@ -50,7 +51,7 @@ class TagCompiler
             return $node;
         }
 
-        $hash = self::hash($source->path);
+        $hash = Utils::hash($source->path);
         $functionName = '_' . $hash;
         $slotsVariableName = '$slots' . $hash;
         [$attributesArrayString, $boundKeysArrayString] = $this->getAttributesAndBoundKeysArrayStrings($node->attributeString);
@@ -164,11 +165,4 @@ class TagCompiler
         })->call($this->componentTagCompiler, $attributeString, $escapeBound);
     }
 
-    /**
-     * Generate a unique hash for a component path.
-     */
-    public static function hash(string $componentPath): string
-    {
-        return hash('xxh128', 'v2' . $componentPath);
-    }
 }

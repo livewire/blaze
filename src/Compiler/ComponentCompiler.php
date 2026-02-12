@@ -4,6 +4,7 @@ namespace Livewire\Blaze\Compiler;
 
 use Livewire\Blaze\BladeService;
 use Livewire\Blaze\Support\Directives;
+use Livewire\Blaze\Support\Utils;
 
 /**
  * Compiles Blaze component templates into PHP function definitions.
@@ -25,7 +26,7 @@ class ComponentCompiler
     public function compile(string $compiled, string $path, ?string $source = null): string
     {
         $source ??= $compiled;
-        $name = '_'.TagCompiler::hash($path);
+        $name = '_'.Utils::hash($path);
 
         $sourceDirectives = new Directives($source);
 

@@ -1,6 +1,6 @@
 <?php
 
-use Livewire\Blaze\Compiler\TagCompiler;
+use Livewire\Blaze\Support\Utils;
 
 beforeEach(function () {
     app('blade.compiler')->anonymousComponentPath(__DIR__ . '/fixtures');
@@ -28,7 +28,7 @@ describe('fold fallback to function compilation', function () {
         // on the placeholder string during folding, triggering fallback
 
         $componentPath = __DIR__ . '/fixtures/fold-fallback/will-fail-fold.blade.php';
-        $hash = TagCompiler::hash($componentPath);
+        $hash = Utils::hash($componentPath);
 
         $compiled = app('blaze')->compile('<x-fold-fallback.will-fail-fold :value="$jsonString" />');
 
