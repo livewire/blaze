@@ -13,7 +13,7 @@ class ComponentNode extends Node
 {
     /** @var Attribute[] */
     public array $attributes = [];
-    
+
     public function __construct(
         public string $name,
         public string $prefix,
@@ -41,14 +41,14 @@ class ComponentNode extends Node
      */
     protected function resolveSlotName(SlotNode $slot): string
     {
-        if (!empty($slot->name)) {
+        if (! empty($slot->name)) {
             return $slot->name;
         }
-        
+
         if (preg_match('/(?:^|\s)name\s*=\s*["\']([^"\']+)["\']/', $slot->attributeString, $matches)) {
             return $matches[1];
         }
-        
+
         return 'slot';
     }
 
@@ -69,23 +69,28 @@ class ComponentNode extends Node
 
         foreach ($this->attributes as $attribute) {
             if ($attribute->value === true) {
-                $output .= ' ' . $attribute->name;
+                $output .= ' '.$attribute->name;
+            } elseif ($attribute->prefix === ':$') {
+                // :$var shorthand must be rendered without ="value" to remain valid Blade syntax.
+                // Blade expands :$title into :title="$title" internally — adding ="$title"
+                // produces :$title="$title" which Blade's ComponentTagCompiler cannot parse.
+                $output .= ' :$'.$attribute->name;
             } else {
-                $output .= ' ' . $attribute->prefix . $attribute->name . '=' . $attribute->quotes . $attribute->value . $attribute->quotes;
+                $output .= ' '.$attribute->prefix.$attribute->name.'='.$attribute->quotes.$attribute->value.$attribute->quotes;
             }
         }
 
         if ($this->selfClosing) {
             return $output.' />';
         }
-        
+
         $output .= '>';
-        
+
         // Iterate over original children to preserve structure
         foreach ($this->children as $child) {
             $output .= $child->render();
         }
-        
+
         $output .= "</{$this->prefix}{$name}>";
 
         return $output;

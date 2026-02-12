@@ -1,12 +1,14 @@
 <?php
 
 describe('exercise without folding', function () {
-    function compileBlade(string $input): string {
+    function compileBlade(string $input): string
+    {
         $tokenizer = new \Livewire\Blaze\Tokenizer\Tokenizer;
         $parser = new \Livewire\Blaze\Parser\Parser;
         $tokens = $tokenizer->tokenize($input);
         $ast = $parser->parse($tokens);
         $output = implode('', array_map(fn ($n) => $n->render(), $ast));
+
         return $output;
     }
 
@@ -248,6 +250,21 @@ if (condition && other_condition) {
 
     it('attributes with nested quotes', function () {
         $input = '<x-tooltip message="Click the \'Save\' button to continue">Hover me</x-tooltip>';
+        expect(compileBlade($input))->toBe($input);
+    });
+
+    it('preserves :$variable shorthand attributes', function () {
+        $input = '<x-layout :$title :$section>Content</x-layout>';
+        expect(compileBlade($input))->toBe($input);
+    });
+
+    it('preserves :$variable shorthand on self-closing components', function () {
+        $input = '<x-header :$title :$section />';
+        expect(compileBlade($input))->toBe($input);
+    });
+
+    it('preserves :$variable shorthand mixed with other attributes', function () {
+        $input = '<x-layout class="bg-zinc-50" :$attributes :$title :$section>Content</x-layout>';
         expect(compileBlade($input))->toBe($input);
     });
 });
