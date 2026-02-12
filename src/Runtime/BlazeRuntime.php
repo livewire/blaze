@@ -7,6 +7,7 @@ use Illuminate\Foundation\Application;
 use Illuminate\Support\ViewErrorBag;
 use Livewire\Blaze\BladeService;
 use Livewire\Blaze\Support\Utils;
+use Livewire\Blaze\Debugger;
 
 /**
  * Runtime context shared with all Blaze-compiled components via $__blaze.
@@ -17,6 +18,8 @@ class BlazeRuntime
 
     public readonly Application $app;
 
+    public readonly Debugger $debugger;
+
     public string $compiledPath;
 
     protected ViewErrorBag $errors;
@@ -26,12 +29,11 @@ class BlazeRuntime
     protected array $compiled = [];
     protected array $dataStack = [];
     protected array $slotsStack = [];
-    protected array $counts = [];
-
     public function __construct()
     {
         $this->env = app('view');
         $this->app = app();
+        $this->debugger = app('blaze.debugger');
         $this->compiledPath = config('view.compiled');
     }
 
@@ -172,22 +174,5 @@ class BlazeRuntime
         }
 
         return value($default);
-    }
-
-    /**
-     * Increment the render count for a component function (debug mode).
-     */
-    public function increment(string $name): void
-    {
-        $this->counts[$name] ??= 0;
-        $this->counts[$name]++;
-    }
-    
-    /**
-     * Get the render counts for all components (debug mode).
-     */
-    public function getCounts(): array
-    {
-        return $this->counts;
     }
 }

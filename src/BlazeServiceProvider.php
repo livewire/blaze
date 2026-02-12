@@ -34,6 +34,7 @@ class BlazeServiceProvider extends ServiceProvider
     {
         $this->app->singleton(BlazeRuntime::class, fn () => new BlazeRuntime);
         $this->app->singleton(Config::class, fn () => new Config);
+        $this->app->singleton(Debugger::class, fn () => new Debugger);
 
         $config = $this->app->make(Config::class);
 
@@ -52,6 +53,7 @@ class BlazeServiceProvider extends ServiceProvider
 
         $this->app->bind('blaze', fn ($app) => $app->make(BlazeManager::class));
         $this->app->bind('blaze.runtime', fn ($app) => $app->make(BlazeRuntime::class));
+        $this->app->bind('blaze.debugger', fn ($app) => $app->make(Debugger::class));
     }
 
     /**

@@ -44,10 +44,14 @@ class Wrapper
         $sourceUsesAttributes = str_contains($this->stripDirective($source, 'props'), '$attributes') || str_contains($source, '<flux:delegate-component');
         $needsEchoHandler = $this->hasEchoHandlers() && $this->hasEchoSyntax($source);
 
+        $isDebugging = app('blaze')->isDebugging() && ! app('blaze')->isFolding();
+        $componentName = $isDebugging ? app('blaze.runtime')->debugger->extractComponentName($path) : null;
+
         return implode('', array_filter([
             '<'.'?php if (!function_exists(\''.$name.'\')):'."\n",
             'function '.$name.'($__blaze, $__data = [], $__slots = [], $__bound = []) {'."\n",
-            app('blaze')->isDebugging() && ! app('blaze')->isFolding() ? '$__blaze->increment(\''.$name.'\');'."\n" : null,
+            $isDebugging ? '$__blaze->debugger->increment(\''.$name.'\', \''.$componentName.'\');'."\n" : null,
+            $isDebugging ? '$__blaze->debugger->startTimer(\''.$name.'\');'."\n" : null,
             '$__env = $__blaze->env;'."\n",
             $needsEchoHandler ? '$__bladeCompiler = app(\'blade.compiler\');'."\n" : null,
             'if (($__data[\'attributes\'] ?? null) instanceof \Illuminate\View\ComponentAttributeBag) { $__data = $__data + $__data[\'attributes\']->all(); unset($__data[\'attributes\']); }'."\n",
@@ -63,6 +67,7 @@ class Wrapper
             $sourceUsesAttributes ? '$attributes = \\Livewire\\Blaze\\Runtime\\BlazeAttributeBag::sanitized($__data, $__bound);'."\n" : null,
             'unset($__data, $__bound); ?>',
             $compiled,
+            $isDebugging ? '<'.'?php $__blaze->debugger->stopTimer(\''.$name.'\'); ?>' : null,
             '<'.'?php } endif; ?>',
         ]));
     }

@@ -255,6 +255,8 @@ class BlazeManager
     public function debug()
     {
         $this->debug = true;
+
+        DebuggerMiddleware::register();
     }
 
     /**

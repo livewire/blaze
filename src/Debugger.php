@@ -1,0 +1,618 @@
+<?php
+
+namespace Livewire\Blaze;
+
+class Debugger
+{
+    protected ?int $renderStart = null;
+
+    protected float $renderTime = 0.0;
+
+    protected array $components = [];
+
+    protected int $bladeComponentCount = 0;
+
+    protected array $bladeComponents = [];
+
+    protected bool $blazeEnabled = false;
+
+    protected ?array $comparison = null;
+
+    protected bool $isColdRender = false;
+
+    protected array $componentNames = [];
+
+    protected array $timers = [];
+
+    /**
+     * Extract a human-readable component name from its file path.
+     *
+     * Handles various path patterns:
+     * - Flux stubs: .../flux/stubs/resources/views/flux/button/index.blade.php -> flux:button
+     * - Vendor packages: .../vendor/livewire/flux/resources/views/components/... -> flux:...
+     * - App components: .../resources/views/components/button.blade.php -> button
+     */
+    public function extractComponentName(string $path): string
+    {
+        $resolved = realpath($path) ?: $path;
+
+        // Flux stubs pattern: /flux/.../resources/views/flux/<component>.blade.php
+        if (preg_match('#/flux/.+?/resources/views/flux/(.+?)\.blade\.php$#', $resolved, $matches)) {
+            $name = str_replace('/', '.', $matches[1]);
+            $name = preg_replace('/\.index$/', '', $name);
+            return 'flux:'.$name;
+        }
+
+        // Standard components/ directory
+        if (preg_match('#/resources/views/components/(.+?)\.blade\.php$#', $resolved, $matches)) {
+            $name = str_replace('/', '.', $matches[1]);
+            $name = preg_replace('/\.index$/', '', $name);
+
+            // Detect package namespace from vendor path
+            if (preg_match('#/vendor/[^/]+/([^/]+)/#', $resolved, $vendorMatches)) {
+                $package = $vendorMatches[1];
+                if ($package !== 'blaze') {
+                    return $package.':'.$name;
+                }
+            }
+
+            return $name;
+        }
+
+        // Fallback: use the filename without .blade
+        $filename = pathinfo($resolved, PATHINFO_FILENAME);
+        return str_replace('.blade', '', $filename);
+    }
+
+    public function increment(string $hash, ?string $componentName = null): void
+    {
+        if (! isset($this->components[$hash])) {
+            $this->components[$hash] = [
+                'name' => $componentName ?? $hash,
+                'count' => 0,
+                'totalTime' => 0.0,
+            ];
+        }
+
+        $this->components[$hash]['count']++;
+
+        if ($componentName !== null) {
+            $this->componentNames[$hash] = $componentName;
+        }
+    }
+
+    /**
+     * Start a timer for a component render.
+     */
+    public function startTimer(string $hash): void
+    {
+        $this->timers[$hash] = hrtime(true);
+    }
+
+    /**
+     * Stop a timer and record the duration to the debug bar.
+     */
+    public function stopTimer(string $hash): void
+    {
+        if (! isset($this->timers[$hash])) {
+            return;
+        }
+
+        $duration = (hrtime(true) - $this->timers[$hash]) / 1e9; // seconds
+        unset($this->timers[$hash]);
+
+        $name = $this->componentNames[$hash] ?? $hash;
+
+        $this->recordComponent($hash, $name, $duration);
+    }
+
+    public function startRenderTimer(): void
+    {
+        $this->renderStart = hrtime(true);
+    }
+
+    public function stopRenderTimer(): void
+    {
+        if ($this->renderStart !== null) {
+            $this->renderTime = (hrtime(true) - $this->renderStart) / 1e6; // ns → ms
+        }
+    }
+
+    public function getPageRenderTime(): float
+    {
+        return $this->renderTime;
+    }
+
+    public function setBlazeEnabled(bool $enabled): void
+    {
+        $this->blazeEnabled = $enabled;
+    }
+
+    public function setComparison(?array $comparison): void
+    {
+        $this->comparison = $comparison;
+    }
+
+    public function setIsColdRender(bool $cold): void
+    {
+        $this->isColdRender = $cold;
+    }
+
+    public function incrementBladeComponents(string $name = 'unknown'): void
+    {
+        $this->bladeComponentCount++;
+
+        if (! isset($this->bladeComponents[$name])) {
+            $this->bladeComponents[$name] = 0;
+        }
+
+        $this->bladeComponents[$name]++;
+    }
+
+    /**
+     * Record a component render with its human-readable name.
+     */
+    public function recordComponent(string $hash, string $name, float $duration): void
+    {
+        if (! isset($this->components[$hash])) {
+            $this->components[$hash] = [
+                'name' => $name,
+                'count' => 0,
+                'totalTime' => 0.0,
+            ];
+        }
+
+        $this->components[$hash]['count']++;
+        $this->components[$hash]['totalTime'] += $duration;
+    }
+
+    /**
+     * Get all collected data for rendering the debug bar.
+     */
+    protected function getData(): array
+    {
+        $components = collect($this->components)
+            ->map(fn ($data) => [
+                'name' => $data['name'],
+                'count' => $data['count'],
+                'totalTime' => round($data['totalTime'] * 1000, 2), // ms
+            ])
+            ->sortByDesc('totalTime')
+            ->values()
+            ->all();
+
+        return [
+            'blazeEnabled' => $this->blazeEnabled,
+            'isColdRender' => $this->isColdRender,
+            'comparison' => $this->comparison,
+            'totalTime' => round($this->renderTime, 2),
+            'totalComponents' => array_sum(array_column($components, 'count')),
+            'bladeComponentCount' => $this->bladeComponentCount,
+            'bladeComponents' => collect($this->bladeComponents)
+                ->map(fn ($count, $name) => ['name' => $name, 'count' => $count])
+                ->sortByDesc('count')
+                ->values()
+                ->all(),
+            'components' => $components,
+        ];
+    }
+
+    /**
+     * Format a number for display (e.g. 83120 -> "83.12k").
+     */
+    protected function formatCount(int|float $value): string
+    {
+        if ($value >= 1000) {
+            return round($value / 1000, 2) . 'k';
+        }
+
+        return (string) $value;
+    }
+
+    protected function formatMs(float $value): string
+    {
+        if ($value >= 1000) {
+            return round($value / 1000, 2) . 's';
+        }
+
+        if ($value < 0.01 && $value > 0) {
+            return round($value * 1000, 2) . 'μs';
+        }
+
+        return round($value, 2) . 'ms';
+    }
+
+    // ──────────────────────────────────────────
+    //  Rendering
+    // ──────────────────────────────────────────
+
+    /**
+     * Render the debug bar as an HTML string to be injected into the page.
+     */
+    public function render(): string
+    {
+        $data = $this->getData();
+
+        return implode("\n", [
+            '<!-- Blaze Debug Bar -->',
+            $this->renderStyles($data),
+            $this->renderHtml($data),
+            $this->renderScript(),
+            '<!-- End Blaze Debug Bar -->',
+        ]);
+    }
+
+    protected function renderStyles(array $data): string
+    {
+        $accentRgb = $data['blazeEnabled'] ? '249, 115, 22' : '99, 102, 241';
+
+        return <<<HTML
+        <style>
+            #blaze-debugbar *, #blaze-debugbar *::before, #blaze-debugbar *::after {
+                box-sizing: border-box;
+                margin: 0;
+                padding: 0;
+            }
+
+            #blaze-debugbar {
+                position: fixed;
+                bottom: 20px;
+                right: 20px;
+                z-index: 99999;
+                font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+                display: flex;
+                flex-direction: column;
+                align-items: flex-end;
+                gap: 12px;
+            }
+
+            #blaze-bubble {
+                width: 56px;
+                height: 56px;
+                border-radius: 50%;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                cursor: pointer;
+                text-decoration: none;
+                transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.3s ease;
+                position: relative;
+                flex-shrink: 0;
+            }
+
+            #blaze-bubble:hover { transform: scale(1.1); }
+            #blaze-bubble:active { transform: scale(0.92); transition-duration: 0.1s; }
+
+            #blaze-card {
+                background: rgba(15, 23, 42, 0.96);
+                backdrop-filter: blur(16px);
+                -webkit-backdrop-filter: blur(16px);
+                border: 1px solid rgba(51, 65, 85, 0.5);
+                border-radius: 16px;
+                padding: 16px;
+                min-width: 280px;
+                max-width: 340px;
+                box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(255, 255, 255, 0.03);
+                animation: blaze-card-in 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
+                transform-origin: bottom right;
+            }
+
+            #blaze-detail-panel {
+                max-height: 240px;
+                overflow-y: auto;
+                scrollbar-width: thin;
+                scrollbar-color: #334155 transparent;
+            }
+
+            #blaze-detail-panel::-webkit-scrollbar { width: 4px; }
+            #blaze-detail-panel::-webkit-scrollbar-track { background: transparent; }
+            #blaze-detail-panel::-webkit-scrollbar-thumb { background: #334155; border-radius: 2px; }
+
+            @keyframes blaze-card-in {
+                from { opacity: 0; transform: scale(0.9) translateY(8px); }
+                to { opacity: 1; transform: scale(1) translateY(0); }
+            }
+
+            @keyframes blaze-pulse {
+                0%, 100% { box-shadow: 0 4px 20px rgba({$accentRgb}, 0.35); }
+                50% { box-shadow: 0 4px 28px rgba({$accentRgb}, 0.55), 0 0 0 8px rgba({$accentRgb}, 0.08); }
+            }
+
+            @keyframes blaze-savings-in {
+                0% { opacity: 0; transform: scale(0.85); }
+                60% { transform: scale(1.03); }
+                100% { opacity: 1; transform: scale(1); }
+            }
+
+            #blaze-detail-toggle { transition: color 0.15s ease; }
+            #blaze-detail-toggle:hover { color: #cbd5e1 !important; }
+        </style>
+        HTML;
+    }
+
+    protected function renderHtml(array $data): string
+    {
+        return <<<HTML
+        <div id="blaze-debugbar">
+            {$this->renderCard($data)}
+            {$this->renderBubble($data)}
+        </div>
+        HTML;
+    }
+
+    protected function renderCard(array $data): string
+    {
+        $isBlaze = $data['blazeEnabled'];
+        $accentColor = $isBlaze ? '#f97316' : '#6366f1';
+        $modeName = $isBlaze ? 'Blaze' : 'Blade';
+        $timeFormatted = $this->formatMs($data['totalTime']);
+        $totalComponents = $isBlaze ? $data['totalComponents'] : $data['bladeComponentCount'];
+        $componentsFormatted = $this->formatCount($totalComponents);
+
+        $coldTag = $data['isColdRender']
+            ? ' <span style="color: #94a3b8; font-size: 9px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; background: rgba(148, 163, 184, 0.1); border: 1px solid rgba(148, 163, 184, 0.2); padding: 3px 6px; border-radius: 9999px; line-height: 1;">cold</span>'
+            : '';
+
+        $savingsHtml = $this->renderSavingsBlock($data);
+        $detailHtml = $this->renderComponentDetail($data);
+
+        return <<<HTML
+        <div id="blaze-card">
+            <div style="display: flex; align-items: center; gap: 7px; margin-bottom: 12px;">
+                <span style="color: {$accentColor}; font-weight: 700; font-size: 12px; letter-spacing: 0.03em; text-transform: uppercase;">{$modeName}</span>
+            </div>
+
+            <div style="display: flex; align-items: center; gap: 8px;">
+                <span style="color: #f1f5f9; font-weight: 700; font-size: 28px; font-family: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, monospace; letter-spacing: -1.5px; line-height: 1;">{$timeFormatted}</span>
+                {$coldTag}
+            </div>
+
+            {$savingsHtml}
+
+            <div style="margin-top: 14px; padding-top: 12px; border-top: 1px solid #1e293b;">
+                <div id="blaze-detail-toggle" style="color: #94a3b8; font-size: 11px; cursor: pointer; user-select: none; display: flex; align-items: center; gap: 5px; font-weight: 500;">
+                    <span id="blaze-detail-arrow" style="font-size: 8px; transition: transform 0.2s ease; display: inline-block;">▶</span>
+                    <span>{$componentsFormatted} components</span>
+                </div>
+                <div id="blaze-detail-panel" style="display: none; margin-top: 10px;">
+                    {$detailHtml}
+                </div>
+            </div>
+        </div>
+        HTML;
+    }
+
+    protected function renderSavingsBlock(array $data): string
+    {
+        $isBlaze = $data['blazeEnabled'];
+        $isCold = $data['isColdRender'];
+        $comparison = $data['comparison'];
+
+        if (! $isBlaze) {
+            return <<<HTML
+            <div style="color: #475569; font-size: 11px; margin-top: 10px; line-height: 1.5;">
+                Click the bubble to enable Blaze<br>
+                and see performance savings
+            </div>
+            HTML;
+        }
+
+        if (! $comparison) {
+            return <<<HTML
+            <div style="color: #475569; font-size: 11px; margin-top: 10px; line-height: 1.5;">
+                Reload in Blade mode first to<br>
+                record baseline render times
+            </div>
+            HTML;
+        }
+
+        $warm = $comparison['warm'];
+        $cold = $comparison['cold'];
+
+        // Primary = the comparison matching the current render temperature.
+        $primary = $isCold ? $cold : $warm;
+        $secondary = $isCold ? $warm : $cold;
+        $primaryType = $isCold ? 'cold' : 'warm';
+        $secondaryType = $isCold ? 'warm' : 'cold';
+
+        if (! $primary) {
+            $primary = $secondary;
+            $primaryType = $secondaryType;
+            $secondary = null;
+        }
+
+        if (! $primary) {
+            return '';
+        }
+
+        // Use live page time for primary so the number matches the big time above.
+        $primaryHtml = $this->renderSavingsRow($data['totalTime'], $primary['otherTime'], $primaryType, true);
+
+        $secondaryHtml = '';
+        if ($secondary) {
+            $secondaryHtml = $this->renderSavingsRow($secondary['currentTime'], $secondary['otherTime'], $secondaryType, false);
+        }
+
+        return <<<HTML
+        <div style="margin-top: 12px; display: flex; flex-direction: column; gap: 8px; animation: blaze-savings-in 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) 0.15s both;">
+            {$primaryHtml}
+            {$secondaryHtml}
+        </div>
+        HTML;
+    }
+
+    protected function renderSavingsRow(float $currentTime, float $otherTime, string $type, bool $isPrimary): string
+    {
+        if ($otherTime <= 0 || $currentTime <= 0) {
+            return '';
+        }
+
+        $isFaster = $currentTime < $otherTime;
+        $multiplier = $isFaster ? ($otherTime / $currentTime) : ($currentTime / $otherTime);
+        $multiplierFormatted = round($multiplier, 1) . 'x';
+
+        $color = $isFaster ? '#22c55e' : '#ef4444';
+        $rgb = $isFaster ? '34, 197, 94' : '239, 68, 68';
+        $word = $isFaster ? 'faster' : 'slower';
+
+        $otherFormatted = $this->formatMs($otherTime);
+        $currentFormatted = $this->formatMs($currentTime);
+
+        if ($isPrimary) {
+            return <<<HTML
+            <div style="background: rgba({$rgb}, 0.08); border: 1px solid rgba({$rgb}, 0.18); border-radius: 10px; padding: 10px 12px;">
+                <div style="display: flex; align-items: baseline; gap: 6px;">
+                    <span style="color: {$color}; font-weight: 800; font-size: 20px; letter-spacing: -0.5px; line-height: 1;">{$multiplierFormatted}</span>
+                    <span style="color: {$color}; font-size: 11px; font-weight: 600;">{$word}</span>
+                    <span style="color: #475569; font-size: 10px; margin-left: auto;">{$type}</span>
+                </div>
+                <div style="color: #64748b; font-size: 11px; margin-top: 5px; font-family: ui-monospace, SFMono-Regular, monospace;">
+                    {$otherFormatted} → {$currentFormatted}
+                </div>
+            </div>
+            HTML;
+        }
+
+        return <<<HTML
+        <div style="background: rgba({$rgb}, 0.05); border: 1px solid rgba({$rgb}, 0.12); border-radius: 8px; padding: 7px 12px; display: flex; align-items: center; justify-content: space-between;">
+            <div style="display: flex; align-items: center; gap: 6px;">
+                <span style="color: {$color}; font-weight: 700; font-size: 13px; line-height: 1;">{$multiplierFormatted}</span>
+                <span style="color: {$color}; font-size: 10px; font-weight: 600;">{$word}</span>
+            </div>
+            <div style="display: flex; align-items: center; gap: 4px;">
+                <span style="color: #64748b; font-size: 10px; font-family: ui-monospace, SFMono-Regular, monospace;">{$otherFormatted} → {$currentFormatted}</span>
+                <span style="color: #475569; font-size: 9px; margin-left: 4px;">{$type}</span>
+            </div>
+        </div>
+        HTML;
+    }
+
+    protected function renderComponentDetail(array $data): string
+    {
+        if ($data['blazeEnabled']) {
+            return $this->renderBlazeComponentTable($data['components']);
+        }
+
+        return $this->renderBladeComponentTable($data['bladeComponents']);
+    }
+
+    protected function renderBlazeComponentTable(array $components): string
+    {
+        if (empty($components)) {
+            return '<div style="color: #475569; font-size: 11px; padding: 4px 0;">No components rendered.</div>';
+        }
+
+        $thStyle = 'padding: 4px 0; font-size: 9px; font-weight: 600; color: #475569; text-transform: uppercase; letter-spacing: 0.06em; border-bottom: 1px solid #1e293b;';
+        $tdStyle = 'padding: 3px 0; font-family: ui-monospace, SFMono-Regular, monospace; font-size: 11px; white-space: nowrap;';
+
+        $rows = '';
+        foreach ($components as $component) {
+            $name = htmlspecialchars($component['name']);
+            $count = $component['count'];
+            $time = $this->formatMs($component['totalTime']);
+            $rows .= <<<HTML
+            <tr>
+                <td style="{$tdStyle} color: #cbd5e1; overflow: hidden; text-overflow: ellipsis; max-width: 140px;">{$name}</td>
+                <td style="{$tdStyle} color: #64748b; text-align: right; padding-left: 8px; padding-right: 8px;">{$count}×</td>
+                <td style="{$tdStyle} color: #94a3b8; text-align: right;">{$time}</td>
+            </tr>
+            HTML;
+        }
+
+        return <<<HTML
+        <table style="width: 100%; border-collapse: collapse;">
+            <thead>
+                <tr>
+                    <th style="{$thStyle} text-align: left;">Component</th>
+                    <th style="{$thStyle} text-align: right; padding-left: 8px; padding-right: 8px;">Count</th>
+                    <th style="{$thStyle} text-align: right;">Time</th>
+                </tr>
+            </thead>
+            <tbody>{$rows}</tbody>
+        </table>
+        HTML;
+    }
+
+    protected function renderBladeComponentTable(array $components): string
+    {
+        if (empty($components)) {
+            return '<div style="color: #475569; font-size: 11px; padding: 4px 0;">No components rendered.</div>';
+        }
+
+        $thStyle = 'padding: 4px 0; font-size: 9px; font-weight: 600; color: #475569; text-transform: uppercase; letter-spacing: 0.06em; border-bottom: 1px solid #1e293b;';
+        $tdStyle = 'padding: 3px 0; font-family: ui-monospace, SFMono-Regular, monospace; font-size: 11px; white-space: nowrap;';
+
+        $rows = '';
+        foreach ($components as $component) {
+            $name = htmlspecialchars($component['name']);
+            $count = $component['count'];
+            $rows .= <<<HTML
+            <tr>
+                <td style="{$tdStyle} color: #cbd5e1; overflow: hidden; text-overflow: ellipsis; max-width: 170px;">{$name}</td>
+                <td style="{$tdStyle} color: #64748b; text-align: right;">{$count}×</td>
+            </tr>
+            HTML;
+        }
+
+        return <<<HTML
+        <table style="width: 100%; border-collapse: collapse;">
+            <thead>
+                <tr>
+                    <th style="{$thStyle} text-align: left;">Component</th>
+                    <th style="{$thStyle} text-align: right;">Count</th>
+                </tr>
+            </thead>
+            <tbody>{$rows}</tbody>
+        </table>
+        HTML;
+    }
+
+    protected function renderBubble(array $data): string
+    {
+        if ($data['blazeEnabled']) {
+            $bgStyle = 'background: linear-gradient(135deg, #f97316, #ea580c); animation: blaze-pulse 2.5s ease-in-out infinite;';
+            $icon = $this->boltSvg('#ffffff');
+            $tooltip = 'Disable Blaze';
+        } else {
+            $bgStyle = 'background: #1e293b; border: 2px solid #334155; box-shadow: 0 4px 20px rgba(0, 0, 0, 0.35);';
+            $icon = $this->boltSvg('#6366f1');
+            $tooltip = 'Enable Blaze';
+        }
+
+        return <<<HTML
+        <a href="/_blaze/toggle" id="blaze-bubble" style="{$bgStyle}" title="{$tooltip}">
+            {$icon}
+        </a>
+        HTML;
+    }
+
+    protected function boltSvg(string $color): string
+    {
+        return <<<HTML
+        <svg width="26" height="26" viewBox="0 0 24 24" fill="{$color}" xmlns="http://www.w3.org/2000/svg">
+            <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/>
+        </svg>
+        HTML;
+    }
+
+    protected function renderScript(): string
+    {
+        return <<<HTML
+        <script>
+        (function() {
+            var toggle = document.getElementById('blaze-detail-toggle');
+            var panel = document.getElementById('blaze-detail-panel');
+            var arrow = document.getElementById('blaze-detail-arrow');
+            if (toggle && panel) {
+                toggle.addEventListener('click', function(e) {
+                    e.stopPropagation();
+                    var isHidden = panel.style.display === 'none';
+                    panel.style.display = isHidden ? 'block' : 'none';
+                    if (arrow) arrow.style.transform = isHidden ? 'rotate(90deg)' : '';
+                });
+            }
+        })();
+        </script>
+        HTML;
+    }
+}
