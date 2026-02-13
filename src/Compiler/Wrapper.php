@@ -43,11 +43,30 @@ class Wrapper
         $propsUseAttributes = $propAssignments !== null && str_contains($propAssignments, '$attributes');
         $sourceUsesAttributes = str_contains($this->stripDirective($source, 'props'), '$attributes') || str_contains($source, '<flux:delegate-component');
 
+        // Create an early unsanitized $attributes bag only when @props defaults
+        // reference $attributes (e.g. $attributes->get()). The sanitized bag is
+        // created in-place after @props runs, so template body code gets that one.
+        // Pre-@props @php blocks that use $attributes also need this early bag —
+        // $sourceUsesAttributes covers that because those blocks are part of the source.
+        $needsEarlyAttributes = $propsExpression !== null && ($sourceUsesAttributes || $propsUseAttributes);
+
         // Compile @props in-place to preserve source execution order.
         // This ensures @php blocks before @props run first, matching Blade's
         // top-to-bottom behavior (e.g. Flux's $attributes->pluck() pattern).
         if ($propsExpression !== null) {
-            $inPlaceCode = $propAssignments ?: '';
+            $inPlaceCode = '';
+
+            // When an early $attributes bag exists, @php blocks before @props
+            // may have called $attributes->pluck() which removes keys from
+            // the bag but not from $__data.  Since we rebuild a fresh
+            // $attributes from $__data after @props, we must sync $__data
+            // first so plucked keys stay removed (matching native Blade where
+            // there is only one $attributes instance).
+            if ($needsEarlyAttributes) {
+                $inPlaceCode .= '$__data = array_intersect_key($__data, $attributes->getAttributes());'."\n";
+            }
+
+            $inPlaceCode .= $propAssignments ?: '';
 
             if ($sourceUsesAttributes) {
                 $inPlaceCode .= '$attributes = \\Livewire\\Blaze\\Runtime\\BlazeAttributeBag::sanitized($__data, $__bound);'."\n";
@@ -66,12 +85,6 @@ class Wrapper
         // are not yet present in $compiled at this point.
         [$compiled, $useStatements] = $this->extractUseStatements($source, $compiled);
 
-        // Create an early unsanitized $attributes bag only when @props defaults
-        // reference $attributes (e.g. $attributes->get()). The sanitized bag is
-        // created in-place after @props runs, so template body code gets that one.
-        // Pre-@props @php blocks that use $attributes also need this early bag —
-        // $sourceUsesAttributes covers that because those blocks are part of the source.
-        $needsEarlyAttributes = $propsExpression !== null && ($sourceUsesAttributes || $propsUseAttributes);
         $needsEchoHandler = $this->hasEchoHandlers() && $this->hasEchoSyntax($source);
 
         $isDebugging = app('blaze')->isDebugging() && ! app('blaze')->isFolding();

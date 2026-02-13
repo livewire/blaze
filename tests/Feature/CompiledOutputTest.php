@@ -358,7 +358,8 @@ if (($__data[\'attributes\'] ?? null) instanceof \Illuminate\View\ComponentAttri
 extract($__slots, EXTR_SKIP);
 unset($__slots);
 $attributes = new \Livewire\Blaze\Runtime\BlazeAttributeBag($__data);
- ?><?php $__defaults = [\'variant\' => \'default\'];
+ ?><?php $__data = array_intersect_key($__data, $attributes->getAttributes());
+$__defaults = [\'variant\' => \'default\'];
 $variant ??= $__data[\'variant\'] ?? $__defaults[\'variant\'];
 unset($__data[\'variant\']);
 unset($__defaults);
