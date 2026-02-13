@@ -39,6 +39,13 @@ class Wrapper
         $compiled = $this->stripDirective($compiled, 'blaze');
         $compiled = $this->stripDirective($compiled, 'props');
         $compiled = $this->stripDirective($compiled, 'aware');
+        $compiled = $this->stripDirective($compiled, 'use');
+
+        // Hoist PHP use statements out of the template so they appear before
+        // the function definition. We extract from the source because @php
+        // blocks are stored as raw block placeholders during compilation and
+        // are not yet present in $compiled at this point.
+        [$compiled, $useStatements] = $this->extractUseStatements($source, $compiled);
 
         $propsUseAttributes = str_contains($propAssignments, '$attributes');
         $sourceUsesAttributes = str_contains($this->stripDirective($source, 'props'), '$attributes') || str_contains($source, '<flux:delegate-component');
@@ -46,10 +53,13 @@ class Wrapper
 
         $isDebugging = app('blaze')->isDebugging() && ! app('blaze')->isFolding();
         $componentName = $isDebugging ? app('blaze.runtime')->debugger->extractComponentName($path) : null;
+        $sourceUsesThis = str_contains($source, '$this');
 
         return implode('', array_filter([
+            $useStatements ? '<'.'?php '.$useStatements.' ?>' : null,
             '<'.'?php if (!function_exists(\''.$name.'\')):'."\n",
-            'function '.$name.'($__blaze, $__data = [], $__slots = [], $__bound = []) {'."\n",
+            'function '.$name.'($__blaze, $__data = [], $__slots = [], $__bound = [], $__this = null) {'."\n",
+            $sourceUsesThis ? '$__blazeFn = function () use ($__blaze, $__data, $__slots, $__bound) {'."\n" : null,
             $isDebugging ? '$__blaze->debugger->increment(\''.$name.'\', \''.$componentName.'\');'."\n" : null,
             $isDebugging ? '$__blaze->debugger->startTimer(\''.$name.'\');'."\n" : null,
             '$__env = $__blaze->env;'."\n",
@@ -68,8 +78,83 @@ class Wrapper
             'unset($__data, $__bound); ?>',
             $compiled,
             $isDebugging ? '<'.'?php $__blaze->debugger->stopTimer(\''.$name.'\'); ?>' : null,
-            '<'.'?php } endif; ?>',
+            $sourceUsesThis ? '<'.'?php };'."\n".'if ($__this !== null) { $__blazeFn->call($__this); } else { $__blazeFn(); }'."\n".'} endif; ?>' : null,
+            !$sourceUsesThis ? '<'.'?php } endif; ?>' : null,
         ]));
+    }
+
+    /**
+     * Extract PHP use statements from compiled output and return them separately.
+     *
+     * Handles both forms:
+     * - @php use Foo\Bar; @endphp  → compiled as <?php use Foo\Bar; ?>
+     * - @use('Foo\Bar')            → compiled as <?php use \Foo\Bar; ?>
+     *
+     * @return array{string, string|null} Tuple of [compiled without use statements, hoisted use statements]
+     */
+    /**
+     * Extract PHP use statements from the source template and strip the
+     * corresponding raw block placeholders from the compiled output.
+     *
+     * Use statements in Blade templates appear as either:
+     * - @php use Foo\Bar; @endphp (inside @php blocks, possibly with other code)
+     * - @use('Foo\Bar') or @use('Foo\Bar', 'Alias') (Blade directive)
+     *
+     * The @use directive is already stripped via stripDirective(). For @php
+     * blocks, the use statements are hidden behind raw block placeholders in
+     * $compiled, so we extract them from the original $source instead.
+     *
+     * @return array{string, string|null} Tuple of [compiled with use-only raw blocks removed, hoisted use statements]
+     */
+    protected function extractUseStatements(string $source, string $compiled): array
+    {
+        $useStatements = [];
+
+        // Match use statements in the source template (inside @php blocks or bare PHP).
+        $usePattern = '/^[ \t]*use\s+((?:function\s+|const\s+)?\\\\?[a-zA-Z_][a-zA-Z0-9_\\\\]*(?:\s+as\s+[a-zA-Z_][a-zA-Z0-9_]*)?)\s*;\s*$/m';
+
+        preg_match_all($usePattern, $source, $matches);
+
+        if (empty($matches[0])) {
+            return [$compiled, null];
+        }
+
+        foreach ($matches[0] as $match) {
+            $useStatements[] = trim($match);
+        }
+
+        // The @php blocks containing use statements are stored as raw block
+        // placeholders (@__raw_block_N__@) in $compiled. We need to find
+        // these placeholders and either remove them entirely (if the @php
+        // block contained only use statements) or strip the use lines from
+        // the restored content. Since raw blocks are opaque at this stage,
+        // we restore them, strip the use lines, and re-store them.
+        $compiler = app('blade.compiler');
+        $rawBlocksProperty = new \ReflectionProperty($compiler, 'rawBlocks');
+        $rawBlocks = $rawBlocksProperty->getValue($compiler);
+
+        foreach ($rawBlocks as $index => &$block) {
+            // Strip use statements from the raw block content.
+            $stripped = preg_replace($usePattern, '', $block);
+
+            // If the block is now empty (only had use statements), remove
+            // the placeholder from compiled output entirely.
+            $strippedContent = trim(
+                preg_replace('/^<\x3Fphp\s*/s', '',
+                    preg_replace('/\s*\x3F>$/s', '', $stripped))
+            );
+
+            if ($strippedContent === '') {
+                $compiled = str_replace('@__raw_block_' . $index . '__@', '', $compiled);
+            } else {
+                $block = $stripped;
+            }
+        }
+        unset($block);
+
+        $rawBlocksProperty->setValue($compiler, $rawBlocks);
+
+        return [$compiled, implode("\n", $useStatements) . "\n"];
     }
 
     /**

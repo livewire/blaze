@@ -85,7 +85,7 @@ describe('nested component folding', function () {
         app('blade.compiler')->compile($wrapperPath);
         $compiled = File::get($compiledPath);
 
-        expect($compiled)->toContain("function _$hash(\$__blaze, \$__data = [], \$__slots = [], \$__bound = [])");
+        expect($compiled)->toContain("function _$hash(\$__blaze, \$__data = [], \$__slots = [], \$__bound = [], \$__this = null)");
         expect($compiled)->toContain('<span class="child">I am folded</span>');
         expect($compiled)->not->toContain('<x-nested.foldable-child');
         expect($compiled)->not->toContain('$__blaze->ensureCompiled');
@@ -181,6 +181,6 @@ describe('path-based optimization via Blaze::optimize()', function () {
         app('blade.compiler')->compile($path);
         $compiled = File::get($compiledPath);
 
-        expect($compiled)->toContain("function _$hash(\$__blaze, \$__data = [], \$__slots = [], \$__bound = [])");
+        expect($compiled)->toContain("function _$hash(\$__blaze, \$__data = [], \$__slots = [], \$__bound = [], \$__this = null)");
     });
 });

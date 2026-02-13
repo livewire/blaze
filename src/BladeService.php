@@ -264,7 +264,7 @@ class BladeService
     public static function componentNameToPath($name): string
     {
         $compiler = app('blade.compiler');
-        $viewFinder = app('view.finder');
+        $viewFinder = app('view')->getFinder();
 
         $reflection = new \ReflectionClass($compiler);
         $pathsProperty = $reflection->getProperty('anonymousComponentPaths');
@@ -298,9 +298,14 @@ class BladeService
             }
 
             try {
-                return $viewFinder->find(str_replace('::', '::components.', $name));
+                $viewName = str_replace('::', '::components.', $name);
+                return $viewFinder->find($viewName);
             } catch (\Exception $e) {
-                return '';
+                try {
+                    return $viewFinder->find(str_replace('::', '::components.', $name).'.index');
+                } catch (\Exception $e2) {
+                    return '';
+                }
             }
         }
 

@@ -17,7 +17,7 @@ describe('call-site compilation', function () {
             '<?php $__blaze->ensureCompiled(\'' . $path . '\', $__blaze->compiledPath.\'/' . $hash . '.php\'); ?>' . "\n" .
             '<?php require_once $__blaze->compiledPath.\'/' . $hash . '.php\'; ?>' . "\n" .
             '<?php $__blaze->pushData([\'type\' => \'submit\',\'class\' => \'btn-primary\']); ?>' . "\n" .
-            '<?php _' . $hash . '($__blaze, [\'type\' => \'submit\',\'class\' => \'btn-primary\'], [], []); ?>' . "\n" .
+            '<?php _' . $hash . '($__blaze, [\'type\' => \'submit\',\'class\' => \'btn-primary\'], [], [], isset($this) ? $this : null); ?>' . "\n" .
             '<?php $__blaze->popData(); ?>' . "\n"
         );
     });
@@ -32,7 +32,7 @@ describe('call-site compilation', function () {
             '<?php $__blaze->ensureCompiled(\'' . $path . '\', $__blaze->compiledPath.\'/' . $hash . '.php\'); ?>' . "\n" .
             '<?php require_once $__blaze->compiledPath.\'/' . $hash . '.php\'; ?>' . "\n" .
             '<?php $__blaze->pushData([\'type\' => $buttonType,\'class\' => $classes]); ?>' . "\n" .
-            '<?php _' . $hash . '($__blaze, [\'type\' => $buttonType,\'class\' => $classes], [], [\'type\', \'class\']); ?>' . "\n" .
+            '<?php _' . $hash . '($__blaze, [\'type\' => $buttonType,\'class\' => $classes], [], [\'type\', \'class\'], isset($this) ? $this : null); ?>' . "\n" .
             '<?php $__blaze->popData(); ?>' . "\n"
         );
     });
@@ -47,7 +47,7 @@ describe('call-site compilation', function () {
             '<?php $__blaze->ensureCompiled(\'' . $path . '\', $__blaze->compiledPath.\'/' . $hash . '.php\'); ?>' . "\n" .
             '<?php require_once $__blaze->compiledPath.\'/' . $hash . '.php\'; ?>' . "\n" .
             '<?php $__blaze->pushData([\'type\' => $type,\'class\' => $class]); ?>' . "\n" .
-            '<?php _' . $hash . '($__blaze, [\'type\' => $type,\'class\' => $class], [], [\'type\', \'class\']); ?>' . "\n" .
+            '<?php _' . $hash . '($__blaze, [\'type\' => $type,\'class\' => $class], [], [\'type\', \'class\'], isset($this) ? $this : null); ?>' . "\n" .
             '<?php $__blaze->popData(); ?>' . "\n"
         );
     });
@@ -62,7 +62,7 @@ describe('call-site compilation', function () {
             '<?php $__blaze->ensureCompiled(\'' . $path . '\', $__blaze->compiledPath.\'/' . $hash . '.php\'); ?>' . "\n" .
             '<?php require_once $__blaze->compiledPath.\'/' . $hash . '.php\'; ?>' . "\n" .
             '<?php $__blaze->pushData([]); ?>' . "\n" .
-            '<?php _' . $hash . '($__blaze, [], [], []); ?>' . "\n" .
+            '<?php _' . $hash . '($__blaze, [], [], [], isset($this) ? $this : null); ?>' . "\n" .
             '<?php $__blaze->popData(); ?>' . "\n"
         );
     });
@@ -86,7 +86,7 @@ describe('call-site compilation', function () {
             '<?php $__blaze->ensureCompiled(\'' . $path . '\', $__blaze->compiledPath.\'/' . $hash . '.php\'); ?>' . "\n" .
             '<?php require_once $__blaze->compiledPath.\'/' . $hash . '.php\'; ?>' . "\n" .
             '<?php $__blaze->pushData([\'wire:click\' => \'save\',\'x-on:click\' => \'open = true\',\'@click\' => \'handle\']); ?>' . "\n" .
-            '<?php _' . $hash . '($__blaze, [\'wire:click\' => \'save\',\'x-on:click\' => \'open = true\',\'@click\' => \'handle\'], [], []); ?>' . "\n" .
+            '<?php _' . $hash . '($__blaze, [\'wire:click\' => \'save\',\'x-on:click\' => \'open = true\',\'@click\' => \'handle\'], [], [], isset($this) ? $this : null); ?>' . "\n" .
             '<?php $__blaze->popData(); ?>' . "\n"
         );
     });
@@ -144,7 +144,7 @@ describe('call-site compilation', function () {
             ->toContain("\$slots$hash = []")
             ->toContain('ob_start()')
             ->toContain("['slot'] = new \\Illuminate\\View\\ComponentSlot(trim(ob_get_clean()), [])")
-            ->toContain("_$hash(\$__blaze, [], \$slots$hash, [])");
+            ->toContain("_$hash(\$__blaze, [], \$slots$hash, [], isset(\$this) ? \$this : null)");
     });
 
     it('compiles component with named slot using short syntax', function () {
@@ -181,7 +181,7 @@ describe('call-site compilation', function () {
         expect($result)
             ->not->toContain('$slot')
             ->not->toContain('ob_start')
-            ->toContain("_$hash(\$__blaze, [], [], [])");
+            ->toContain("_$hash(\$__blaze, [], [], [], isset(\$this) ? \$this : null)");
     });
 
     it('converts kebab-case slot name to camelCase', function () {
@@ -220,7 +220,7 @@ describe('component wrapper compilation', function () {
 
         expect($compiled)->toBe(
             '<?php if (!function_exists(\'_' . $hash . '\')):
-function _' . $hash . '($__blaze, $__data = [], $__slots = [], $__bound = []) {
+function _' . $hash . '($__blaze, $__data = [], $__slots = [], $__bound = [], $__this = null) {
 $__env = $__blaze->env;
 if (($__data[\'attributes\'] ?? null) instanceof \Illuminate\View\ComponentAttributeBag) { $__data = $__data + $__data[\'attributes\']->all(); unset($__data[\'attributes\']); }
 extract($__slots, EXTR_SKIP);
@@ -242,7 +242,7 @@ unset($__data, $__bound); ?><button <?php echo e($attributes); ?>>Click</button>
         $hash = Utils::hash($path);
         $compiled = compile('props-button.blade.php');
 
-        expect($compiled)->toContain("function _$hash(\$__blaze, \$__data = [], \$__slots = [], \$__bound = [])");
+        expect($compiled)->toContain("function _$hash(\$__blaze, \$__data = [], \$__slots = [], \$__bound = [], \$__this = null)");
         expect($compiled)->toContain("\$__defaults = ['type' => 'button', 'disabled' => false];");
         expect($compiled)->toContain("\$type ??= \$__data['type'] ?? \$__defaults['type'];");
         expect($compiled)->toContain("\$disabled ??= \$__data['disabled'] ?? \$__defaults['disabled'];");
@@ -322,7 +322,7 @@ unset($__data, $__bound); ?><button <?php echo e($attributes); ?>>Click</button>
         $compiled = compile('card.blade.php');
 
         expect($compiled)
-            ->toContain("function _$hash(\$__blaze, \$__data = [], \$__slots = [], \$__bound = [])")
+            ->toContain("function _$hash(\$__blaze, \$__data = [], \$__slots = [], \$__bound = [], \$__this = null)")
             ->toContain('extract($__slots, EXTR_SKIP)')
             ->toContain('unset($__slots)');
     });
@@ -350,7 +350,7 @@ describe('delegate component compilation', function () {
 
         expect($compiled)->toBe(
             '<?php if (!function_exists(\'_' . $hash . '\')):
-function _' . $hash . '($__blaze, $__data = [], $__slots = [], $__bound = []) {
+function _' . $hash . '($__blaze, $__data = [], $__slots = [], $__bound = [], $__this = null) {
 $__env = $__blaze->env;
 if (($__data[\'attributes\'] ?? null) instanceof \Illuminate\View\ComponentAttributeBag) { $__data = $__data + $__data[\'attributes\']->all(); unset($__data[\'attributes\']); }
 extract($__slots, EXTR_SKIP);
@@ -365,7 +365,7 @@ unset($__data, $__bound); ?><?php $__resolved = $__blaze->resolve(\'flux::\' . \
 <?php $slots' . $slotsHash . ' = []; ?>
 <?php ob_start(); ?>Hello World<?php $slots' . $slotsHash . '[\'slot\'] = new \Illuminate\View\ComponentSlot(trim(ob_get_clean()), []); ?>
 <?php $slots' . $slotsHash . ' = array_merge($__blaze->mergedComponentSlots(), $slots' . $slotsHash . '); ?>
-<?php (\'_\' . $__resolved)($__blaze, $attributes->all(), $slots' . $slotsHash . ', []); ?>
+<?php (\'_\' . $__resolved)($__blaze, $attributes->all(), $slots' . $slotsHash . ', [], isset($this) ? $this : null); ?>
 <?php unset($__resolved) ?>
 
 <?php } endif; ?><?php /**PATH ' . $path . ' ENDPATH**/ ?>'
@@ -380,7 +380,7 @@ unset($__data, $__bound); ?><?php $__resolved = $__blaze->resolve(\'flux::\' . \
             '@blaze
 <?php $__resolved = $__blaze->resolve(\'flux::\' . $type); ?>
 <?php require_once $__blaze->compiledPath . \'/\' . $__resolved . \'.php\'; ?>
-<?php (\'_\' . $__resolved)($__blaze, $attributes->all(), $__blaze->mergedComponentSlots(), []); ?>
+<?php (\'_\' . $__resolved)($__blaze, $attributes->all(), $__blaze->mergedComponentSlots(), [], isset($this) ? $this : null); ?>
 <?php unset($__resolved) ?>
 '
         );

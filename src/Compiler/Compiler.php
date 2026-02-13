@@ -99,11 +99,11 @@ class Compiler
         $output .= "\n" . '<' . '?php $__blaze->pushData(' . $attributesArrayString . '); ?>';
 
         if ($node->selfClosing) {
-            $output .= "\n" . '<' . '?php ' . $functionName . '($__blaze, ' . $attributesArrayString . ', [], ' . $boundKeysArrayString . '); ?>';
+            $output .= "\n" . '<' . '?php ' . $functionName . '($__blaze, ' . $attributesArrayString . ', [], ' . $boundKeysArrayString . ', isset($this) ? $this : null); ?>';
         } else {
             $output .= "\n" . $this->slotCompiler->compile($slotsVariableName, $node->children);
             $output .= "\n" . '<' . '?php $__blaze->pushSlots(' . $slotsVariableName . '); ?>';
-            $output .= "\n" . '<' . '?php ' . $functionName . '($__blaze, ' . $attributesArrayString . ', ' . $slotsVariableName . ', ' . $boundKeysArrayString . '); ?>';
+            $output .= "\n" . '<' . '?php ' . $functionName . '($__blaze, ' . $attributesArrayString . ', ' . $slotsVariableName . ', ' . $boundKeysArrayString . ', isset($this) ? $this : null); ?>';
         }
 
         $output .= "\n" . '<' . '?php $__blaze->popData(); ?>' . "\n";
@@ -125,11 +125,11 @@ class Compiler
         $slotsVariableName = '$slots' . hash('xxh128', $componentName);
 
         if ($node->selfClosing) {
-            $output .= '<' . '?php (\'_\' . $__resolved)($__blaze, $attributes->all(), $__blaze->mergedComponentSlots(), []); ?>';
+            $output .= '<' . '?php (\'_\' . $__resolved)($__blaze, $attributes->all(), $__blaze->mergedComponentSlots(), [], isset($this) ? $this : null); ?>';
         } else {
             $output .= $this->slotCompiler->compile($slotsVariableName, $node->children);
             $output .= "\n" . '<' . '?php ' . $slotsVariableName . ' = array_merge($__blaze->mergedComponentSlots(), ' . $slotsVariableName . '); ?>';
-            $output .= "\n" . '<' . '?php (\'_\' . $__resolved)($__blaze, $attributes->all(), ' . $slotsVariableName . ', []); ?>';
+            $output .= "\n" . '<' . '?php (\'_\' . $__resolved)($__blaze, $attributes->all(), ' . $slotsVariableName . ', [], isset($this) ? $this : null); ?>';
         }
 
         $output .= "\n" . '<' . '?php unset($__resolved) ?>' . "\n";
