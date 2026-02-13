@@ -169,7 +169,6 @@ class Debugger
             ];
         }
 
-        $this->components[$hash]['count']++;
         $this->components[$hash]['totalTime'] += $duration;
     }
 
