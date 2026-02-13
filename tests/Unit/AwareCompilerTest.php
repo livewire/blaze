@@ -12,6 +12,7 @@ describe('basic compilation', function () {
         expect($result)->toBe(
             "\$__awareDefaults = ['color' => 'gray'];\n" .
             "\$color = \$__blaze->getConsumableData('color', \$__awareDefaults['color']);\n" .
+            "unset(\$__data['color']);\n" .
             "unset(\$__awareDefaults);\n"
         );
     });
@@ -24,6 +25,7 @@ describe('basic compilation', function () {
         expect($result)->toBe(
             "\$__awareDefaults = ['color'];\n" .
             "\$color = \$__blaze->getConsumableData('color');\n" .
+            "unset(\$__data['color']);\n" .
             "unset(\$__awareDefaults);\n"
         );
     });
@@ -36,7 +38,9 @@ describe('basic compilation', function () {
         expect($result)->toBe(
             "\$__awareDefaults = ['color' => 'gray', 'size' => 'md'];\n" .
             "\$color = \$__blaze->getConsumableData('color', \$__awareDefaults['color']);\n" .
+            "unset(\$__data['color']);\n" .
             "\$size = \$__blaze->getConsumableData('size', \$__awareDefaults['size']);\n" .
+            "unset(\$__data['size']);\n" .
             "unset(\$__awareDefaults);\n"
         );
     });
@@ -49,8 +53,11 @@ describe('basic compilation', function () {
         expect($result)->toBe(
             "\$__awareDefaults = ['color' => 'gray', 'size', 'disabled' => false];\n" .
             "\$color = \$__blaze->getConsumableData('color', \$__awareDefaults['color']);\n" .
+            "unset(\$__data['color']);\n" .
             "\$size = \$__blaze->getConsumableData('size');\n" .
+            "unset(\$__data['size']);\n" .
             "\$disabled = \$__blaze->getConsumableData('disabled', \$__awareDefaults['disabled']);\n" .
+            "unset(\$__data['disabled']);\n" .
             "unset(\$__awareDefaults);\n"
         );
     });

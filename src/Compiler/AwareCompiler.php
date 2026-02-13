@@ -40,6 +40,8 @@ class AwareCompiler
                 : sprintf('$%s = $__blaze->getConsumableData(\'%s\');', $name, $name);
 
             $output .= "\n";
+
+            $output .= sprintf('unset($__data[\'%s\']);', $name) . "\n";
         }
 
         $output .= 'unset($__awareDefaults);' . "\n";

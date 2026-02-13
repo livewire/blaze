@@ -452,6 +452,125 @@ describe('@aware with forwarded attributes', function () {
     });
 });
 
+describe('@aware keys do not leak into attributes', function () {
+    it('aware-only keys are not rendered as HTML attributes', function () {
+        $result = blade(
+            components: [
+                'parent' => <<<'BLADE'
+                    @blaze
+                    @props(['mode' => 'numeric'])
+                    <div>{{ $slot }}</div>
+                    BLADE
+                ,
+                'child' => <<<'BLADE'
+                    @blaze
+                    @aware(['mode' => 'numeric'])
+                    <input type="text" {{ $attributes }} />
+                    BLADE
+                ,
+            ],
+            view: <<<'BLADE'
+                <x-parent mode="numeric">
+                    <x-child class="input" />
+                </x-parent>
+                BLADE
+            ,
+        );
+
+        expect($result)->toContain('class="input"');
+        expect($result)->not->toMatch('/\bmode="numeric"/');
+    });
+
+    it('multiple aware-only keys are all excluded from attributes', function () {
+        $result = blade(
+            components: [
+                'chart' => <<<'BLADE'
+                    @blaze
+                    @props(['axis' => 'x', 'position' => 'bottom'])
+                    <div>{{ $slot }}</div>
+                    BLADE
+                ,
+                'tick' => <<<'BLADE'
+                    @blaze
+                    @aware(['axis' => 'x', 'position' => 'bottom'])
+                    <text {{ $attributes }}>tick</text>
+                    BLADE
+                ,
+            ],
+            view: <<<'BLADE'
+                <x-chart axis="y" position="right">
+                    <x-tick class="label" />
+                </x-chart>
+                BLADE
+            ,
+        );
+
+        expect($result)->toContain('class="label"');
+        expect($result)->not->toMatch('/\baxis="y"/');
+        expect($result)->not->toMatch('/\bposition="right"/');
+    });
+
+    it('aware keys without defaults are excluded from attributes', function () {
+        $result = blade(
+            components: [
+                'parent' => <<<'BLADE'
+                    @blaze
+                    @props(['private' => false])
+                    <div>{{ $slot }}</div>
+                    BLADE
+                ,
+                'child' => <<<'BLADE'
+                    @blaze
+                    @aware(['private'])
+                    <span {{ $attributes }}>{{ $private ? 'yes' : 'no' }}</span>
+                    BLADE
+                ,
+            ],
+            view: <<<'BLADE'
+                <x-parent :private="true">
+                    <x-child data-test="ok" />
+                </x-parent>
+                BLADE
+            ,
+        );
+
+        expect($result)->toContain('data-test="ok"');
+        expect($result)->toContain('yes');
+        expect($result)->not->toMatch('/\bprivate\b/');
+    });
+
+    it('aware keys are excluded even when component also has @props', function () {
+        $result = blade(
+            components: [
+                'parent' => <<<'BLADE'
+                    @blaze
+                    @props(['axis' => 'x', 'color' => 'red'])
+                    <div>{{ $slot }}</div>
+                    BLADE
+                ,
+                'child' => <<<'BLADE'
+                    @blaze
+                    @props(['color' => 'blue'])
+                    @aware(['axis' => 'x'])
+                    <span class="{{ $color }}-{{ $axis }}" {{ $attributes }}>content</span>
+                    BLADE
+                ,
+            ],
+            view: <<<'BLADE'
+                <x-parent axis="y" color="green">
+                    <x-child color="green" data-id="1" />
+                </x-parent>
+                BLADE
+            ,
+        );
+
+        expect($result)->toContain('green-y');
+        expect($result)->toContain('data-id="1"');
+        expect($result)->not->toMatch('/\baxis="y"/');
+        expect($result)->not->toMatch('/\bcolor="green"/');
+    });
+});
+
 describe('invalid @aware definitions', function () {
     it('throws exception for non-array expression', function () {
         $compiler = new AwareCompiler;
