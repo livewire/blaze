@@ -10,7 +10,6 @@ use Livewire\Blaze\Nodes\Node;
 use Livewire\Blaze\Nodes\SlotNode;
 use Livewire\Blaze\Nodes\TextNode;
 use Livewire\Blaze\Support\ComponentSource;
-use Closure;
 use Illuminate\Support\Arr;
 use Livewire\Blaze\Blaze;
 use Livewire\Blaze\Config;
@@ -82,15 +81,13 @@ class Folder
      */
     protected function shouldFold(ComponentSource $source): bool
     {
-        if ($source->directives->blaze('fold') === false) {
-            return false;
+        $shouldFold = $source->directives->blaze('fold');
+
+        if (is_null($shouldFold)) {
+            return $this->config->shouldFold($source->path);
         }
 
-        if ($source->directives->blaze('fold') === true) {
-            return true;
-        }
-
-        return $this->config->shouldFold($source->path);
+        return $shouldFold;
     }
 
     /**
@@ -104,6 +101,15 @@ class Folder
             return false;
         }
 
+        foreach ($node->children as $child) {
+            if ($child instanceof SlotNode) {
+                if ($this->slotHasDynamicAttributes($child)) {
+                    return false;
+                }
+            }
+        }
+
+        $props = $source->directives->props();
         $safe = Arr::wrap($source->directives->blaze('safe'));
         $unsafe = Arr::wrap($source->directives->blaze('unsafe'));
 
@@ -115,26 +121,18 @@ class Folder
             return false;
         }
 
-        if (in_array('slot', $unsafe) && array_filter($node->children, fn ($child) => ! $child instanceof SlotNode)) {
+        if (in_array('slot', $unsafe) && array_filter($node->children, fn ($child) => ! $child instanceof SlotNode)) { // TODO: we should also check name="slot"
             return false;
         }
 
-        // Props are unsafe by default
-        $props = $source->directives->props();
-        $unsafe = array_merge($unsafe, $props);
-
-        // Expand 'attributes' keyword into actual non-prop attribute names
         if (in_array('attributes', $safe)) {
-            $nonPropAttributes = array_diff(array_keys($node->attributes), $props);
-            $safe = array_merge(array_diff($safe, ['attributes']), $nonPropAttributes);
+            $safe = array_merge($safe, array_diff(array_keys($node->attributes), $props));
         }
 
         if (in_array('attributes', $unsafe)) {
-            $nonPropAttributes = array_diff(array_keys($node->attributes), $props);
-            $unsafe = array_merge(array_diff($unsafe, ['attributes']), $nonPropAttributes);
+            $unsafe = array_merge($unsafe, array_diff(array_keys($node->attributes), $props));
         }
 
-        // Final unsafe list = props + unsafe - safe
         $unsafe = array_diff(array_merge($props, $unsafe), $safe);
 
         foreach ($dynamicAttributes as $attribute) {
@@ -146,10 +144,6 @@ class Folder
         foreach ($node->children as $child) {
             if ($child instanceof SlotNode) {
                 if (in_array($child->name, $unsafe)) {
-                    return false;
-                }
-
-                if ($this->slotHasDynamicAttributes($child)) {
                     return false;
                 }
             }
