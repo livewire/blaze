@@ -14,6 +14,9 @@ class ComponentNode extends Node
     /** @var Attribute[] */
     public array $attributes = [];
 
+    /** Pre-computed by the Walker before children are compiled to TextNodes. */
+    public bool $hasAwareDescendants = false;
+
     public function __construct(
         public string $name,
         public string $prefix,

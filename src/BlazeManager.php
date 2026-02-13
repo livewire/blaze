@@ -14,6 +14,8 @@ use Livewire\Blaze\Parser\Parser;
 use Livewire\Blaze\Tokenizer\Tokenizer;
 use Livewire\Blaze\Walker\Walker;
 use Livewire\Blaze\Support\Directives;
+use Livewire\Blaze\Support\ComponentSource;
+use Livewire\Blaze\Nodes\SlotNode;
 
 class BlazeManager
 {
@@ -67,6 +69,12 @@ class BlazeManager
 
                 if (($node instanceof ComponentNode) && $node->children) {
                     $dataStack[] = $node->attributes;
+
+                    // Pre-compute @aware descendant info while children are still
+                    // ComponentNodes. By the time postCallback runs (inside-out),
+                    // children will have been compiled to TextNodes and this check
+                    // would no longer be possible.
+                    $node->hasAwareDescendants = $this->hasAwareDescendant($node);
                 }
 
                 return $node;
@@ -321,5 +329,42 @@ class BlazeManager
     public function optimize(): Config
     {
         return $this->config;
+    }
+
+    /**
+     * Recursively check if any descendant component uses @aware.
+     */
+    protected function hasAwareDescendant(ComponentNode|SlotNode $node): bool
+    {
+        foreach ($node->children as $child) {
+            if ($child instanceof ComponentNode) {
+                $source = new ComponentSource($child->name);
+
+                // Delegate components resolve their target dynamically at runtime,
+                // so we can't check the resolved component for @aware. Assume it
+                // might have @aware descendants to be safe.
+                if (! $source->exists()) {
+                    if (str_ends_with($child->name, 'delegate-component')) {
+                        return true;
+                    }
+
+                    continue;
+                }
+
+                if ($source->directives->has('aware')) {
+                    return true;
+                }
+
+                if ($this->hasAwareDescendant($child)) {
+                    return true;
+                }
+            } elseif ($child instanceof SlotNode) {
+                if ($this->hasAwareDescendant($child)) {
+                    return true;
+                }
+            }
+        }
+
+        return false;
     }
 }

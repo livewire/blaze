@@ -301,23 +301,28 @@ describe('fold elligable components', function () {
     it('supports folding aware components with single word attributes', function () {
         $input = '<x-group variant="primary"><x-foldable-item /></x-group>';
         $output = app('blaze')->compile($input);
+        $rendered = \Illuminate\Support\Facades\Blade::render($output);
 
-        expect($output)->toBe('<div class="group group-primary" data-test="foo"><div class="item item-primary"></div></div>');
+        // Both components are folded, output is static HTML wrapped with pushData/popData for @aware propagation
+        expect($output)->not->toContain('$__blaze->ensureCompiled');
+        expect($rendered)->toBe('<div class="group group-primary" data-test="foo"><div class="item item-primary"></div></div>');
     });
 
     it('supports folding aware components with hyphenated attributes', function () {
         $input = '<x-group variant="primary" second-variant="secondary"><x-foldable-item /></x-group>';
         $output = app('blaze')->compile($input);
+        $rendered = \Illuminate\Support\Facades\Blade::render($output);
 
-        expect($output)->toBe('<div class="group group-primary" data-test="foo" data-second-variant="secondary"><div class="item item-primary item-secondary"></div></div>');
+        expect($rendered)->toBe('<div class="group group-primary" data-test="foo" data-second-variant="secondary"><div class="item item-primary item-secondary"></div></div>');
     });
 
     it('supports folding aware components with two wrapping components both with the same prop the closest one wins', function () {
         $input = '<x-group variant="primary"><x-group variant="secondary"><x-foldable-item /></x-group></x-group>';
         $output = app('blaze')->compile($input);
+        $rendered = \Illuminate\Support\Facades\Blade::render($output);
 
         // The foldable-item should render the `secondary` variant because it is the closest one to the foldable-item...
-        expect($output)->toBe('<div class="group group-primary" data-test="foo"><div class="group group-secondary" data-test="foo"><div class="item item-secondary"></div></div></div>');
+        expect($rendered)->toBe('<div class="group group-primary" data-test="foo"><div class="group group-secondary" data-test="foo"><div class="item item-secondary"></div></div></div>');
     });
 
     it('supports aware on unfoldable components from folded parent with single word attributes', function () {
@@ -356,6 +361,58 @@ describe('fold elligable components', function () {
         // The child item should receive the runtime value of $color, not a literal string.
         expect($rendered)->toContain('<div class="group group-primary">');
         expect($rendered)->toContain('<div class="item item-primary">');
+    });
+
+    it('supports aware on blaze-compiled components from folded parent', function () {
+        // blaze-item uses @blaze (compiled, not folded) + @aware(['variant']).
+        // group uses @blaze(fold: true). The folded parent must push data to
+        // $__blaze->dataStack so the Blaze-compiled child can read it.
+        $input = '<x-group variant="primary"><x-blaze-item /></x-group>';
+        $output = app('blaze')->compile($input);
+
+        expect($output)->toContain('pushData');
+        // Verify blaze-item was compiled to a function call, not left as a tag
+        expect($output)->not->toContain('<x-blaze-item');
+
+        $rendered = trim(\Illuminate\Support\Facades\Blade::render($output));
+
+        expect($rendered)->toContain('<div class="item item-primary"></div>');
+    });
+
+    it('supports aware on blaze-compiled components from folded parent with hyphenated attributes', function () {
+        $input = '<x-group variant="primary" second-variant="secondary"><x-blaze-item /></x-group>';
+        $output = app('blaze')->compile($input);
+        $rendered = trim(\Illuminate\Support\Facades\Blade::render($output));
+
+        expect($rendered)->toContain('<div class="item item-primary item-secondary"></div>');
+    });
+
+    it('supports aware through delegate-component from folded parent', function () {
+        // This mirrors the real-world flux:tabs > flux:tab pattern.
+        // flux:tabs is folded, flux:tab is compiled, and flux:tab delegates
+        // to tab.variants.$variant. The @aware on flux:tab must receive
+        // the variant from the folded flux:tabs parent.
+        app('blade.compiler')->anonymousComponentPath(__DIR__ . '/Feature/fixtures/flux', 'flux');
+
+        $input = '<flux:tabs variant="segmented"><flux:tab>Tab 1</flux:tab></flux:tabs>';
+        $output = app('blaze')->compile($input);
+        $rendered = \Illuminate\Support\Facades\Blade::render($output);
+
+        expect($rendered)->toContain('tabs-segmented');
+        expect($rendered)->toContain('tab-segmented');
+        expect($rendered)->not->toContain('tab-default');
+    });
+
+    it('supports aware through delegate-component from folded parent with pills variant', function () {
+        app('blade.compiler')->anonymousComponentPath(__DIR__ . '/Feature/fixtures/flux', 'flux');
+
+        $input = '<flux:tabs variant="pills"><flux:tab>Tab 1</flux:tab></flux:tabs>';
+        $output = app('blaze')->compile($input);
+        $rendered = \Illuminate\Support\Facades\Blade::render($output);
+
+        expect($rendered)->toContain('tabs-pills');
+        expect($rendered)->toContain('tab-pills');
+        expect($rendered)->not->toContain('tab-default');
     });
 
     it('supports verbatim blocks', function () {

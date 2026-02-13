@@ -2,15 +2,14 @@
 
 namespace Livewire\Blaze\Folder;
 
-use Closure;
 use Illuminate\Support\Str;
+use Livewire\Blaze\BladeService;
+use Livewire\Blaze\Nodes\Attribute;
 use Livewire\Blaze\Nodes\ComponentNode;
 use Livewire\Blaze\Nodes\SlotNode;
 use Livewire\Blaze\Nodes\TextNode;
 use Livewire\Blaze\Support\ComponentSource;
-use Livewire\Blaze\Nodes\Attribute;
 use Livewire\Blaze\Support\Utils;
-use Livewire\Blaze\BladeService;
 
 /**
  * Performs compile-time folding of a component by rendering it with placeholder substitution.
@@ -226,7 +225,7 @@ class Foldable
             return;
         }
 
-        if (! $this->hasAwareDescendant($this->node)) {
+        if (! $this->node->hasAwareDescendants) {
             return;
         }
 
@@ -240,41 +239,11 @@ class Foldable
             }
         }
 
+        $dataString = implode(', ', $data);
+
         $this->html = Str::wrap($this->html,
-            '<?php $__env->pushConsumableComponentData(['.implode(', ', $data).']); ?>',
-            '<?php $__env->popConsumableComponentData(); ?>',
+            '<?php $__blaze->pushData(['.$dataString.']); $__env->pushConsumableComponentData(['.$dataString.']); ?>',
+            '<?php $__blaze->popData(); $__env->popConsumableComponentData(); ?>',
         );
-    }
-    
-    /**
-     * Recursively check if any descendant component uses @aware.
-     */
-    protected function hasAwareDescendant(ComponentNode | SlotNode $node): bool
-    {
-        $children = $node->children;
-
-        foreach ($children as $child) {
-            if ($child instanceof ComponentNode) {
-                $source = new ComponentSource($child->name);
-
-                if (! $source->exists()) {
-                    continue;
-                }
-
-                if ($source->directives->has('aware')) {
-                    return true;
-                }
-
-                if ($this->hasAwareDescendant($child)) {
-                    return true;
-                }
-            } elseif ($child instanceof SlotNode) {
-                if ($this->hasAwareDescendant($child)) {
-                    return true;
-                }
-            }
-        }
-
-        return false;
     }
 }
