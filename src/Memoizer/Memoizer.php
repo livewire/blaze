@@ -32,26 +32,17 @@ class Memoizer
             return false;
         }
 
-        try {
-            $source = new ComponentSource($node->name);
+        $source = new ComponentSource($node->name);
 
-            if (! $source->exists()) {
-                return false;
-            }
-
-            // Component-level @blaze(memo: ...) takes priority over path config
-            $memo = $source->directives->blaze('memo');
-
-            if (! is_null($memo)) {
-                return $memo;
-            }
-
-            // Use path-based default
-            return $this->config->shouldMemoize($source->path);
-
-        } catch (\Exception $e) {
+        if (! $source->exists()) {
             return false;
         }
+
+        if (! is_null($memo = $source->directives->blaze('memo'))) {
+            return $memo;
+        }
+
+        return $this->config->shouldMemoize($source->path);
     }
 
     /**
