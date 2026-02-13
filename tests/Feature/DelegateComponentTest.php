@@ -122,6 +122,31 @@ describe('delegate component @aware with slots', function () {
     });
 });
 
+describe('delegate component @aware data propagation', function () {
+    beforeEach(function () {
+        app('blade.compiler')->anonymousComponentPath(__DIR__ . '/fixtures/flux', 'flux');
+    });
+
+    it('delegate-component pushes data so delegate target can @aware parent props', function () {
+        // The delegate-aware-parent component receives variant="primary" as a prop,
+        // then uses <flux:delegate-component> to render delegate-aware-target.
+        // The delegate target uses @aware(['variant']) to read variant from the data stack.
+        // Without pushData/popData wrapping the delegate call, the target would
+        // fall back to the default ('default') instead of seeing 'primary'.
+        $result = Blade::render('<flux:delegate-aware-parent variant="primary">Content</flux:delegate-aware-parent>');
+
+        expect($result)
+            ->toContain('target-primary')
+            ->not->toContain('target-default');
+    });
+
+    it('delegate-component @aware falls back to default when no parent provides value', function () {
+        $result = Blade::render('<flux:delegate-aware-parent>Content</flux:delegate-aware-parent>');
+
+        expect($result)->toContain('target-default');
+    });
+});
+
 describe('delegate component with forwarded attributes', function () {
     beforeEach(function () {
         app('blade.compiler')->anonymousComponentPath(__DIR__ . '/fixtures/flux', 'flux');

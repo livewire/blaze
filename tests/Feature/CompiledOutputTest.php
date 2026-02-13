@@ -362,10 +362,11 @@ unset($__defaults);
 $attributes = \Livewire\Blaze\Runtime\BlazeAttributeBag::sanitized($__data, $__bound);
 unset($__data, $__bound); ?><?php $__resolved = $__blaze->resolve(\'flux::\' . \'child.\' . $variant); ?>
 <?php require_once $__blaze->compiledPath . \'/\' . $__resolved . \'.php\'; ?>
-<?php $slots' . $slotsHash . ' = []; ?>
+<?php $__blaze->pushData($attributes->all()); ?><?php $slots' . $slotsHash . ' = []; ?>
 <?php ob_start(); ?>Hello World<?php $slots' . $slotsHash . '[\'slot\'] = new \Illuminate\View\ComponentSlot(trim(ob_get_clean()), []); ?>
 <?php $slots' . $slotsHash . ' = array_merge($__blaze->mergedComponentSlots(), $slots' . $slotsHash . '); ?>
 <?php (\'_\' . $__resolved)($__blaze, $attributes->all(), $slots' . $slotsHash . ', [], isset($this) ? $this : null); ?>
+<?php $__blaze->popData(); ?>
 <?php unset($__resolved) ?>
 
 <?php } endif; ?><?php /**PATH ' . $path . ' ENDPATH**/ ?>'
@@ -380,7 +381,9 @@ unset($__data, $__bound); ?><?php $__resolved = $__blaze->resolve(\'flux::\' . \
             '@blaze
 <?php $__resolved = $__blaze->resolve(\'flux::\' . $type); ?>
 <?php require_once $__blaze->compiledPath . \'/\' . $__resolved . \'.php\'; ?>
+<?php $__blaze->pushData($attributes->all()); ?>
 <?php (\'_\' . $__resolved)($__blaze, $attributes->all(), $__blaze->mergedComponentSlots(), [], isset($this) ? $this : null); ?>
+<?php $__blaze->popData(); ?>
 <?php unset($__resolved) ?>
 '
         );
