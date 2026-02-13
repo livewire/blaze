@@ -129,7 +129,7 @@ class Compiler
         if ($node->selfClosing) {
             $output .= "\n" . '<' . '?php (\'_\' . $__resolved)($__blaze, $attributes->all(), $__blaze->mergedComponentSlots(), [], isset($this) ? $this : null); ?>';
         } else {
-            $output .= "\n" . $this->slotCompiler->compile($slotsVariableName, $node->children);
+            $output .= $this->slotCompiler->compile($slotsVariableName, $node->children);
             $output .= "\n" . '<' . '?php ' . $slotsVariableName . ' = array_merge($__blaze->mergedComponentSlots(), ' . $slotsVariableName . '); ?>';
             $output .= "\n" . '<' . '?php (\'_\' . $__resolved)($__blaze, $attributes->all(), ' . $slotsVariableName . ', [], isset($this) ? $this : null); ?>';
         }
