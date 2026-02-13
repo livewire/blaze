@@ -49,7 +49,11 @@ class Directives
      */
     public function array(string $name): array|null
     {
-        return ($expression = $this->get($name)) ? ArrayParser::parse($expression) : null;
+        if ($expression = $this->get($name)) {
+            return ArrayParser::parse($expression);
+        }
+        
+        return null;
     }
 
     /**
@@ -59,7 +63,11 @@ class Directives
      */
     public function props(): array
     {
-        return array_values(Arr::map($this->array('props') ?? [], fn ($value, $key) => is_int($key) ? $value : $key));
+        if ($definition = $this->array('props')) {
+            return collect($definition)->map(fn ($value, $key) => is_int($key) ? $value : $key)->values()->all();
+        }
+
+        return [];
     }
 
     /**

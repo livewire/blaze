@@ -19,16 +19,12 @@ use Livewire\Blaze\Nodes\SlotNode;
 
 class BlazeManager
 {
-    protected $foldedEvents = [];
-
     protected $enabled = true;
-
     protected $throw = false;
-
     protected $debug = false;
-
     protected $folding = false;
-
+    
+    protected $foldedEvents = [];
     protected $expiredMemo = [];
 
     public function __construct(
@@ -53,28 +49,23 @@ class BlazeManager
     {
         $source = $template;
 
-        $template = BladeService::preStoreUncompiledBlocks($template);
-        $template = BladeService::compileComments($template);
+        $clean = $template;
+        $clean = BladeService::preStoreUncompiledBlocks($clean);
+        $clean = BladeService::compileComments($clean);
 
         $dataStack = [];
 
-        $tokens = $this->tokenizer->tokenize($template);
+        $tokens = $this->tokenizer->tokenize($clean);
         $ast = $this->parser->parse($tokens);
         $ast = $this->walker->walk(
             nodes: $ast,
             preCallback: function ($node) use (&$dataStack) {
-                if ($dataStack && $node instanceof ComponentNode) {
-                    $node->setParentsAttributes(array_merge(...$dataStack));
-                }
-
-                if (($node instanceof ComponentNode) && $node->children) {
+                if ($node instanceof ComponentNode) {
                     $dataStack[] = $node->attributes;
 
-                    // Pre-compute @aware descendant info while children are still
-                    // ComponentNodes. By the time postCallback runs (inside-out),
-                    // children will have been compiled to TextNodes and this check
-                    // would no longer be possible.
                     $node->hasAwareDescendants = $this->hasAwareDescendant($node);
+
+                    $node->setParentsAttributes(array_merge(...$dataStack));
                 }
 
                 return $node;
@@ -121,7 +112,7 @@ class BlazeManager
         $ast = $this->walker->walk(
             nodes: $ast,
             preCallback: fn ($node) => $node,
-            postCallback: function ($node) use (&$dataStack) {
+            postCallback: function ($node) {
                 $node = $this->memoizer->memoize($node);
                 $node = $this->compiler->compile($node);
 
@@ -340,15 +331,8 @@ class BlazeManager
             if ($child instanceof ComponentNode) {
                 $source = new ComponentSource($child->name);
 
-                // Delegate components resolve their target dynamically at runtime,
-                // so we can't check the resolved component for @aware. Assume it
-                // might have @aware descendants to be safe.
-                if (! $source->exists()) {
-                    if (str_ends_with($child->name, 'delegate-component')) {
-                        return true;
-                    }
-
-                    continue;
+                if (str_ends_with($child->name, 'delegate-component')) {
+                    return true;
                 }
 
                 if ($source->directives->has('aware')) {
