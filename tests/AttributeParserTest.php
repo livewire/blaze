@@ -445,4 +445,33 @@ describe('parse attributes', function () {
 
         expect($attributes)->toBe($output);
     });
+
+    it('parses {{ $attributes }} as a dynamic attributes key', function () {
+        $input = '{{ $attributes }}';
+
+        $attributes = (new AttributeParser)->parseAttributeStringToArray($input);
+
+        expect($attributes)->toHaveKey('attributes');
+        expect($attributes['attributes']['isDynamic'])->toBeTrue();
+        expect($attributes['attributes']['name'])->toBe('attributes');
+    });
+
+    it('parses {{ $attributes->merge(...) }} as a dynamic attributes key', function () {
+        $input = '{{ $attributes->merge([\'class\' => \'btn\']) }}';
+
+        $attributes = (new AttributeParser)->parseAttributeStringToArray($input);
+
+        expect($attributes)->toHaveKey('attributes');
+        expect($attributes['attributes']['isDynamic'])->toBeTrue();
+        expect($attributes['attributes']['name'])->toBe('attributes');
+    });
+
+    it('parses {{ $attributes->class(...) }} as a dynamic attributes key', function () {
+        $input = '{{ $attributes->class(\'mt-4\') }}';
+
+        $attributes = (new AttributeParser)->parseAttributeStringToArray($input);
+
+        expect($attributes)->toHaveKey('attributes');
+        expect($attributes['attributes']['isDynamic'])->toBeTrue();
+    });
 });

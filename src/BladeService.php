@@ -208,6 +208,26 @@ class BladeService
     }
 
     /**
+     * Preprocess a component attribute string using Laravel's ComponentTagCompiler.
+     *
+     * Transforms {{ $attributes... }} into :attributes="...",
+     * @class(...) into :class="...", and @style(...) into :style="...".
+     */
+    public static function preprocessAttributeString(string $attributeString): string
+    {
+        $compiler = new ComponentTagCompiler(blade: app('blade.compiler'));
+
+        return (function (string $str): string {
+            /** @var ComponentTagCompiler $this */
+            $str = $this->parseAttributeBag($str);
+            $str = $this->parseComponentTagClassStatements($str);
+            $str = $this->parseComponentTagStyleStatements($str);
+
+            return $str;
+        })->call($compiler, $attributeString);
+    }
+
+    /**
      * Compile Blade echo syntax within attribute values using ComponentTagCompiler.
      */
     public static function compileAttributeEchos(string $input): string

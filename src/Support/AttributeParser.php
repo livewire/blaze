@@ -3,6 +3,7 @@
 namespace Livewire\Blaze\Support;
 
 use Illuminate\Support\Arr;
+use Livewire\Blaze\BladeService;
 
 /**
  * Parses component attribute strings into structured arrays, handling all Blade syntaxes.
@@ -16,7 +17,7 @@ class AttributeParser
      */
     public function parseAttributeStringToArray(string $attributesString): array
     {
-        $attributesString = $this->transformDirectiveAttributes($attributesString);
+        $attributesString = BladeService::preprocessAttributeString($attributesString);
 
         $attributes = [];
 
@@ -182,27 +183,6 @@ class AttributeParser
         }));
 
         return $attributes;
-    }
-
-    /**
-     * Transform @class/@style directives into bound :class/:style attributes.
-     */
-    protected function transformDirectiveAttributes(string $attributesString): string
-    {
-        return preg_replace_callback(
-            '/@(class|style)(\( ( (?>[^()]+) | (?2) )* \))/x',
-            function ($match) {
-                $directive = $match[1];
-                $args = str_replace('"', "'", $match[2]);
-
-                $method = $directive === 'class'
-                    ? '\Illuminate\Support\Arr::toCssClasses'
-                    : '\Illuminate\Support\Arr::toCssStyles';
-
-                return ":{$directive}=\"{$method}{$args}\"";
-            },
-            $attributesString
-        );
     }
 
     /**

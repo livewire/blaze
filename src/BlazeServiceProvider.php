@@ -2,14 +2,7 @@
 
 namespace Livewire\Blaze;
 
-use Livewire\Blaze\Compiler\Wrapper;
-use Livewire\Blaze\Compiler\Compiler;
 use Livewire\Blaze\Runtime\BlazeRuntime;
-use Livewire\Blaze\Walker\Walker;
-use Livewire\Blaze\Tokenizer\Tokenizer;
-use Livewire\Blaze\Parser\Parser;
-use Livewire\Blaze\Memoizer\Memoizer;
-use Livewire\Blaze\Folder\Folder;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Support\Facades\Blade;
 use Illuminate\Support\Facades\View;
@@ -32,28 +25,17 @@ class BlazeServiceProvider extends ServiceProvider
      */
     protected function registerBlazeManager(): void
     {
-        $this->app->singleton(BlazeRuntime::class, fn () => new BlazeRuntime);
-        $this->app->singleton(Config::class, fn () => new Config);
-        $this->app->singleton(Debugger::class, fn () => new Debugger);
-
-        $config = $this->app->make(Config::class);
-
-        $this->app->singleton(BlazeManager::class, fn () => new BlazeManager(
-            new Tokenizer,
-            new Parser,
-            new Walker,
-            new Compiler($config),
-            new Folder($config),
-            new Memoizer($config),
-            new Wrapper,
-            app(Config::class),
-        ));
+        $this->app->singleton(BlazeRuntime::class);
+        $this->app->singleton(Config::class);
+        $this->app->singleton(Debugger::class);
+        $this->app->singleton(BlazeManager::class);
 
         $this->app->alias(BlazeManager::class, Blaze::class);
 
-        $this->app->bind('blaze', fn ($app) => $app->make(BlazeManager::class));
-        $this->app->bind('blaze.runtime', fn ($app) => $app->make(BlazeRuntime::class));
-        $this->app->bind('blaze.debugger', fn ($app) => $app->make(Debugger::class));
+        $this->app->alias(BlazeManager::class, 'blaze');
+        $this->app->alias(BlazeRuntime::class, 'blaze.runtime');
+        $this->app->alias(Config::class, 'blaze.config');
+        $this->app->alias(Debugger::class, 'blaze.debugger');
     }
 
     /**
@@ -90,13 +72,14 @@ class BlazeServiceProvider extends ServiceProvider
      */
     protected function registerBladeMacros(): void
     {
-        $this->app->make('view')->macro('pushConsumableComponentData', function ($data) {
+        View::macro('pushConsumableComponentData', function ($data) {
+            /** @var \Illuminate\View\Factory $this */
             $this->componentStack[] = new \Illuminate\Support\HtmlString('');
-
             $this->componentData[$this->currentComponent()] = $data;
         });
 
-        $this->app->make('view')->macro('popConsumableComponentData', function () {
+        View::macro('popConsumableComponentData', function () {
+            /** @var \Illuminate\View\Factory $this */
             array_pop($this->componentStack);
         });
     }
@@ -106,15 +89,17 @@ class BlazeServiceProvider extends ServiceProvider
      */
     protected function interceptBladeCompilation(): void
     {
-        $blaze = app(BlazeManager::class);
+        BladeService::earliestPreCompilationHook(function ($input) {
+            if (Blaze::isDisabled()) {
+                return $input;
+            }
 
-        BladeService::earliestPreCompilationHook(function ($input) use ($blaze) {
-            if ($blaze->isDisabled()) return $input;
+            if (BladeService::containsLaravelExceptionView($input)) {
+                return $input;
+            }
 
-            if (BladeService::containsLaravelExceptionView($input)) return $input;
-
-            return $blaze->collectAndAppendFrontMatter($input, function ($input) use ($blaze) {
-                return $blaze->compile($input);
+            return Blaze::collectAndAppendFrontMatter($input, function ($input) {
+                return Blaze::compile($input);
             });
         });
     }
@@ -124,12 +109,12 @@ class BlazeServiceProvider extends ServiceProvider
      */
     protected function interceptViewCacheInvalidation(): void
     {
-        $blaze = app(BlazeManager::class);
+        BladeService::viewCacheInvalidationHook(function ($view, $invalidate) {
+            if (Blaze::isDisabled()) {
+                return;
+            }
 
-        BladeService::viewCacheInvalidationHook(function ($view, $invalidate) use ($blaze) {
-            if ($blaze->isDisabled()) return;
-
-            if ($blaze->viewContainsExpiredFrontMatter($view)) {
+            if (Blaze::viewContainsExpiredFrontMatter($view)) {
                 $invalidate();
             }
         });

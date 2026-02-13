@@ -30,7 +30,7 @@ class Debugger
      * Extract a human-readable component name from its file path.
      *
      * Handles various path patterns:
-     * - Flux stubs: .../flux/stubs/resources/views/flux/button/index.blade.php -> flux:button
+     * - Flux views: .../resources/views/flux/button/index.blade.php -> flux:button
      * - Vendor packages: .../vendor/livewire/flux/resources/views/components/... -> flux:...
      * - App components: .../resources/views/components/button.blade.php -> button
      */
@@ -38,8 +38,8 @@ class Debugger
     {
         $resolved = realpath($path) ?: $path;
 
-        // Flux stubs pattern: /flux/.../resources/views/flux/<component>.blade.php
-        if (preg_match('#/flux/.+?/resources/views/flux/(.+?)\.blade\.php$#', $resolved, $matches)) {
+        // Flux views pattern: .../resources/views/flux/<component>.blade.php
+        if (preg_match('#/resources/views/flux/(.+?)\.blade\.php$#', $resolved, $matches)) {
             $name = str_replace('/', '.', $matches[1]);
             $name = preg_replace('/\.index$/', '', $name);
             return 'flux:'.$name;
@@ -58,7 +58,7 @@ class Debugger
                 }
             }
 
-            return $name;
+            return 'x-'.$name;
         }
 
         // Fallback: use the filename without .blade
@@ -183,6 +183,15 @@ class Debugger
                 'count' => $data['count'],
                 'totalTime' => round($data['totalTime'] * 1000, 2), // ms
             ])
+            ->groupBy(fn ($data) => preg_match('/^flux:icon\./', $data['name']) ? 'flux:icon' : $data['name'])
+            ->map(fn ($group, $key) => $group->count() > 1
+                ? [
+                    'name' => $key,
+                    'count' => $group->sum('count'),
+                    'totalTime' => round($group->sum('totalTime'), 2),
+                ]
+                : $group->first()
+            )
             ->sortByDesc('totalTime')
             ->values()
             ->all();

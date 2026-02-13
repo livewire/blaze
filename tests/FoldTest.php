@@ -556,6 +556,22 @@ BLADE);
         expect($output)->toContain('$__blaze->ensureCompiled');
     });
 
+    it('does not fold component when {{ $attributes }} is used', function () {
+        // {{ $attributes }} is a Blade echo of the attribute bag — can't be resolved at compile time
+        $input = '<x-button {{ $attributes }}>Click</x-button>';
+        $output = app('blaze')->compile($input);
+
+        expect($output)->toContain('$__blaze->ensureCompiled');
+    });
+
+    it('does not fold component when {{ $attributes->merge(...) }} is used', function () {
+        // {{ $attributes->merge(...) }} spreads dynamic attributes — prevents folding
+        $input = '<x-button {{ $attributes->merge([\'class\' => \'btn\']) }}>Click</x-button>';
+        $output = app('blaze')->compile($input);
+
+        expect($output)->toContain('$__blaze->ensureCompiled');
+    });
+
     it('does not fold component when :$attributes spread is used even with safe wildcard', function () {
         // Even with safe: ['*'], :$attributes spread can't be folded because
         // the attributes bag can't be evaluated at compile time
