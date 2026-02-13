@@ -19,14 +19,21 @@ class Memo
 
     /**
      * Generate a cache key from a component name and its parameters.
+     *
+     * Returns null when params contain non-serializable values (objects,
+     * resources, etc.) so the caller can render directly without caching.
      */
-    public static function key(string $name, $params = []): string
+    public static function key(string $name, $params = []): ?string
     {
         ksort($params);
 
-        $params = json_encode($params);
+        $encoded = json_encode($params);
 
-        return 'blaze_memoized_' . $name . ':' . $params;
+        if ($encoded === false) {
+            return null;
+        }
+
+        return 'blaze_memoized_' . $name . ':' . $encoded;
     }
 
     /**

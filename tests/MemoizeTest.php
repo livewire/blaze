@@ -43,4 +43,19 @@ describe('memoization', function () {
         expect($renderedA)->toContain('<div>');
         expect($renderedA)->not->toBe($renderedB);
     });
+
+    it('returns null key when params are not json-serializable', function () {
+        $memo = \Livewire\Blaze\Memoizer\Memo::class;
+
+        // Non-serializable params should return null to skip caching entirely
+        expect($memo::key('avatar', ['circle' => true, 'value' => NAN]))->toBeNull();
+        expect($memo::key('avatar', ['circle' => false, 'value' => INF]))->toBeNull();
+
+        // Serializable params should still produce valid keys
+        $keyA = $memo::key('avatar', ['circle' => true, 'src' => '/img.jpg']);
+        $keyB = $memo::key('avatar', ['circle' => true, 'src' => '/img.jpg']);
+
+        expect($keyA)->toBeString();
+        expect($keyA)->toBe($keyB);
+    });
 });

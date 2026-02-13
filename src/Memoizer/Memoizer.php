@@ -65,13 +65,18 @@ class Memoizer
         $name = $node->name;
         $attributes = $node->getAttributesAsRuntimeArrayString();
 
+        $compiled = $this->compiler->compile($node)->render();
+
         $output = '<' . '?php $blaze_memoized_key = \Livewire\Blaze\Memoizer\Memo::key("' . $name . '", ' . $attributes . '); ?>';
-        $output .= '<' . '?php if (! \Livewire\Blaze\Memoizer\Memo::has($blaze_memoized_key)) : ?>';
-        $output .= '<' . '?php ob_start(); ?>';
-        $output .= $this->compiler->compile($node)->render();
-        $output .= '<' . '?php \Livewire\Blaze\Memoizer\Memo::put($blaze_memoized_key, ob_get_clean()); ?>';
-        $output .= '<' . '?php endif; ?>';
+        $output .= '<' . '?php if ($blaze_memoized_key !== null && \Livewire\Blaze\Memoizer\Memo::has($blaze_memoized_key)) : ?>';
         $output .= '<' . '?php echo \Livewire\Blaze\Memoizer\Memo::get($blaze_memoized_key); ?>';
+        $output .= '<' . '?php else : ?>';
+        $output .= '<' . '?php ob_start(); ?>';
+        $output .= $compiled;
+        $output .= '<' . '?php $blaze_memoized_html = ob_get_clean(); ?>';
+        $output .= '<' . '?php if ($blaze_memoized_key !== null) { \Livewire\Blaze\Memoizer\Memo::put($blaze_memoized_key, $blaze_memoized_html); } ?>';
+        $output .= '<' . '?php echo $blaze_memoized_html; ?>';
+        $output .= '<' . '?php endif; ?>';
 
         return new TextNode($output);
     }
