@@ -149,16 +149,22 @@ class Foldable
                 $default = null;
             }
 
-            $attribute = $this->node->parentsAttributes[$prop] ?? new Attribute(
-                name: $prop,
-                value: $default,
-                propName: $prop,
-                prefix: null,
-                dynamic: false,
-                quotes: '"',
-            );
-
-            $this->renderable->attributes[$prop] ??= $attribute;
+            if (isset($this->node->parentsAttributes[$prop])) {
+                $this->renderable->attributes[$prop] ??= $this->node->parentsAttributes[$prop];
+            } elseif ($default !== null) {
+                $this->renderable->attributes[$prop] ??= new Attribute(
+                    name: $prop,
+                    value: $default,
+                    propName: $prop,
+                    prefix: null,
+                    dynamic: false,
+                    quotes: '"',
+                );
+            }
+            // When default is null and no parent provides a value, we intentionally
+            // skip adding the attribute. This lets @aware and @props handle defaults
+            // at runtime, matching the non-folded behavior. Adding an attribute with
+            // null value would render as prop="" in HTML, corrupting null to empty string.
         }
     }
 

@@ -665,4 +665,42 @@ BLADE);
         expect($output)->not->toContain('$__blaze->ensureCompiled');
         expect($output)->toContain('<a');
     });
+
+    it('does not convert null aware defaults to empty string when folding', function () {
+        // Bug: when a folded component has @aware(['variant']) with no parent providing
+        // the value, mergeAwareProps() used to create an Attribute with value: null.
+        // During HTML rendering null became "" (empty string), so $variant === null
+        // checks would fail. The fix skips adding the attribute entirely.
+        $input = '<x-fold-aware-null-tabs>Content</x-fold-aware-null-tabs>';
+        $output = app('blaze')->compile($input);
+        $rendered = \Illuminate\Support\Facades\Blade::render($output);
+
+        // With $variant === null the component should output "tabs-border"
+        expect($rendered)->toContain('tabs-border');
+        // Should NOT have "tabs-" with empty variant
+        expect($rendered)->not->toContain('tabs-""');
+    });
+
+    it('preserves props defaults when aware has null default and no parent value during fold', function () {
+        // Bug: @aware(['field']) gets null (no parent pushes it). Then @props(['field' => 'value'])
+        // should default to 'value'. But the fold used to pass field="" instead of not passing it,
+        // so @props assigned $field = "" instead of $field = "value".
+        $input = '<x-fold-aware-null-field />';
+        $output = app('blaze')->compile($input);
+        $rendered = \Illuminate\Support\Facades\Blade::render($output);
+
+        // The @props default 'value' should be used since no parent provides 'field'
+        expect($rendered)->toContain('field="value"');
+        // Should NOT have empty field
+        expect($rendered)->not->toContain('field=""');
+    });
+
+    it('still merges parent aware attributes when folding even with null defaults', function () {
+        // When a parent DOES provide the value, it should still be used
+        $input = '<x-group variant="primary"><x-foldable-item /></x-group>';
+        $output = app('blaze')->compile($input);
+        $rendered = \Illuminate\Support\Facades\Blade::render($output);
+
+        expect($rendered)->toContain('item-primary');
+    });
 });
