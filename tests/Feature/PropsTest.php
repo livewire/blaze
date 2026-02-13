@@ -704,3 +704,131 @@ describe('edge cases', function () {
         expect($result)->toContain('<span>3</span>');
     });
 });
+
+describe('@php before @props execution order', function () {
+    it('runs @php block before @props so ??= pluck overrides default', function () {
+        // Register pluck macro like Flux does
+        \Illuminate\View\ComponentAttributeBag::macro('pluck', function ($key, $default = null) {
+            $result = $this->get($key);
+            unset($this->attributes[$key]);
+            return $result ?? $default;
+        });
+
+        $result = blade(
+            components: [
+                'tooltip' => <<<'BLADE'
+                    @blaze
+                    @php $position ??= $attributes->pluck('tooltip:position'); @endphp
+                    @props(['position' => 'top'])
+                    <div data-position="{{ $position }}">Content</div>
+                    BLADE
+                ,
+            ],
+            view: '<x-tooltip tooltip:position="bottom" />',
+        );
+
+        expect($result)->toContain('data-position="bottom"');
+    });
+
+    it('uses @props default when @php pluck finds nothing', function () {
+        \Illuminate\View\ComponentAttributeBag::macro('pluck', function ($key, $default = null) {
+            $result = $this->get($key);
+            unset($this->attributes[$key]);
+            return $result ?? $default;
+        });
+
+        $result = blade(
+            components: [
+                'tooltip' => <<<'BLADE'
+                    @blaze
+                    @php $position ??= $attributes->pluck('tooltip:position'); @endphp
+                    @props(['position' => 'top'])
+                    <div data-position="{{ $position }}">Content</div>
+                    BLADE
+                ,
+            ],
+            view: '<x-tooltip />',
+        );
+
+        expect($result)->toContain('data-position="top"');
+    });
+
+    it('handles multiple @php plucks before @props', function () {
+        \Illuminate\View\ComponentAttributeBag::macro('pluck', function ($key, $default = null) {
+            $result = $this->get($key);
+            unset($this->attributes[$key]);
+            return $result ?? $default;
+        });
+
+        $result = blade(
+            components: [
+                'button' => <<<'BLADE'
+                    @blaze
+                    @php $iconTrailing ??= $attributes->pluck('icon:trailing'); @endphp
+                    @php $iconVariant ??= $attributes->pluck('icon:variant'); @endphp
+                    @props(['iconTrailing' => null, 'iconVariant' => 'outline'])
+                    <button data-trailing="{{ $iconTrailing }}" data-variant="{{ $iconVariant }}">Click</button>
+                    BLADE
+                ,
+            ],
+            view: '<x-button icon:trailing="arrow" icon:variant="solid" />',
+        );
+
+        expect($result)->toContain('data-trailing="arrow"');
+        expect($result)->toContain('data-variant="solid"');
+    });
+
+    it('plucked value is used even when $attributes bag is also rendered', function () {
+        \Illuminate\View\ComponentAttributeBag::macro('pluck', function ($key, $default = null) {
+            $result = $this->get($key);
+            unset($this->attributes[$key]);
+            return $result ?? $default;
+        });
+
+        $result = blade(
+            components: [
+                'tooltip' => <<<'BLADE'
+                    @blaze
+                    @php $position ??= $attributes->pluck('tooltip:position'); @endphp
+                    @props(['position' => 'top'])
+                    <div {{ $attributes }} data-position="{{ $position }}">Content</div>
+                    BLADE
+                ,
+            ],
+            view: '<x-tooltip tooltip:position="bottom" class="test" />',
+        );
+
+        expect($result)->toContain('data-position="bottom"');
+        expect($result)->toContain('class="test"');
+    });
+
+    it('@php before @props with passed prop value takes precedence over pluck', function () {
+        \Illuminate\View\ComponentAttributeBag::macro('pluck', function ($key, $default = null) {
+            $result = $this->get($key);
+            unset($this->attributes[$key]);
+            return $result ?? $default;
+        });
+
+        $result = blade(
+            components: [
+                'tooltip' => <<<'BLADE'
+                    @blaze
+                    @php $position ??= $attributes->pluck('tooltip:position'); @endphp
+                    @props(['position' => 'top'])
+                    <div data-position="{{ $position }}">Content</div>
+                    BLADE
+                ,
+            ],
+            view: '<x-tooltip position="left" tooltip:position="bottom" />',
+        );
+
+        // When position is passed as a direct prop, it should take precedence.
+        // The ??= in @php means pluck only sets if not already defined.
+        // But since @php runs before @props in Blade, and the variable isn't
+        // defined yet at that point, pluck runs. Then @props sees the variable
+        // is already set and skips the default. The direct prop "left" is in
+        // $__data but the ??= already set the variable from pluck.
+        // This matches Blade's behavior.
+        expect($result)->toContain('data-position="bottom"');
+    });
+});

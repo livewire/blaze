@@ -37,9 +37,28 @@ class Wrapper
         $awareAssignments = $awareExpression ? $this->awareCompiler->compile($awareExpression) : null;
 
         $compiled = $this->stripDirective($compiled, 'blaze');
-        $compiled = $this->stripDirective($compiled, 'props');
         $compiled = $this->stripDirective($compiled, 'aware');
         $compiled = $this->stripDirective($compiled, 'use');
+
+        $propsUseAttributes = $propAssignments !== null && str_contains($propAssignments, '$attributes');
+        $sourceUsesAttributes = str_contains($this->stripDirective($source, 'props'), '$attributes') || str_contains($source, '<flux:delegate-component');
+
+        // Compile @props in-place to preserve source execution order.
+        // This ensures @php blocks before @props run first, matching Blade's
+        // top-to-bottom behavior (e.g. Flux's $attributes->pluck() pattern).
+        if ($propsExpression !== null) {
+            $inPlaceCode = $propAssignments ?: '';
+
+            if ($sourceUsesAttributes) {
+                $inPlaceCode .= '$attributes = \\Livewire\\Blaze\\Runtime\\BlazeAttributeBag::sanitized($__data, $__bound);'."\n";
+            }
+
+            $inPlaceCode .= 'unset($__data, $__bound);'."\n";
+
+            $compiled = $this->replaceDirectiveWithPhp($compiled, 'props', $inPlaceCode);
+        } else {
+            $compiled = $this->stripDirective($compiled, 'props');
+        }
 
         // Hoist PHP use statements out of the template so they appear before
         // the function definition. We extract from the source because @php
@@ -47,8 +66,12 @@ class Wrapper
         // are not yet present in $compiled at this point.
         [$compiled, $useStatements] = $this->extractUseStatements($source, $compiled);
 
-        $propsUseAttributes = str_contains($propAssignments, '$attributes');
-        $sourceUsesAttributes = str_contains($this->stripDirective($source, 'props'), '$attributes') || str_contains($source, '<flux:delegate-component');
+        // Create an early unsanitized $attributes bag only when @props defaults
+        // reference $attributes (e.g. $attributes->get()). The sanitized bag is
+        // created in-place after @props runs, so template body code gets that one.
+        // Pre-@props @php blocks that use $attributes also need this early bag —
+        // $sourceUsesAttributes covers that because those blocks are part of the source.
+        $needsEarlyAttributes = $propsExpression !== null && ($sourceUsesAttributes || $propsUseAttributes);
         $needsEchoHandler = $this->hasEchoHandlers() && $this->hasEchoSyntax($source);
 
         $isDebugging = app('blaze')->isDebugging() && ! app('blaze')->isFolding();
@@ -72,10 +95,9 @@ class Wrapper
             'unset($__slots);'."\n",
             $propsExpression === null ? 'extract($__data, EXTR_SKIP);'."\n" : null,
             $awareAssignments,
-            $propsUseAttributes ? '$attributes = new \\Livewire\\Blaze\\Runtime\\BlazeAttributeBag($__data);'."\n" : null,
-            $propAssignments,
-            $sourceUsesAttributes ? '$attributes = \\Livewire\\Blaze\\Runtime\\BlazeAttributeBag::sanitized($__data, $__bound);'."\n" : null,
-            'unset($__data, $__bound); ?>',
+            $needsEarlyAttributes ? '$attributes = new \\Livewire\\Blaze\\Runtime\\BlazeAttributeBag($__data);'."\n" : null,
+            ($propsExpression === null && $sourceUsesAttributes) ? '$attributes = \\Livewire\\Blaze\\Runtime\\BlazeAttributeBag::sanitized($__data, $__bound);'."\n" : null,
+            $propsExpression === null ? 'unset($__data, $__bound); ?>' : ' ?>',
             $compiled,
             $isDebugging ? '<'.'?php $__blaze->debugger->stopTimer(\''.$name.'\'); ?>' : null,
             $sourceUsesThis ? '<'.'?php };'."\n".'if ($__this !== null) { $__blazeFn->call($__this); } else { $__blazeFn(); }'."\n".'} endif; ?>' : null,
@@ -172,6 +194,30 @@ class Wrapper
         });
 
         $content = preg_replace('/^[ \t]*' . preg_quote($marker, '/') . '\s*/m', '', $content);
+
+        $content = preg_replace('/__BLAZE_RAW_BLOCK_(\d+)__/', '@__raw_block_$1__@', $content);
+
+        return $content;
+    }
+
+    /**
+     * Replace a directive with inline PHP code, preserving its position in the template.
+     */
+    protected function replaceDirectiveWithPhp(string $content, string $directive, string $phpCode): string
+    {
+        $content = preg_replace('/@__raw_block_(\d+)__@/', '__BLAZE_RAW_BLOCK_$1__', $content);
+
+        $marker = '__BLAZE_INLINE_'.strtoupper($directive).'__';
+
+        $content = BladeService::compileDirective($content, $directive, function () use ($marker) {
+            return $marker;
+        });
+
+        $content = preg_replace(
+            '/^[ \t]*'.preg_quote($marker, '/').'\s*/m',
+            '<'.'?php '.rtrim($phpCode)." ?>\n",
+            $content
+        );
 
         $content = preg_replace('/__BLAZE_RAW_BLOCK_(\d+)__/', '@__raw_block_$1__@', $content);
 

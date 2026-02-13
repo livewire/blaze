@@ -289,10 +289,12 @@ unset($__data, $__bound); ?><button <?php echo e($attributes); ?>>Click</button>
         expect($earlyAttributesPos)->toBeLessThan($sanitizedPos);
     });
 
-    it('does not create early $attributes when not referenced in @props', function () {
+    it('creates early $attributes when source uses $attributes and @props exists', function () {
         $compiled = compile('props-button.blade.php');
 
-        expect($compiled)->not->toContain('$attributes = new \Livewire\Blaze\Runtime\BlazeAttributeBag($__data);');
+        // With in-place @props, early $attributes is created in the preamble
+        // whenever the source uses $attributes, so pre-@props code can access it.
+        expect($compiled)->toContain('$attributes = new \Livewire\Blaze\Runtime\BlazeAttributeBag($__data);');
         expect($compiled)->toContain('$attributes = \Livewire\Blaze\Runtime\BlazeAttributeBag::sanitized($__data, $__bound);');
     });
 
@@ -355,12 +357,14 @@ $__env = $__blaze->env;
 if (($__data[\'attributes\'] ?? null) instanceof \Illuminate\View\ComponentAttributeBag) { $__data = $__data + $__data[\'attributes\']->all(); unset($__data[\'attributes\']); }
 extract($__slots, EXTR_SKIP);
 unset($__slots);
-$__defaults = [\'variant\' => \'default\'];
+$attributes = new \Livewire\Blaze\Runtime\BlazeAttributeBag($__data);
+ ?><?php $__defaults = [\'variant\' => \'default\'];
 $variant ??= $__data[\'variant\'] ?? $__defaults[\'variant\'];
 unset($__data[\'variant\']);
 unset($__defaults);
 $attributes = \Livewire\Blaze\Runtime\BlazeAttributeBag::sanitized($__data, $__bound);
-unset($__data, $__bound); ?><?php $__resolved = $__blaze->resolve(\'flux::\' . \'child.\' . $variant); ?>
+unset($__data, $__bound); ?>
+<?php $__resolved = $__blaze->resolve(\'flux::\' . \'child.\' . $variant); ?>
 <?php require_once $__blaze->compiledPath . \'/\' . $__resolved . \'.php\'; ?>
 <?php $__blaze->pushData($attributes->all()); ?><?php $slots' . $slotsHash . ' = []; ?>
 <?php ob_start(); ?>Hello World<?php $slots' . $slotsHash . '[\'slot\'] = new \Illuminate\View\ComponentSlot(trim(ob_get_clean()), []); ?>
