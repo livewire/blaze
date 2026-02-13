@@ -217,8 +217,8 @@ class AttributeParser
 
             if (is_bool($value)) {
                 $valueString = $value ? 'true' : 'false';
-            } elseif (is_string($value) && str_contains($value, '{{')) {
-                // Blade echo syntax (e.g. {{ $order->avatar }}) must be compiled
+            } elseif (is_string($value) && (str_contains($value, '{{') || str_contains($value, '{!!'))) {
+                // Blade echo syntax (e.g. {{ $order->avatar }} or {!! $rawHtml !!}) must be compiled
                 // to a PHP expression so the runtime value is used (not the literal template string).
                 // This is critical for memoization keys to be unique per evaluated value.
                 $valueString = Utils::compileAttributeEchos($value);
