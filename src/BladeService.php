@@ -118,9 +118,8 @@ class BladeService
                     // end up in the compiled function files without being replaced.
                     if ($isTopLevelTemplate && Unblaze::hasUnblaze($input)) {
                         $input = Unblaze::processUnblazeDirectives($input);
+                        $isTopLevelTemplate = false;
                     }
-                    
-                    $isTopLevelTemplate = false;
 
                     $input = Blaze::compileForFolding($input);
 
