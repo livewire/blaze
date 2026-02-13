@@ -8,7 +8,9 @@ namespace Livewire\Blaze;
 class Config
 {
     protected $fold = [];
+
     protected $memo = [];
+
     protected $compile = [];
 
     /**
@@ -71,10 +73,27 @@ class Config
         $separator = DIRECTORY_SEPARATOR;
 
         foreach ($paths as $path) {
-            $dir = realpath($path);
-            $dir = $dir ? rtrim($dir, $separator) . $separator : false;
+            $resolved = realpath($path);
 
-            if (! $dir || ! str_starts_with($file, $dir)) {
+            if ($resolved === false) {
+                continue;
+            }
+
+            // Support exact file matches...
+            if (is_file($resolved)) {
+                if ($file !== $resolved) {
+                    continue;
+                }
+
+                // File matches are the most specific, so they always win...
+                $match = $path;
+
+                break;
+            }
+
+            $dir = rtrim($resolved, $separator) . $separator;
+
+            if (! str_starts_with($file, $dir)) {
                 continue;
             }
 
