@@ -110,7 +110,7 @@ class Foldable
             }
         }
 
-        // Synthesize a default slot from loose content when no explicit one exists
+        // Synthesize a default slot from loose content when there's not an explicit one
         if ($looseContent && ! isset($slots['slot'])) {
             $placeholder = 'BLAZE_PLACEHOLDER_' . strtoupper(str()->random());
 
@@ -195,8 +195,6 @@ class Foldable
      */
     protected function restorePlaceholders(): void
     {
-        // TODO: What if slots are outputted as variables? {{ $footer }}
-
         // Attribute placeholders inside PHP blocks need raw values
         $this->html = preg_replace_callback('/<\?php.*?\?>/s', function ($match) {
             $content = $match[0];

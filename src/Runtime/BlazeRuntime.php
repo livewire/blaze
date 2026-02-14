@@ -8,6 +8,7 @@ use Illuminate\Support\ViewErrorBag;
 use Livewire\Blaze\BladeService;
 use Livewire\Blaze\Support\Utils;
 use Livewire\Blaze\Debugger;
+use Illuminate\View\Compilers\Compiler;
 
 /**
  * Runtime context shared with all Blaze-compiled components via $__blaze.
@@ -15,38 +16,25 @@ use Livewire\Blaze\Debugger;
 class BlazeRuntime
 {
     public readonly Factory $env;
-
     public readonly Application $app;
-
     public readonly Debugger $debugger;
-
-    public string $compiledPath;
-
+    public readonly Compiler $compiler;
+    public readonly string $compiledPath;
     protected ViewErrorBag $errors;
 
     protected array $paths = [];
-
     protected array $compiled = [];
+
     protected array $dataStack = [];
     protected array $slotsStack = [];
+
     public function __construct()
     {
         $this->env = app('view');
         $this->app = app();
         $this->debugger = app('blaze.debugger');
+        $this->compiler = app('blade.compiler');
         $this->compiledPath = config('view.compiled');
-    }
-
-    /**
-     * Lazy-load $errors since middleware sets them after BlazeRuntime is constructed.
-     */
-    public function __get(string $name): mixed
-    {
-        if ($name === 'errors') {
-            return $this->errors ??= $this->env->shared('errors') ?? new ViewErrorBag;
-        }
-
-        throw new \InvalidArgumentException("Property {$name} does not exist");
     }
 
     /**
@@ -64,7 +52,7 @@ class BlazeRuntime
             return;
         }
 
-        app('blade.compiler')->compile($path);
+        $this->compiler->compile($path);
     }
 
     /**
@@ -174,5 +162,17 @@ class BlazeRuntime
         }
 
         return value($default);
+    }
+
+    /**
+     * Lazy-load $errors since middleware sets them after BlazeRuntime is constructed.
+     */
+    public function __get(string $name): mixed
+    {
+        if ($name === 'errors') {
+            return $this->errors ??= $this->env->shared('errors') ?? new ViewErrorBag;
+        }
+
+        throw new \InvalidArgumentException("Property {$name} does not exist");
     }
 }
