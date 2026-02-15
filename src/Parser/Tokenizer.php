@@ -400,11 +400,11 @@ class Tokenizer
                 };
             }
 
-            if (($char === '>' || ($char === '/' && $this->peek() === '>')) &&
-                !$inSingleQuote && !$inDoubleQuote &&
-
-                $braceCount === 0 && $bracketCount === 0 && $parenCount === 0) {
-
+            if (
+                ($char === '>' || ($char === '/' && $this->peek() === '>')) &&
+                $braceCount === 0 && $bracketCount === 0 && $parenCount === 0 &&
+                !$inSingleQuote && !$inDoubleQuote
+            ) {
                 break;
             }
 
