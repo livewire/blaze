@@ -1,14 +1,14 @@
 <?php
 
-namespace Livewire\Blaze\Tokenizer;
+namespace Livewire\Blaze\Parser;
 
-use Livewire\Blaze\Tokenizer\Tokens\TagSelfCloseToken;
-use Livewire\Blaze\Tokenizer\Tokens\SlotCloseToken;
-use Livewire\Blaze\Tokenizer\Tokens\SlotOpenToken;
-use Livewire\Blaze\Tokenizer\Tokens\TagCloseToken;
-use Livewire\Blaze\Tokenizer\Tokens\TagOpenToken;
-use Livewire\Blaze\Tokenizer\Tokens\TextToken;
-use Livewire\Blaze\Tokenizer\Tokens\Token;
+use Livewire\Blaze\Parser\Tokens\TagSelfCloseToken;
+use Livewire\Blaze\Parser\Tokens\SlotCloseToken;
+use Livewire\Blaze\Parser\Tokens\SlotOpenToken;
+use Livewire\Blaze\Parser\Tokens\TagCloseToken;
+use Livewire\Blaze\Parser\Tokens\TagOpenToken;
+use Livewire\Blaze\Parser\Tokens\TextToken;
+use Livewire\Blaze\Parser\Tokens\Token;
 
 /**
  * Finite state machine that lexes Blade templates into component/slot/text tokens.
@@ -55,17 +55,17 @@ class Tokenizer
     {
         $this->resetTokenizer($content);
 
-        $state = State::TEXT;
+        $state = TokenizerState::TEXT;
 
         while (!$this->isAtEnd()) {
             $state = match($state) {
-                State::TEXT => $this->handleTextState(),
-                State::TAG_OPEN => $this->handleTagOpenState(),
-                State::TAG_CLOSE => $this->handleTagCloseState(),
-                State::ATTRIBUTE_NAME => $this->handleAttributeState(),
-                State::SLOT => $this->handleSlotState(),
-                State::SLOT_CLOSE => $this->handleSlotCloseState(),
-                State::SHORT_SLOT => $this->handleShortSlotState(),
+                TokenizerState::TEXT => $this->handleTextState(),
+                TokenizerState::TAG_OPEN => $this->handleTagOpenState(),
+                TokenizerState::TAG_CLOSE => $this->handleTagCloseState(),
+                TokenizerState::ATTRIBUTE_NAME => $this->handleAttributeState(),
+                TokenizerState::SLOT => $this->handleSlotState(),
+                TokenizerState::SLOT_CLOSE => $this->handleSlotCloseState(),
+                TokenizerState::SHORT_SLOT => $this->handleShortSlotState(),
                 default => throw new \RuntimeException("Unknown state: $state"),
             };
         }
@@ -94,7 +94,7 @@ class Tokenizer
     /**
      * Process text state, detecting component/slot tag boundaries.
      */
-    protected function handleTextState(): State
+    protected function handleTextState(): TokenizerState
     {
         $char = $this->current();
 
@@ -109,13 +109,13 @@ class Tokenizer
 
                     $this->advance(strlen('<' . $slotInfo['prefix'] . ':'));
 
-                    return State::SHORT_SLOT;
+                    return TokenizerState::SHORT_SLOT;
                 } else {
                     $this->currentToken = new SlotOpenToken(slotStyle: 'standard', prefix: $slotInfo['prefix']);
 
                     $this->advance(strlen('<' . $slotInfo['prefix']));
 
-                    return State::SLOT;
+                    return TokenizerState::SLOT;
                 }
             }
 
@@ -128,7 +128,7 @@ class Tokenizer
 
                 $this->advance(strlen('</' . $slotInfo['prefix']));
 
-                return State::SLOT_CLOSE;
+                return TokenizerState::SLOT_CLOSE;
             }
 
             if ($prefixInfo = $this->matchComponentOpen()) {
@@ -144,7 +144,7 @@ class Tokenizer
 
                 $this->advance(strlen('<' . $prefixInfo['prefix']));
 
-                return State::TAG_OPEN;
+                return TokenizerState::TAG_OPEN;
             }
 
             if ($this->peek(1) === '/' && ($prefixInfo = $this->matchComponentClose())) {
@@ -160,7 +160,7 @@ class Tokenizer
 
                 $this->advance(strlen('</' . $prefixInfo['prefix']));
 
-                return State::TAG_CLOSE;
+                return TokenizerState::TAG_CLOSE;
             }
         }
 
@@ -168,13 +168,13 @@ class Tokenizer
 
         $this->advance();
 
-        return State::TEXT;
+        return TokenizerState::TEXT;
     }
 
     /**
      * Process tag open state, extracting the component name.
      */
-    protected function handleTagOpenState(): State
+    protected function handleTagOpenState(): TokenizerState
     {
         if ($name = $this->matchTagName()) {
             $this->currentToken->name = $name;
@@ -183,18 +183,18 @@ class Tokenizer
 
             $this->advance(strlen($name));
 
-            return State::ATTRIBUTE_NAME;
+            return TokenizerState::ATTRIBUTE_NAME;
         }
 
         $this->advance();
 
-        return State::TAG_OPEN;
+        return TokenizerState::TAG_OPEN;
     }
 
     /**
      * Process closing tag state, extracting the component name.
      */
-    protected function handleTagCloseState(): State
+    protected function handleTagCloseState(): TokenizerState
     {
         if ($name = $this->matchTagName()) {
             $this->currentToken->name = $name;
@@ -208,26 +208,26 @@ class Tokenizer
 
                 $this->advance();
 
-                return State::TEXT;
+                return TokenizerState::TEXT;
             }
         }
 
         $this->advance();
 
-        return State::TAG_CLOSE;
+        return TokenizerState::TAG_CLOSE;
     }
 
     /**
      * Process attribute collection state, handling self-closing detection.
      */
-    protected function handleAttributeState(): State
+    protected function handleAttributeState(): TokenizerState
     {
         $char = $this->current();
 
         if ($char === ' ') {
             $this->advance();
 
-            return State::ATTRIBUTE_NAME;
+            return TokenizerState::ATTRIBUTE_NAME;
         }
 
         if ($char === '>') {
@@ -235,7 +235,7 @@ class Tokenizer
 
             $this->advance();
 
-            return State::TEXT;
+            return TokenizerState::TEXT;
         }
 
         if ($char === '/' && $this->peek() === '>') {
@@ -252,7 +252,7 @@ class Tokenizer
 
             $this->advance(2);
 
-            return State::TEXT;
+            return TokenizerState::TEXT;
         }
 
         $attributes = $this->collectAttributes();
@@ -261,20 +261,20 @@ class Tokenizer
             $this->currentToken->attributes = $attributes;
         }
 
-        return State::ATTRIBUTE_NAME;
+        return TokenizerState::ATTRIBUTE_NAME;
     }
 
     /**
      * Process standard slot tag state.
      */
-    protected function handleSlotState(): State
+    protected function handleSlotState(): TokenizerState
     {
         $char = $this->current();
 
         if ($char === ' ') {
             $this->advance();
 
-            return State::SLOT;
+            return TokenizerState::SLOT;
         }
 
         if ($this->match('/^name="([^"]+)"/')) {
@@ -286,7 +286,7 @@ class Tokenizer
 
             $this->advance(strlen($matches[0]));
 
-            return State::ATTRIBUTE_NAME;
+            return TokenizerState::ATTRIBUTE_NAME;
         }
 
         if ($char === '>') {
@@ -294,18 +294,18 @@ class Tokenizer
 
             $this->advance();
 
-            return State::TEXT;
+            return TokenizerState::TEXT;
         }
 
         $this->advance();
 
-        return State::SLOT;
+        return TokenizerState::SLOT;
     }
 
     /**
      * Process closing slot tag state.
      */
-    protected function handleSlotCloseState(): State
+    protected function handleSlotCloseState(): TokenizerState
     {
         if ($this->match('/^:[a-zA-Z0-9-]+/')) {
             $matches = [];
@@ -322,18 +322,18 @@ class Tokenizer
 
             $this->advance();
 
-            return State::TEXT;
+            return TokenizerState::TEXT;
         }
 
         $this->advance();
 
-        return State::SLOT_CLOSE;
+        return TokenizerState::SLOT_CLOSE;
     }
 
     /**
      * Process short slot syntax state (<x-slot:name>).
      */
-    protected function handleShortSlotState(): State
+    protected function handleShortSlotState(): TokenizerState
     {
         if ($name = $this->matchSlotName()) {
             $this->currentToken->name = $name;
@@ -356,13 +356,13 @@ class Tokenizer
 
                 $this->advance();
 
-                return State::TEXT;
+                return TokenizerState::TEXT;
             }
         }
 
         $this->advance();
 
-        return State::SHORT_SLOT;
+        return TokenizerState::SHORT_SLOT;
     }
 
     /**

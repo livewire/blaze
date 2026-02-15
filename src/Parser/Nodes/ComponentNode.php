@@ -1,6 +1,6 @@
 <?php
 
-namespace Livewire\Blaze\Nodes;
+namespace Livewire\Blaze\Parser\Nodes;
 
 use Illuminate\Support\Str;
 use Livewire\Blaze\Support\AttributeParser;

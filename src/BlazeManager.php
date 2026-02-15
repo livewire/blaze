@@ -9,13 +9,13 @@ use Livewire\Blaze\Directive\BlazeDirective;
 use Livewire\Blaze\Events\ComponentFolded;
 use Livewire\Blaze\Folder\Folder;
 use Livewire\Blaze\Memoizer\Memoizer;
-use Livewire\Blaze\Nodes\ComponentNode;
+use Livewire\Blaze\Parser\Nodes\ComponentNode;
 use Livewire\Blaze\Parser\Parser;
-use Livewire\Blaze\Tokenizer\Tokenizer;
-use Livewire\Blaze\Walker\Walker;
+use Livewire\Blaze\Parser\Tokenizer;
+use Livewire\Blaze\Parser\Walker;
 use Livewire\Blaze\Support\Directives;
 use Livewire\Blaze\Support\ComponentSource;
-use Livewire\Blaze\Nodes\SlotNode;
+use Livewire\Blaze\Parser\Nodes\SlotNode;
 
 class BlazeManager
 {

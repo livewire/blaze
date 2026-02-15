@@ -2,16 +2,16 @@
 
 namespace Livewire\Blaze\Parser;
 
-use Livewire\Blaze\Tokenizer\Tokens\TagSelfCloseToken;
-use Livewire\Blaze\Tokenizer\Tokens\SlotCloseToken;
-use Livewire\Blaze\Tokenizer\Tokens\TagCloseToken;
-use Livewire\Blaze\Tokenizer\Tokens\SlotOpenToken;
-use Livewire\Blaze\Tokenizer\Tokens\TagOpenToken;
-use Livewire\Blaze\Tokenizer\Tokens\TextToken;
-use Livewire\Blaze\Nodes\ComponentNode;
-use Livewire\Blaze\Nodes\TextNode;
-use Livewire\Blaze\Nodes\SlotNode;
-use Livewire\Blaze\Tokenizer\Tokenizer;
+use Livewire\Blaze\Parser\Tokens\TagSelfCloseToken;
+use Livewire\Blaze\Parser\Tokens\SlotCloseToken;
+use Livewire\Blaze\Parser\Tokens\TagCloseToken;
+use Livewire\Blaze\Parser\Tokens\SlotOpenToken;
+use Livewire\Blaze\Parser\Tokens\TagOpenToken;
+use Livewire\Blaze\Parser\Tokens\TextToken;
+use Livewire\Blaze\Parser\Nodes\ComponentNode;
+use Livewire\Blaze\Parser\Nodes\TextNode;
+use Livewire\Blaze\Parser\Nodes\SlotNode;
+use Livewire\Blaze\Parser\Tokenizer;
 
 /**
  * Converts a flat token stream into a nested AST of component, slot, and text nodes.

@@ -3,8 +3,8 @@
 use Livewire\Blaze\Blaze;
 use Livewire\Blaze\Compiler\Compiler;
 use Livewire\Blaze\Memoizer\Memoizer;
-use Livewire\Blaze\Nodes\ComponentNode;
-use Livewire\Blaze\Nodes\TextNode;
+use Livewire\Blaze\Parser\Nodes\ComponentNode;
+use Livewire\Blaze\Parser\Nodes\TextNode;
 use Livewire\Blaze\Support\ComponentSource;
 
 describe('Blaze::optimize() API', function () {

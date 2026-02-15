@@ -3,7 +3,7 @@
 describe('exercise without folding', function () {
     function compileBlade(string $input): string
     {
-        $tokenizer = new \Livewire\Blaze\Tokenizer\Tokenizer;
+        $tokenizer = new \Livewire\Blaze\Parser\Tokenizer;
         $parser = new \Livewire\Blaze\Parser\Parser;
         $tokens = $tokenizer->tokenize($input);
         $ast = $parser->parse($tokens);

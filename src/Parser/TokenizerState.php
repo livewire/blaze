@@ -1,11 +1,11 @@
 <?php
 
-namespace Livewire\Blaze\Tokenizer;
+namespace Livewire\Blaze\Parser;
 
 /**
  * Tokenizer FSM states for Blade template lexing.
  */
-enum State: string
+enum TokenizerState: string
 {
     case TEXT = 'TEXT';
     case TAG_OPEN = 'TAG_OPEN';

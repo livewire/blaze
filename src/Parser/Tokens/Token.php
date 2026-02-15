@@ -1,6 +1,6 @@
 <?php
 
-namespace Livewire\Blaze\Tokenizer\Tokens;
+namespace Livewire\Blaze\Parser\Tokens;
 
 /**
  * Base class for all tokenizer tokens.

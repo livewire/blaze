@@ -3,10 +3,10 @@
 namespace Livewire\Blaze\Compiler;
 
 use Illuminate\View\Compilers\ComponentTagCompiler;
-use Livewire\Blaze\Nodes\ComponentNode;
-use Livewire\Blaze\Nodes\SlotNode;
-use Livewire\Blaze\Nodes\TextNode;
-use Livewire\Blaze\Nodes\Node;
+use Livewire\Blaze\Parser\Nodes\ComponentNode;
+use Livewire\Blaze\Parser\Nodes\SlotNode;
+use Livewire\Blaze\Parser\Nodes\TextNode;
+use Livewire\Blaze\Parser\Nodes\Node;
 use Livewire\Blaze\Config;
 use Livewire\Blaze\Support\ComponentSource;
 use Livewire\Blaze\Support\Utils;

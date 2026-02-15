@@ -1,6 +1,6 @@
 <?php
 
-namespace Livewire\Blaze\Nodes;
+namespace Livewire\Blaze\Parser\Nodes;
 
 /**
  * Represents raw text/HTML content in the AST.

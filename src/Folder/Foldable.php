@@ -4,10 +4,10 @@ namespace Livewire\Blaze\Folder;
 
 use Illuminate\Support\Str;
 use Livewire\Blaze\BladeService;
-use Livewire\Blaze\Nodes\Attribute;
-use Livewire\Blaze\Nodes\ComponentNode;
-use Livewire\Blaze\Nodes\SlotNode;
-use Livewire\Blaze\Nodes\TextNode;
+use Livewire\Blaze\Parser\Nodes\Attribute;
+use Livewire\Blaze\Parser\Nodes\ComponentNode;
+use Livewire\Blaze\Parser\Nodes\SlotNode;
+use Livewire\Blaze\Parser\Nodes\TextNode;
 use Livewire\Blaze\Support\ComponentSource;
 use Livewire\Blaze\Support\Utils;
 

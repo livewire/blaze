@@ -1,6 +1,6 @@
 <?php
 
-namespace Livewire\Blaze\Nodes;
+namespace Livewire\Blaze\Parser\Nodes;
 
 /**
  * Base class for all AST nodes in the Blaze pipeline.

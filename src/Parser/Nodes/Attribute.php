@@ -1,6 +1,6 @@
 <?php
 
-namespace Livewire\Blaze\Nodes;
+namespace Livewire\Blaze\Parser\Nodes;
 
 /**
  * Represents a parsed attribute on a component or slot tag.

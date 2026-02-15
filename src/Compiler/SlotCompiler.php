@@ -3,7 +3,7 @@
 namespace Livewire\Blaze\Compiler;
 
 use Illuminate\Support\Str;
-use Livewire\Blaze\Nodes\SlotNode;
+use Livewire\Blaze\Parser\Nodes\SlotNode;
 use Closure;
 
 /**

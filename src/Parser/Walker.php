@@ -1,9 +1,9 @@
 <?php
 
-namespace Livewire\Blaze\Walker;
+namespace Livewire\Blaze\Parser;
 
-use Livewire\Blaze\Nodes\ComponentNode;
-use Livewire\Blaze\Nodes\SlotNode;
+use Livewire\Blaze\Parser\Nodes\ComponentNode;
+use Livewire\Blaze\Parser\Nodes\SlotNode;
 
 /**
  * Depth-first tree walker that applies pre/post callbacks to each AST node.

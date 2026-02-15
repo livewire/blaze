@@ -1,6 +1,6 @@
 <?php
 
-namespace Livewire\Blaze\Tokenizer\Tokens;
+namespace Livewire\Blaze\Parser\Tokens;
 
 /**
  * Represents an opening slot tag (<x-slot> or <x-slot:name>).

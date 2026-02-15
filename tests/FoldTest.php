@@ -1,8 +1,8 @@
 <?php
 
 use Livewire\Blaze\Folder\Folder;
-use Livewire\Blaze\Nodes\ComponentNode;
-use Livewire\Blaze\Nodes\TextNode;
+use Livewire\Blaze\Parser\Nodes\ComponentNode;
+use Livewire\Blaze\Parser\Nodes\TextNode;
 use Livewire\Blaze\Parser\Parser;
 
 test('folds components with static attributes', function () {

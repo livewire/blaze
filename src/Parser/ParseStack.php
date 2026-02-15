@@ -2,9 +2,9 @@
 
 namespace Livewire\Blaze\Parser;
 
-use Livewire\Blaze\Nodes\ComponentNode;
-use Livewire\Blaze\Nodes\SlotNode;
-use Livewire\Blaze\Nodes\Node;
+use Livewire\Blaze\Parser\Nodes\ComponentNode;
+use Livewire\Blaze\Parser\Nodes\SlotNode;
+use Livewire\Blaze\Parser\Nodes\Node;
 
 /**
  * Maintains the nesting stack during parsing, building the AST as tokens are processed.

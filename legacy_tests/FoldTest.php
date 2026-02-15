@@ -219,7 +219,7 @@ describe('fold elligable components', function () {
 
     it('throws exception for invalid foldable usage with $pattern', function (string $pattern, string $expectedPattern) {
         $folder = new \Livewire\Blaze\Folder\Folder(config: \Livewire\Blaze\Blaze::optimize());
-        $componentNode = new \Livewire\Blaze\Nodes\ComponentNode("invalid-foldable.{$pattern}", 'x', '', [], false);
+        $componentNode = new \Livewire\Blaze\Parser\Nodes\ComponentNode("invalid-foldable.{$pattern}", 'x', '', [], false);
 
         expect(fn () => $folder->fold($componentNode))
             ->toThrow(\Livewire\Blaze\Exceptions\InvalidBlazeFoldUsageException::class);

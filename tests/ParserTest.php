@@ -1,10 +1,10 @@
 <?php
 
 use Livewire\Blaze\Parser\Parser;
-use Livewire\Blaze\Tokenizer\Tokenizer;
-use Livewire\Blaze\Nodes\ComponentNode;
-use Livewire\Blaze\Nodes\SlotNode;
-use Livewire\Blaze\Nodes\TextNode;
+use Livewire\Blaze\Parser\Tokenizer;
+use Livewire\Blaze\Parser\Nodes\ComponentNode;
+use Livewire\Blaze\Parser\Nodes\SlotNode;
+use Livewire\Blaze\Parser\Nodes\TextNode;
 
 test('parses self-closing components', function () {
     $input = '<x-button class="my-4" />';

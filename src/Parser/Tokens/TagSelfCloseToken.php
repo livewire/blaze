@@ -1,11 +1,11 @@
 <?php
 
-namespace Livewire\Blaze\Tokenizer\Tokens;
+namespace Livewire\Blaze\Parser\Tokens;
 
 /**
- * Represents an opening component tag (<x-button ...>).
+ * Represents a self-closing component tag (<x-button ... />).
  */
-class TagOpenToken extends Token
+class TagSelfCloseToken extends Token
 {
     public function __construct(
         public string $name,
