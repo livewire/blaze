@@ -73,13 +73,12 @@ class ComponentNode extends Node
         foreach ($this->attributes as $attribute) {
             if ($attribute->value === true) {
                 $output .= ' '.$attribute->name;
-            } elseif ($attribute->prefix === ':$') {
-                // :$var shorthand must be rendered without ="value" to remain valid Blade syntax.
-                // Blade expands :$title into :title="$title" internally — adding ="$title"
-                // produces :$title="$title" which Blade's ComponentTagCompiler cannot parse.
-                $output .= ' :$'.$attribute->name;
             } else {
-                $output .= ' '.$attribute->prefix.$attribute->name.'='.$attribute->quotes.$attribute->value.$attribute->quotes;
+                $output .= ' '.$attribute->prefix.$attribute->name;
+                
+                if ($attribute->prefix !== ':$') {
+                    $output .= '='.$attribute->quotes.$attribute->value.$attribute->quotes;
+                }
             }
         }
 

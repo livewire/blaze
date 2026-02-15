@@ -148,7 +148,7 @@ class Foldable
                 $prop = $default;
                 $default = null;
             }
-
+            
             if (isset($this->node->parentsAttributes[$prop])) {
                 $this->renderable->attributes[$prop] ??= $this->node->parentsAttributes[$prop];
             } elseif ($default !== null) {
@@ -160,11 +160,12 @@ class Foldable
                     dynamic: false,
                     quotes: '"',
                 );
+            } else {
+                // When default is null and no parent provides a value, we intentionally
+                // skip adding the attribute. This lets @aware and @props handle defaults
+                // at runtime, matching the non-folded behavior. Adding an attribute with
+                // null value would render as prop="" in HTML, corrupting null to empty string.
             }
-            // When default is null and no parent provides a value, we intentionally
-            // skip adding the attribute. This lets @aware and @props handle defaults
-            // at runtime, matching the non-folded behavior. Adding an attribute with
-            // null value would render as prop="" in HTML, corrupting null to empty string.
         }
     }
 
@@ -174,15 +175,14 @@ class Foldable
     protected function processUncompiledAttributes(): void
     {
         $this->html = preg_replace_callback('/\[BLAZE_ATTR:(BLAZE_PLACEHOLDER_[A-Z0-9]+)\]/', function ($matches) {
-            $placeholder = $matches[1];
-            $attribute = $this->attributeByPlaceholder[$placeholder];
+            $attribute = $this->attributeByPlaceholder[$matches[1]];
 
             if ($attribute->bound()) {
                 // x-data and wire:* get empty string for true, others get key name
                 $booleanValue = ($attribute->name === 'x-data' || str_starts_with($attribute->name, 'wire:')) ? "''" : "'".addslashes($attribute->name)."'";
 
                 return '<'.'?php if (($__blazeAttr = '.$attribute->value.') !== false && !is_null($__blazeAttr)): ?'.'>'
-                .' '.$attribute->name.'="<'.'?php echo e($__blazeAttr === true ? '.$booleanValue.' : $__blazeAttr); ?'.'>"'
+                . $attribute->name.'="<'.'?php echo e($__blazeAttr === true ? '.$booleanValue.' : $__blazeAttr); ?'.'>"'
                 .'<'.'?php endif; unset($__blazeAttr); ?'.'>';
             } else {
                 return $attribute->name.'="'.$attribute->value.'"';

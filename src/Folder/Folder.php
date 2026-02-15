@@ -20,7 +20,7 @@ use Livewire\Blaze\Config;
 class Folder
 {
     public function __construct(
-        protected Config $config,
+        protected ?Config $config = null,
     ) {
     }
 
@@ -83,7 +83,7 @@ class Folder
     {
         $shouldFold = $source->directives->blaze('fold');
 
-        if (is_null($shouldFold)) {
+        if ($this->config && is_null($shouldFold)) {
             return $this->config->shouldFold($source->path);
         }
 

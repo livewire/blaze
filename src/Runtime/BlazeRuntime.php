@@ -19,8 +19,9 @@ class BlazeRuntime
     public readonly Application $app;
     public readonly Debugger $debugger;
     public readonly Compiler $compiler;
-    public readonly string $compiledPath;
     protected ViewErrorBag $errors;
+
+    public string $compiledPath;
 
     protected array $paths = [];
     protected array $compiled = [];
