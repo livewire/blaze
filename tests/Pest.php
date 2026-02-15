@@ -22,7 +22,7 @@ function fixture_path(string $filename): string
  */
 function compile(string $filename): string
 {
-    $path = __DIR__ . '/Feature/fixtures/' . $filename;
+    $path = __DIR__ . '/fixtures/components/' . $filename;
 
     app('blade.compiler')->compile($path);
 
@@ -59,7 +59,7 @@ function blade(string $view, array $components = [], array $data = []): string
 
     foreach ($components as $name => $template) {
         $uniqueName = $name . '-' . substr(md5(uniqid()), 0, 8);
-        $path = __DIR__ . "/Feature/fixtures/{$uniqueName}.blade.php";
+        $path = __DIR__ . "/fixtures/components/{$uniqueName}.blade.php";
 
         File::put($path, $template);
         $paths[] = $path;
