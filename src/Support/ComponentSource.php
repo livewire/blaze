@@ -16,7 +16,7 @@ class ComponentSource
     {
         $this->name = $name;
         $this->path = Utils::componentNameToPath($name);
-        $this->content = file_exists($this->path) ? file_get_contents($this->path) : '';
+        $this->content = $this->exists() ? file_get_contents($this->path) : '';
         $this->directives = new Directives($this->content);
     }
 

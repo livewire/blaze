@@ -11,18 +11,26 @@ use Livewire\Blaze\Tokenizer\Tokens\TextToken;
 use Livewire\Blaze\Nodes\ComponentNode;
 use Livewire\Blaze\Nodes\TextNode;
 use Livewire\Blaze\Nodes\SlotNode;
+use Livewire\Blaze\Tokenizer\Tokenizer;
 
 /**
  * Converts a flat token stream into a nested AST of component, slot, and text nodes.
  */
 class Parser
 {
+    public function __construct(
+        protected Tokenizer $tokenizer,
+    ) {
+    }
+
     /**
      * Parse tokens into an AST.
      */
-    public function parse(array $tokens): array
+    public function parse(string $content): array
     {
-        $stack = new ParseStack();
+        $stack = new ParseStack;
+
+        $tokens = $this->tokenizer->tokenize($content);
 
         foreach ($tokens as $token) {
             match(get_class($token)) {

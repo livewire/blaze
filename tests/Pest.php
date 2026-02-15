@@ -6,6 +6,12 @@ use Livewire\Blaze\Tests\TestCase;
 
 uses(TestCase::class)->in(__DIR__);
 
+expect()->extend('toEqualCollapsingWhitespace', function ($other) {
+    expect(preg_replace('/\s+/', ' ', $this->value))->toBe(preg_replace('/\s+/', ' ', $other));
+
+    return $this;
+});
+
 function fixture_path(string $filename): string
 {
     return __DIR__ . '/fixtures/' . $filename;

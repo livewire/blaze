@@ -9,7 +9,7 @@ use Livewire\Blaze\Nodes\TextNode;
 test('parses self-closing components', function () {
     $input = '<x-button class="my-4" />';
 
-    expect((new Parser)->parse((new Tokenizer)->tokenize($input)))->toEqual([
+    expect(app(Parser::class)->parse($input))->toEqual([
         new ComponentNode(
             name: 'button',
             prefix: 'x-',
@@ -22,7 +22,7 @@ test('parses self-closing components', function () {
 test('parses components with slots', function () {
     $input = '<x-card class="p-4">Body<x-slot name="footer" class="p-2">Footer</x-slot></x-card>';
 
-    expect((new Parser)->parse((new Tokenizer)->tokenize($input)))->toEqual([
+    expect(app(Parser::class)->parse($input))->toEqual([
         new ComponentNode(
             name: 'card',
             prefix: 'x-',
@@ -44,7 +44,7 @@ test('parses components with slots', function () {
 test('parses slots with short syntax', function () {
     $input = '<x-slot:footer></x-slot:footer>';
 
-    expect((new Parser)->parse((new Tokenizer)->tokenize($input)))->toEqual([
+    expect(app(Parser::class)->parse($input))->toEqual([
         new SlotNode(
             name: 'footer',
             prefix: 'x-slot',
@@ -55,7 +55,7 @@ test('parses slots with short syntax', function () {
 });
 
 test('parses component prefixes', function ($input, $prefix, $name) {
-    expect((new Parser)->parse((new Tokenizer)->tokenize($input)))->toEqual([
+    expect(app(Parser::class)->parse($input))->toEqual([
         new ComponentNode($name, $prefix),
     ]);
 })->with([
@@ -68,7 +68,7 @@ test('parses component prefixes', function ($input, $prefix, $name) {
 test('handles attributes with angled brackets', function ($attributes) {
     $input = '<x-button '. $attributes .' />';
 
-    expect((new Parser)->parse((new Tokenizer)->tokenize($input)))->toEqual([
+    expect(app(Parser::class)->parse($input))->toEqual([
         new ComponentNode(
             name: 'button',
             prefix: 'x-',

@@ -55,10 +55,8 @@ class BlazeManager
 
         $dataStack = [];
 
-        $tokens = $this->tokenizer->tokenize($clean);
-        $ast = $this->parser->parse($tokens);
         $ast = $this->walker->walk(
-            nodes: $ast,
+            nodes: $this->parser->parse($template),
             preCallback: function ($node) use (&$dataStack) {
                 if ($node instanceof ComponentNode) {
                     $dataStack[] = $node->attributes;
@@ -105,12 +103,8 @@ class BlazeManager
         $template = BladeService::preStoreUncompiledBlocks($template);
         $template = BladeService::compileComments($template);
 
-        $tokens = $this->tokenizer->tokenize($template);
-
-        $ast = $this->parser->parse($tokens);
-
         $ast = $this->walker->walk(
-            nodes: $ast,
+            nodes: $this->parser->parse($template),
             preCallback: fn ($node) => $node,
             postCallback: function ($node) {
                 $node = $this->memoizer->memoize($node);
@@ -136,14 +130,10 @@ class BlazeManager
         $template = BladeService::preStoreUncompiledBlocks($template);
         $template = BladeService::compileComments($template);
 
-        $tokens = $this->tokenizer->tokenize($template);
-
-        $ast = $this->parser->parse($tokens);
-
         $ast = $this->walker->walk(
-            nodes: $ast,
+            nodes: $this->parser->parse($template),
             preCallback: fn ($node) => $node,
-            postCallback: function ($node) use (&$dataStack) {
+            postCallback: function ($node) {
                 return $this->compiler->compile($node);
             },
         );

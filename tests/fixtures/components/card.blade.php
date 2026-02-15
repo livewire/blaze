@@ -1,3 +1,3 @@
-@blaze(fold: true)
+@blaze(fold: true, unsafe: ['footer'])
 
-<div>{{ $header }} | {{ $slot }}</div>
+<div>{{ $header ?? 'Default' }} | {{ $slot ?? 'Default' }} | {{ $footer ?? 'Default' }}</div>
