@@ -2,6 +2,7 @@
 
 namespace Livewire\Blaze\Tests;
 
+use Livewire\Blaze\Blaze;
 use Livewire\Blaze\BlazeServiceProvider;
 use Orchestra\Testbench\TestCase as Orchestra;
 
@@ -10,6 +11,8 @@ class TestCase extends Orchestra
     protected function setUp(): void
     {
         parent::setUp();
+
+        Blaze::throw();
     }
 
     protected function getPackageProviders($app)
@@ -25,6 +28,10 @@ class TestCase extends Orchestra
         $app['config']->set('view.paths', [
             __DIR__ . '/fixtures/views',
         ]);
+
+        $app['blade.compiler']->anonymousComponentPath(
+            __DIR__.'/fixtures/components',
+        );
 
         // Isolate compiled view paths for parallel testing to prevent
         // processes from clearing each other's compiled views.

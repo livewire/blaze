@@ -1,7 +1,3 @@
 @blaze(fold: true)
 
-@props([])
-
-<div class="card">
-    {{ $slot }}
-</div>
+<div>{{ $header }} | {{ $slot }}</div>
