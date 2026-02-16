@@ -5,8 +5,7 @@ use Livewire\Blaze\Parser\Parser;
 use Livewire\Blaze\Folder\Folder;
 use Livewire\Blaze\Parser\Nodes\TextNode;
 use Livewire\Blaze\Parser\Nodes\ComponentNode;
-use Illuminate\Support\Facades\Artisan;
-use Livewire\Blaze\Blaze;
+use Livewire\Blaze\Exceptions\InvalidBlazeFoldUsageException;
 
 test('folds components with static attributes', function () {
     $input = '<x-foldable.input disabled />';
@@ -143,6 +142,35 @@ test('does not fold components with default slot with unsafe slot keyword', func
     expect($folded)->toBeInstanceOf(ComponentNode::class);
 });
 
+test('does not fold components with explicit default slot with unsafe slot keyword', function () {
+    $input = '<x-foldable.card-unsafe-slot><x-slot>Body</x-slot></x-foldable.card-unsafe-slot>';
+    
+    $node = app(Parser::class)->parse($input)[0];
+    $folded = app(Folder::class)->fold($node);
+
+    expect($folded)->toBeInstanceOf(ComponentNode::class);
+});
+
+test('folds components with named only slots with unsafe slot keyword', function () {
+    $input = '<x-foldable.card-unsafe-slot><x-slot:footer>Footer</x-slot:footer></x-foldable.card-unsafe-slot>';
+    
+    $node = app(Parser::class)->parse($input)[0];
+    $folded = app(Folder::class)->fold($node);
+
+    expect($folded)->toBeInstanceOf(TextNode::class);
+});
+
+test('folds components with named only slots and whitespace with unsafe slot keyword', function () {
+    $input = '<x-foldable.card-unsafe-slot>
+        <x-slot:footer>Footer</x-slot:footer>
+    </x-foldable.card-unsafe-slot>';
+    
+    $node = app(Parser::class)->parse($input)[0];
+    $folded = app(Folder::class)->fold($node);
+
+    expect($folded)->toBeInstanceOf(TextNode::class);
+});
+
 test('does not fold components with dynamic non-prop attributes with unsafe attributes keyword', function () {
     $input = '<x-foldable.input-unsafe-attributes :required="$required" />';
     
@@ -200,3 +228,12 @@ test('folds components with blaze directive even if disabled in config', functio
 
     expect($folded)->toBeInstanceOf(TextNode::class);
 });
+
+test('throws exception for components with problematic patterns', function (string $component) {
+    $input = "<x-invalid-foldable.{$component} />";
+
+    $node = app(Parser::class)->parse($input)[0];
+
+    expect(fn () => app(Folder::class)->fold($node))
+        ->toThrow(InvalidBlazeFoldUsageException::class);
+})->with(['errors', 'session', 'error', 'csrf', 'auth', 'request', 'old', 'once']);

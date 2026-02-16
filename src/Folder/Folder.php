@@ -121,8 +121,18 @@ class Folder
             return false;
         }
 
-        if (in_array('slot', $unsafe) && array_filter($node->children, fn ($child) => ! $child instanceof SlotNode)) { // TODO: we should also check name="slot"
-            return false;
+        if (in_array('slot', $unsafe)) {
+            // Check for explicit default slot...
+            if (array_filter($node->children, fn ($child) => $child instanceof SlotNode && $child->name === 'slot')) {
+                return false;
+            }
+
+            $looseContent = array_filter($node->children, fn ($child) => ! $child instanceof SlotNode);
+            $looseContent = join('', array_map(fn ($child) => $child->render(), $looseContent));
+            
+            if (trim($looseContent) !== '') {
+                return false;
+            }
         }
 
         if (in_array('attributes', $unsafe)) {

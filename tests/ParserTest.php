@@ -1,7 +1,6 @@
 <?php
 
 use Livewire\Blaze\Parser\Parser;
-use Livewire\Blaze\Parser\Tokenizer;
 use Livewire\Blaze\Parser\Nodes\ComponentNode;
 use Livewire\Blaze\Parser\Nodes\SlotNode;
 use Livewire\Blaze\Parser\Nodes\TextNode;
@@ -19,24 +18,85 @@ test('parses self-closing components', function () {
     ]);
 });
 
-test('parses components with slots', function () {
-    $input = '<x-card class="p-4">Body<x-slot name="footer" class="p-2">Footer</x-slot></x-card>';
+test('parses named slots', function () {
+    $input = '<x-card><x-slot name="footer" class="p-2">Footer</x-slot></x-card>';
 
     expect(app(Parser::class)->parse($input))->toEqual([
         new ComponentNode(
             name: 'card',
             prefix: 'x-',
-            attributeString: 'class="p-4"',
             children: [
-                new TextNode('Body'),
                 new SlotNode(
                     name: 'footer',
                     attributeString: 'class="p-2"',
                     children: [
                         new TextNode('Footer'),
                     ],
-                ),
-            ],
+                )
+            ]
+        ),
+    ]);
+});
+
+test('parses named slots with short syntax', function () {
+    $input = '<x-card><x-slot:footer class="p-2">Footer</x-slot></x-card>';
+
+    expect(app(Parser::class)->parse($input))->toEqual([
+        new ComponentNode(
+            name: 'card',
+            prefix: 'x-',
+            children: [
+                new SlotNode(
+                    name: 'footer',
+                    slotStyle: 'short',
+                    attributeString: 'class="p-2"',
+                    children: [
+                        new TextNode('Footer'),
+                    ],
+                )
+            ]
+        ),
+    ]);
+});
+
+test('parses named slots with short syntax and name in close tag', function () {
+    $input = '<x-card><x-slot:footer class="p-2">Footer</x-slot:footer></x-card>';
+
+    expect(app(Parser::class)->parse($input))->toEqual([
+        new ComponentNode(
+            name: 'card',
+            prefix: 'x-',
+            children: [
+                new SlotNode(
+                    name: 'footer',
+                    slotStyle: 'short',
+                    attributeString: 'class="p-2"',
+                    closeHasName: true,
+                    children: [
+                        new TextNode('Footer'),
+                    ],
+                )
+            ]
+        ),
+    ]);
+});
+
+test('parses explicit default slot', function () {
+    $input = '<x-card><x-slot class="p-2">Body</x-slot></x-card>';
+
+    expect(app(Parser::class)->parse($input))->toEqual([
+        new ComponentNode(
+            name: 'card',
+            prefix: 'x-',
+            children: [
+                new SlotNode(
+                    name: 'slot',
+                    attributeString: 'class="p-2"',
+                    children: [
+                        new TextNode('Body'),
+                    ],
+                )
+            ]
         ),
     ]);
 });

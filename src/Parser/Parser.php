@@ -93,7 +93,7 @@ class Parser
     protected function handleSlotOpen(SlotOpenToken $token, ParseStack $stack): void
     {
         $node = new SlotNode(
-            name: $token->name ?? '',
+            name: $token->name ?? 'slot',
             attributeString: implode(' ', $token->attributes),
             slotStyle: $token->slotStyle,
             children: [],
