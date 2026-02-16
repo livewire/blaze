@@ -4,7 +4,7 @@ namespace Livewire\Blaze\Folder;
 
 use Illuminate\Support\Str;
 use Livewire\Blaze\BladeService;
-use Livewire\Blaze\Parser\Nodes\Attribute;
+use Livewire\Blaze\Parser\Attribute;
 use Livewire\Blaze\Parser\Nodes\ComponentNode;
 use Livewire\Blaze\Parser\Nodes\SlotNode;
 use Livewire\Blaze\Parser\Nodes\TextNode;
