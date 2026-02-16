@@ -14,35 +14,10 @@ use Livewire\Blaze\Compiler\Compiler;
  */
 class Memoizer
 {
-    protected Config $config;
-    protected Compiler $compiler;
-
-    public function __construct(Config $config)
-    {
-        $this->config = $config;
-        $this->compiler = new Compiler($config);
-    }
-
-    /**
-     * Check if a node should be memoized based on directive and config settings.
-     */
-    public function isMemoizable(Node $node): bool
-    {
-        if (! $node instanceof ComponentNode) {
-            return false;
-        }
-
-        $source = new ComponentSource($node->name);
-
-        if (! $source->exists()) {
-            return false;
-        }
-
-        if (! is_null($memo = $source->directives->blaze('memo'))) {
-            return $memo;
-        }
-
-        return $this->config->shouldMemoize($source->path);
+    public function __construct(
+        protected Config $config,
+        protected Compiler $compiler,
+    ) {
     }
 
     /**
@@ -79,5 +54,27 @@ class Memoizer
         $output .= '<' . '?php endif; ?>';
 
         return new TextNode($output);
+    }
+
+    /**
+     * Check if a node should be memoized based on directive and config settings.
+     */
+    protected function isMemoizable(Node $node): bool
+    {
+        if (! $node instanceof ComponentNode) {
+            return false;
+        }
+
+        $source = new ComponentSource($node->name);
+
+        if (! $source->exists()) {
+            return false;
+        }
+
+        if (! is_null($memo = $source->directives->blaze('memo'))) {
+            return $memo;
+        }
+
+        return $this->config->shouldMemoize($source->path);
     }
 }

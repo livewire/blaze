@@ -13,7 +13,7 @@ class Attribute
         public string $propName,
         public bool $dynamic,
         public ?string $prefix = null,
-        public string $quotes = '',
+        public string $quotes = '"',
     ) {
     }
 

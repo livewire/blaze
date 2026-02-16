@@ -1,0 +1,12 @@
+<?php $__blaze->ensureCompiled('/Users/finotivegroup/Code/blaze/tests/fixtures/components/card.blade.php', $__blaze->compiledPath.'/2c5d7e471974620ea60496edfb1d6ffd.php'); ?>
+<?php require_once $__blaze->compiledPath.'/2c5d7e471974620ea60496edfb1d6ffd.php'; ?>
+<?php $__blaze->pushData([]); ?>
+<?php $slots2c5d7e471974620ea60496edfb1d6ffd = []; ?>
+<?php ob_start(); ?>
+         Body
+     <?php $slots2c5d7e471974620ea60496edfb1d6ffd['slot'] = new \Illuminate\View\ComponentSlot(trim(ob_get_clean()), []); ?>
+<?php ob_start(); ?>Header<?php $slots2c5d7e471974620ea60496edfb1d6ffd['header'] = new \Illuminate\View\ComponentSlot(trim(ob_get_clean()), []); ?>
+<?php ob_start(); ?>Footer<?php $slots2c5d7e471974620ea60496edfb1d6ffd['footer'] = new \Illuminate\View\ComponentSlot(trim(ob_get_clean()), []); ?>
+<?php $__blaze->pushSlots($slots2c5d7e471974620ea60496edfb1d6ffd); ?>
+<?php _2c5d7e471974620ea60496edfb1d6ffd($__blaze, [], $slots2c5d7e471974620ea60496edfb1d6ffd, [], isset($this) ? $this : null); ?>
+<?php $__blaze->popData(); ?>

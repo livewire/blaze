@@ -73,6 +73,8 @@ class Compiler
 
     /**
      * Check if any slot has a dynamic name (:name="$var").
+     * 
+     * TODO: Is this even real? Does Laravel support this?
      */
     protected function hasDynamicSlotNames(ComponentNode $node): bool
     {

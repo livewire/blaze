@@ -27,13 +27,13 @@ class Memo
     {
         ksort($params);
 
-        $encoded = json_encode($params);
-
-        if ($encoded === false) {
+        try {
+            $encoded = serialize($params);
+        } catch (\Exception $e) {
             return null;
         }
 
-        return 'blaze_memoized_' . $name . ':' . $encoded;
+        return 'blaze_memoized_' . $name . ':' . hash('xxh128', $encoded);
     }
 
     /**

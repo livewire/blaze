@@ -1,3 +1,5 @@
 @blaze(memo: true)
 
-<div>{{ str()->random() }}</div>
+@props(['name'])
+
+<div>Memoized {{ $name }}</div>

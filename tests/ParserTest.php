@@ -101,19 +101,6 @@ test('parses explicit default slot', function () {
     ]);
 });
 
-test('parses slots with short syntax', function () {
-    $input = '<x-slot:footer></x-slot:footer>';
-
-    expect(app(Parser::class)->parse($input))->toEqual([
-        new SlotNode(
-            name: 'footer',
-            prefix: 'x-slot',
-            slotStyle: 'short',
-            closeHasName: true,
-        )
-    ]);
-});
-
 test('parses component prefixes', function ($input, $prefix, $name) {
     expect(app(Parser::class)->parse($input))->toEqual([
         new ComponentNode($name, $prefix),

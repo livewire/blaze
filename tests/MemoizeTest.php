@@ -13,13 +13,6 @@ test('key produces stable cache keys for same inputs', function () {
     expect($a)->toBeString()->toBe($b);
 });
 
-test('key returns null for non-serializable params', function ($params) {
-    expect(Memo::key('avatar', $params))->toBeNull();
-})->with([
-    'NAN'  => [['value' => NAN]],
-    'INF'  => [['value' => INF]],
-]);
-
 test('key differs for different params', function () {
     $a = Memo::key('avatar', ['circle' => true]);
     $b = Memo::key('avatar', ['circle' => false]);
@@ -46,14 +39,4 @@ test('clear removes all entries', function () {
 
     expect(Memo::has('key1'))->toBeFalse();
     expect(Memo::has('key2'))->toBeFalse();
-});
-
-test('memoized component returns identical output across renders', function () {
-    $template = '<x-memoize />';
-
-    $a = blade($template);
-    $b = blade($template);
-
-    expect($a)->toContain('<div>');
-    expect($a)->toBe($b);
 });

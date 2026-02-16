@@ -148,23 +148,46 @@ class Foldable
                 $prop = $default;
                 $default = null;
             }
+
+            if (isset($this->renderable->attributes[$prop])) {
+                continue;
+            }
+
+            $value = null;
             
             if (isset($this->node->parentsAttributes[$prop])) {
-                $this->renderable->attributes[$prop] ??= $this->node->parentsAttributes[$prop];
-            } elseif ($default !== null) {
-                $this->renderable->attributes[$prop] ??= new Attribute(
+                $attribute = $this->node->parentsAttributes[$prop];
+
+                if (! $attribute->isStaticValue()) {
+                    $placeholder = 'BLAZE_PLACEHOLDER_' . strtoupper(str()->random());
+
+                    $this->attributeByPlaceholder[$placeholder] = $attribute;
+
+                    $value = $placeholder;
+                } else {
+                    $value = $attribute->value;
+                }
+
+                $this->renderable->attributes[$prop] = new Attribute(
                     name: $prop,
-                    value: $default,
+                    value: $value,
                     propName: $prop,
-                    prefix: null,
                     dynamic: false,
-                    quotes: '"',
                 );
-            } else {
-                // When default is null and no parent provides a value, we intentionally
+            } else if ($default !== null) {
+                // TODO: test this, we might not need to add the default attributes because they will be added inside the component?
+                // When the value is null and no parent provides a value, we intentionally
                 // skip adding the attribute. This lets @aware and @props handle defaults
                 // at runtime, matching the non-folded behavior. Adding an attribute with
                 // null value would render as prop="" in HTML, corrupting null to empty string.
+                if ($value !== null || $default !== null) {
+                    $this->renderable->attributes[$prop] = new Attribute(
+                        name: $prop,
+                        value: $value,
+                        propName: $prop,
+                        dynamic: false,
+                    );
+                }
             }
         }
     }
