@@ -4,6 +4,6 @@
 
 <input
     {{ $attributes }}
-    type="{{ $text }}"
+    type="{{ $type }}"
     @if ($disabled) disabled @endif
 >
