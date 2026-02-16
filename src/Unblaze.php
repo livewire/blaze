@@ -77,8 +77,9 @@ class Unblaze
             $template = preg_replace_callback('/(\[STARTCOMPILEDUNBLAZE:([0-9a-zA-Z]+)\])(.*?)(\[ENDCOMPILEDUNBLAZE\])/s', function ($matches) use (&$expressionsByToken) {
                 $token = $matches[2];
 
-                $innerContent = static::$unblazeReplacements[$token];
-                $innerContent = app('blaze')->compileForUnblaze($innerContent);
+                $innerContent = Blaze::compileForUnblaze(
+                    static::$unblazeReplacements[$token]
+                );
 
                 $scope = static::$unblazeScopes[$token];
 

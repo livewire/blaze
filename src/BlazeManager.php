@@ -140,12 +140,22 @@ class BlazeManager
 
         $output = $this->render($ast);
 
-        $currentPath = app('blade.compiler')->getPath();
-        $params = BlazeDirective::getParameters($template);
+        $path = app('blade.compiler')->getPath();
 
-        if ($currentPath && $params !== null) {
-            $output = $this->wrapper->wrap($output, $currentPath, $source);
+        if (! $path) {
+            return $output;
         }
+
+        $directives = new Directives($source);
+        $shouldWrap = $this->config->shouldFold($path)
+            || $this->config->shouldMemoize($path)
+            || $this->config->shouldCompile($path);
+
+        if ($directives->blaze() || $shouldWrap) {
+            $output = $this->wrapper->wrap($output, $path, $source);
+        }
+
+        BladeService::deleteTemporaryCacheDirectory();
 
         return $output;
     }

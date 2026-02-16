@@ -117,16 +117,12 @@ class Folder
             return true;
         }
 
-        if (in_array('*', $unsafe)) {
+        if (in_array('*', $unsafe) && (count($dynamicAttributes) > 0 || count($node->children) > 0)) {
             return false;
         }
 
         if (in_array('slot', $unsafe) && array_filter($node->children, fn ($child) => ! $child instanceof SlotNode)) { // TODO: we should also check name="slot"
             return false;
-        }
-
-        if (in_array('attributes', $safe)) {
-            $safe = array_merge($safe, array_diff(array_keys($node->attributes), $props));
         }
 
         if (in_array('attributes', $unsafe)) {

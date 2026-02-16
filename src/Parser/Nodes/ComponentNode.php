@@ -5,6 +5,7 @@ namespace Livewire\Blaze\Parser\Nodes;
 use Illuminate\Support\Str;
 use Livewire\Blaze\Support\AttributeParser;
 use Livewire\Blaze\Support\Utils;
+use Livewire\Blaze\Parser\Attribute;
 
 /**
  * Represents an <x-component> or <flux:component> tag in the AST.

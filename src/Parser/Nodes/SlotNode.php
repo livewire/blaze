@@ -3,6 +3,7 @@
 namespace Livewire\Blaze\Parser\Nodes;
 
 use Livewire\Blaze\Support\Utils;
+use Livewire\Blaze\Parser\Attribute;
 
 /**
  * Represents an <x-slot> tag in the AST.

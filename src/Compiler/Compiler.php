@@ -66,7 +66,9 @@ class Compiler
             return true;
         }
 
-        return $this->config->shouldCompile($source->path);
+        return $this->config->shouldCompile($source->path)
+            || $this->config->shouldMemoize($source->path)
+            || $this->config->shouldFold($source->path);
     }
 
     /**
