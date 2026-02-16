@@ -24,7 +24,7 @@ test('wraps component templates into function definitions', function () {
         '$disabled ??= $__data[\'disabled\'] ?? $__defaults[\'disabled\']; unset($__data[\'disabled\']); ',
         'unset($__defaults); ',
         '$attributes = \Livewire\Blaze\Runtime\BlazeAttributeBag::sanitized($__data, $__bound); unset($__data, $__bound); ?> ',
-        '<input {{ $attributes }} type="{{ $text }}" @if ($disabled) disabled @endif >',
+        '<input {{ $attributes }} type="{{ $type }}" @if ($disabled) disabled @endif >',
         '<?php } endif; ?>',
     ]));
 });
