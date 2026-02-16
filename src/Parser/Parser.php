@@ -55,7 +55,7 @@ class Parser
         $node = new ComponentNode(
             name: $token->namespace . $token->name,
             prefix: $token->prefix,
-            attributeString: $token->attributes,
+            attributeString: implode(' ', $token->attributes),
             children: [],
             selfClosing: false
         );
@@ -71,7 +71,7 @@ class Parser
         $node = new ComponentNode(
             name: $token->namespace . $token->name,
             prefix: $token->prefix,
-            attributeString: $token->attributes,
+            attributeString: implode(' ', $token->attributes),
             children: [],
             selfClosing: true
         );
@@ -94,7 +94,7 @@ class Parser
     {
         $node = new SlotNode(
             name: $token->name ?? '',
-            attributeString: $token->attributes,
+            attributeString: implode(' ', $token->attributes),
             slotStyle: $token->slotStyle,
             children: [],
             prefix: $token->prefix,

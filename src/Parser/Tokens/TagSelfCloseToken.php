@@ -11,6 +11,6 @@ class TagSelfCloseToken extends Token
         public string $name,
         public string $prefix,
         public string $namespace = '',
-        public string $attributes = '',
+        public array $attributes = [],
     ) {}
 }

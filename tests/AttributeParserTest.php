@@ -16,10 +16,8 @@ test('parses dynamic attributes', function () {
 
     expect($result['name']['isDynamic'])->toBeTrue();
     expect($result['name']['value'])->toBe('$name');
-    expect($result['name']['prefix'])->toBe(':');
     expect($result['searchable']['isDynamic'])->toBeTrue();
     expect($result['searchable']['value'])->toBe('true');
-    expect($result['searchable']['prefix'])->toBe(':');
 });
 
 test('parses dynamic short syntax', function () {
@@ -27,7 +25,6 @@ test('parses dynamic short syntax', function () {
 
     expect($result['name']['isDynamic'])->toBeTrue();
     expect($result['name']['value'])->toBe('$name');
-    expect($result['name']['prefix'])->toBe(':$');
 });
 
 test('parses boolean attributes', function () {

@@ -9,7 +9,7 @@ class SlotOpenToken extends Token
 {
     public function __construct(
         public ?string $name = null,
-        public string $attributes = '',
+        public array $attributes = [],
         public string $slotStyle = 'standard',
         public string $prefix = 'x-',
     ) {}

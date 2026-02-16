@@ -62,8 +62,7 @@ class Tokenizer
                 TokenizerState::TEXT => $this->handleTextState(),
                 TokenizerState::TAG_OPEN => $this->handleTagOpenState(),
                 TokenizerState::TAG_CLOSE => $this->handleTagCloseState(),
-                TokenizerState::ATTRIBUTE_NAME => $this->handleAttributeState(),
-                TokenizerState::SLOT => $this->handleSlotState(),
+                TokenizerState::SLOT_OPEN => $this->handleSlotOpenState(),
                 TokenizerState::SLOT_CLOSE => $this->handleSlotCloseState(),
                 TokenizerState::SHORT_SLOT => $this->handleShortSlotState(),
                 default => throw new \RuntimeException("Unknown state: $state"),
@@ -115,7 +114,7 @@ class Tokenizer
 
                     $this->advance(strlen('<' . $slotInfo['prefix']));
 
-                    return TokenizerState::SLOT;
+                    return TokenizerState::SLOT_OPEN;
                 }
             }
 
@@ -172,7 +171,7 @@ class Tokenizer
     }
 
     /**
-     * Process tag open state, extracting the component name.
+     * Process tag open state, extracting the component name and attributes.
      */
     protected function handleTagOpenState(): TokenizerState
     {
@@ -183,7 +182,32 @@ class Tokenizer
 
             $this->advance(strlen($name));
 
-            return TokenizerState::ATTRIBUTE_NAME;
+            $this->collectAttributes();
+
+            if ($this->current() === '/' && $this->peek() === '>') {
+                $this->currentToken = new TagSelfCloseToken(
+                    name: $this->currentToken->name,
+                    prefix: $this->currentToken->prefix,
+                    namespace: $this->currentToken->namespace,
+                    attributes: $this->currentToken->attributes,
+                );
+
+                array_pop($this->tagStack);
+
+                $this->tokens[] = $this->currentToken;
+
+                $this->advance(2);
+
+                return TokenizerState::TEXT;
+            }
+
+            if ($this->current() === '>') {
+                $this->tokens[] = $this->currentToken;
+
+                $this->advance();
+
+                return TokenizerState::TEXT;
+            }
         }
 
         $this->advance();
@@ -218,78 +242,26 @@ class Tokenizer
     }
 
     /**
-     * Process attribute collection state, handling self-closing detection.
-     */
-    protected function handleAttributeState(): TokenizerState
-    {
-        $char = $this->current();
-
-        if ($char === ' ') {
-            $this->advance();
-
-            return TokenizerState::ATTRIBUTE_NAME;
-        }
-
-        if ($char === '>') {
-            $this->tokens[] = $this->currentToken;
-
-            $this->advance();
-
-            return TokenizerState::TEXT;
-        }
-
-        if ($char === '/' && $this->peek() === '>') {
-            $this->currentToken = new TagSelfCloseToken(
-                name: $this->currentToken->name,
-                prefix: $this->currentToken->prefix,
-                namespace: $this->currentToken->namespace,
-                attributes: $this->currentToken->attributes
-            );
-
-            array_pop($this->tagStack);
-
-            $this->tokens[] = $this->currentToken;
-
-            $this->advance(2);
-
-            return TokenizerState::TEXT;
-        }
-
-        $attributes = $this->collectAttributes();
-
-        if ($attributes !== null) {
-            $this->currentToken->attributes = $attributes;
-        }
-
-        return TokenizerState::ATTRIBUTE_NAME;
-    }
-
-    /**
      * Process standard slot tag state.
      */
-    protected function handleSlotState(): TokenizerState
+    protected function handleSlotOpenState(): TokenizerState
     {
-        $char = $this->current();
+        $this->collectAttributes();
 
-        if ($char === ' ') {
-            $this->advance();
+        // Extract and remove the name attribute from the collected attributes.
+        foreach ($this->currentToken->attributes as $i => $attr) {
+            if (preg_match('/^name="([^"]+)"$/', $attr, $matches)) {
+                $this->currentToken->name = $matches[1];
 
-            return TokenizerState::SLOT;
+                unset($this->currentToken->attributes[$i]);
+
+                $this->currentToken->attributes = array_values($this->currentToken->attributes);
+
+                break;
+            }
         }
 
-        if ($this->match('/^name="([^"]+)"/')) {
-            $matches = [];
-
-            preg_match('/^name="([^"]+)"/', $this->remaining(), $matches);
-
-            $this->currentToken->name = $matches[1];
-
-            $this->advance(strlen($matches[0]));
-
-            return TokenizerState::ATTRIBUTE_NAME;
-        }
-
-        if ($char === '>') {
+        if ($this->current() === '>') {
             $this->tokens[] = $this->currentToken;
 
             $this->advance();
@@ -299,7 +271,7 @@ class Tokenizer
 
         $this->advance();
 
-        return TokenizerState::SLOT;
+        return TokenizerState::SLOT_OPEN;
     }
 
     /**
@@ -340,16 +312,7 @@ class Tokenizer
 
             $this->advance(strlen($name));
 
-            $attrBuffer = '';
-            while (! $this->isAtEnd() && $this->current() !== '>') {
-                $attrBuffer .= $this->current();
-
-                $this->advance();
-            }
-
-            if (trim($attrBuffer) !== '') {
-                $this->currentToken->attributes = trim($attrBuffer);
-            }
+            $this->collectAttributes();
 
             if ($this->current() === '>') {
                 $this->tokens[] = $this->currentToken;
@@ -366,9 +329,10 @@ class Tokenizer
     }
 
     /**
-     * Collect the full attribute string, respecting nested quotes and brackets.
+     * Collect all attributes on the current token, splitting on unquoted/unbracketed whitespace.
+     * Stops at > or /> without consuming them.
      */
-    protected function collectAttributes(): ?string
+    protected function collectAttributes(): void
     {
         $attrString = '';
         $inSingleQuote = false;
@@ -400,12 +364,25 @@ class Tokenizer
                 };
             }
 
-            if (
-                ($char === '>' || ($char === '/' && $this->peek() === '>')) &&
-                $braceCount === 0 && $bracketCount === 0 && $parenCount === 0 &&
-                !$inSingleQuote && !$inDoubleQuote
-            ) {
+            $isNested = $inSingleQuote || $inDoubleQuote
+                || $braceCount > 0 || $bracketCount > 0 || $parenCount > 0;
+
+            // Tag end — flush and stop (don't consume).
+            if (($char === '>' || ($char === '/' && $this->peek() === '>')) && !$isNested) {
                 break;
+            }
+
+            // Space outside nesting — flush current attribute and skip.
+            if ($char === ' ' && !$isNested) {
+                if ($attrString !== '') {
+                    $this->currentToken->attributes[] = $attrString;
+
+                    $attrString = '';
+                }
+
+                $this->advance();
+
+                continue;
             }
 
             $attrString .= $char;
@@ -413,7 +390,9 @@ class Tokenizer
             $this->advance();
         }
 
-        return trim($attrString) !== '' ? trim($attrString) : null;
+        if ($attrString !== '') {
+            $this->currentToken->attributes[] = $attrString;
+        }
     }
 
     /**
