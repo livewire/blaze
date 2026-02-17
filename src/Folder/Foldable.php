@@ -161,17 +161,22 @@ class Foldable
 
                     $this->attributeByPlaceholder[$placeholder] = $attribute;
 
-                    $value = $placeholder;
+                    $this->renderable->attributes[$prop] = new Attribute(
+                        name: $prop,
+                        value: $placeholder,
+                        propName: $prop,
+                        dynamic: false,
+                    );
                 } else {
-                    $value = $attribute->value;
+                    $this->renderable->attributes[$prop] = new Attribute(
+                        name: $attribute->name,
+                        value: $attribute->value,
+                        propName: $attribute->propName,
+                        dynamic: $attribute->dynamic,
+                        quotes: $attribute->quotes,
+                        prefix: $attribute->prefix,
+                    );
                 }
-
-                $this->renderable->attributes[$prop] = new Attribute(
-                    name: $prop,
-                    value: $value,
-                    propName: $prop,
-                    dynamic: false,
-                );
             } else if ($default !== null) {
                 // TODO: test this, we might not need to add the default attributes because they will be added inside the component?
                 // When the value is null and no parent provides a value, we intentionally
