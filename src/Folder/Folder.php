@@ -52,8 +52,6 @@ class Folder
         $this->checkProblematicPatterns($source);
 
         try {
-            Blaze::startFolding();
-
             $foldable = new Foldable($node, $source);
 
             $html = $foldable->fold();
@@ -71,9 +69,7 @@ class Folder
             }
 
             return $node;
-        } finally {
-            Blaze::stopFolding();
-        } 
+        }
     }
     
     /**

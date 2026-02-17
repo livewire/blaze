@@ -5,6 +5,7 @@ namespace Livewire\Blaze\Compiler;
 use Livewire\Blaze\BladeService;
 use Livewire\Blaze\Support\Directives;
 use Livewire\Blaze\Support\Utils;
+use Livewire\Blaze\Blaze;
 
 /**
  * Compiles Blaze component templates into PHP function definitions.
@@ -26,7 +27,7 @@ class Wrapper
     public function wrap(string $compiled, string $path, ?string $source = null): string
     {
         $source ??= $compiled;
-        $name = '_'.Utils::hash($path);
+        $name = (Blaze::isFolding() ? '__' : '_') . Utils::hash($path);
 
         $directives = new Directives($source);
 

@@ -3,6 +3,7 @@
 namespace Livewire\Blaze\Compiler;
 
 use Illuminate\View\Compilers\ComponentTagCompiler;
+use Livewire\Blaze\Blaze;
 use Livewire\Blaze\Parser\Nodes\ComponentNode;
 use Livewire\Blaze\Parser\Nodes\SlotNode;
 use Livewire\Blaze\Parser\Nodes\TextNode;
@@ -93,7 +94,7 @@ class Compiler
     protected function compileComponentTag(ComponentNode $node, ComponentSource $source): string
     {
         $hash = Utils::hash($source->path);
-        $functionName = '_' . $hash;
+        $functionName = (Blaze::isFolding() ? '__' : '_') . $hash;
         $slotsVariableName = '$slots' . $hash;
         [$attributesArrayString, $boundKeysArrayString] = $this->getAttributesAndBoundKeysArrayStrings($node->attributeString);
 

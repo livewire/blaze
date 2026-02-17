@@ -8,6 +8,7 @@ use Illuminate\Support\Facades\File;
 use Illuminate\Support\Str;
 use Illuminate\View\Compilers\ComponentTagCompiler;
 use ReflectionClass;
+use Livewire\Blaze\Support\Utils;
 
 class BladeService
 {
@@ -105,23 +106,15 @@ class BladeService
             'renderCount' => 0,
         ]);
 
-        $isTopLevelTemplate = true;
-
         [$compiler, $restore] = static::freezeObjectProperties($compiler, [
             'cachePath' => $temporaryCachePath,
             'rawBlocks',
             'prepareStringsForCompilationUsing' => [
-                function ($input) use (&$isTopLevelTemplate) {
-                    // Only process @unblaze for the top-level template being folded.
-                    // Nested compilations (triggered by ensureCompiled for inner components)
-                    // should not have their @unblaze processed here, as the markers would
-                    // end up in the compiled function files without being replaced.
-
-                    if ($isTopLevelTemplate && Unblaze::hasUnblaze($input)) {
+                function ($input) {
+                    if (Unblaze::hasUnblaze($input)) {
                         $input = Unblaze::processUnblazeDirectives($input);
-                    }
+                    };
 
-                    $isTopLevelTemplate = false;
 
                     $input = Blaze::compileForFolding($input);
 
@@ -140,16 +133,18 @@ class BladeService
         ]);
 
         try {
-            // Blade's string rendering writes to `view.compiled` rather than `cachePath`,
-            // so `deleteCachedView: true` ensures cleanup of the generated file
-            $result = $compiler->render($template, deleteCachedView: true);
+            Blaze::startFolding();
 
-            $result = Unblaze::replaceUnblazePrecompiledDirectives($result);
+            $result = $compiler->render($template, deleteCachedView: true);
         } finally {
             $restore();
             $restoreFactory();
             $restoreRuntime();
+
+            Blaze::stopFolding();
         }
+
+        $result = Unblaze::replaceUnblazePrecompiledDirectives($result);
 
         return $result;
     }
