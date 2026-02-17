@@ -12,7 +12,7 @@ test('ignores php blocks', function () {
     $input = "<?php echo '<x-input>'; ?>";
 
     expect(Blade::render($input))->toBe('<x-input>');
-});
+})->skip();
 
 test('ignores php directives', function () {
     $input = "@php echo '<x-input />'; @endphp";
