@@ -56,7 +56,7 @@ class BlazeManager
         $dataStack = [];
 
         $ast = $this->walker->walk(
-            nodes: $this->parser->parse($template),
+            nodes: $this->parser->parse($clean),
             preCallback: function ($node) use (&$dataStack) {
                 if ($node instanceof ComponentNode) {
                     $dataStack[] = $node->attributes;

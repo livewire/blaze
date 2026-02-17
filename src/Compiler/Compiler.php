@@ -110,7 +110,7 @@ class Compiler
             $output .= "\n" . '<' . '?php ' . $functionName . '($__blaze, ' . $attributesArrayString . ', ' . $slotsVariableName . ', ' . $boundKeysArrayString . ', isset($this) ? $this : null); ?>';
         }
 
-        $output .= "\n" . '<' . '?php $__blaze->popData(); ?>' . "\n";
+        $output .= "\n" . '<' . '?php $__blaze->popData(); ?>';
 
         return $output;
     }
