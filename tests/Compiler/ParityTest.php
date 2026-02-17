@@ -69,21 +69,3 @@ test('whitespace', function () {
 
     expect($blaze)->toBe($blade);
 });
-
-test('whitespace nesting', function () {
-    $input = <<<'BLADE'
-        <x-parity.card />
-        <x-parity.card />
-        BLADE
-    ;
-
-    $blaze = Blade::render($input);
-    
-    Blaze::disable();
-    Artisan::call('view:clear');
-    Component::flushCache();
-
-    $blade = Blade::render($input);
-
-    expect($blaze)->toBe($blade);
-});

@@ -100,14 +100,16 @@ class Compiler
         $output = '<' . '?php $__blaze->ensureCompiled(\'' . $source->path . '\', $__blaze->compiledPath.\'/'. $hash . '.php\'); ?>' . "\n";
         $output .= '<' . '?php require_once $__blaze->compiledPath.\'/'. $hash . '.php\'; ?>';
 
-        $output .= "\n" . '<' . '?php $__blaze->pushData(' . $attributesArrayString . '); ?>';
-
         if ($node->selfClosing) {
+            $output .= "\n" . '<' . '?php $__blaze->pushData(' . $attributesArrayString . '); ?>';
             $output .= "\n" . '<' . '?php ' . $functionName . '($__blaze, ' . $attributesArrayString . ', [], ' . $boundKeysArrayString . ', isset($this) ? $this : null); ?>';
         } else {
+            $attributesVariableName = '$__attrs' . $hash;
+            $output .= "\n" . '<' . '?php ' . $attributesVariableName . ' = ' . $attributesArrayString . '; ?>';
+            $output .= "\n" . '<' . '?php $__blaze->pushData(' . $attributesVariableName . '); ?>';
             $output .= "\n" . $this->slotCompiler->compile($slotsVariableName, $node->children);
             $output .= "\n" . '<' . '?php $__blaze->pushSlots(' . $slotsVariableName . '); ?>';
-            $output .= "\n" . '<' . '?php ' . $functionName . '($__blaze, ' . $attributesArrayString . ', ' . $slotsVariableName . ', ' . $boundKeysArrayString . ', isset($this) ? $this : null); ?>';
+            $output .= "\n" . '<' . '?php ' . $functionName . '($__blaze, ' . $attributesVariableName . ', ' . $slotsVariableName . ', ' . $boundKeysArrayString . ', isset($this) ? $this : null); ?>';
         }
 
         $output .= "\n" . '<' . '?php $__blaze->popData(); ?>';
