@@ -116,10 +116,12 @@ class BladeService
                     // Nested compilations (triggered by ensureCompiled for inner components)
                     // should not have their @unblaze processed here, as the markers would
                     // end up in the compiled function files without being replaced.
+
                     if ($isTopLevelTemplate && Unblaze::hasUnblaze($input)) {
-                        $isTopLevelTemplate = false;
                         $input = Unblaze::processUnblazeDirectives($input);
                     }
+
+                    $isTopLevelTemplate = false;
 
                     $input = Blaze::compileForFolding($input);
 
