@@ -150,10 +150,6 @@ class Wrapper
 
         preg_match_all($usePattern, $source, $matches);
 
-        if (empty($matches[0])) {
-            return [$compiled, null];
-        }
-
         foreach ($matches[0] as $match) {
             $useStatements[] = trim($match);
         }
@@ -164,6 +160,10 @@ class Wrapper
         // block contained only use statements) or strip the use lines from
         // the restored content. Since raw blocks are opaque at this stage,
         // we restore them, strip the use lines, and re-store them.
+        //
+        // This also handles empty @php @endphp blocks (no use statements,
+        // no other code) — their placeholders must be removed to avoid
+        // leaving behind extra blank lines in the rendered output.
         $compiler = app('blade.compiler');
         $rawBlocksProperty = new \ReflectionProperty($compiler, 'rawBlocks');
         $rawBlocks = $rawBlocksProperty->getValue($compiler);
@@ -172,15 +172,15 @@ class Wrapper
             // Strip use statements from the raw block content.
             $stripped = preg_replace($usePattern, '', $block);
 
-            // If the block is now empty (only had use statements), remove
-            // the placeholder from compiled output entirely.
+            // If the block is now empty (only had use statements or was
+            // already empty), remove the placeholder from compiled output.
             $strippedContent = trim(
                 preg_replace('/^<\x3Fphp\s*/s', '',
                     preg_replace('/\s*\x3F>$/s', '', $stripped))
             );
 
             if ($strippedContent === '') {
-                $compiled = str_replace('@__raw_block_' . $index . '__@', '', $compiled);
+                $compiled = preg_replace('/^[ \t]*@__raw_block_' . $index . '__@\s*/m', '', $compiled);
             } else {
                 $block = $stripped;
             }
@@ -188,6 +188,10 @@ class Wrapper
         unset($block);
 
         $rawBlocksProperty->setValue($compiler, $rawBlocks);
+
+        if (empty($useStatements)) {
+            return [$compiled, null];
+        }
 
         return [$compiled, implode("\n", $useStatements) . "\n"];
     }
