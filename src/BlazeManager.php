@@ -58,18 +58,20 @@ class BlazeManager
         $ast = $this->walker->walk(
             nodes: $this->parser->parse($clean),
             preCallback: function ($node) use (&$dataStack) {
-                if ($node instanceof ComponentNode) {
+                if ($node instanceof ComponentNode && $node->children) {
                     $dataStack[] = $node->attributes;
 
                     $node->hasAwareDescendants = $this->hasAwareDescendant($node);
+                }
 
+                if ($node instanceof ComponentNode) {
                     $node->setParentsAttributes(array_merge(...$dataStack));
                 }
 
                 return $node;
             },
             postCallback: function ($node) use (&$dataStack) {
-                if (($node instanceof ComponentNode) && $node->children) {
+                if ($node instanceof ComponentNode && $node->children) {
                     array_pop($dataStack);
                 }
 
