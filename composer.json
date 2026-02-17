@@ -19,6 +19,9 @@
         "pestphp/pest": "^2.0|^3.0",
         "pestphp/pest-plugin-laravel": "^2.0|^3.0"
     },
+    "conflict": {
+        "livewire/flux": "<2.12.1"
+    },
     "autoload": {
         "psr-4": {
             "Livewire\\Blaze\\": "src/"
