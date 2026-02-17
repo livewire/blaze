@@ -266,7 +266,6 @@ class BladeService
 
         $reflection = new \ReflectionClass($compiler);
         $pathsProperty = $reflection->getProperty('anonymousComponentPaths');
-        $pathsProperty->setAccessible(true);
         $paths = $pathsProperty->getValue($compiler) ?? [];
 
         if (str_contains($name, '::')) {
@@ -356,8 +355,6 @@ class BladeService
 
             $property = $reflection->getProperty($name);
 
-            $property->setAccessible(true);
-
             $frozen[$name] = $property->getValue($object);
 
             if (! is_numeric($key)) {
@@ -370,7 +367,6 @@ class BladeService
             function () use ($reflection, $object, $frozen) {
                 foreach ($frozen as $name => $value) {
                     $property = $reflection->getProperty($name);
-                    $property->setAccessible(true);
                     $property->setValue($object, $value);
                 }
             },
