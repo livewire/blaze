@@ -133,12 +133,14 @@ class Compiler
 
         $slotsVariableName = '$slots' . hash('xxh128', $componentName);
 
+        $functionName = '(\'' . (Blaze::isFolding() ? '__' : '_') . '\' . $__resolved)';
+
         if ($node->selfClosing) {
-            $output .= "\n" . '<' . '?php (\'_\' . $__resolved)($__blaze, $attributes->all(), $__blaze->mergedComponentSlots(), [], isset($this) ? $this : null); ?>';
+            $output .= "\n" . '<' . '?php ' . $functionName . '($__blaze, $attributes->all(), $__blaze->mergedComponentSlots(), [], isset($this) ? $this : null); ?>';
         } else {
             $output .= $this->slotCompiler->compile($slotsVariableName, $node->children);
             $output .= "\n" . '<' . '?php ' . $slotsVariableName . ' = array_merge($__blaze->mergedComponentSlots(), ' . $slotsVariableName . '); ?>';
-            $output .= "\n" . '<' . '?php (\'_\' . $__resolved)($__blaze, $attributes->all(), ' . $slotsVariableName . ', [], isset($this) ? $this : null); ?>';
+            $output .= "\n" . '<' . '?php ' . $functionName . '($__blaze, $attributes->all(), ' . $slotsVariableName . ', [], isset($this) ? $this : null); ?>';
         }
 
         $output .= "\n" . '<' . '?php $__blaze->popData(); ?>';

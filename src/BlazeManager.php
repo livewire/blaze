@@ -118,8 +118,6 @@ class BlazeManager
 
         $output = $this->render($ast);
 
-        BladeService::deleteTemporaryCacheDirectory();
-
         return $output;
     }
 
@@ -158,8 +156,6 @@ class BlazeManager
         if ($directives->blaze() || $shouldWrap) {
             $output = $this->wrapper->wrap($output, $path, $source);
         }
-
-        BladeService::deleteTemporaryCacheDirectory();
 
         return $output;
     }
