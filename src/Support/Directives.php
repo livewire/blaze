@@ -25,6 +25,8 @@ class Directives
         
         BladeService::compileDirective($this->content, $name, function () use (&$result) {
             $result = true;
+
+            return '';
         });
         
         return $result;
@@ -39,6 +41,8 @@ class Directives
 
         BladeService::compileDirective($this->content, $name, function ($expression) use (&$result) {
             $result = $expression;
+
+            return '';
         });
         
         return $result;
