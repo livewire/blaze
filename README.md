@@ -112,7 +112,10 @@ Blaze supports all essential features and produces HTML output identical to Blad
     Access shared data manually using `$__env->shared('key')`
 - **Cross boundary `@aware`** between Blade and Blaze
 
-    Both parent and child must use Blaze for values to propagate.
+    Both parent and child must use Blaze for values to propagate
+- **Rendering Blaze components using `view()`** will not work
+
+    Blaze components can only be rendered using the component tag
 
 # Optimization Strategies
 
