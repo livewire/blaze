@@ -1,3 +1,0 @@
-@blaze
-
-<span>{{ $foo }}</span>

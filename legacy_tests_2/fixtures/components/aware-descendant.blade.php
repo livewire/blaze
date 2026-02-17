@@ -1,3 +1,0 @@
-@aware(['name'])
-
-{{ $name }}

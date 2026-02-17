@@ -1,2 +1,0 @@
-@blaze
-<button>{{ $slot }}</button>
