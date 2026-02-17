@@ -2,141 +2,179 @@
 
 namespace Livewire\Blaze\Folder;
 
-use Livewire\Blaze\Exceptions\LeftoverPlaceholdersException;
-use Livewire\Blaze\Exceptions\InvalidBlazeFoldUsageException;
-use Livewire\Blaze\Support\AttributeParser;
-use Livewire\Blaze\Events\ComponentFolded;
-use Livewire\Blaze\Nodes\ComponentNode;
 use Illuminate\Support\Facades\Event;
-use Livewire\Blaze\Nodes\TextNode;
-use Livewire\Blaze\Nodes\SlotNode;
-use Livewire\Blaze\Nodes\Node;
-use Livewire\Blaze\Directive\BlazeDirective;
+use Livewire\Blaze\Events\ComponentFolded;
+use Livewire\Blaze\Exceptions\InvalidBlazeFoldUsageException;
+use Livewire\Blaze\Parser\Nodes\ComponentNode;
+use Livewire\Blaze\Parser\Nodes\Node;
+use Livewire\Blaze\Parser\Nodes\SlotNode;
+use Livewire\Blaze\Parser\Nodes\TextNode;
+use Livewire\Blaze\Support\ComponentSource;
+use Illuminate\Support\Arr;
+use Livewire\Blaze\Blaze;
+use Livewire\Blaze\Config;
 
+/**
+ * Determines whether a component should be folded and orchestrates the folding process.
+ */
 class Folder
 {
-    protected $renderBlade;
-    protected $renderNodes;
-    protected $componentNameToPath;
-
-    public function __construct(callable $renderBlade, callable $renderNodes, callable $componentNameToPath)
-    {
-        $this->renderBlade = $renderBlade;
-        $this->renderNodes = $renderNodes;
-        $this->componentNameToPath = $componentNameToPath;
+    public function __construct(
+        protected ?Config $config = null,
+    ) {
     }
 
-    public function isFoldable(Node $node): bool
-    {
-        if (! $node instanceof ComponentNode) {
-            return false;
-        }
-
-        try {
-            $componentPath = ($this->componentNameToPath)($node->name);
-
-            if (empty($componentPath) || !file_exists($componentPath)) {
-                return false;
-            }
-
-            $source = file_get_contents($componentPath);
-
-            $directiveParameters = BlazeDirective::getParameters($source);
-
-            if (is_null($directiveParameters)) {
-                return false;
-            }
-
-            // Default to true if fold parameter is not specified
-            return $directiveParameters['fold'] ?? true;
-
-        } catch (\Exception $e) {
-            return false;
-        }
-    }
-
+    /**
+     * Attempt to fold a component node into static HTML with dynamic placeholders.
+     */
     public function fold(Node $node): Node
     {
         if (! $node instanceof ComponentNode) {
             return $node;
         }
 
-        if (! $this->isFoldable($node)) {
-            return $node;
-        }
-
-        /** @var ComponentNode $component */
         $component = $node;
 
+        $source = new ComponentSource($component->name);
+
+        if (! $source->exists()) {
+            return $component;
+        }
+
+        if (! $this->shouldFold($source)) {
+            return $component;
+        }
+
+        if (! $this->isSafeToFold($source, $component)) {
+            return $component;
+        }
+
+        $this->checkProblematicPatterns($source);
+
         try {
-            $componentPath = ($this->componentNameToPath)($component->name);
+            $foldable = new Foldable($node, $source);
 
-            if (file_exists($componentPath)) {
-                $source = file_get_contents($componentPath);
-
-                    $this->validateFoldableComponent($source, $componentPath);
-
-                $directiveParameters = BlazeDirective::getParameters($source);
-
-                // Default to true if aware parameter is not specified
-                if ($directiveParameters['aware'] ?? true) {
-                    $awareAttributes = $this->getAwareDirectiveAttributes($source);
-
-                    if (! empty($awareAttributes)) {
-                        $component->mergeAwareAttributes($awareAttributes);
-                    }
-                }
-            }
-
-            [$processedNode, $slotPlaceholders, $restore, $attributeNameToPlaceholder, $attributeNameToOriginal, $rawAttributes] = $component->replaceDynamicPortionsWithPlaceholders(
-                renderNodes: fn (array $nodes) => ($this->renderNodes)($nodes)
-            );
-
-            $usageBlade = ($this->renderNodes)([$processedNode]);
-
-            $renderedHtml = ($this->renderBlade)($usageBlade);
-
-            $finalHtml = $restore($renderedHtml);
-
-            $shouldInjectAwareMacros = $this->hasAwareDescendant($component);
-
-            if ($shouldInjectAwareMacros) {
-                $dataArrayLiteral = $this->buildRuntimeDataArray($attributeNameToOriginal, $rawAttributes);
-
-                if ($dataArrayLiteral !== '[]') {
-                    $finalHtml = '<?php $__env->pushConsumableComponentData(' . $dataArrayLiteral . '); ?>' . $finalHtml . '<?php $__env->popConsumableComponentData(); ?>';
-                }
-            }
-
-            if ($this->containsLeftoverPlaceholders($finalHtml)) {
-                $summary = $this->summarizeLeftoverPlaceholders($finalHtml);
-
-                throw new LeftoverPlaceholdersException($component->name, $summary, substr($finalHtml, 0, 2000));
-            }
+            $html = $foldable->fold();
 
             Event::dispatch(new ComponentFolded(
-                name: $component->name,
-                path: $componentPath,
-                filemtime: filemtime($componentPath)
+                name: $source->name,
+                path: $source->path,
+                filemtime: filemtime($source->path),
             ));
 
-            return new TextNode($finalHtml);
-
-        } catch (InvalidBlazeFoldUsageException $e) {
-            throw $e;
+            return new TextNode($html);
         } catch (\Exception $e) {
-            if (app('blaze')->isDebugging()) {
+            if (Blaze::shouldThrow()) {
                 throw $e;
             }
 
-            return $component;
+            return $node;
         }
     }
-
-    protected function validateFoldableComponent(string $source, string $componentPath): void
+    
+    /**
+     * Check if the component should be folded based on directive and config settings.
+     */
+    protected function shouldFold(ComponentSource $source): bool
     {
-        // Strip out @unblaze blocks before validation since they can contain dynamic content
-        $sourceWithoutUnblaze = $this->stripUnblazeBlocks($source);
+        $shouldFold = $source->directives->blaze('fold');
+
+        if ($this->config && is_null($shouldFold)) {
+            return $this->config->shouldFold($source->path);
+        }
+
+        return $shouldFold;
+    }
+
+    /**
+     * Determine if a component is safe to fold based on its safe/unsafe attribute declarations.
+     */
+    protected function isSafeToFold(ComponentSource $source, ComponentNode $node): bool
+    {
+        $dynamicAttributes = array_filter($node->attributes, fn ($attribute) => ! $attribute->isStaticValue());
+
+        if (array_key_exists('attributes', $dynamicAttributes)) {
+            return false;
+        }
+
+        foreach ($node->children as $child) {
+            if ($child instanceof SlotNode) {
+                if ($this->slotHasDynamicAttributes($child)) {
+                    return false;
+                }
+            }
+        }
+
+        $props = $source->directives->props();
+        $safe = Arr::wrap($source->directives->blaze('safe'));
+        $unsafe = Arr::wrap($source->directives->blaze('unsafe'));
+
+        if (in_array('*', $safe)) {
+            return true;
+        }
+
+        if (in_array('*', $unsafe) && (count($dynamicAttributes) > 0 || count($node->children) > 0)) {
+            return false;
+        }
+
+        if (in_array('slot', $unsafe)) {
+            // Check for explicit default slot...
+            if (array_filter($node->children, fn ($child) => $child instanceof SlotNode && $child->name === 'slot')) {
+                return false;
+            }
+
+            $looseContent = array_filter($node->children, fn ($child) => ! $child instanceof SlotNode);
+            $looseContent = join('', array_map(fn ($child) => $child->render(), $looseContent));
+            
+            if (trim($looseContent) !== '') {
+                return false;
+            }
+        }
+
+        if (in_array('attributes', $unsafe)) {
+            $unsafe = array_merge($unsafe, array_diff(array_keys($node->attributes), $props));
+        }
+
+        $unsafe = array_diff(array_merge($props, $unsafe), $safe);
+
+        foreach ($dynamicAttributes as $attribute) {
+            if (in_array($attribute->propName, $unsafe)) {
+                return false;
+            }
+        }
+
+        foreach ($node->children as $child) {
+            if ($child instanceof SlotNode) {
+                if (in_array($child->name, $unsafe)) {
+                    return false;
+                }
+            }
+        }
+
+        return true;
+    }
+
+    /**
+     * Check if a slot has any dynamically-bound attributes.
+     */
+    protected function slotHasDynamicAttributes(SlotNode $slot): bool
+    {
+        foreach ($slot->attributes as $attribute) {
+            if (! $attribute->isStaticValue()) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * Throw if the component source contains patterns incompatible with folding.
+     */
+    protected function checkProblematicPatterns(ComponentSource $source): void
+    {
+        // @unblaze blocks can contain dynamic content and are excluded from validation
+        $sourceWithoutUnblaze = preg_replace('/@unblaze.*?@endunblaze/s', '', $source->content);
 
         $problematicPatterns = [
             '@once' => 'forOnce',
@@ -150,131 +188,9 @@ class Folder
         ];
 
         foreach ($problematicPatterns as $pattern => $factoryMethod) {
-            if (preg_match('/' . $pattern . '/', $sourceWithoutUnblaze)) {
-                throw InvalidBlazeFoldUsageException::{$factoryMethod}($componentPath);
+            if (preg_match('/'.$pattern.'/', $sourceWithoutUnblaze)) {
+                throw InvalidBlazeFoldUsageException::{$factoryMethod}($source->path);
             }
         }
-    }
-
-    protected function stripUnblazeBlocks(string $source): string
-    {
-        // Remove content between @unblaze and @endunblaze (including the directives themselves)
-        return preg_replace('/@unblaze.*?@endunblaze/s', '', $source);
-    }
-
-    protected function buildRuntimeDataArray(array $attributeNameToOriginal, string $rawAttributes): string
-    {
-        $pairs = [];
-
-        // Dynamic attributes -> original expressions...
-        foreach ($attributeNameToOriginal as $name => $original) {
-            $key = $this->toCamelCase($name);
-
-            if (preg_match('/\{\{\s*\$([a-zA-Z0-9_]+)\s*\}\}/', $original, $m)) {
-                $pairs[$key] = '$' . $m[1];
-            } else {
-                $pairs[$key] = var_export($original, true);
-            }
-        }
-
-        // Static attributes from the original attribute string...
-        if (! empty($rawAttributes)) {
-            if (preg_match_all('/\b([a-zA-Z0-9_-]+)="([^"]*)"/', $rawAttributes, $matches, PREG_SET_ORDER)) {
-                foreach ($matches as $m) {
-                    $name = $m[1];
-                    $value = $m[2];
-                    $key = $this->toCamelCase($name);
-                    if (! isset($pairs[$key])) {
-                        $pairs[$key] = var_export($value, true);
-                    }
-                }
-            }
-        }
-
-        if (empty($pairs)) return '[]';
-
-        $parts = [];
-        foreach ($pairs as $name => $expr) {
-            $parts[] = var_export($name, true) . ' => ' . $expr;
-        }
-
-        return '[' . implode(', ', $parts) . ']';
-    }
-
-    protected function getAwareDirectiveAttributes(string $source): array
-    {
-        preg_match('/@aware\(\[(.*?)\]\)/s', $source, $matches);
-
-        if (empty($matches[1])) {
-            return [];
-        }
-
-        $attributeParser = new AttributeParser();
-
-        return $attributeParser->parseArrayStringIntoArray($matches[1]);
-    }
-
-    protected function hasAwareDescendant(Node $node): bool
-    {
-        $children = [];
-
-        if ($node instanceof ComponentNode || $node instanceof SlotNode) {
-            $children = $node->children;
-        }
-
-        foreach ($children as $child) {
-            if ($child instanceof ComponentNode) {
-                $path = ($this->componentNameToPath)($child->name);
-
-                if ($path && file_exists($path)) {
-                    $source = file_get_contents($path);
-
-                    if (preg_match('/@aware/', $source)) {
-                        return true;
-                    }
-                }
-
-                if ($this->hasAwareDescendant($child)) {
-                    return true;
-                }
-            } elseif ($child instanceof SlotNode) {
-                if ($this->hasAwareDescendant($child)) {
-                    return true;
-                }
-            }
-        }
-
-        return false;
-    }
-
-    protected function toCamelCase(string $name): string
-    {
-        $name = str_replace(['-', '_'], ' ', $name);
-
-        $name = ucwords($name);
-
-        $name = str_replace(' ', '', $name);
-
-        return lcfirst($name);
-    }
-
-    protected function containsLeftoverPlaceholders(string $html): bool
-    {
-        return (bool) preg_match('/\b(SLOT_PLACEHOLDER_\d+|ATTR_PLACEHOLDER_\d+|NAMED_SLOT_[A-Za-z0-9_-]+)\b/', $html);
-    }
-
-    protected function summarizeLeftoverPlaceholders(string $html): string
-    {
-        preg_match_all('/\b(SLOT_PLACEHOLDER_\d+|ATTR_PLACEHOLDER_\d+|NAMED_SLOT_[A-Za-z0-9_-]+)\b/', $html, $matches);
-
-        $counts = array_count_values($matches[1] ?? []);
-
-        $parts = [];
-
-        foreach ($counts as $placeholder => $count) {
-            $parts[] = $placeholder . ' x' . $count;
-        }
-
-        return implode(', ', $parts);
     }
 }

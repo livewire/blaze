@@ -4,8 +4,14 @@ namespace Livewire\Blaze;
 
 use Livewire\Blaze\Events\ComponentFolded;
 
+/**
+ * Manages BlazeFolded front matter comments that track folded component dependencies.
+ */
 class FrontMatter
 {
+    /**
+     * Generate front matter PHP comments from ComponentFolded events.
+     */
     public function compileFromEvents(array $events): string
     {
         $frontmatter = '';
@@ -21,6 +27,9 @@ class FrontMatter
         return $frontmatter;
     }
 
+    /**
+     * Check if any folded component referenced in the source has been modified.
+     */
     public function sourceContainsExpiredFoldedDependencies(string $source): bool
     {
         $foldedComponents = $this->parseFromTemplate($source);
@@ -48,6 +57,9 @@ class FrontMatter
         return false;
     }
 
+    /**
+     * Extract BlazeFolded markers from a compiled template.
+     */
     public function parseFromTemplate(string $template): array
     {
         preg_match_all('/<'.'?php # \[BlazeFolded\]:\{([^}]+)\}:\{([^}]+)\}:\{([^}]+)\} \?>/', $template, $matches, PREG_SET_ORDER);

@@ -4,24 +4,37 @@ namespace Livewire\Blaze;
 
 use Illuminate\Support\Arr;
 
+/**
+ * Handles @unblaze directives by extracting their content from the Blaze pipeline
+ * and re-injecting it after compilation with scope isolation.
+ */
 class Unblaze
 {
     static $unblazeScopes = [];
     static $unblazeReplacements = [];
 
+    /**
+     * Store runtime scope data for an @unblaze token.
+     */
     public static function storeScope($token, $scope = [])
     {
         static::$unblazeScopes[$token] = $scope;
     }
 
+    /**
+     * Check if a template contains @unblaze directives.
+     */
     public static function hasUnblaze(string $template): bool
     {
         return str_contains($template, '@unblaze');
     }
 
+    /**
+     * Replace @unblaze/@endunblaze blocks with placeholders before Blaze compilation.
+     */
     public static function processUnblazeDirectives(string $template)
     {
-        $compiler = static::getHackedBladeCompiler();
+        $compiler = BladeService::getHackedBladeCompiler();
 
         $expressionsByToken = [];
 
@@ -55,13 +68,18 @@ class Unblaze
         return $result;
     }
 
+    /**
+     * Restore @unblaze placeholders with their compiled content and scope wrappers.
+     */
     public static function replaceUnblazePrecompiledDirectives(string $template)
     {
         if (str_contains($template, '[STARTCOMPILEDUNBLAZE')) {
             $template = preg_replace_callback('/(\[STARTCOMPILEDUNBLAZE:([0-9a-zA-Z]+)\])(.*?)(\[ENDCOMPILEDUNBLAZE\])/s', function ($matches) use (&$expressionsByToken) {
                 $token = $matches[2];
 
-                $innerContent = static::$unblazeReplacements[$token];
+                $innerContent = Blaze::compileForUnblaze(
+                    static::$unblazeReplacements[$token]
+                );
 
                 $scope = static::$unblazeScopes[$token];
 
@@ -76,46 +94,5 @@ class Unblaze
         }
 
         return $template;
-    }
-
-    public static function getHackedBladeCompiler()
-    {
-        $instance = new class (
-            app('files'),
-            storage_path('framework/views'),
-        ) extends \Illuminate\View\Compilers\BladeCompiler {
-            /**
-             * Make this method public...
-             */
-            public function compileStatementsMadePublic($template)
-            {
-                return $this->compileStatements($template);
-            }
-
-            /**
-             * Tweak this method to only process custom directives so we
-             * can restrict rendering solely to @island related directives...
-             */
-            protected function compileStatement($match)
-            {
-                if (str_contains($match[1], '@')) {
-                    $match[0] = isset($match[3]) ? $match[1].$match[3] : $match[1];
-                } elseif (isset($this->customDirectives[$match[1]])) {
-                    $match[0] = $this->callCustomDirective($match[1], Arr::get($match, 3));
-                } elseif (method_exists($this, $method = 'compile'.ucfirst($match[1]))) {
-                    // Don't process through built-in directive methods...
-                    // $match[0] = $this->$method(Arr::get($match, 3));
-
-                    // Just return the original match...
-                    return $match[0];
-                } else {
-                    return $match[0];
-                }
-
-                return isset($match[3]) ? $match[0] : $match[0].$match[2];
-            }
-        };
-
-        return $instance;
     }
 }

@@ -2,29 +2,102 @@
 
 namespace Livewire\Blaze;
 
+use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\File;
-use Livewire\Blaze\Unblaze;
+use Illuminate\Support\Str;
+use Illuminate\View\Compilers\ComponentTagCompiler;
 use ReflectionClass;
+use Livewire\Blaze\Support\Utils;
 
 class BladeService
 {
-    public function getTemporaryCachePath(): string
+    /**
+     * Render a Blade template string in an isolated context.
+     */
+    public static function render(string $template): string
     {
-        return storage_path('framework/views/blaze');
+        return static::isolatedRender($template);
     }
 
-    public function isolatedRender(string $template): string
+    /**
+     * Compile a single directive within a template using a sandboxed Blade compiler.
+     */
+    public static function compileDirective(string $template, string $directive, callable $callback)
+    {
+        // Protect raw block placeholders so restoreRawContent doesn't resolve them
+        $template = preg_replace('/@__raw_block_(\d+)__@/', '__BLAZE_RAW_BLOCK_$1__', $template);
+
+        $compiler = static::getHackedBladeCompiler();
+
+        $compiler->directive($directive, $callback);
+
+        $result = $compiler->compileStatementsMadePublic($template);
+
+        return preg_replace('/__BLAZE_RAW_BLOCK_(\d+)__/', '@__raw_block_$1__@', $result);
+    }
+
+    /**
+     * Create a BladeCompiler that only processes custom directives, ignoring built-in ones.
+     */
+    public static function getHackedBladeCompiler()
+    {
+        $instance = new class(app('files'), config('view.compiled')) extends \Illuminate\View\Compilers\BladeCompiler
+        {
+            public function compileStatementsMadePublic($template)
+            {
+                $template = $this->storeUncompiledBlocks($template);
+                $template = $this->compileComments($template);
+                $template = $this->compileStatements($template);
+                $template = $this->restoreRawContent($template);
+
+                return $template;
+            }
+
+            /**
+             * Only process custom directives, skip built-in ones.
+             */
+            protected function compileStatement($match)
+            {
+                if (str_contains($match[1], '@')) {
+                    $match[0] = isset($match[3]) ? $match[1].$match[3] : $match[1];
+                } elseif (isset($this->customDirectives[$match[1]])) {
+                    $match[0] = $this->callCustomDirective($match[1], Arr::get($match, 3));
+                } elseif (method_exists($this, $method = 'compile'.ucfirst($match[1]))) {
+                    return $match[0];
+                } else {
+                    return $match[0];
+                }
+
+                return isset($match[3]) ? $match[0] : $match[0].$match[2];
+            }
+        };
+
+        return $instance;
+    }
+
+    /**
+     * Get the temporary cache directory path used during isolated rendering.
+     */
+    public static function getTemporaryCachePath(): string
+    {
+        return config('view.compiled').'/blaze';
+    }
+
+    /**
+     * Render a Blade template string in isolation by freezing and restoring compiler state.
+     */
+    public static function isolatedRender(string $template): string
     {
         $compiler = app('blade.compiler');
 
-        $temporaryCachePath = $this->getTemporaryCachePath();
+        $temporaryCachePath = static::getTemporaryCachePath();
 
         File::ensureDirectoryExists($temporaryCachePath);
 
         $factory = app('view');
 
-        [$factory, $restoreFactory] = $this->freezeObjectProperties($factory, [
+        [$factory, $restoreFactory] = static::freezeObjectProperties($factory, [
             'componentStack' => [],
             'componentData' => [],
             'currentComponentData' => [],
@@ -33,48 +106,69 @@ class BladeService
             'renderCount' => 0,
         ]);
 
-        [$compiler, $restore] = $this->freezeObjectProperties($compiler, [
+        [$compiler, $restore] = static::freezeObjectProperties($compiler, [
             'cachePath' => $temporaryCachePath,
             'rawBlocks',
             'prepareStringsForCompilationUsing' => [
                 function ($input) {
                     if (Unblaze::hasUnblaze($input)) {
                         $input = Unblaze::processUnblazeDirectives($input);
-                    }
+                    };
+
+
+                    $input = Blaze::compileForFolding($input);
 
                     return $input;
-                }
+                },
             ],
             'path' => null,
         ]);
 
-        try {
-            // As we are rendering a string, Blade will generate a view for the string in the cache directory
-            // and it doesn't use the `cachePath` property. Instead it uses the config `view.compiled` path
-            // to store the view. Hence why our `temporaryCachePath` won't clean this file up. To remove
-            // the file, we can pass `deleteCachedView: true` to the render method...
-            $result = $compiler->render($template, deleteCachedView: true);
+        [$runtime, $restoreRuntime] = static::freezeObjectProperties(app('blaze.runtime'), [
+            'compiled' => [],
+            'paths' => [],
+            'compiledPath' => $temporaryCachePath,
+            'dataStack' => [],
+            'slotsStack' => [],
+        ]);
 
-            $result = Unblaze::replaceUnblazePrecompiledDirectives($result);
+        try {
+            Blaze::startFolding();
+
+            $result = $compiler->render($template, deleteCachedView: true);
         } finally {
             $restore();
             $restoreFactory();
+            $restoreRuntime();
+
+            Blaze::stopFolding();
         }
+
+        $result = Unblaze::replaceUnblazePrecompiledDirectives($result);
 
         return $result;
     }
 
-    public function deleteTemporaryCacheDirectory()
+    /**
+     * Delete the temporary cache directory created during isolated rendering.
+     */
+    public static function deleteTemporaryCacheDirectory(): void
     {
-        File::deleteDirectory($this->getTemporaryCachePath());
+        File::deleteDirectory(static::getTemporaryCachePath());
     }
 
-    public function containsLaravelExceptionView(string $input): bool
+    /**
+     * Check if template content is a Laravel exception view.
+     */
+    public static function containsLaravelExceptionView(string $input): bool
     {
         return str_contains($input, 'laravel-exceptions');
     }
 
-    public function earliestPreCompilationHook(callable $callback)
+    /**
+     * Register a callback to run at the earliest Blade pre-compilation phase.
+     */
+    public static function earliestPreCompilationHook(callable $callback): void
     {
         app()->booted(function () use ($callback) {
             app('blade.compiler')->prepareStringsForCompilationUsing(function ($input) use ($callback) {
@@ -85,7 +179,10 @@ class BladeService
         });
     }
 
-    public function preStoreUncompiledBlocks(string $input): string
+    /**
+     * Invoke the Blade compiler's storeUncompiledBlocks via reflection.
+     */
+    public static function preStoreUncompiledBlocks(string $input): string
     {
         $compiler = app('blade.compiler');
 
@@ -95,17 +192,56 @@ class BladeService
         return $storeVerbatimBlocks->invoke($compiler, $input);
     }
 
-    public function preCompileComments(string $input): string
+    /**
+     * Invoke the Blade compiler's compileComments via reflection.
+     */
+    public static function compileComments(string $input): string
     {
         $compiler = app('blade.compiler');
 
         $reflection = new \ReflectionClass($compiler);
-        $storeVerbatimBlocks = $reflection->getMethod('compileComments');
+        $compileComments = $reflection->getMethod('compileComments');
 
-        return $storeVerbatimBlocks->invoke($compiler, $input);
+        return $compileComments->invoke($compiler, $input);
     }
 
-    public function viewCacheInvalidationHook(callable $callback)
+    /**
+     * Preprocess a component attribute string using Laravel's ComponentTagCompiler.
+     *
+     * Transforms {{ $attributes... }} into :attributes="...",
+     * @class(...) into :class="...", and @style(...) into :style="...".
+     */
+    public static function preprocessAttributeString(string $attributeString): string
+    {
+        $compiler = new ComponentTagCompiler(blade: app('blade.compiler'));
+
+        return (function (string $str): string {
+            /** @var ComponentTagCompiler $this */
+            $str = $this->parseAttributeBag($str);
+            $str = $this->parseComponentTagClassStatements($str);
+            $str = $this->parseComponentTagStyleStatements($str);
+
+            return $str;
+        })->call($compiler, $attributeString);
+    }
+
+    /**
+     * Compile Blade echo syntax within attribute values using ComponentTagCompiler.
+     */
+    public static function compileAttributeEchos(string $input): string
+    {
+        $compiler = new ComponentTagCompiler(blade: app('blade.compiler'));
+
+        $reflection = new \ReflectionClass($compiler);
+        $method = $reflection->getMethod('compileAttributeEchos');
+
+        return Str::unwrap("'".$method->invoke($compiler, $input)."'", "''.", ".''");
+    }
+
+    /**
+     * Register a callback to intercept view cache invalidation events.
+     */
+    public static function viewCacheInvalidationHook(callable $callback): void
     {
         Event::listen('composing:*', function ($event, $params) use ($callback) {
             $view = $params[0];
@@ -120,81 +256,77 @@ class BladeService
         });
     }
 
-    public function componentNameToPath($name): string
+    /**
+     * Resolve a component name to its file path using registered anonymous component paths.
+     */
+    public static function componentNameToPath($name): string
     {
         $compiler = app('blade.compiler');
-        $viewFinder = app('view.finder');
+        $viewFinder = app('view')->getFinder();
 
         $reflection = new \ReflectionClass($compiler);
         $pathsProperty = $reflection->getProperty('anonymousComponentPaths');
         $paths = $pathsProperty->getValue($compiler) ?? [];
 
-        // Handle namespaced components...
         if (str_contains($name, '::')) {
             [$namespace, $componentName] = explode('::', $name, 2);
             $componentPath = str_replace('.', '/', $componentName);
 
-            // Look for namespaced anonymous component...
             foreach ($paths as $pathData) {
                 if (isset($pathData['prefix']) && $pathData['prefix'] === $namespace) {
                     $basePath = rtrim($pathData['path'], '/');
 
-                    // Try direct component file first (e.g., pages::auth.login -> auth/login.blade.php)...
-                    $fullPath = $basePath . '/' . $componentPath . '.blade.php';
+                    $fullPath = $basePath.'/'.$componentPath.'.blade.php';
                     if (file_exists($fullPath)) {
                         return $fullPath;
                     }
 
-                    // Try index.blade.php (e.g., pages::auth -> auth/index.blade.php)...
-                    $indexPath = $basePath . '/' . $componentPath . '/index.blade.php';
+                    $indexPath = $basePath.'/'.$componentPath.'/index.blade.php';
                     if (file_exists($indexPath)) {
                         return $indexPath;
                     }
 
-                    // Try same-name file (e.g., pages::auth -> auth/auth.blade.php)...
                     $lastSegment = basename($componentPath);
-                    $sameNamePath = $basePath . '/' . $componentPath . '/' . $lastSegment . '.blade.php';
+                    $sameNamePath = $basePath.'/'.$componentPath.'/'.$lastSegment.'.blade.php';
                     if (file_exists($sameNamePath)) {
                         return $sameNamePath;
                     }
                 }
             }
 
-            // Fallback to regular namespaced view lookup...
             try {
-                return $viewFinder->find(str_replace('::', '::components.', $name));
+                $viewName = str_replace('::', '::components.', $name);
+                return $viewFinder->find($viewName);
             } catch (\Exception $e) {
-                return '';
+                try {
+                    return $viewFinder->find(str_replace('::', '::components.', $name).'.index');
+                } catch (\Exception $e2) {
+                    return '';
+                }
             }
         }
 
-        // For regular anonymous components, check the registered paths...
         $componentPath = str_replace('.', '/', $name);
 
-        // Check each registered anonymous component path (without prefix)...
         foreach ($paths as $pathData) {
-            // Only check paths without a prefix for regular anonymous components...
-            if (!isset($pathData['prefix']) || $pathData['prefix'] === null) {
+            if (! isset($pathData['prefix']) || $pathData['prefix'] === null) {
                 $registeredPath = $pathData['path'] ?? $pathData;
 
                 if (is_string($registeredPath)) {
                     $basePath = rtrim($registeredPath, '/');
 
-                    // Try direct component file first (e.g., form.input -> form/input.blade.php)...
-                    $fullPath = $basePath . '/' . $componentPath . '.blade.php';
+                    $fullPath = $basePath.'/'.$componentPath.'.blade.php';
                     if (file_exists($fullPath)) {
                         return $fullPath;
                     }
 
-                    // Try index.blade.php (e.g., form -> form/index.blade.php)...
-                    $indexPath = $basePath . '/' . $componentPath . '/index.blade.php';
+                    $indexPath = $basePath.'/'.$componentPath.'/index.blade.php';
                     if (file_exists($indexPath)) {
                         return $indexPath;
                     }
 
-                    // Try same-name file (e.g., card -> card/card.blade.php)...
                     $lastSegment = basename($componentPath);
-                    $sameNamePath = $basePath . '/' . $componentPath . '/' . $lastSegment . '.blade.php';
+                    $sameNamePath = $basePath.'/'.$componentPath.'/'.$lastSegment.'.blade.php';
                     if (file_exists($sameNamePath)) {
                         return $sameNamePath;
                     }
@@ -202,7 +334,6 @@ class BladeService
             }
         }
 
-        // Fallback to standard components namespace...
         try {
             return $viewFinder->find("components.{$name}");
         } catch (\Exception $e) {
@@ -210,7 +341,10 @@ class BladeService
         }
     }
 
-    protected function freezeObjectProperties(object $object, array $properties)
+    /**
+     * Snapshot object properties and return a restore closure to revert them.
+     */
+    protected static function freezeObjectProperties(object $object, array $properties)
     {
         $reflection = new ReflectionClass($object);
 

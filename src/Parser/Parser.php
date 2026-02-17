@@ -2,21 +2,35 @@
 
 namespace Livewire\Blaze\Parser;
 
-use Livewire\Blaze\Tokenizer\Tokens\TagSelfCloseToken;
-use Livewire\Blaze\Tokenizer\Tokens\SlotCloseToken;
-use Livewire\Blaze\Tokenizer\Tokens\TagCloseToken;
-use Livewire\Blaze\Tokenizer\Tokens\SlotOpenToken;
-use Livewire\Blaze\Tokenizer\Tokens\TagOpenToken;
-use Livewire\Blaze\Tokenizer\Tokens\TextToken;
-use Livewire\Blaze\Nodes\ComponentNode;
-use Livewire\Blaze\Nodes\TextNode;
-use Livewire\Blaze\Nodes\SlotNode;
+use Livewire\Blaze\Parser\Tokens\TagSelfCloseToken;
+use Livewire\Blaze\Parser\Tokens\SlotCloseToken;
+use Livewire\Blaze\Parser\Tokens\TagCloseToken;
+use Livewire\Blaze\Parser\Tokens\SlotOpenToken;
+use Livewire\Blaze\Parser\Tokens\TagOpenToken;
+use Livewire\Blaze\Parser\Tokens\TextToken;
+use Livewire\Blaze\Parser\Nodes\ComponentNode;
+use Livewire\Blaze\Parser\Nodes\TextNode;
+use Livewire\Blaze\Parser\Nodes\SlotNode;
+use Livewire\Blaze\Parser\Tokenizer;
 
+/**
+ * Converts a flat token stream into a nested AST of component, slot, and text nodes.
+ */
 class Parser
 {
-    public function parse(array $tokens): array
+    public function __construct(
+        protected Tokenizer $tokenizer,
+    ) {
+    }
+
+    /**
+     * Parse tokens into an AST.
+     */
+    public function parse(string $content): array
     {
-        $stack = new ParseStack();
+        $stack = new ParseStack;
+
+        $tokens = $this->tokenizer->tokenize($content);
 
         foreach ($tokens as $token) {
             match(get_class($token)) {
@@ -33,12 +47,15 @@ class Parser
         return $stack->getAst();
     }
 
+    /**
+     * Handle an opening component tag token.
+     */
     protected function handleTagOpen(TagOpenToken $token, ParseStack $stack): void
     {
         $node = new ComponentNode(
             name: $token->namespace . $token->name,
             prefix: $token->prefix,
-            attributes: $token->attributes,
+            attributeString: implode(' ', $token->attributes),
             children: [],
             selfClosing: false
         );
@@ -46,12 +63,15 @@ class Parser
         $stack->pushContainer($node);
     }
 
+    /**
+     * Handle a self-closing component tag token.
+     */
     protected function handleTagSelfClose(TagSelfCloseToken $token, ParseStack $stack): void
     {
         $node = new ComponentNode(
             name: $token->namespace . $token->name,
             prefix: $token->prefix,
-            attributes: $token->attributes,
+            attributeString: implode(' ', $token->attributes),
             children: [],
             selfClosing: true
         );
@@ -59,16 +79,22 @@ class Parser
         $stack->addToRoot($node);
     }
 
+    /**
+     * Handle a closing component tag token.
+     */
     protected function handleTagClose(TagCloseToken $token, ParseStack $stack): void
     {
         $stack->popContainer();
     }
 
+    /**
+     * Handle an opening slot tag token.
+     */
     protected function handleSlotOpen(SlotOpenToken $token, ParseStack $stack): void
     {
         $node = new SlotNode(
-            name: $token->name ?? '',
-            attributes: $token->attributes,
+            name: $token->name ?? 'slot',
+            attributeString: implode(' ', $token->attributes),
             slotStyle: $token->slotStyle,
             children: [],
             prefix: $token->prefix,
@@ -78,6 +104,9 @@ class Parser
         $stack->pushContainer($node);
     }
 
+    /**
+     * Handle a closing slot tag token.
+     */
     protected function handleSlotClose(SlotCloseToken $token, ParseStack $stack): void
     {
         $closed = $stack->popContainer();
@@ -89,9 +118,11 @@ class Parser
         }
     }
 
+    /**
+     * Handle a text content token.
+     */
     protected function handleText(TextToken $token, ParseStack $stack): void
     {
-        // Always preserve text content, including whitespace...
         $node = new TextNode(content: $token->content);
 
         $stack->addToRoot($node);

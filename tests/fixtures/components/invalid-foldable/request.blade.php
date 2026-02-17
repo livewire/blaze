@@ -1,4 +1,4 @@
-@blaze
+@blaze(fold: true)
 
 <div>
     Current URL: {{ request()->url() }}

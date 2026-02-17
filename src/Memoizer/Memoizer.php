@@ -2,49 +2,27 @@
 
 namespace Livewire\Blaze\Memoizer;
 
-use Livewire\Blaze\Nodes\ComponentNode;
-use Livewire\Blaze\Nodes\TextNode;
-use Livewire\Blaze\Nodes\Node;
-use Livewire\Blaze\Directive\BlazeDirective;
+use Livewire\Blaze\Parser\Nodes\ComponentNode;
+use Livewire\Blaze\Parser\Nodes\TextNode;
+use Livewire\Blaze\Parser\Nodes\Node;
+use Livewire\Blaze\Config;
+use Livewire\Blaze\Support\ComponentSource;
+use Livewire\Blaze\Compiler\Compiler;
 
+/**
+ * Wraps compiled component output with runtime memoization logic.
+ */
 class Memoizer
 {
-    protected $componentNameToPath;
-
-    public function __construct(callable $componentNameToPath)
-    {
-        $this->componentNameToPath = $componentNameToPath;
+    public function __construct(
+        protected Config $config,
+        protected Compiler $compiler,
+    ) {
     }
 
-    public function isMemoizable(Node $node): bool
-    {
-        if (! $node instanceof ComponentNode) {
-            return false;
-        }
-
-        try {
-            $componentPath = ($this->componentNameToPath)($node->name);
-
-            if (empty($componentPath) || ! file_exists($componentPath)) {
-                return false;
-            }
-
-            $source = file_get_contents($componentPath);
-
-            $directiveParameters = BlazeDirective::getParameters($source);
-
-            if (is_null($directiveParameters)) {
-                return false;
-            }
-
-            // Default to true if memo parameter is not specified
-            return $directiveParameters['memo'] ?? true;
-
-        } catch (\Exception $e) {
-            return false;
-        }
-    }
-
+    /**
+     * Wrap a self-closing component with memoization output buffering.
+     */
     public function memoize(Node $node): Node
     {
         if (! $node instanceof ComponentNode) {
@@ -62,14 +40,41 @@ class Memoizer
         $name = $node->name;
         $attributes = $node->getAttributesAsRuntimeArrayString();
 
+        $compiled = $this->compiler->compile($node)->render();
+
         $output = '<' . '?php $blaze_memoized_key = \Livewire\Blaze\Memoizer\Memo::key("' . $name . '", ' . $attributes . '); ?>';
-        $output .= '<' . '?php if (! \Livewire\Blaze\Memoizer\Memo::has($blaze_memoized_key)) : ?>';
-        $output .= '<' . '?php ob_start(); ?>';
-        $output .= $node->render();
-        $output .= '<' . '?php \Livewire\Blaze\Memoizer\Memo::put($blaze_memoized_key, ob_get_clean()); ?>';
-        $output .= '<' . '?php endif; ?>';
+        $output .= '<' . '?php if ($blaze_memoized_key !== null && \Livewire\Blaze\Memoizer\Memo::has($blaze_memoized_key)) : ?>';
         $output .= '<' . '?php echo \Livewire\Blaze\Memoizer\Memo::get($blaze_memoized_key); ?>';
+        $output .= '<' . '?php else : ?>';
+        $output .= '<' . '?php ob_start(); ?>';
+        $output .= $compiled;
+        $output .= '<' . '?php $blaze_memoized_html = ob_get_clean(); ?>';
+        $output .= '<' . '?php if ($blaze_memoized_key !== null) { \Livewire\Blaze\Memoizer\Memo::put($blaze_memoized_key, $blaze_memoized_html); } ?>';
+        $output .= '<' . '?php echo $blaze_memoized_html; ?>';
+        $output .= '<' . '?php endif; ?>';
 
         return new TextNode($output);
+    }
+
+    /**
+     * Check if a node should be memoized based on directive and config settings.
+     */
+    protected function isMemoizable(Node $node): bool
+    {
+        if (! $node instanceof ComponentNode) {
+            return false;
+        }
+
+        $source = new ComponentSource($node->name);
+
+        if (! $source->exists()) {
+            return false;
+        }
+
+        if (! is_null($memo = $source->directives->blaze('memo'))) {
+            return $memo;
+        }
+
+        return $this->config->shouldMemoize($source->path);
     }
 }

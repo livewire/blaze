@@ -2,6 +2,7 @@
 
 namespace Livewire\Blaze\Tests;
 
+use Livewire\Blaze\Blaze;
 use Livewire\Blaze\BlazeServiceProvider;
 use Orchestra\Testbench\TestCase as Orchestra;
 
@@ -10,6 +11,8 @@ class TestCase extends Orchestra
     protected function setUp(): void
     {
         parent::setUp();
+
+        Blaze::throw();
     }
 
     protected function getPackageProviders($app)
@@ -26,6 +29,15 @@ class TestCase extends Orchestra
             __DIR__ . '/fixtures/views',
         ]);
 
-        $app['config']->set('view.compiled', sys_get_temp_dir() . '/views');
+        $app['blade.compiler']->anonymousComponentPath(
+            __DIR__.'/fixtures/components',
+        );
+
+        // Isolate compiled view paths for parallel testing to prevent
+        // processes from clearing each other's compiled views.
+        if ($token = $_SERVER['TEST_TOKEN'] ?? null) {
+            $basePath = $app['config']->get('view.compiled');
+            $app['config']->set('view.compiled', $basePath . '/test_' . $token);
+        }
     }
 }

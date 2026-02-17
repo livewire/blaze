@@ -2,51 +2,59 @@
 
 namespace Livewire\Blaze;
 
-use Livewire\Blaze\Walker\Walker;
-use Livewire\Blaze\Tokenizer\Tokenizer;
-use Livewire\Blaze\Parser\Parser;
-use Livewire\Blaze\Memoizer\Memoizer;
-use Livewire\Blaze\Folder\Folder;
-use Livewire\Blaze\Directive\BlazeDirective;
+use Livewire\Blaze\Runtime\BlazeRuntime;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Support\Facades\Blade;
+use Illuminate\Support\Facades\View;
 
 class BlazeServiceProvider extends ServiceProvider
 {
+    /** {@inheritdoc} */
     public function register(): void
     {
         $this->registerBlazeManager();
-        $this->registerBlazeDirectiveFallbacks();
+        $this->registerBlazeRuntime();
+        $this->registerBlazeDirectives();
         $this->registerBladeMacros();
         $this->interceptBladeCompilation();
         $this->interceptViewCacheInvalidation();
     }
 
+    /**
+     * Register the BlazeManager singleton and its aliases.
+     */
     protected function registerBlazeManager(): void
     {
-        $bladeService = new BladeService;
-
-        $this->app->singleton(BlazeManager::class, fn () => new BlazeManager(
-            new Tokenizer,
-            new Parser,
-            new Walker,
-            new Folder(
-                renderBlade: fn ($blade) => $bladeService->isolatedRender($blade),
-                renderNodes: fn ($nodes) => implode('', array_map(fn ($n) => $n->render(), $nodes)),
-                componentNameToPath: fn ($name) => $bladeService->componentNameToPath($name),
-            ),
-            new Memoizer(
-                componentNameToPath: fn ($name) => $bladeService->componentNameToPath($name),
-            ),
-        ));
+        $this->app->singleton(BlazeRuntime::class);
+        $this->app->singleton(Config::class);
+        $this->app->singleton(Debugger::class);
+        $this->app->singleton(BlazeManager::class);
 
         $this->app->alias(BlazeManager::class, Blaze::class);
 
-        $this->app->bind('blaze', fn ($app) => $app->make(BlazeManager::class));
+        $this->app->alias(BlazeManager::class, 'blaze');
+        $this->app->alias(BlazeRuntime::class, 'blaze.runtime');
+        $this->app->alias(Config::class, 'blaze.config');
+        $this->app->alias(Debugger::class, 'blaze.debugger');
     }
 
-    protected function registerBlazeDirectiveFallbacks(): void
+    /**
+     * Share the BlazeRuntime instance with all views.
+     */
+    protected function registerBlazeRuntime(): void
     {
+        View::share('__blaze', $this->app->make(BlazeRuntime::class));
+    }
+
+    /**
+     * Register @blaze, @unblaze, and @endunblaze Blade directives.
+     */
+    protected function registerBlazeDirectives(): void
+    {
+        Blade::directive('blaze', function () {
+            return '';
+        });
+
         Blade::directive('unblaze', function ($expression) {
             return ''
                 . '<'.'?php $__getScope = fn($scope = []) => $scope; ?>'
@@ -57,53 +65,64 @@ class BlazeServiceProvider extends ServiceProvider
         Blade::directive('endunblaze', function () {
             return '<'.'?php if (isset($__scope)) { $scope = $__scope; unset($__scope); } ?>';
         });
-
-        BlazeDirective::registerFallback();
     }
 
+    /**
+     * Register view factory macros for consumable component data (@aware support).
+     */
     protected function registerBladeMacros(): void
     {
-        $this->app->make('view')->macro('pushConsumableComponentData', function ($data) {
+        View::macro('pushConsumableComponentData', function ($data) {
+            /** @var \Illuminate\View\Factory $this */
             $this->componentStack[] = new \Illuminate\Support\HtmlString('');
-
             $this->componentData[$this->currentComponent()] = $data;
         });
 
-        $this->app->make('view')->macro('popConsumableComponentData', function () {
+        View::macro('popConsumableComponentData', function () {
+            /** @var \Illuminate\View\Factory $this */
             array_pop($this->componentStack);
         });
     }
 
+    /**
+     * Hook into Blade's pre-compilation phase to run the Blaze pipeline.
+     */
     protected function interceptBladeCompilation(): void
     {
-        $blaze = app(BlazeManager::class);
+        BladeService::earliestPreCompilationHook(function ($input) {
+            if (Blaze::isDisabled()) {
+                return $input;
+            }
 
-        (new BladeService)->earliestPreCompilationHook(function ($input) use ($blaze) {
-            if ($blaze->isDisabled()) return $input;
+            if (BladeService::containsLaravelExceptionView($input)) {
+                return $input;
+            }
 
-            if ((new BladeService)->containsLaravelExceptionView($input)) return $input;
-
-            return $blaze->collectAndAppendFrontMatter($input, function ($input) use ($blaze) {
-                return $blaze->compile($input);
+            return Blaze::collectAndAppendFrontMatter($input, function ($input) {
+                return Blaze::compile($input);
             });
         });
     }
 
+    /**
+     * Recompile views when folded component dependencies have changed.
+     */
     protected function interceptViewCacheInvalidation(): void
     {
-        $blaze = app(BlazeManager::class);
+        BladeService::viewCacheInvalidationHook(function ($view, $invalidate) {
+            if (Blaze::isDisabled()) {
+                return;
+            }
 
-        (new BladeService)->viewCacheInvalidationHook(function ($view, $invalidate) use ($blaze) {
-            if ($blaze->isDisabled()) return;
-
-            if ($blaze->viewContainsExpiredFrontMatter($view)) {
+            if (Blaze::viewContainsExpiredFrontMatter($view)) {
                 $invalidate();
             }
         });
     }
 
+    /** {@inheritdoc} */
     public function boot(): void
     {
-        // Bootstrap services
+        //
     }
 }
