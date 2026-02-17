@@ -133,6 +133,8 @@ class BladeService
             'compiled' => [],
             'paths' => [],
             'compiledPath' => $temporaryCachePath,
+            'dataStack' => [],
+            'slotsStack' => [],
         ]);
 
         try {
