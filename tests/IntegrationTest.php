@@ -19,3 +19,10 @@ test('ignores comments', function () {
 
     expect(Blade::render($input))->toBe('');
 });
+
+// TODO: Install PHPStan, which probably would have caught this.
+test('supports php engine', function () {
+    // Make sure our hooks do not break views
+    // rendered using the regular php engine.
+    view('php-view')->render();
+})->throwsNoExceptions();
