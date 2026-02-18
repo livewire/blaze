@@ -33,7 +33,41 @@ composer require livewire/blaze
 
 # Getting started
 
-To get started, call `Blaze::optimize()` in your `AppServiceProvider`.
+There are two ways to enable Blaze:
+
+**A) Add the `@blaze` directive** to individual components — great for trying it out or enabling Blaze on specific templates.
+
+**B) Optimize entire directories** from your service provider — ideal for optimizing many components at once.
+
+After enabling Blaze with either approach, clear your compiled views:
+
+```bash
+php artisan view:clear
+```
+
+## Option A: The `@blaze` directive
+
+Add `@blaze` to the top of any anonymous component to enable Blaze for that template:
+
+```blade
+@blaze
+
+<button {{ $attributes }}>
+    {{ $slot }}
+</button>
+```
+
+Strategies may be specified as arguments:
+
+```blade
+@blaze(memo: true)
+
+@blaze(fold: true)
+```
+
+## Option B: Optimize directories
+
+Call `Blaze::optimize()` in your `AppServiceProvider` to enable Blaze for entire directories at once:
 
 ```php
 use Livewire\Blaze\Blaze;
@@ -43,16 +77,10 @@ use Livewire\Blaze\Blaze;
  */
 public function boot(): void
 {
-    Blaze::optimize()->in(resource_path('view/components'));
+    Blaze::optimize()->in(resource_path('views/components'));
 
     // ...
 }
-```
-
-After enabling Blaze, clear your compiled views:
-
-```bash
-php artisan view:clear
 ```
 
 We recommend starting with specific directories, as your app may rely on features Blaze doesn't support. Gradually expand coverage and verify compatibility with [known limitations](#limitations).
@@ -79,25 +107,7 @@ Blaze::optimize()
     ->in(resource_path('views/components/cards'), fold: true);
 ```
 
-Alternatively, you may enable Blaze for individual components using the `@blaze` directive:
-
-```blade
-@blaze
-
-<button {{ $attributes }}>
-    {{ $slot }}
-</button>
-```
-
-Strategies may be specified as arguments:
-
-```blade
-@blaze(memo: true)
-
-@blaze(fold: true)
-```
-
-Component-level directives override directory-level settings.
+Component-level `@blaze` directives override directory-level settings.
 
 
 # Limitations
