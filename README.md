@@ -59,16 +59,16 @@ We recommend starting with specific directories, as your app may rely on feature
 
 ```php
 Blaze::optimize()
-    ->in(resource_path('views/components/button')
-    ->in(resource_path('views/components/modal');
+    ->in(resource_path('views/components/button'))
+    ->in(resource_path('views/components/modal'));
 ```
 
 To exclude a subdirectory, use `compile: false`.
 
 ```php
 Blaze::optimize()
-    ->in(resource_path('views/components')
-    ->in(resource_path('views/components/legacy', compile: false);
+    ->in(resource_path('views/components'))
+    ->in(resource_path('views/components/legacy'), compile: false);
 ```
 
 You may also enable different optimization strategies per folder.
