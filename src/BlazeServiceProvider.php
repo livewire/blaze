@@ -9,21 +9,7 @@ use Illuminate\Support\Facades\View;
 
 class BlazeServiceProvider extends ServiceProvider
 {
-    /** {@inheritdoc} */
     public function register(): void
-    {
-        $this->registerBlazeManager();
-        $this->registerBlazeRuntime();
-        $this->registerBlazeDirectives();
-        $this->registerBladeMacros();
-        $this->interceptBladeCompilation();
-        $this->interceptViewCacheInvalidation();
-    }
-
-    /**
-     * Register the BlazeManager singleton and its aliases.
-     */
-    protected function registerBlazeManager(): void
     {
         $this->app->singleton(BlazeRuntime::class);
         $this->app->singleton(Config::class);
@@ -36,6 +22,15 @@ class BlazeServiceProvider extends ServiceProvider
         $this->app->alias(BlazeRuntime::class, 'blaze.runtime');
         $this->app->alias(Config::class, 'blaze.config');
         $this->app->alias(Debugger::class, 'blaze.debugger');
+    }
+
+    public function boot(): void
+    {
+        $this->registerBlazeDirectives();
+        $this->registerBlazeRuntime();
+        $this->registerBladeMacros();
+        $this->interceptViewCacheInvalidation();
+        $this->interceptBladeCompilation();
     }
 
     /**
@@ -118,11 +113,5 @@ class BlazeServiceProvider extends ServiceProvider
                 $invalidate();
             }
         });
-    }
-
-    /** {@inheritdoc} */
-    public function boot(): void
-    {
-        //
     }
 }
