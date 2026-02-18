@@ -19,3 +19,7 @@ test('ignores comments', function () {
 
     expect(Blade::render($input))->toBe('');
 });
+
+test('supports php engine', function () {
+    view('php-view')->render();
+})->throwsNoExceptions();

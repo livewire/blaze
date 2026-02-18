@@ -3,6 +3,7 @@
 namespace Livewire\Blaze;
 
 use Illuminate\Support\Facades\Event;
+use Illuminate\View\Engines\CompilerEngine;
 use Livewire\Blaze\Compiler\Wrapper;
 use Livewire\Blaze\Compiler\Compiler;
 use Livewire\Blaze\Directive\BlazeDirective;
@@ -193,13 +194,19 @@ class BlazeManager
      */
     public function viewContainsExpiredFrontMatter($view): bool
     {
+        $engine = $view->getEngine();
+
+        if (! $engine instanceof CompilerEngine) {
+            return false;
+        }
+
         $path = $view->getPath();
 
         if (isset($this->expiredMemo[$path])) {
             return $this->expiredMemo[$path];
         }
 
-        $compiler = $view->getEngine()->getCompiler();
+        $compiler = $engine->getCompiler();
         $compiled = $compiler->getCompiledPath($path);
         $expired = $compiler->isExpired($path);
 
