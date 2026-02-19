@@ -9,6 +9,7 @@ use Livewire\Blaze\Parser\Tokens\TagCloseToken;
 use Livewire\Blaze\Parser\Tokens\TagOpenToken;
 use Livewire\Blaze\Parser\Tokens\TextToken;
 use Livewire\Blaze\Parser\Tokens\Token;
+use Livewire\Blaze\Support\LaravelRegex;
 
 /**
  * Finite state machine that lexes Blade templates into component/slot/text tokens.
@@ -126,6 +127,10 @@ class Tokenizer
                 $this->currentSlotPrefix = $slotInfo['prefix'];
 
                 $this->advance(strlen('</' . $slotInfo['prefix']));
+
+                if ($this->current() === ':') {
+                    $this->advance();
+                }
 
                 return TokenizerState::SLOT_CLOSE;
             }
@@ -279,14 +284,10 @@ class Tokenizer
      */
     protected function handleSlotCloseState(): TokenizerState
     {
-        if ($this->match('/^:[a-zA-Z0-9-]+/')) {
-            $matches = [];
+        if ($name = $this->matchSlotName()) {
+            $this->currentToken->name = $name;
 
-            preg_match('/^:[a-zA-Z0-9-]+/', $this->remaining(), $matches);
-
-            $this->currentToken->name = substr($matches[0], 1);
-
-            $this->advance(strlen($matches[0]));
+            $this->advance(strlen($name));
         }
 
         if ($this->current() === '>') {
@@ -520,11 +521,11 @@ class Tokenizer
     }
 
     /**
-     * Match a tag name (alphanumeric, hyphens, dots, colons) at the current position.
+     * Match a tag name at the current position.
      */
     protected function matchTagName(): ?string
     {
-        if (preg_match('/^[a-zA-Z0-9-\.:]+/', $this->remaining(), $matches)) {
+        if (preg_match(LaravelRegex::TAG_NAME, $this->remaining(), $matches)) {
             return $matches[0];
         }
 
@@ -536,7 +537,7 @@ class Tokenizer
      */
     protected function matchSlotName(): ?string
     {
-        if (preg_match('/^[a-zA-Z0-9-]+/', $this->remaining(), $matches)) {
+        if (preg_match(LaravelRegex::SLOT_INLINE_NAME, $this->remaining(), $matches)) {
             return $matches[0];
         }
 
