@@ -4,6 +4,7 @@ use Livewire\Blaze\Parser\Parser;
 use Livewire\Blaze\Parser\Nodes\ComponentNode;
 use Livewire\Blaze\Parser\Nodes\SlotNode;
 use Livewire\Blaze\Parser\Nodes\TextNode;
+use Livewire\Blaze\Parser\Attribute;
 
 test('parses self-closing components', function () {
     $input = '<x-button class="my-4" />';
@@ -127,3 +128,26 @@ test('handles attributes with angled brackets', function ($attributes) {
     'array' => [':data="[\'foo\' => \'bar\']"'],
     'lambda' => [':callback="fn () => 0"'],
 ]);
+
+test('handles attributes with quotes inside echos', function () {
+    $input = '<x-button x-text="\'{{ __("Print") }}\'" />';
+
+    expect(app(Parser::class)->parse($input))->toEqual([
+        new ComponentNode(
+            name: 'button',
+            prefix: 'x-',
+            attributeString: 'x-text="\'{{ __("Print") }}\'"',
+            selfClosing: true,
+            attributes: [
+                'xText' => new Attribute(
+                    name: 'x-text',
+                    value: '\'{{ __("Print") }}\'',
+                    propName: 'xText',
+                    dynamic: true,
+                    prefix: '',
+                    quotes: '"',
+                ),
+            ],
+        ),
+    ]);
+});

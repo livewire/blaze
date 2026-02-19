@@ -19,6 +19,15 @@ class AttributeParser
     {
         $attributesString = BladeService::preprocessAttributeString($attributesString);
 
+        // Shield Blade echo expressions from regex attribute parsing.
+        // Quotes inside {{ }} and {!! !!} would break the [^"]* and [^']* patterns.
+        $bladeExpressions = [];
+        $attributesString = preg_replace_callback('/\{\{.*?\}\}|\{!!.*?!!\}/s', function ($match) use (&$bladeExpressions) {
+            $placeholder = '__BLADE_EXPR_' . count($bladeExpressions) . '__';
+            $bladeExpressions[$placeholder] = $match[0];
+            return $placeholder;
+        }, $attributesString);
+
         $attributes = [];
 
         preg_match_all('/(?:^|\s)::([A-Za-z0-9_-]+)\s*=\s*"([^"]*)"/', $attributesString, $matches, PREG_SET_ORDER | PREG_OFFSET_CAPTURE);
@@ -181,6 +190,15 @@ class AttributeParser
         $attributes = Arr::map($attributes, fn ($a) => tap($a, function (&$a) {
             unset($a['position']);
         }));
+
+        // Restore Blade expressions that were shielded from regex parsing.
+        if ($bladeExpressions) {
+            $attributes = array_map(function ($attr) use ($bladeExpressions) {
+                $attr['value'] = is_string($attr['value']) ? strtr($attr['value'], $bladeExpressions) : $attr['value'];
+                $attr['original'] = strtr($attr['original'], $bladeExpressions);
+                return $attr;
+            }, $attributes);
+        }
 
         return $attributes;
     }
