@@ -73,7 +73,7 @@ test('handles whitespace in tags', function () {
 });
 
 test('handles whitespace in slot tags', function () {
-    $input = '< x-slot:header ></ x-slot >';
+    $input = '< x-slot:header ></ x-slot >';  // This is valid Blade syntax...
 
     $result = app(Tokenizer::class)->tokenize($input);
 
@@ -84,7 +84,7 @@ test('handles whitespace in slot tags', function () {
 });
 
 test('handles whitespace in short slot tags', function () {
-    $input = '< x-slot:header ></ x-slot:header >';
+    $input = '< x-slot:header ></ x-slot:header >'; // This is valid Blade syntax...
 
     $result = app(Tokenizer::class)->tokenize($input);
 
