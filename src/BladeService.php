@@ -208,18 +208,27 @@ class BladeService
     /**
      * Preprocess a component attribute string using Laravel's ComponentTagCompiler.
      *
-     * Transforms {{ $attributes... }} into :attributes="...",
-     * @class(...) into :class="...", and @style(...) into :style="...".
+     * Runs all five of Laravel's preprocessing transforms:
+     *   :$foo        → :foo="$foo"           (parseShortAttributeSyntax)
+     *   {{ $attrs }} → :attributes="$attrs"  (parseAttributeBag)
+     *   @class(...)  → :class="..."          (parseComponentTagClassStatements)
+     *   @style(...)  → :style="..."          (parseComponentTagStyleStatements)
+     *   :attr=       → bind:attr=            (parseBindAttributes)
      */
     public static function preprocessAttributeString(string $attributeString): string
     {
         $compiler = new ComponentTagCompiler(blade: app('blade.compiler'));
 
+        // Laravel expects a space at the start of the attribute string...
+        $attributeString = Str::start($attributeString, ' ');
+
         return (function (string $str): string {
             /** @var ComponentTagCompiler $this */
+            $str = $this->parseShortAttributeSyntax($str);
             $str = $this->parseAttributeBag($str);
             $str = $this->parseComponentTagClassStatements($str);
             $str = $this->parseComponentTagStyleStatements($str);
+            $str = $this->parseBindAttributes($str);
 
             return $str;
         })->call($compiler, $attributeString);
@@ -236,6 +245,14 @@ class BladeService
         $method = $reflection->getMethod('compileAttributeEchos');
 
         return Str::unwrap("'".$method->invoke($compiler, $input)."'", "''.", ".''");
+    }
+
+    /**
+     * Strip surrounding quotes from a string using ComponentTagCompiler.
+     */
+    public static function stripQuotes(string $input): string
+    {
+        return (new ComponentTagCompiler(blade: app('blade.compiler')))->stripQuotes($input);
     }
 
     /**

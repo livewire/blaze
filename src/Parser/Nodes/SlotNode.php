@@ -21,18 +21,7 @@ class SlotNode extends Node
         public string $prefix = 'x-slot',
         public bool $closeHasName = false,
     ) {
-        $attributes = Utils::parseAttributeStringToArray($this->attributeString);
-
-        foreach ($attributes as $key => $attribute) {
-            $this->attributes[$key] = new Attribute(
-                name: $attribute['name'],
-                value: $attribute['value'],
-                propName: $key,
-                dynamic: $attribute['isDynamic'] || str_contains($attribute['original'], '{{'),
-                prefix: \Illuminate\Support\Str::match('/^(:\$?)/', $attribute['original']),
-                quotes: $attribute['quotes'],
-            );
-        }
+        $this->attributes = Utils::parseAttributeStringToArray($this->attributeString);
     }
 
     /** {@inheritdoc} */

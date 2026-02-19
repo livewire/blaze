@@ -29,4 +29,25 @@ class LaravelRegex
      * @see ComponentTagCompiler::compileSlots() — (\w+(?:-\w+)*)
      */
     const SLOT_INLINE_NAME = '/^\w+(?:-\w+)*/';
+
+    /**
+     * Full pattern for matching individual attributes after preprocessing.
+     *
+     * @see ComponentTagCompiler::getAttributesFromAttributeString() — line 605
+     */
+    const ATTRIBUTE_PATTERN = '/
+        (?<attribute>[\w\-:.@%]+)
+        (
+            =
+            (?<value>
+                (
+                    \"[^\"]+\"
+                    |
+                    \\\'[^\\\']+\\\'
+                    |
+                    [^\s>]+
+                )
+            )
+        )?
+    /x';
 }

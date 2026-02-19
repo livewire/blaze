@@ -4,6 +4,7 @@ namespace Livewire\Blaze\Support;
 
 use Livewire\Blaze\BladeService;
 use Livewire\Blaze\Directive\BlazeDirective;
+use Livewire\Blaze\Parser\Attribute;
 
 /**
  * Static utility helpers used across the Blaze pipeline.
@@ -35,7 +36,9 @@ class Utils
     }
 
     /**
-     * Parse an attribute string into a structured array.
+     * Parse an attribute string into a keyed array of Attribute objects.
+     *
+     * @return array<string, Attribute>
      */
     public static function parseAttributeStringToArray(string $attributeString): array
     {
