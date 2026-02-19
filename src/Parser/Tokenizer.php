@@ -231,14 +231,14 @@ class Tokenizer
             array_pop($this->tagStack);
 
             $this->advance(strlen($name));
+        }
 
-            if ($this->current() === '>') {
-                $this->tokens[] = $this->currentToken;
+        if ($this->current() === '>') {
+            $this->tokens[] = $this->currentToken;
 
-                $this->advance();
+            $this->advance();
 
-                return TokenizerState::TEXT;
-            }
+            return TokenizerState::TEXT;
         }
 
         $this->advance();
