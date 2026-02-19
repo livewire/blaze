@@ -1,6 +1,8 @@
 <?php
 
 use Livewire\Blaze\Parser\Tokenizer;
+use Livewire\Blaze\Parser\Tokens\SlotCloseToken;
+use Livewire\Blaze\Parser\Tokens\SlotOpenToken;
 use Livewire\Blaze\Parser\Tokens\TagCloseToken;
 use Livewire\Blaze\Parser\Tokens\TagOpenToken;
 use Livewire\Blaze\Parser\Tokens\TagSelfCloseToken;
@@ -26,14 +28,69 @@ test('tokenizes self-closing tags', function () {
     ]);
 });
 
+test('tokenizes default slots', function () {
+    $input = '<x-slot></x-slot>';
+
+    $result = app(Tokenizer::class)->tokenize($input);
+
+    expect($result)->toEqual([
+        new SlotOpenToken(prefix: 'x-slot'),
+        new SlotCloseToken(prefix: 'x-'),
+    ]);
+});
+
+test('tokenizes standard slots', function () {
+    $input = '<x-slot name="header"></x-slot>';
+
+    $result = app(Tokenizer::class)->tokenize($input);
+
+    expect($result)->toEqual([
+        new SlotOpenToken(name: 'header', prefix: 'x-slot'),
+        new SlotCloseToken(prefix: 'x-'),
+    ]);
+});
+
+test('tokenizes short slots', function () {
+    $input = '<x-slot:header class="p-2"></x-slot:header>';
+
+    $result = app(Tokenizer::class)->tokenize($input);
+
+    expect($result)->toEqual([
+        new SlotOpenToken(name: 'header', slotStyle: 'short', prefix: 'x-slot', attributes: ['class="p-2"']),
+        new SlotCloseToken(name: 'header', prefix: 'x-'),
+    ]);
+});
+
 test('handles whitespace in tags', function () {
-    $input = '<x- button ></x-button >'; // This is valid Blade syntax...
+    $input = '< x-button ></ x-button >'; // This is valid Blade syntax...
 
     $result = app(Tokenizer::class)->tokenize($input);
 
     expect($result)->toEqual([
         new TagOpenToken(name: 'button', prefix: 'x-'),
         new TagCloseToken(name: 'button', prefix: 'x-'),
+    ]);
+});
+
+test('handles whitespace in slot tags', function () {
+    $input = '< x-slot:header ></ x-slot >';
+
+    $result = app(Tokenizer::class)->tokenize($input);
+
+    expect($result)->toEqual([
+        new SlotOpenToken(name: 'header', slotStyle: 'short', prefix: 'x-slot'),
+        new SlotCloseToken(),
+    ]);
+});
+
+test('handles whitespace in short slot tags', function () {
+    $input = '< x-slot:header ></ x-slot:header >';
+
+    $result = app(Tokenizer::class)->tokenize($input);
+
+    expect($result)->toEqual([
+        new SlotOpenToken(name: 'header', slotStyle: 'short', prefix: 'x-slot'),
+        new SlotCloseToken(name: 'header'),
     ]);
 });
 
