@@ -12,9 +12,6 @@ use Livewire\Blaze\Parser\Attribute;
  */
 class ComponentNode extends Node
 {
-    /** @var Attribute[] */
-    public array $attributes = [];
-
     /** Pre-computed by the Walker before children are compiled to TextNodes. */
     public bool $hasAwareDescendants = false;
 
@@ -25,18 +22,22 @@ class ComponentNode extends Node
         public array $children = [],
         public bool $selfClosing = false,
         public array $parentsAttributes = [],
+        /** @var Attribute[] */
+        public array $attributes = [],
     ) {
-        $attributes = Utils::parseAttributeStringToArray($this->attributeString);
+        if (empty($this->attributes) && ! empty($this->attributeString)) {
+            $attributes = Utils::parseAttributeStringToArray($this->attributeString);
 
-        foreach ($attributes as $key => $attribute) {
-            $this->attributes[$key] = new Attribute(
-                name: $attribute['name'],
-                value: $attribute['value'],
-                propName: $key,
-                dynamic: $attribute['isDynamic'] || str_contains($attribute['original'], '{{'),
-                prefix: Str::match('/^(::|\:\$|:)/', $attribute['original']),
-                quotes: $attribute['quotes'],
-            );
+            foreach ($attributes as $key => $attribute) {
+                $this->attributes[$key] = new Attribute(
+                    name: $attribute['name'],
+                    value: $attribute['value'],
+                    propName: $key,
+                    dynamic: $attribute['isDynamic'] || str_contains($attribute['original'], '{{'),
+                    prefix: Str::match('/^(::|\:\$|:)/', $attribute['original']),
+                    quotes: $attribute['quotes'],
+                );
+            }
         }
     }
 
