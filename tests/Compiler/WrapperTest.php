@@ -29,20 +29,13 @@ test('wraps component templates into function definitions', function () {
     ]));
 });
 
-test('injects errors when source uses dollar sign errors', function () {
-    $path = fixture_path('components/compilable/input-errors.blade.php');
-    $source = file_get_contents($path);
-
-    $wrapped = app(Wrapper::class)->wrap($source, $path, $source);
-
-    expect($wrapped)->toContain('$errors = $__blaze->errors;');
-});
-
-test('injects errors when source uses errors directive', function () {
-    $path = fixture_path('components/compilable/input-errors-directive.blade.php');
-    $source = file_get_contents($path);
-
-    $wrapped = app(Wrapper::class)->wrap($source, $path, $source);
-
-    expect($wrapped)->toContain('$errors = $__blaze->errors;');
-});
+test('injects variables', function ($source, $expected) {
+    expect(app(Wrapper::class)->wrap('', '', $source))->toContain($expected);
+    expect(app(Wrapper::class)->wrap($source, '', ''))->toContain($expected);
+})->with([
+    'errors' => ['{{ $errors->has(\'name\') }}', '$errors = $__blaze->errors;'],
+    'errors directive' => ['<input @error(\'name\') invalid @enderror >', '$errors = $__blaze->errors;'],
+    'livewire' => ['{{ $__livewire->id }}', '$__livewire = $__env->shared(\'__livewire\');'],
+    'entangle' => ['<div x-data="{ name: @entangle(\'name\') }"></div>', '$__livewire = $__env->shared(\'__livewire\');'],
+    'app' => ['{{ $app->name }}', '$app = $__blaze->app;'],
+]);
