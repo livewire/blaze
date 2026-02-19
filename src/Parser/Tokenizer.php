@@ -107,13 +107,9 @@ class Tokenizer
                 if ($slotInfo['isShort']) {
                     $this->currentToken = new SlotOpenToken(slotStyle: 'short', prefix: $slotInfo['prefix']);
 
-                    $this->advance(strlen('<' . $slotInfo['prefix'] . ':'));
-
                     return TokenizerState::SHORT_SLOT;
                 } else {
                     $this->currentToken = new SlotOpenToken(slotStyle: 'standard', prefix: $slotInfo['prefix']);
-
-                    $this->advance(strlen('<' . $slotInfo['prefix']));
 
                     return TokenizerState::SLOT_OPEN;
                 }
@@ -125,8 +121,6 @@ class Tokenizer
                 $this->currentToken = new SlotCloseToken();
 
                 $this->currentSlotPrefix = $slotInfo['prefix'];
-
-                $this->advance(strlen('</' . $slotInfo['prefix']));
 
                 if ($this->current() === ':') {
                     $this->advance();
@@ -146,8 +140,6 @@ class Tokenizer
                     namespace: $prefixInfo['namespace']
                 );
 
-                $this->advance(strlen('<' . $prefixInfo['prefix']));
-
                 return TokenizerState::TAG_OPEN;
             }
 
@@ -161,8 +153,6 @@ class Tokenizer
                     prefix: $prefixInfo['prefix'],
                     namespace: $prefixInfo['namespace']
                 );
-
-                $this->advance(strlen('</' . $prefixInfo['prefix']));
 
                 return TokenizerState::TAG_CLOSE;
             }
@@ -231,14 +221,14 @@ class Tokenizer
             array_pop($this->tagStack);
 
             $this->advance(strlen($name));
+        }
 
-            if ($this->current() === '>') {
-                $this->tokens[] = $this->currentToken;
+        if ($this->current() === '>') {
+            $this->tokens[] = $this->currentToken;
 
-                $this->advance();
+            $this->advance();
 
-                return TokenizerState::TEXT;
-            }
+            return TokenizerState::TEXT;
         }
 
         $this->advance();
@@ -404,16 +394,12 @@ class Tokenizer
         foreach ($this->prefixes as $prefix => $config) {
             $slotPrefix = $config['slot'];
 
-            if ($this->matchesAt('<' . $slotPrefix . ':')) {
+            if ($this->match('<\s*' . $slotPrefix . ':')) {
                 return ['prefix' => $slotPrefix, 'isShort' => true];
             }
 
-            if ($this->matchesAt('<' . $slotPrefix)) {
-                $nextChar = $this->peek(strlen('<' . $slotPrefix));
-
-                if ($nextChar !== ':') {
-                    return ['prefix' => $slotPrefix, 'isShort' => false];
-                }
+            if ($this->match('<\s*' . $slotPrefix . '(?!:)')) {
+                return ['prefix' => $slotPrefix, 'isShort' => false];
             }
         }
 
@@ -428,7 +414,7 @@ class Tokenizer
         foreach ($this->prefixes as $prefix => $config) {
             $slotPrefix = $config['slot'];
 
-            if ($this->matchesAt('</' . $slotPrefix)) {
+            if ($this->match('<\/\s*' . $slotPrefix)) {
                 return ['prefix' => $slotPrefix];
             }
         }
@@ -442,10 +428,10 @@ class Tokenizer
     protected function matchComponentOpen(): ?array
     {
         foreach ($this->prefixes as $prefix => $config) {
-            if ($this->matchesAt('<' . $prefix)) {
+            if ($this->match('<\s*' . $prefix)) {
                 return [
                     'prefix' => $prefix,
-                    'namespace' => $config['namespace'] ?? ''
+                    'namespace' => $config['namespace'] ?? '',
                 ];
             }
         }
@@ -459,10 +445,10 @@ class Tokenizer
     protected function matchComponentClose(): ?array
     {
         foreach ($this->prefixes as $prefix => $config) {
-            if ($this->matchesAt('</' . $prefix)) {
+            if ($this->match('<\/\s*' . $prefix)) {
                 return [
                     'prefix' => $prefix,
-                    'namespace' => $config['namespace'] ?? ''
+                    'namespace' => $config['namespace'] ?? '',
                 ];
             }
         }
@@ -495,19 +481,17 @@ class Tokenizer
     }
 
     /**
-     * Test a regex pattern against the remaining content.
+     * Match a pattern at the current position and advance past it.
      */
     protected function match(string $pattern): bool
     {
-        return preg_match($pattern, $this->remaining()) === 1;
-    }
+        if (preg_match('/^' . $pattern . '/', $this->remaining(), $matches)) {
+            $this->advance(strlen($matches[0]));
 
-    /**
-     * Check if a literal string matches at the current position.
-     */
-    protected function matchesAt(string $string): bool
-    {
-        return substr($this->content, $this->position, strlen($string)) === $string;
+            return true;
+        }
+
+        return false;
     }
 
     /**

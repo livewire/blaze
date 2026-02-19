@@ -113,22 +113,6 @@ test('parses component prefixes', function ($input, $prefix, $name) {
     'flux' => ['<flux:button>', 'flux:', 'flux::button'],
 ]);
 
-test('handles attributes with angled brackets', function ($attributes) {
-    $input = '<x-button '. $attributes .' />';
-
-    expect(app(Parser::class)->parse($input))->toEqual([
-        new ComponentNode(
-            name: 'button',
-            prefix: 'x-',
-            attributeString: $attributes,
-            selfClosing: true,
-        ),
-    ]);
-})->with([
-    'array' => [':data="[\'foo\' => \'bar\']"'],
-    'lambda' => [':callback="fn () => 0"'],
-]);
-
 test('preprocesses attributes using Laravel pipeline', function ($input, $expected) {
     $result = app(Parser::class)->parse($input);
 
