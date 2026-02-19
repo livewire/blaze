@@ -2,7 +2,6 @@
 
 namespace Livewire\Blaze\Parser\Nodes;
 
-use Illuminate\Support\Str;
 use Livewire\Blaze\Support\AttributeParser;
 use Livewire\Blaze\Support\Utils;
 use Livewire\Blaze\Parser\Attribute;
@@ -26,18 +25,7 @@ class ComponentNode extends Node
         public array $attributes = [],
     ) {
         if (empty($this->attributes) && ! empty($this->attributeString)) {
-            $attributes = Utils::parseAttributeStringToArray($this->attributeString);
-
-            foreach ($attributes as $key => $attribute) {
-                $this->attributes[$key] = new Attribute(
-                    name: $attribute['name'],
-                    value: $attribute['value'],
-                    propName: $key,
-                    dynamic: $attribute['isDynamic'] || str_contains($attribute['original'], '{{'),
-                    prefix: Str::match('/^(::|\:\$|:)/', $attribute['original']),
-                    quotes: $attribute['quotes'],
-                );
-            }
+            $this->attributes = Utils::parseAttributeStringToArray($this->attributeString);
         }
     }
 

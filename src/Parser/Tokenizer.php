@@ -345,15 +345,6 @@ class Tokenizer
         while (!$this->isAtEnd()) {
             $char = $this->current();
 
-            // Skip over Blade echo expressions ({{ }} and {!! !!}) without
-            // updating quote state — quotes inside Blade tags are PHP-level
-            // and must not interfere with HTML attribute boundary detection.
-            if ($char === '{' && ($bladeExpr = $this->consumeBladeExpression())) {
-                $attrString .= $bladeExpr;
-
-                continue;
-            }
-
             $prevChar = $this->position > 0 ? $this->content[$this->position - 1] : '';
 
             if ($char === '"' && !$inSingleQuote && $prevChar !== '\\') {
@@ -403,47 +394,6 @@ class Tokenizer
         if ($attrString !== '') {
             $this->currentToken->attributes[] = $attrString;
         }
-    }
-
-    /**
-     * If the current position is at a Blade echo expression ({{ or {!!),
-     * consume the entire expression and return it. Returns null otherwise.
-     */
-    protected function consumeBladeExpression(): ?string
-    {
-        if ($this->matchesAt('{!!')) {
-            return $this->consumeUntil('{!!', '!!}');
-        }
-
-        if ($this->matchesAt('{{')) {
-            return $this->consumeUntil('{{', '}}');
-        }
-
-        return null;
-    }
-
-    /**
-     * Consume content from the opening delimiter through the closing delimiter,
-     * advancing the position past the entire expression.
-     */
-    protected function consumeUntil(string $open, string $close): string
-    {
-        $start = $this->position;
-
-        $this->advance(strlen($open));
-
-        while (!$this->isAtEnd()) {
-            if ($this->matchesAt($close)) {
-                $this->advance(strlen($close));
-
-                return substr($this->content, $start, $this->position - $start);
-            }
-
-            $this->advance();
-        }
-
-        // Unclosed expression — return what we have.
-        return substr($this->content, $start, $this->position - $start);
     }
 
     /**

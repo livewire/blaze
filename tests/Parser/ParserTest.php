@@ -4,7 +4,7 @@ use Livewire\Blaze\Parser\Parser;
 use Livewire\Blaze\Parser\Nodes\ComponentNode;
 use Livewire\Blaze\Parser\Nodes\SlotNode;
 use Livewire\Blaze\Parser\Nodes\TextNode;
-use Livewire\Blaze\Parser\Attribute;
+
 
 test('parses self-closing components', function () {
     $input = '<x-button class="my-4" />';
@@ -129,25 +129,25 @@ test('handles attributes with angled brackets', function ($attributes) {
     'lambda' => [':callback="fn () => 0"'],
 ]);
 
-test('handles attributes with quotes inside echos', function () {
-    $input = '<x-button x-text="\'{{ __("Print") }}\'" />';
+test('preprocesses attributes using Laravel pipeline', function ($input, $expected) {
+    $result = app(Parser::class)->parse($input);
 
-    expect(app(Parser::class)->parse($input))->toEqual([
-        new ComponentNode(
-            name: 'button',
-            prefix: 'x-',
-            attributeString: 'x-text="\'{{ __("Print") }}\'"',
-            selfClosing: true,
-            attributes: [
-                'xText' => new Attribute(
-                    name: 'x-text',
-                    value: '\'{{ __("Print") }}\'',
-                    propName: 'xText',
-                    dynamic: true,
-                    prefix: '',
-                    quotes: '"',
-                ),
-            ],
-        ),
-    ]);
-});
+    expect($result[0]->render())->toBe($expected);
+})->with([
+    'short syntax' => [
+        '<x-button :$color />',
+        '<x-button :color="$color" />',
+    ],
+    'attribute bag' => [
+        '<x-button {{ $attributes }} />',
+        '<x-button :attributes="$attributes" />',
+    ],
+    '@class directive' => [
+        '<x-button @class(["foo"]) />',
+        '<x-button :class="\Illuminate\Support\Arr::toCssClasses([\'foo\'])" />',
+    ],
+    '@style directive' => [
+        '<x-button @style(["color" => "red"]) />',
+        '<x-button :style="\Illuminate\Support\Arr::toCssStyles([\'color\' => \'red\'])" />',
+    ],
+]);
