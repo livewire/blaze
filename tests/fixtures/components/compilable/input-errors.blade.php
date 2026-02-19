@@ -1,0 +1,1 @@
+<input @if ($errors->has('name')) invalid @endif >

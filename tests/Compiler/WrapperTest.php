@@ -28,3 +28,21 @@ test('wraps component templates into function definitions', function () {
         '<?php } endif; ?>',
     ]));
 });
+
+test('injects errors when source uses dollar sign errors', function () {
+    $path = fixture_path('components/compilable/input-errors.blade.php');
+    $source = file_get_contents($path);
+
+    $wrapped = app(Wrapper::class)->wrap($source, $path, $source);
+
+    expect($wrapped)->toContain('$errors = $__blaze->errors;');
+});
+
+test('injects errors when source uses errors directive', function () {
+    $path = fixture_path('components/compilable/input-errors-directive.blade.php');
+    $source = file_get_contents($path);
+
+    $wrapped = app(Wrapper::class)->wrap($source, $path, $source);
+
+    expect($wrapped)->toContain('$errors = $__blaze->errors;');
+});

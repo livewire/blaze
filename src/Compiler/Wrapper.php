@@ -103,7 +103,7 @@ class Wrapper
             $needsEchoHandler ? '$__bladeCompiler = app(\'blade.compiler\');'."\n" : null,
             'if (($__data[\'attributes\'] ?? null) instanceof \Illuminate\View\ComponentAttributeBag) { $__data = $__data + $__data[\'attributes\']->all(); unset($__data[\'attributes\']); }'."\n",
             str_contains($source, '$app') ? '$app = $__blaze->app;'."\n" : null,
-            str_contains($source, '$errors') ? '$errors = $__blaze->errors;'."\n" : null,
+            str_contains($source, '$errors') || str_contains($source, '@error') ? '$errors = $__blaze->errors;'."\n" : null,
             str_contains($source, '$slot') ? '$__slots[\'slot\'] ??= new \Illuminate\View\ComponentSlot(\'\');'."\n" : null,
             'extract($__slots, EXTR_SKIP);'."\n",
             'unset($__slots);'."\n",
