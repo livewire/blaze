@@ -9,6 +9,7 @@ use Livewire\Blaze\BladeService;
 use Livewire\Blaze\Support\Utils;
 use Livewire\Blaze\Debugger;
 use Illuminate\View\Compilers\Compiler;
+use Livewire\Blaze\Support\Directives;
 
 /**
  * Runtime context shared with all Blaze-compiled components via $__blaze.
@@ -25,6 +26,7 @@ class BlazeRuntime
 
     protected array $paths = [];
     protected array $compiled = [];
+    protected array $blazed = [];
 
     protected array $dataStack = [];
     protected array $slotsStack = [];
@@ -58,13 +60,21 @@ class BlazeRuntime
 
     /**
      * Resolve a component name to its compiled hash, compiling if needed.
+     *
+     * Returns false when the component exists but is not Blaze-eligible
+     * (no @blaze directive and not configured for compilation), so the
+     * caller can fall back to standard Blade rendering.
      */
-    public function resolve(string $component): string
+    public function resolve(string $component): string|false
     {
         if (isset($this->paths[$component])) {
             $path = $this->paths[$component];
         } else {
             $path = $this->paths[$component] = BladeService::componentNameToPath($component);
+        }
+
+        if (! $this->isBlazeComponent($path)) {
+            return false;
         }
 
         $hash = Utils::hash($path);
@@ -75,6 +85,32 @@ class BlazeRuntime
         }
 
         return $hash;
+    }
+
+    /**
+     * Check if a component file is a Blaze component.
+     */
+    protected function isBlazeComponent(string $path): bool
+    {
+        if (isset($this->blazed[$path])) {
+            return $this->blazed[$path];
+        }
+
+        if (! file_exists($path)) {
+            return $this->blazed[$path] = false;
+        }
+
+        $directives = new Directives(file_get_contents($path));
+
+        if ($directives->blaze()) {
+            return $this->blazed[$path] = true;
+        }
+
+        $config = app('blaze.config');
+
+        return $this->blazed[$path] = $config->shouldCompile($path)
+            || $config->shouldMemoize($path)
+            || $config->shouldFold($path);
     }
 
     /**

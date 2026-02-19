@@ -65,9 +65,13 @@ test('compiles delegate components', function () {
 
     expect($compiled->render())->toEqualCollapsingWhitespace(join('', [
         '<?php $__resolved = $__blaze->resolve(\'flux::\' . card); ?> ',
-        '<?php require_once $__blaze->compiledPath . \'/\' . $__resolved . \'.php\'; ?> ',
         '<?php $__blaze->pushData($attributes->all()); ?> ',
+        '<?php if ($__resolved !== false): ?> ',
+        '<?php require_once $__blaze->compiledPath . \'/\' . $__resolved . \'.php\'; ?> ',
         '<?php (\'_\' . $__resolved)($__blaze, $attributes->all(), $__blaze->mergedComponentSlots(), [], isset($this) ? $this : null); ?> ',
+        '<?php else: ?> ',
+        '<flux:delegate-component component="card" /> ',
+        '<?php endif; ?> ',
         '<?php $__blaze->popData(); ?> ',
         '<?php unset($__resolved) ?> ',
     ]));

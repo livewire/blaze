@@ -127,13 +127,15 @@ class Compiler
         $componentName = "'flux::' . " . $attributesArray['component']->value;
 
         $output = '<' . '?php $__resolved = $__blaze->resolve(' . $componentName . '); ?>' . "\n";
-        $output .= '<' . '?php require_once $__blaze->compiledPath . \'/\' . $__resolved . \'.php\'; ?>' . "\n";
-
-        $output .= '<' . '?php $__blaze->pushData($attributes->all()); ?>';
 
         $slotsVariableName = '$slots' . hash('xxh128', $componentName);
 
         $functionName = '(\'' . (Blaze::isFolding() ? '__' : '_') . '\' . $__resolved)';
+
+        $output .= '<' . '?php $__blaze->pushData($attributes->all()); ?>';
+
+        $output .= "\n" . '<' . '?php if ($__resolved !== false): ?>';
+        $output .= "\n" . '<' . '?php require_once $__blaze->compiledPath . \'/\' . $__resolved . \'.php\'; ?>';
 
         if ($node->selfClosing) {
             $output .= "\n" . '<' . '?php ' . $functionName . '($__blaze, $attributes->all(), $__blaze->mergedComponentSlots(), [], isset($this) ? $this : null); ?>';
@@ -142,6 +144,10 @@ class Compiler
             $output .= "\n" . '<' . '?php ' . $slotsVariableName . ' = array_merge($__blaze->mergedComponentSlots(), ' . $slotsVariableName . '); ?>';
             $output .= "\n" . '<' . '?php ' . $functionName . '($__blaze, $attributes->all(), ' . $slotsVariableName . ', [], isset($this) ? $this : null); ?>';
         }
+
+        $output .= "\n" . '<' . '?php else: ?>';
+        $output .= "\n" . $node->render();
+        $output .= "\n" . '<' . '?php endif; ?>';
 
         $output .= "\n" . '<' . '?php $__blaze->popData(); ?>';
         $output .= "\n" . '<' . '?php unset($__resolved) ?>' . "\n";
