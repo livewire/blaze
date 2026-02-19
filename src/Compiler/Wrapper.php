@@ -92,6 +92,17 @@ class Wrapper
         $componentName = $isDebugging ? app('blaze.runtime')->debugger->extractComponentName($path) : null;
         $sourceUsesThis = str_contains($source, '$this');
 
+        $variables = [
+            '$app' => '$app = $__blaze->app;',
+            '$errors' => '$errors = $__blaze->errors;',
+            '@error' => '$errors = $__blaze->errors;',
+            '$__livewire' => '$__livewire = $__env->shared(\'__livewire\');',
+            '@entangle' => '$__livewire = $__env->shared(\'__livewire\');',
+        ];
+
+        $variables = array_filter($variables, fn ($pattern) => str_contains($source, $pattern) || str_contains($compiled, $pattern), ARRAY_FILTER_USE_KEY);
+        $variables = implode("\n", $variables);
+
         return implode('', array_filter([
             $useStatements ? '<'.'?php '.$useStatements.' ?>' : null,
             '<'.'?php if (!function_exists(\''.$name.'\')):'."\n",
@@ -102,9 +113,8 @@ class Wrapper
             '$__env = $__blaze->env;'."\n",
             $needsEchoHandler ? '$__bladeCompiler = app(\'blade.compiler\');'."\n" : null,
             'if (($__data[\'attributes\'] ?? null) instanceof \Illuminate\View\ComponentAttributeBag) { $__data = $__data + $__data[\'attributes\']->all(); unset($__data[\'attributes\']); }'."\n",
-            str_contains($source, '$app') ? '$app = $__blaze->app;'."\n" : null,
-            str_contains($source, '$errors') || str_contains($source, '@error') ? '$errors = $__blaze->errors;'."\n" : null,
             str_contains($source, '$slot') ? '$__slots[\'slot\'] ??= new \Illuminate\View\ComponentSlot(\'\');'."\n" : null,
+            $variables,
             'extract($__slots, EXTR_SKIP);'."\n",
             'unset($__slots);'."\n",
             $propsExpression === null ? 'extract($__data, EXTR_SKIP);'."\n" : null,
