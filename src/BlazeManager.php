@@ -105,10 +105,22 @@ class BlazeManager
         if ($path && ($directives->blaze() || $this->config->shouldCompile($path))) {
             $output = $this->wrapper->wrap($output, $path, $source);
         } elseif ($this->debug && ! $this->folding && $path) {
-            $viewName = addslashes($this->viewNameFromPath($path));
-            $output = '<'.'?php $__blaze->debugger->startTimer(\''.$viewName.'\', \'view\'); ?>'
+            $viewName = $this->viewNameFromPath($path);
+
+            if ($viewName !== null) {
+                $safe = addslashes($viewName);
+                $nameExpr = "'{$safe}'";
+            } elseif (str_contains($source, '$layout->viewContext')) {
+                // Livewire layout wrapper: resolve the layout name at runtime.
+                $nameExpr = '\'layout:\' . ($layout->view ?? \'unknown\')';
+            } else {
+                // Livewire/Volt: resolve component name at runtime from shared view data.
+                $nameExpr = '($__blaze->debugger->resolveViewName() ?? \''.addslashes(pathinfo($path, PATHINFO_FILENAME)).'\')';
+            }
+
+            $output = '<'.'?php $__blazeViewName = '.$nameExpr.'; $__blaze->debugger->startTimer($__blazeViewName, \'view\'); ?>'
                 .$output
-                .'<'.'?php $__blaze->debugger->stopTimer(\''.$viewName.'\'); ?>';
+                .'<'.'?php $__blaze->debugger->stopTimer($__blazeViewName); ?>';
         }
 
         BladeService::deleteTemporaryCacheDirectory();
@@ -356,8 +368,11 @@ class BlazeManager
 
     /**
      * Extract a human-readable view name from a file path.
+     *
+     * Returns null when the path can't be resolved to a meaningful name
+     * (e.g. Livewire SFC / Volt hash paths in storage/).
      */
-    protected function viewNameFromPath(string $path): string
+    protected function viewNameFromPath(string $path): ?string
     {
         $resolved = realpath($path) ?: $path;
 
@@ -367,9 +382,7 @@ class BlazeManager
             return preg_replace('/\.index$/', '', $name);
         }
 
-        $filename = pathinfo($resolved, PATHINFO_FILENAME);
-
-        return str_replace('.blade', '', $filename);
+        return null;
     }
 
     /**

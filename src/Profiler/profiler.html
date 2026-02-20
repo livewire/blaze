@@ -534,7 +534,7 @@ body {
     <div class="controls-right">
         <button class="control-btn" onclick="resetZoom()">Reset Zoom</button>
         <button class="control-btn" onclick="fetchTrace()">Refresh</button>
-        <span class="control-hint">Scroll to zoom, drag to pan</span>
+        <span class="control-hint">Scroll to pan, Ctrl/&#8984;+scroll to zoom</span>
     </div>
 </div>
 
@@ -627,9 +627,6 @@ let viewEnd = 1;
 let totalDuration = 1;
 let maxDepth = 0;
 let hovered = null;
-let isDragging = false;
-let dragStartX = 0;
-let dragViewStart = 0;
 let renderList = [];
 
 // ─── DOM refs ───────────────────────────────────────────────────────
@@ -1370,25 +1367,36 @@ function roundRect(ctx, x, y, w, h, r) {
 
 // ─── Interactions ───────────────────────────────────────────────────
 
-// Zoom with scroll wheel
+// Scroll: Ctrl/Cmd+wheel = zoom, plain wheel = pan
 $flameScroll.addEventListener('wheel', function(ev) {
     ev.preventDefault();
 
     const rect = $flameScroll.getBoundingClientRect();
-    const mouseX = (ev.clientX - rect.left) / rect.width;
     const viewDuration = viewEnd - viewStart;
-    const mouseTime = viewStart + mouseX * viewDuration;
 
-    const factor = ev.deltaY > 0 ? 1.2 : 1 / 1.2;
-    let newDuration = viewDuration * factor;
+    if (ev.ctrlKey || ev.metaKey) {
+        // Zoom toward cursor
+        const mouseX = (ev.clientX - rect.left) / rect.width;
+        const mouseTime = viewStart + mouseX * viewDuration;
+
+        const factor = ev.deltaY > 0 ? 1.03 : 1 / 1.03;
+        let newDuration = viewDuration * factor;
+
+        if (newDuration > totalDuration) newDuration = totalDuration;
+        if (newDuration < 0.001) newDuration = 0.001;
+
+        viewStart = mouseTime - mouseX * newDuration;
+        viewEnd = mouseTime + (1 - mouseX) * newDuration;
+    } else {
+        // Pan — use deltaX for horizontal scroll, fall back to deltaY
+        const delta = Math.abs(ev.deltaX) > Math.abs(ev.deltaY) ? ev.deltaX : ev.deltaY;
+        const timeDelta = (delta / rect.width) * viewDuration * 1.5;
+
+        viewStart += timeDelta;
+        viewEnd += timeDelta;
+    }
 
     // Clamp
-    if (newDuration > totalDuration) newDuration = totalDuration;
-    if (newDuration < 0.001) newDuration = 0.001;
-
-    viewStart = mouseTime - mouseX * newDuration;
-    viewEnd = mouseTime + (1 - mouseX) * newDuration;
-
     if (viewStart < 0) { viewEnd -= viewStart; viewStart = 0; }
     if (viewEnd > totalDuration) { viewStart -= (viewEnd - totalDuration); viewEnd = totalDuration; }
     if (viewStart < 0) viewStart = 0;
@@ -1396,40 +1404,9 @@ $flameScroll.addEventListener('wheel', function(ev) {
     render();
 }, { passive: false });
 
-// Pan with drag
-$flameScroll.addEventListener('mousedown', function(ev) {
-    isDragging = true;
-    dragStartX = ev.clientX;
-    dragViewStart = viewStart;
-    $flameScroll.style.cursor = 'grabbing';
-});
-
 window.addEventListener('mousemove', function(ev) {
-    if (isDragging) {
-        const rect = $flameScroll.getBoundingClientRect();
-        const dx = ev.clientX - dragStartX;
-        const viewDuration = viewEnd - viewStart;
-        const timeDelta = -(dx / rect.width) * viewDuration;
-
-        let newStart = dragViewStart + timeDelta;
-        let newEnd = newStart + viewDuration;
-
-        if (newStart < 0) { newStart = 0; newEnd = viewDuration; }
-        if (newEnd > totalDuration) { newEnd = totalDuration; newStart = totalDuration - viewDuration; }
-        if (newStart < 0) newStart = 0;
-
-        viewStart = newStart;
-        viewEnd = newEnd;
-        render();
-    }
-
     // Hover detection
     handleHover(ev);
-});
-
-window.addEventListener('mouseup', function() {
-    isDragging = false;
-    $flameScroll.style.cursor = '';
 });
 
 // Hover / tooltip

@@ -119,6 +119,24 @@ class Debugger
     }
 
     /**
+     * Resolve a human-readable view name at runtime.
+     *
+     * Used for Livewire/Volt views where the Blade compiler path is a
+     * hash-named cache file. Falls back to null so the caller can use
+     * the hash filename as a last resort.
+     */
+    public function resolveViewName(): ?string
+    {
+        $livewire = app('view')->shared('__livewire');
+
+        if ($livewire && method_exists($livewire, 'getName')) {
+            return $livewire->getName();
+        }
+
+        return null;
+    }
+
+    /**
      * Record a memoization cache hit (component skipped rendering).
      */
     public function recordMemoHit(string $name): void
