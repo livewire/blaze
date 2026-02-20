@@ -42,8 +42,13 @@ class Memoizer
 
         $compiled = $this->compiler->compile($node)->render();
 
+        $isDebugging = app('blaze')->isDebugging() && ! app('blaze')->isFolding();
+
         $output = '<' . '?php $blaze_memoized_key = \Livewire\Blaze\Memoizer\Memo::key("' . $name . '", ' . $attributes . '); ?>';
         $output .= '<' . '?php if ($blaze_memoized_key !== null && \Livewire\Blaze\Memoizer\Memo::has($blaze_memoized_key)) : ?>';
+        if ($isDebugging) {
+            $output .= '<' . '?php ($__blaze ?? app(\'blaze.runtime\'))->debugger->recordMemoHit(\'' . addslashes($name) . '\'); ?>';
+        }
         $output .= '<' . '?php echo \Livewire\Blaze\Memoizer\Memo::get($blaze_memoized_key); ?>';
         $output .= '<' . '?php else : ?>';
         $output .= '<' . '?php ob_start(); ?>';

@@ -88,8 +88,6 @@ class Wrapper
 
         $needsEchoHandler = $this->hasEchoHandlers() && $this->hasEchoSyntax($source);
 
-        $isDebugging = app('blaze')->isDebugging() && ! app('blaze')->isFolding();
-        $componentName = $isDebugging ? app('blaze.runtime')->debugger->extractComponentName($path) : null;
         $sourceUsesThis = str_contains($source, '$this');
 
         $variables = [
@@ -108,8 +106,6 @@ class Wrapper
             '<'.'?php if (!function_exists(\''.$name.'\')):'."\n",
             'function '.$name.'($__blaze, $__data = [], $__slots = [], $__bound = [], $__this = null) {'."\n",
             $sourceUsesThis ? '$__blazeFn = function () use ($__blaze, $__data, $__slots, $__bound) {'."\n" : null,
-            $isDebugging ? '$__blaze->debugger->increment(\''.$name.'\', \''.$componentName.'\');'."\n" : null,
-            $isDebugging ? '$__blaze->debugger->startTimer(\''.$name.'\');'."\n" : null,
             '$__env = $__blaze->env;'."\n",
             $needsEchoHandler ? '$__bladeCompiler = app(\'blade.compiler\');'."\n" : null,
             'if (($__data[\'attributes\'] ?? null) instanceof \Illuminate\View\ComponentAttributeBag) { $__data = $__data + $__data[\'attributes\']->all(); unset($__data[\'attributes\']); }'."\n",
@@ -123,7 +119,6 @@ class Wrapper
             ($propsExpression === null && $sourceUsesAttributes) ? '$attributes = \\Livewire\\Blaze\\Runtime\\BlazeAttributeBag::sanitized($__data, $__bound);'."\n" : null,
             $propsExpression === null ? 'unset($__data, $__bound); ?>' : ' ?>',
             $compiled,
-            $isDebugging ? '<'.'?php $__blaze->debugger->stopTimer(\''.$name.'\'); ?>' : null,
             $sourceUsesThis ? '<'.'?php };'."\n".'if ($__this !== null) { $__blazeFn->call($__this); } else { $__blazeFn(); }'."\n".'} endif; ?>' : null,
             !$sourceUsesThis ? '<'.'?php } endif; ?>' : null,
         ]));
@@ -270,4 +265,5 @@ class Wrapper
     {
         return preg_match('/\{\{.+?\}\}|\{!!.+?!!\}/s', $source) === 1;
     }
+
 }

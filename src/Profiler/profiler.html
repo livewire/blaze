@@ -1,0 +1,1327 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Blaze Profiler</title>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+    --bg: #0a0e1a;
+    --bg-card: rgba(15, 23, 42, 0.85);
+    --bg-card-solid: #0f172a;
+    --border: rgba(51, 65, 85, 0.4);
+    --text: #e2e8f0;
+    --text-dim: #64748b;
+    --text-muted: #475569;
+    --orange: #f97316;
+    --orange-dim: rgba(249, 115, 22, 0.15);
+    --green: #22c55e;
+    --green-dim: rgba(34, 197, 94, 0.15);
+    --purple: #a855f7;
+    --purple-dim: rgba(168, 85, 247, 0.15);
+    --cyan: #06b6d4;
+    --cyan-dim: rgba(6, 182, 212, 0.15);
+    --blue: #3b82f6;
+    --blue-dim: rgba(59, 130, 246, 0.15);
+    --red: #ef4444;
+    --gray: #64748b;
+    --row-h: 28;
+    --row-gap: 2;
+}
+
+body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    overflow: hidden;
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+}
+
+/* ── Header ─────────────────────────────────────── */
+.header {
+    padding: 14px 24px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    border-bottom: 1px solid var(--border);
+    background: var(--bg-card);
+    backdrop-filter: blur(12px);
+    flex-shrink: 0;
+    z-index: 10;
+}
+
+.logo {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-weight: 800;
+    font-size: 15px;
+    letter-spacing: -0.3px;
+    color: var(--orange);
+    text-transform: uppercase;
+}
+
+.logo svg { width: 20px; height: 20px; }
+
+.header-url {
+    font-family: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, monospace;
+    font-size: 12px;
+    color: var(--text-dim);
+    background: rgba(30, 41, 59, 0.6);
+    padding: 5px 12px;
+    border-radius: 6px;
+    border: 1px solid var(--border);
+    max-width: 300px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.header-mode {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    padding: 4px 10px;
+    border-radius: 9999px;
+    line-height: 1;
+}
+
+.header-mode.blaze { background: var(--orange-dim); color: var(--orange); }
+.header-mode.blade { background: var(--blue-dim); color: var(--blue); }
+
+.header-stats {
+    margin-left: auto;
+    display: flex;
+    gap: 20px;
+    align-items: center;
+}
+
+.stat {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 1px;
+}
+
+.stat-value {
+    font-family: ui-monospace, SFMono-Regular, monospace;
+    font-size: 18px;
+    font-weight: 700;
+    letter-spacing: -0.5px;
+    color: var(--text);
+    line-height: 1;
+}
+
+.stat-label {
+    font-size: 9px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--text-muted);
+    line-height: 1;
+}
+
+/* ── Legend + Controls ────────────────────────────── */
+.controls {
+    padding: 8px 24px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    border-bottom: 1px solid var(--border);
+    background: var(--bg-card);
+    flex-shrink: 0;
+}
+
+.legend {
+    display: flex;
+    gap: 14px;
+    align-items: center;
+}
+
+.legend-item {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 11px;
+    color: var(--text-dim);
+    cursor: default;
+}
+
+.legend-swatch {
+    width: 10px;
+    height: 10px;
+    border-radius: 3px;
+}
+
+.controls-right {
+    margin-left: auto;
+    display: flex;
+    gap: 10px;
+    align-items: center;
+}
+
+.control-btn {
+    background: rgba(30, 41, 59, 0.6);
+    border: 1px solid var(--border);
+    color: var(--text-dim);
+    font-size: 11px;
+    font-weight: 500;
+    padding: 4px 12px;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.15s;
+    font-family: inherit;
+}
+
+.control-btn:hover { background: rgba(51, 65, 85, 0.5); color: var(--text); }
+
+.control-hint {
+    font-size: 10px;
+    color: var(--text-muted);
+}
+
+/* ── Main Content ────────────────────────────────── */
+.main {
+    flex: 1;
+    display: flex;
+    overflow: hidden;
+}
+
+/* ── Flame Chart Area ────────────────────────────── */
+.flame-area {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    position: relative;
+}
+
+.minimap-wrap {
+    height: 36px;
+    border-bottom: 1px solid var(--border);
+    background: var(--bg-card-solid);
+    position: relative;
+    flex-shrink: 0;
+    cursor: pointer;
+}
+
+.minimap-wrap canvas { width: 100%; height: 100%; display: block; }
+
+.minimap-viewport {
+    position: absolute;
+    top: 0;
+    height: 100%;
+    background: rgba(249, 115, 22, 0.08);
+    border-left: 2px solid rgba(249, 115, 22, 0.5);
+    border-right: 2px solid rgba(249, 115, 22, 0.5);
+    pointer-events: none;
+}
+
+.time-axis {
+    height: 24px;
+    border-bottom: 1px solid var(--border);
+    background: var(--bg-card-solid);
+    flex-shrink: 0;
+    position: relative;
+    overflow: hidden;
+}
+
+.time-axis canvas { width: 100%; height: 100%; display: block; }
+
+.flame-scroll {
+    flex: 1;
+    overflow: auto;
+    position: relative;
+}
+
+.flame-scroll canvas { display: block; }
+
+/* ── Sidebar ─────────────────────────────────────── */
+.sidebar {
+    width: 320px;
+    border-left: 1px solid var(--border);
+    background: var(--bg-card-solid);
+    overflow-y: auto;
+    flex-shrink: 0;
+    scrollbar-width: thin;
+    scrollbar-color: #334155 transparent;
+}
+
+.sidebar::-webkit-scrollbar { width: 5px; }
+.sidebar::-webkit-scrollbar-track { background: transparent; }
+.sidebar::-webkit-scrollbar-thumb { background: #334155; border-radius: 3px; }
+
+.panel {
+    padding: 16px 18px;
+    border-bottom: 1px solid var(--border);
+}
+
+.panel-title {
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--text-muted);
+    margin-bottom: 12px;
+}
+
+/* ── Strategy Breakdown ──────────────────────────── */
+.strat-bar-wrap {
+    display: flex;
+    height: 8px;
+    border-radius: 4px;
+    overflow: hidden;
+    margin-bottom: 12px;
+}
+
+.strat-bar-seg { height: 100%; min-width: 2px; transition: width 0.3s; }
+
+.strat-rows { display: flex; flex-direction: column; gap: 8px; }
+
+.strat-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.strat-row-swatch {
+    width: 8px;
+    height: 8px;
+    border-radius: 2px;
+    flex-shrink: 0;
+}
+
+.strat-row-name {
+    font-size: 11px;
+    color: var(--text-dim);
+    flex: 1;
+}
+
+.strat-row-count {
+    font-size: 11px;
+    font-family: ui-monospace, SFMono-Regular, monospace;
+    color: var(--text);
+    font-weight: 600;
+}
+
+.strat-row-time {
+    font-size: 11px;
+    font-family: ui-monospace, SFMono-Regular, monospace;
+    color: var(--text-dim);
+    min-width: 60px;
+    text-align: right;
+}
+
+/* ── Memo Stats ──────────────────────────────────── */
+.memo-stat-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 4px 0;
+}
+
+.memo-stat-label { font-size: 11px; color: var(--text-dim); }
+
+.memo-stat-value {
+    font-size: 13px;
+    font-weight: 700;
+    font-family: ui-monospace, SFMono-Regular, monospace;
+}
+
+.memo-stat-value.hit { color: var(--green); }
+.memo-stat-value.miss { color: var(--purple); }
+.memo-stat-value.ratio { color: var(--text); }
+
+.memo-bar-wrap {
+    display: flex;
+    height: 6px;
+    border-radius: 3px;
+    overflow: hidden;
+    margin-top: 8px;
+    background: rgba(30, 41, 59, 0.6);
+}
+
+.memo-bar-hit { background: var(--green); height: 100%; transition: width 0.3s; }
+.memo-bar-miss { background: var(--purple); height: 100%; transition: width 0.3s; }
+
+/* ── Component Table ─────────────────────────────── */
+.comp-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.comp-table th {
+    font-size: 9px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--text-muted);
+    padding: 4px 0;
+    text-align: left;
+    border-bottom: 1px solid var(--border);
+}
+
+.comp-table th:last-child { text-align: right; }
+
+.comp-table td {
+    font-size: 11px;
+    padding: 5px 0;
+    border-bottom: 1px solid rgba(51, 65, 85, 0.2);
+    font-family: ui-monospace, SFMono-Regular, monospace;
+}
+
+.comp-table tr:hover td { background: rgba(51, 65, 85, 0.15); }
+
+.comp-name {
+    color: var(--text);
+    max-width: 140px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.comp-count { color: var(--text-dim); padding: 0 8px; }
+.comp-time { text-align: right; color: var(--text-dim); }
+
+.comp-strat-dot {
+    display: inline-block;
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    margin-right: 6px;
+    vertical-align: middle;
+}
+
+/* ── Detail Panel ────────────────────────────────── */
+.detail-grid {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 6px 12px;
+    font-size: 11px;
+}
+
+.detail-label { color: var(--text-muted); }
+
+.detail-value {
+    color: var(--text);
+    font-family: ui-monospace, SFMono-Regular, monospace;
+}
+
+/* ── Tooltip ─────────────────────────────────────── */
+.tooltip {
+    position: fixed;
+    z-index: 100;
+    background: rgba(15, 23, 42, 0.96);
+    backdrop-filter: blur(12px);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px 14px;
+    pointer-events: none;
+    display: none;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+    max-width: 300px;
+}
+
+.tooltip-name {
+    font-weight: 700;
+    font-size: 12px;
+    color: var(--text);
+    margin-bottom: 6px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.tooltip-row {
+    display: flex;
+    justify-content: space-between;
+    gap: 16px;
+    font-size: 11px;
+    line-height: 1.6;
+}
+
+.tooltip-label { color: var(--text-muted); }
+
+.tooltip-val {
+    font-family: ui-monospace, SFMono-Regular, monospace;
+    color: var(--text);
+    font-weight: 500;
+}
+
+/* ── Empty state ─────────────────────────────────── */
+.empty-state {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    color: var(--text-muted);
+}
+
+.empty-state svg { opacity: 0.3; }
+
+.empty-state p { font-size: 13px; max-width: 320px; text-align: center; line-height: 1.6; }
+.empty-state code { color: var(--text-dim); background: rgba(30,41,59,0.6); padding: 2px 6px; border-radius: 4px; font-size: 12px; }
+
+/* ── Waterfall heat bar ──────────────────────────── */
+.heat-bar {
+    height: 3px;
+    border-radius: 1.5px;
+    margin-top: 3px;
+}
+
+/* ── Animations ──────────────────────────────────── */
+@keyframes pulse-glow {
+    0%, 100% { opacity: 0.5; }
+    50% { opacity: 1; }
+}
+
+.loading-dot {
+    display: inline-block;
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--orange);
+    animation: pulse-glow 1.5s ease-in-out infinite;
+}
+
+</style>
+</head>
+<body>
+
+<div class="header">
+    <div class="logo">
+        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+        Profiler
+    </div>
+    <div class="header-url" id="hdr-url">Loading...</div>
+    <div class="header-mode blaze" id="hdr-mode">BLAZE</div>
+    <div class="header-stats">
+        <div class="stat">
+            <div class="stat-value" id="stat-time">--</div>
+            <div class="stat-label">Render time</div>
+        </div>
+        <div class="stat">
+            <div class="stat-value" id="stat-components">--</div>
+            <div class="stat-label">Components</div>
+        </div>
+        <div class="stat">
+            <div class="stat-value" id="stat-depth">--</div>
+            <div class="stat-label">Max depth</div>
+        </div>
+        <div class="stat">
+            <div class="stat-value" id="stat-avg">--</div>
+            <div class="stat-label">Avg/component</div>
+        </div>
+    </div>
+</div>
+
+<div class="controls">
+    <div class="legend">
+        <div class="legend-item"><div class="legend-swatch" style="background: var(--orange)"></div>Compiled</div>
+        <div class="legend-item"><div class="legend-swatch" style="background: var(--green)"></div>Fold configured</div>
+        <div class="legend-item"><div class="legend-swatch" style="background: var(--purple)"></div>Memo miss</div>
+        <div class="legend-item"><div class="legend-swatch" style="background: var(--cyan)"></div>Fold+Memo</div>
+        <div class="legend-item"><div class="legend-swatch" style="background: var(--blue)"></div>Memo hit (cached)</div>
+    </div>
+    <div class="controls-right">
+        <button class="control-btn" onclick="resetZoom()">Reset Zoom</button>
+        <button class="control-btn" onclick="fetchTrace()">Refresh</button>
+        <span class="control-hint">Scroll to zoom, drag to pan</span>
+    </div>
+</div>
+
+<div class="main" id="main-area">
+    <div class="flame-area" id="flame-area">
+        <div class="minimap-wrap" id="minimap-wrap">
+            <canvas id="minimap"></canvas>
+            <div class="minimap-viewport" id="minimap-vp"></div>
+        </div>
+        <div class="time-axis">
+            <canvas id="time-axis"></canvas>
+        </div>
+        <div class="flame-scroll" id="flame-scroll">
+            <canvas id="flame"></canvas>
+        </div>
+    </div>
+
+    <div class="sidebar" id="sidebar">
+        <div class="panel" id="panel-strat">
+            <div class="panel-title">Strategy Breakdown</div>
+            <div class="strat-bar-wrap" id="strat-bar"></div>
+            <div class="strat-rows" id="strat-rows"></div>
+        </div>
+
+        <div class="panel" id="panel-comparison" style="display:none">
+            <div class="panel-title">Blade vs Blaze</div>
+            <div id="comparison-content"></div>
+        </div>
+
+        <div class="panel" id="panel-memo">
+            <div class="panel-title">Memoization</div>
+            <div id="memo-content"></div>
+        </div>
+
+        <div class="panel" id="panel-detail" style="display:none">
+            <div class="panel-title">Component Detail</div>
+            <div class="detail-grid" id="detail-grid"></div>
+        </div>
+
+        <div class="panel">
+            <div class="panel-title">Hottest Components</div>
+            <table class="comp-table" id="comp-table">
+                <thead><tr><th>Component</th><th style="text-align:right;">Self</th><th style="text-align:right;">Total</th></tr></thead>
+                <tbody id="comp-tbody"></tbody>
+            </table>
+        </div>
+
+        <div class="panel">
+            <div class="panel-title">Render Density</div>
+            <canvas id="heatmap" style="width:100%;height:40px;border-radius:6px;"></canvas>
+            <div style="display:flex;justify-content:space-between;margin-top:4px;font-size:9px;color:var(--text-muted);">
+                <span>0ms</span><span id="heatmap-end">--</span>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="tooltip" id="tooltip"></div>
+
+<script>
+// ─── Constants ──────────────────────────────────────────────────────
+const ROW_H   = 28;
+const ROW_GAP = 2;
+const ROW_FULL = ROW_H + ROW_GAP;
+const MIN_BAR_W = 2;
+const COLORS = {
+    'compiled':           { bg: '#f97316', bgDim: 'rgba(249,115,22,0.18)', text: '#fff' },
+    'compiled+fold':      { bg: '#22c55e', bgDim: 'rgba(34,197,94,0.18)',  text: '#fff' },
+    'compiled+memo':      { bg: '#a855f7', bgDim: 'rgba(168,85,247,0.18)', text: '#fff' },
+    'compiled+fold+memo': { bg: '#06b6d4', bgDim: 'rgba(6,182,212,0.18)',  text: '#fff' },
+};
+const STRAT_LABELS = {
+    'compiled':           'Compiled (Blaze)',
+    'compiled+fold':      'Fold configured',
+    'compiled+memo':      'Memo (cache miss)',
+    'compiled+fold+memo': 'Fold + Memo',
+};
+
+// ─── State ──────────────────────────────────────────────────────────
+let data = null;
+let entries = [];
+let viewStart = 0;
+let viewEnd = 1;
+let totalDuration = 1;
+let maxDepth = 0;
+let hovered = null;
+let isDragging = false;
+let dragStartX = 0;
+let dragViewStart = 0;
+
+// ─── DOM refs ───────────────────────────────────────────────────────
+const $flame       = document.getElementById('flame');
+const $flameScroll = document.getElementById('flame-scroll');
+const $minimap     = document.getElementById('minimap');
+const $minimapWrap = document.getElementById('minimap-wrap');
+const $minimapVp   = document.getElementById('minimap-vp');
+const $timeAxis    = document.getElementById('time-axis');
+const $tooltip     = document.getElementById('tooltip');
+
+// ─── Helpers ────────────────────────────────────────────────────────
+function fmtMs(v) {
+    if (v >= 1000) return (v / 1000).toFixed(2) + 's';
+    if (v < 0.01 && v > 0) return (v * 1000).toFixed(1) + 'us';
+    return v.toFixed(2) + 'ms';
+}
+
+function colorFor(strategy) {
+    return COLORS[strategy] || COLORS['compiled'];
+}
+
+function dpr() { return window.devicePixelRatio || 1; }
+
+function sizeCanvas(canvas, w, h) {
+    const r = dpr();
+    canvas.width = w * r;
+    canvas.height = h * r;
+    canvas.style.width = w + 'px';
+    canvas.style.height = h + 'px';
+    const ctx = canvas.getContext('2d');
+    ctx.scale(r, r);
+    return ctx;
+}
+
+// ─── Data Fetch ─────────────────────────────────────────────────────
+async function fetchTrace() {
+    try {
+        const resp = await fetch('/_blaze/trace');
+        data = await resp.json();
+        entries = data.entries || [];
+        processData();
+        render();
+    } catch (e) {
+        console.error('Failed to fetch trace:', e);
+    }
+}
+
+function processData() {
+    if (!entries.length) return;
+
+    totalDuration = 0;
+    maxDepth = 0;
+
+    for (const e of entries) {
+        if (e.end > totalDuration) totalDuration = e.end;
+        if (e.depth > maxDepth) maxDepth = e.depth;
+    }
+
+    if (totalDuration === 0) totalDuration = 1;
+
+    viewStart = 0;
+    viewEnd = totalDuration;
+
+    updateHeader();
+    updateSidebar();
+}
+
+// ─── Header Stats ───────────────────────────────────────────────────
+function updateHeader() {
+    document.getElementById('hdr-url').textContent = data.url || '—';
+
+    const modeEl = document.getElementById('hdr-mode');
+    modeEl.textContent = (data.mode || 'blaze').toUpperCase();
+    modeEl.className = 'header-mode ' + (data.mode || 'blaze');
+
+    document.getElementById('stat-time').textContent = fmtMs(data.renderTime || 0);
+    document.getElementById('stat-components').textContent = entries.length;
+    document.getElementById('stat-depth').textContent = maxDepth + 1;
+
+    const totalEntryTime = entries.reduce((s, e) => s + e.duration, 0);
+    document.getElementById('stat-avg').textContent = entries.length ? fmtMs(totalEntryTime / entries.length) : '--';
+}
+
+// ─── Sidebar ────────────────────────────────────────────────────────
+function updateSidebar() {
+    // Strategy breakdown
+    const stratCounts = {};
+    const stratTimes = {};
+    for (const e of entries) {
+        const s = e.strategy || 'compiled';
+        stratCounts[s] = (stratCounts[s] || 0) + 1;
+        stratTimes[s] = (stratTimes[s] || 0) + e.duration;
+    }
+
+    const totalTime = entries.reduce((s, e) => s + e.duration, 0) || 1;
+    const stratBar = document.getElementById('strat-bar');
+    const stratRows = document.getElementById('strat-rows');
+    stratBar.innerHTML = '';
+    stratRows.innerHTML = '';
+
+    const sortedStrats = Object.keys(stratCounts).sort((a, b) => (stratTimes[b] || 0) - (stratTimes[a] || 0));
+
+    for (const s of sortedStrats) {
+        const c = colorFor(s);
+        const pct = ((stratTimes[s] / totalTime) * 100).toFixed(1);
+
+        // Bar segment
+        const seg = document.createElement('div');
+        seg.className = 'strat-bar-seg';
+        seg.style.width = pct + '%';
+        seg.style.background = c.bg;
+        stratBar.appendChild(seg);
+
+        // Row
+        const row = document.createElement('div');
+        row.className = 'strat-row';
+        row.innerHTML = `
+            <div class="strat-row-swatch" style="background:${c.bg}"></div>
+            <div class="strat-row-name">${STRAT_LABELS[s] || s}</div>
+            <div class="strat-row-count">${stratCounts[s]}x</div>
+            <div class="strat-row-time">${fmtMs(stratTimes[s])}</div>
+        `;
+        stratRows.appendChild(row);
+    }
+
+    // Memo stats
+    const memoContent = document.getElementById('memo-content');
+    const hits = data.memoHits || 0;
+    const memoMisses = stratCounts['compiled+memo'] || 0;
+    const memoFoldMisses = stratCounts['compiled+fold+memo'] || 0;
+    const totalMemoComponents = hits + memoMisses + memoFoldMisses;
+    const hitPct = totalMemoComponents ? ((hits / totalMemoComponents) * 100).toFixed(0) : 0;
+
+    if (totalMemoComponents > 0) {
+        memoContent.innerHTML = `
+            <div class="memo-stat-row">
+                <span class="memo-stat-label">Cache hits</span>
+                <span class="memo-stat-value hit">${hits}</span>
+            </div>
+            <div class="memo-stat-row">
+                <span class="memo-stat-label">Cache misses</span>
+                <span class="memo-stat-value miss">${memoMisses + memoFoldMisses}</span>
+            </div>
+            <div class="memo-stat-row">
+                <span class="memo-stat-label">Hit ratio</span>
+                <span class="memo-stat-value ratio">${hitPct}%</span>
+            </div>
+            <div class="memo-bar-wrap">
+                <div class="memo-bar-hit" style="width:${hitPct}%"></div>
+                <div class="memo-bar-miss" style="width:${100 - hitPct}%"></div>
+            </div>
+        `;
+
+        // Memo hit detail
+        if (data.memoHitNames && Object.keys(data.memoHitNames).length) {
+            let hitList = '<div style="margin-top:10px; font-size:10px; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.06em; font-weight:600; margin-bottom:6px;">Cached Components</div>';
+            const sorted = Object.entries(data.memoHitNames).sort((a,b) => b[1] - a[1]);
+            for (const [name, count] of sorted) {
+                hitList += `<div style="display:flex;justify-content:space-between;padding:2px 0;font-size:11px;">
+                    <span style="color:var(--text-dim);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:180px;" title="${name}">${name}</span>
+                    <span style="color:var(--green);font-family:ui-monospace,monospace;font-weight:600;">${count}x</span>
+                </div>`;
+            }
+            memoContent.innerHTML += hitList;
+        }
+    } else {
+        memoContent.innerHTML = '<div style="font-size:11px;color:var(--text-muted);">No memoized components on this page.</div>';
+    }
+
+    // Comparison panel (Blade vs Blaze)
+    const compPanel = document.getElementById('panel-comparison');
+    const compContent = document.getElementById('comparison-content');
+    const cmp = data.debugBar?.comparison;
+
+    if (cmp) {
+        compPanel.style.display = 'block';
+        const warm = cmp.warm;
+        const cold = cmp.cold;
+        let html = '';
+
+        const renderCmpRow = (label, ours, theirs) => {
+            if (!ours || !theirs) return '';
+            const faster = ours < theirs;
+            const mult = faster ? (theirs / ours) : (ours / theirs);
+            const color = faster ? 'var(--green)' : 'var(--red)';
+            const word = faster ? 'faster' : 'slower';
+            return `<div style="display:flex;align-items:baseline;gap:8px;padding:6px 0;border-bottom:1px solid var(--border);">
+                <span style="font-size:10px;color:var(--text-muted);width:40px;">${label}</span>
+                <span style="font-size:16px;font-weight:800;color:${color};font-family:ui-monospace,monospace;">${mult.toFixed(1)}x</span>
+                <span style="font-size:10px;color:${color};font-weight:600;">${word}</span>
+                <span style="margin-left:auto;font-size:10px;color:var(--text-dim);font-family:ui-monospace,monospace;">${fmtMs(theirs)} &rarr; ${fmtMs(ours)}</span>
+            </div>`;
+        };
+
+        if (warm) html += renderCmpRow('Warm', warm.currentTime, warm.otherTime);
+        if (cold) html += renderCmpRow('Cold', cold.currentTime, cold.otherTime);
+        compContent.innerHTML = html || '<div style="font-size:11px;color:var(--text-muted);">Load in both modes to compare.</div>';
+    }
+
+    // Component table with self-time
+    const tbody = document.getElementById('comp-tbody');
+    tbody.innerHTML = '';
+
+    // Compute self-time: duration minus time spent in direct children
+    const selfTimes = {};
+    for (const e of entries) {
+        selfTimes[e.name] = selfTimes[e.name] || { selfTime: 0, totalTime: 0, count: 0, strategy: e.strategy };
+        selfTimes[e.name].totalTime += e.duration;
+        selfTimes[e.name].count++;
+
+        // Self time = total - children's durations
+        let childTime = 0;
+        for (const c of entries) {
+            if (c.depth === e.depth + 1 && c.start >= e.start && c.end <= e.end) {
+                childTime += c.duration;
+            }
+        }
+        selfTimes[e.name].selfTime += (e.duration - childTime);
+    }
+
+    const maxSelfTime = Math.max(...Object.values(selfTimes).map(s => s.selfTime), 0.001);
+    const sorted = Object.entries(selfTimes).sort((a, b) => b[1].selfTime - a[1].selfTime);
+
+    for (const [name, info] of sorted) {
+        const c = colorFor(info.strategy);
+        const selfPct = (info.selfTime / maxSelfTime) * 100;
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+            <td class="comp-name" title="${name}"><span class="comp-strat-dot" style="background:${c.bg}"></span>${name}<span style="color:var(--text-muted);font-size:9px;margin-left:4px;">${info.count}x</span></td>
+            <td class="comp-time">${fmtMs(info.selfTime)}<div class="heat-bar" style="background:${c.bg};width:${selfPct}%;opacity:0.5;"></div></td>
+            <td class="comp-time">${fmtMs(info.totalTime)}</td>
+        `;
+        tbody.appendChild(tr);
+    }
+
+    // Render density heatmap
+    renderHeatmap();
+}
+
+function renderHeatmap() {
+    const canvas = document.getElementById('heatmap');
+    if (!canvas || !entries.length) return;
+
+    const w = canvas.parentElement.clientWidth - 4;
+    const h = 40;
+    const ctx = sizeCanvas(canvas, w, h);
+
+    ctx.clearRect(0, 0, w, h);
+
+    // Bucket entries into time slots
+    const buckets = 100;
+    const bucketWidth = totalDuration / buckets;
+    const density = new Float64Array(buckets);
+
+    for (const e of entries) {
+        const startBucket = Math.floor(e.start / bucketWidth);
+        const endBucket = Math.min(Math.floor(e.end / bucketWidth), buckets - 1);
+        for (let i = startBucket; i <= endBucket; i++) {
+            density[i] += e.duration / Math.max(1, endBucket - startBucket + 1);
+        }
+    }
+
+    const maxDensity = Math.max(...density) || 1;
+
+    for (let i = 0; i < buckets; i++) {
+        const x = (i / buckets) * w;
+        const bw = w / buckets + 0.5;
+        const intensity = density[i] / maxDensity;
+
+        // Gradient from dark blue to orange
+        const r = Math.round(15 + intensity * 234);
+        const g = Math.round(23 + intensity * 92);
+        const b = Math.round(42 + intensity * (22 - 42));
+
+        ctx.fillStyle = `rgb(${r}, ${g}, ${b})`;
+        ctx.fillRect(x, 0, bw, h);
+    }
+
+    document.getElementById('heatmap-end').textContent = fmtMs(totalDuration);
+}
+
+// ─── Detail Panel ───────────────────────────────────────────────────
+function showDetail(entry) {
+    const panel = document.getElementById('panel-detail');
+    const grid = document.getElementById('detail-grid');
+    panel.style.display = 'block';
+
+    const c = colorFor(entry.strategy);
+    const stratLabel = STRAT_LABELS[entry.strategy] || entry.strategy;
+
+    // Compute self time
+    let childTime = 0;
+    for (const ch of entries) {
+        if (ch.depth === entry.depth + 1 && ch.start >= entry.start && ch.end <= entry.end) {
+            childTime += ch.duration;
+        }
+    }
+    const selfTime = entry.duration - childTime;
+
+    grid.innerHTML = `
+        <div class="detail-label">Name</div>
+        <div class="detail-value">${entry.name}</div>
+        <div class="detail-label">Strategy</div>
+        <div class="detail-value"><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${c.bg};margin-right:6px;vertical-align:middle;"></span>${stratLabel}</div>
+        <div class="detail-label">Total time</div>
+        <div class="detail-value">${fmtMs(entry.duration)}</div>
+        <div class="detail-label">Self time</div>
+        <div class="detail-value" style="color:var(--orange)">${fmtMs(selfTime)}</div>
+        <div class="detail-label">Start offset</div>
+        <div class="detail-value">${fmtMs(entry.start)}</div>
+        <div class="detail-label">Depth</div>
+        <div class="detail-value">${entry.depth}</div>
+        <div class="detail-label">Children</div>
+        <div class="detail-value">${entry.children}</div>
+        <div class="detail-label">% of render</div>
+        <div class="detail-value">${((entry.duration / totalDuration) * 100).toFixed(1)}%</div>
+    `;
+}
+
+// ─── Rendering ──────────────────────────────────────────────────────
+function render() {
+    renderMinimap();
+    renderMinimapViewport();
+    renderTimeAxis();
+    renderFlameChart();
+}
+
+function renderMinimap() {
+    const wrap = document.getElementById('minimap-wrap');
+    const w = wrap.clientWidth;
+    const h = wrap.clientHeight;
+    const ctx = sizeCanvas($minimap, w, h);
+
+    ctx.clearRect(0, 0, w, h);
+
+    if (!entries.length) return;
+
+    const barH = Math.max(2, (h - 4) / (maxDepth + 1));
+
+    for (const e of entries) {
+        const x = (e.start / totalDuration) * w;
+        const bw = Math.max(1, (e.duration / totalDuration) * w);
+        const y = 2 + e.depth * barH;
+        const c = colorFor(e.strategy);
+
+        ctx.fillStyle = c.bg;
+        ctx.globalAlpha = 0.7;
+        ctx.fillRect(x, y, bw, barH - 1);
+    }
+
+    ctx.globalAlpha = 1;
+}
+
+function renderMinimapViewport() {
+    const wrap = document.getElementById('minimap-wrap');
+    const w = wrap.clientWidth;
+    const vp = $minimapVp;
+    const left = (viewStart / totalDuration) * w;
+    const right = (viewEnd / totalDuration) * w;
+    vp.style.left = left + 'px';
+    vp.style.width = (right - left) + 'px';
+}
+
+function renderTimeAxis() {
+    const wrap = $timeAxis.parentElement;
+    const w = wrap.clientWidth || $flameScroll.clientWidth;
+    const h = 24;
+    const ctx = sizeCanvas($timeAxis, w, h);
+
+    ctx.clearRect(0, 0, w, h);
+
+    const viewDuration = viewEnd - viewStart;
+    if (viewDuration <= 0) return;
+
+    // Determine tick interval
+    const targetTicks = Math.floor(w / 90);
+    let interval = viewDuration / targetTicks;
+    const nice = [0.001, 0.002, 0.005, 0.01, 0.02, 0.05, 0.1, 0.2, 0.5, 1, 2, 5, 10, 20, 50, 100, 200, 500, 1000];
+    for (const n of nice) {
+        if (n >= interval) { interval = n; break; }
+    }
+
+    const firstTick = Math.ceil(viewStart / interval) * interval;
+
+    ctx.fillStyle = '#475569';
+    ctx.font = '10px ui-monospace, SFMono-Regular, monospace';
+    ctx.textBaseline = 'middle';
+
+    for (let t = firstTick; t <= viewEnd; t += interval) {
+        const x = ((t - viewStart) / viewDuration) * w;
+
+        ctx.strokeStyle = 'rgba(51, 65, 85, 0.4)';
+        ctx.beginPath();
+        ctx.moveTo(x, 16);
+        ctx.lineTo(x, h);
+        ctx.stroke();
+
+        ctx.fillText(fmtMs(t), x + 4, 10);
+    }
+}
+
+function renderFlameChart() {
+    const w = $flameScroll.clientWidth;
+    const chartH = (maxDepth + 1) * ROW_FULL + 20;
+    const ctx = sizeCanvas($flame, w, chartH);
+
+    $flame.style.height = chartH + 'px';
+
+    ctx.clearRect(0, 0, w, chartH);
+
+    if (!entries.length) return;
+
+    const viewDuration = viewEnd - viewStart;
+    if (viewDuration <= 0) return;
+
+    // Gridlines
+    const targetTicks = Math.floor(w / 90);
+    let interval = viewDuration / targetTicks;
+    const nice = [0.001, 0.002, 0.005, 0.01, 0.02, 0.05, 0.1, 0.2, 0.5, 1, 2, 5, 10, 20, 50, 100, 200, 500, 1000];
+    for (const n of nice) { if (n >= interval) { interval = n; break; } }
+    const firstTick = Math.ceil(viewStart / interval) * interval;
+
+    ctx.strokeStyle = 'rgba(51, 65, 85, 0.18)';
+    ctx.lineWidth = 1;
+    for (let t = firstTick; t <= viewEnd; t += interval) {
+        const x = ((t - viewStart) / viewDuration) * w;
+        ctx.beginPath();
+        ctx.moveTo(x, 0);
+        ctx.lineTo(x, chartH);
+        ctx.stroke();
+    }
+
+    for (const e of entries) {
+        // Skip if out of view
+        if (e.end < viewStart || e.start > viewEnd) continue;
+
+        const x = ((e.start - viewStart) / viewDuration) * w;
+        const x2 = ((e.end - viewStart) / viewDuration) * w;
+        let bw = x2 - x;
+        if (bw < MIN_BAR_W) bw = MIN_BAR_W;
+
+        const y = 8 + e.depth * ROW_FULL;
+        const c = colorFor(e.strategy);
+        const isHovered = hovered === e;
+
+        // Bar background
+        ctx.fillStyle = c.bg;
+        ctx.globalAlpha = isHovered ? 1 : 0.82;
+        roundRect(ctx, x, y, bw, ROW_H, 4);
+        ctx.fill();
+
+        // Subtle gradient overlay
+        if (bw > 20) {
+            const grad = ctx.createLinearGradient(x, y, x, y + ROW_H);
+            grad.addColorStop(0, isHovered ? 'rgba(255,255,255,0.22)' : 'rgba(255,255,255,0.12)');
+            grad.addColorStop(1, 'rgba(0,0,0,0.08)');
+            ctx.fillStyle = grad;
+            roundRect(ctx, x, y, bw, ROW_H, 4);
+            ctx.fill();
+        }
+
+        // Hover outline
+        if (isHovered) {
+            ctx.strokeStyle = '#fff';
+            ctx.lineWidth = 1.5;
+            ctx.globalAlpha = 0.6;
+            roundRect(ctx, x, y, bw, ROW_H, 4);
+            ctx.stroke();
+        }
+
+        ctx.globalAlpha = 1;
+
+        // Text label
+        if (bw > 40) {
+            ctx.fillStyle = c.text;
+            ctx.font = '600 11px ui-sans-serif, system-ui, sans-serif';
+            ctx.textBaseline = 'middle';
+
+            const label = e.name;
+            const timeLabel = ' ' + fmtMs(e.duration);
+            const maxTextW = bw - 12;
+
+            ctx.save();
+            ctx.beginPath();
+            ctx.rect(x + 6, y, maxTextW, ROW_H);
+            ctx.clip();
+
+            // Component name
+            ctx.globalAlpha = 0.95;
+            ctx.fillText(label, x + 6, y + ROW_H / 2);
+
+            // Duration (dimmer, after name)
+            if (bw > 120) {
+                const nameW = ctx.measureText(label).width;
+                ctx.globalAlpha = 0.6;
+                ctx.font = '500 10px ui-monospace, SFMono-Regular, monospace';
+                ctx.fillText(timeLabel, x + 6 + nameW, y + ROW_H / 2);
+            }
+
+            ctx.restore();
+        }
+    }
+}
+
+function roundRect(ctx, x, y, w, h, r) {
+    if (w < r * 2) r = w / 2;
+    ctx.beginPath();
+    ctx.moveTo(x + r, y);
+    ctx.lineTo(x + w - r, y);
+    ctx.arcTo(x + w, y, x + w, y + r, r);
+    ctx.lineTo(x + w, y + h - r);
+    ctx.arcTo(x + w, y + h, x + w - r, y + h, r);
+    ctx.lineTo(x + r, y + h);
+    ctx.arcTo(x, y + h, x, y + h - r, r);
+    ctx.lineTo(x, y + r);
+    ctx.arcTo(x, y, x + r, y, r);
+    ctx.closePath();
+}
+
+// ─── Interactions ───────────────────────────────────────────────────
+
+// Zoom with scroll wheel
+$flameScroll.addEventListener('wheel', function(ev) {
+    ev.preventDefault();
+
+    const rect = $flameScroll.getBoundingClientRect();
+    const mouseX = (ev.clientX - rect.left) / rect.width;
+    const viewDuration = viewEnd - viewStart;
+    const mouseTime = viewStart + mouseX * viewDuration;
+
+    const factor = ev.deltaY > 0 ? 1.2 : 1 / 1.2;
+    let newDuration = viewDuration * factor;
+
+    // Clamp
+    if (newDuration > totalDuration) newDuration = totalDuration;
+    if (newDuration < 0.001) newDuration = 0.001;
+
+    viewStart = mouseTime - mouseX * newDuration;
+    viewEnd = mouseTime + (1 - mouseX) * newDuration;
+
+    if (viewStart < 0) { viewEnd -= viewStart; viewStart = 0; }
+    if (viewEnd > totalDuration) { viewStart -= (viewEnd - totalDuration); viewEnd = totalDuration; }
+    if (viewStart < 0) viewStart = 0;
+
+    render();
+}, { passive: false });
+
+// Pan with drag
+$flameScroll.addEventListener('mousedown', function(ev) {
+    isDragging = true;
+    dragStartX = ev.clientX;
+    dragViewStart = viewStart;
+    $flameScroll.style.cursor = 'grabbing';
+});
+
+window.addEventListener('mousemove', function(ev) {
+    if (isDragging) {
+        const rect = $flameScroll.getBoundingClientRect();
+        const dx = ev.clientX - dragStartX;
+        const viewDuration = viewEnd - viewStart;
+        const timeDelta = -(dx / rect.width) * viewDuration;
+
+        let newStart = dragViewStart + timeDelta;
+        let newEnd = newStart + viewDuration;
+
+        if (newStart < 0) { newStart = 0; newEnd = viewDuration; }
+        if (newEnd > totalDuration) { newEnd = totalDuration; newStart = totalDuration - viewDuration; }
+        if (newStart < 0) newStart = 0;
+
+        viewStart = newStart;
+        viewEnd = newEnd;
+        render();
+    }
+
+    // Hover detection
+    handleHover(ev);
+});
+
+window.addEventListener('mouseup', function() {
+    isDragging = false;
+    $flameScroll.style.cursor = '';
+});
+
+// Hover / tooltip
+function handleHover(ev) {
+    const rect = $flameScroll.getBoundingClientRect();
+    const mx = ev.clientX - rect.left;
+    const my = ev.clientY - rect.top + $flameScroll.scrollTop;
+
+    if (mx < 0 || mx > rect.width || ev.clientY < rect.top || ev.clientY > rect.bottom) {
+        $tooltip.style.display = 'none';
+        hovered = null;
+        return;
+    }
+
+    const viewDuration = viewEnd - viewStart;
+    const mouseTime = viewStart + (mx / rect.width) * viewDuration;
+    const mouseDepth = Math.floor((my - 8) / ROW_FULL);
+
+    let found = null;
+
+    for (const e of entries) {
+        if (e.depth === mouseDepth && mouseTime >= e.start && mouseTime <= e.end) {
+            found = e;
+            break;
+        }
+    }
+
+    const prevHovered = hovered;
+
+    if (found) {
+        hovered = found;
+        showDetail(found);
+
+        const c = colorFor(found.strategy);
+        const stratLabel = STRAT_LABELS[found.strategy] || found.strategy;
+
+        // Compute self time for this specific entry
+        let childTime = 0;
+        for (const ch of entries) {
+            if (ch.depth === found.depth + 1 && ch.start >= found.start && ch.end <= found.end) {
+                childTime += ch.duration;
+            }
+        }
+        const selfTime = found.duration - childTime;
+
+        $tooltip.innerHTML = `
+            <div class="tooltip-name" style="border-left: 3px solid ${c.bg}; padding-left: 8px;">${found.name}</div>
+            <div class="tooltip-row"><span class="tooltip-label">Total time</span><span class="tooltip-val">${fmtMs(found.duration)}</span></div>
+            <div class="tooltip-row"><span class="tooltip-label">Self time</span><span class="tooltip-val">${fmtMs(selfTime)}</span></div>
+            <div class="tooltip-row"><span class="tooltip-label">Strategy</span><span class="tooltip-val">${stratLabel}</span></div>
+            <div class="tooltip-row"><span class="tooltip-label">Depth</span><span class="tooltip-val">${found.depth}</span></div>
+            <div class="tooltip-row"><span class="tooltip-label">Children</span><span class="tooltip-val">${found.children}</span></div>
+            <div class="tooltip-row"><span class="tooltip-label">% of render</span><span class="tooltip-val">${((found.duration / totalDuration) * 100).toFixed(1)}%</span></div>
+        `;
+
+        $tooltip.style.display = 'block';
+
+        // Position tooltip
+        let tx = ev.clientX + 14;
+        let ty = ev.clientY + 14;
+        const tw = $tooltip.offsetWidth;
+        const th = $tooltip.offsetHeight;
+        if (tx + tw > window.innerWidth - 10) tx = ev.clientX - tw - 14;
+        if (ty + th > window.innerHeight - 10) ty = ev.clientY - th - 14;
+
+        $tooltip.style.left = tx + 'px';
+        $tooltip.style.top = ty + 'px';
+    } else {
+        $tooltip.style.display = 'none';
+        hovered = null;
+    }
+
+    // Re-render flame chart when hover changes for highlight effect
+    if (prevHovered !== hovered) {
+        renderFlameChart();
+    }
+}
+
+// Click to zoom into a component
+$flameScroll.addEventListener('dblclick', function(ev) {
+    if (!hovered) return;
+
+    const padding = hovered.duration * 0.15;
+    viewStart = Math.max(0, hovered.start - padding);
+    viewEnd = Math.min(totalDuration, hovered.end + padding);
+
+    render();
+});
+
+// Minimap click to navigate
+$minimapWrap.addEventListener('click', function(ev) {
+    const rect = $minimapWrap.getBoundingClientRect();
+    const clickPct = (ev.clientX - rect.left) / rect.width;
+    const viewDuration = viewEnd - viewStart;
+    const center = clickPct * totalDuration;
+
+    viewStart = Math.max(0, center - viewDuration / 2);
+    viewEnd = Math.min(totalDuration, viewStart + viewDuration);
+    if (viewStart < 0) viewStart = 0;
+
+    render();
+});
+
+function resetZoom() {
+    viewStart = 0;
+    viewEnd = totalDuration;
+    render();
+}
+
+// ─── Resize handling ────────────────────────────────────────────────
+let resizeTimer;
+window.addEventListener('resize', function() {
+    clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(render, 50);
+});
+
+// ─── Init ───────────────────────────────────────────────────────────
+fetchTrace();
+</script>
+</body>
+</html>

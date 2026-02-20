@@ -6,6 +6,7 @@ use Illuminate\Support\Facades\Event;
 use Illuminate\View\Engines\CompilerEngine;
 use Livewire\Blaze\Compiler\Wrapper;
 use Livewire\Blaze\Compiler\Compiler;
+use Livewire\Blaze\Compiler\Instrumenter;
 use Livewire\Blaze\Directive\BlazeDirective;
 use Livewire\Blaze\Events\ComponentFolded;
 use Livewire\Blaze\Folder\Folder;
@@ -36,6 +37,7 @@ class BlazeManager
         protected Folder $folder,
         protected Memoizer $memoizer,
         protected Wrapper $wrapper,
+        protected Instrumenter $instrumenter,
         protected Config $config,
     ) {
         Event::listen(ComponentFolded::class, function (ComponentFolded $event) {
@@ -76,9 +78,19 @@ class BlazeManager
                     array_pop($dataStack);
                 }
 
+                $wasComponent = $node instanceof ComponentNode;
+                $componentName = $wasComponent ? $node->name : null;
+
+                $beforeFold = $node;
                 $node = $this->folder->fold($node);
+                $wasFolded = $wasComponent && $node !== $beforeFold;
+
                 $node = $this->memoizer->memoize($node);
                 $node = $this->compiler->compile($node);
+
+                if ($wasComponent && ! $wasFolded && $this->debug && ! $this->folding) {
+                    $node = $this->instrumenter->instrument($node, $componentName);
+                }
 
                 return $node;
             },
@@ -110,8 +122,15 @@ class BlazeManager
             nodes: $this->parser->parse($template),
             preCallback: fn ($node) => $node,
             postCallback: function ($node) {
+                $wasComponent = $node instanceof ComponentNode;
+                $componentName = $wasComponent ? $node->name : null;
+
                 $node = $this->memoizer->memoize($node);
                 $node = $this->compiler->compile($node);
+
+                if ($wasComponent && $this->debug) {
+                    $node = $this->instrumenter->instrument($node, $componentName);
+                }
 
                 return $node;
             },

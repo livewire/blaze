@@ -22,9 +22,12 @@ class Debugger
 
     protected bool $isColdRender = false;
 
-    protected array $componentNames = [];
-
-    protected array $timers = [];
+    // ── Profiler trace ───────────────────────────
+    protected array $traceStack = [];
+    protected array $traceEntries = [];
+    protected ?float $traceOrigin = null;
+    protected int $memoHits = 0;
+    protected array $memoHitNames = [];
 
     /**
      * Extract a human-readable component name from its file path.
@@ -66,46 +69,84 @@ class Debugger
         return str_replace('.blade', '', $filename);
     }
 
-    public function increment(string $hash, ?string $componentName = null): void
-    {
-        if (! isset($this->components[$hash])) {
-            $this->components[$hash] = [
-                'name' => $componentName ?? $hash,
-                'count' => 0,
-                'totalTime' => 0.0,
-            ];
-        }
-
-        $this->components[$hash]['count']++;
-
-        if ($componentName !== null) {
-            $this->componentNames[$hash] = $componentName;
-        }
-    }
-
     /**
      * Start a timer for a component render.
+     *
+     * Called at the component call site (wrapping the entire render including
+     * initialization). Name and strategy are injected at compile time by the
+     * Instrumenter so there's no hash indirection at runtime.
      */
-    public function startTimer(string $hash): void
+    public function startTimer(string $name, string $strategy = 'blade'): void
     {
-        $this->timers[$hash] = hrtime(true);
+        $now = hrtime(true);
+
+        if ($this->traceOrigin === null) {
+            $this->traceOrigin = $now;
+        }
+
+        $this->traceStack[] = [
+            'name'     => $name,
+            'start'    => ($now - $this->traceOrigin) / 1e6, // ms from origin
+            'depth'    => count($this->traceStack),
+            'children' => 0,
+            'strategy' => $strategy,
+        ];
     }
 
     /**
-     * Stop a timer and record the duration to the debug bar.
+     * Stop the most recent component timer and record the result.
      */
-    public function stopTimer(string $hash): void
+    public function stopTimer(string $name): void
     {
-        if (! isset($this->timers[$hash])) {
+        if (empty($this->traceStack)) {
             return;
         }
 
-        $duration = (hrtime(true) - $this->timers[$hash]) / 1e9; // seconds
-        unset($this->timers[$hash]);
+        $now = hrtime(true);
 
-        $name = $this->componentNames[$hash] ?? $hash;
+        $entry = array_pop($this->traceStack);
+        $entry['end']      = ($now - $this->traceOrigin) / 1e6;
+        $entry['duration'] = $entry['end'] - $entry['start'];
 
-        $this->recordComponent($hash, $name, $duration);
+        if (! empty($this->traceStack)) {
+            $this->traceStack[count($this->traceStack) - 1]['children']++;
+        }
+
+        $this->traceEntries[] = $entry;
+
+        // Also feed the debug bar.
+        $this->recordComponent($entry['name'], $entry['duration'] / 1000);
+    }
+
+    /**
+     * Record a memoization cache hit (component skipped rendering).
+     */
+    public function recordMemoHit(string $name): void
+    {
+        $this->memoHits++;
+
+        if (! isset($this->memoHitNames[$name])) {
+            $this->memoHitNames[$name] = 0;
+        }
+
+        $this->memoHitNames[$name]++;
+    }
+
+    /**
+     * Get profiler trace entries and summary data for the profiler page.
+     */
+    public function getTraceData(): array
+    {
+        // Sort entries by start time so the flame chart renders correctly.
+        $entries = $this->traceEntries;
+        usort($entries, fn ($a, $b) => $a['start'] <=> $b['start']);
+
+        return [
+            'entries'      => $entries,
+            'totalTime'    => $this->renderTime,
+            'memoHits'     => $this->memoHits,
+            'memoHitNames' => $this->memoHitNames,
+        ];
     }
 
     public function setTimerView(string $name): void
@@ -157,19 +198,28 @@ class Debugger
     }
 
     /**
-     * Record a component render with its human-readable name.
+     * Record a component render for the debug bar.
      */
-    public function recordComponent(string $hash, string $name, float $duration): void
+    protected function recordComponent(string $name, float $durationSeconds): void
     {
-        if (! isset($this->components[$hash])) {
-            $this->components[$hash] = [
+        if (! isset($this->components[$name])) {
+            $this->components[$name] = [
                 'name' => $name,
                 'count' => 0,
                 'totalTime' => 0.0,
             ];
         }
 
-        $this->components[$hash]['totalTime'] += $duration;
+        $this->components[$name]['count']++;
+        $this->components[$name]['totalTime'] += $durationSeconds;
+    }
+
+    /**
+     * Get all collected data for the profiler and debug bar.
+     */
+    public function getDebugBarData(): array
+    {
+        return $this->getData();
     }
 
     /**
@@ -405,6 +455,12 @@ class Debugger
                     {$detailHtml}
                 </div>
             </div>
+
+            <a href="/_blaze/profiler" target="_blank" id="blaze-profiler-link" style="display: flex; align-items: center; gap: 6px; margin-top: 10px; padding: 7px 10px; border-radius: 8px; background: rgba(249, 115, 22, 0.08); border: 1px solid rgba(249, 115, 22, 0.18); color: #f97316; font-size: 11px; font-weight: 600; text-decoration: none; transition: all 0.15s ease; cursor: pointer;" onmouseover="this.style.background='rgba(249,115,22,0.15)';this.style.borderColor='rgba(249,115,22,0.3)'" onmouseout="this.style.background='rgba(249,115,22,0.08)';this.style.borderColor='rgba(249,115,22,0.18)'">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M7 16l4-8 4 4 4-8"/></svg>
+                <span>Open Profiler</span>
+                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="margin-left: auto; opacity: 0.5;"><path d="M7 17L17 7"/><path d="M7 7h10v10"/></svg>
+            </a>
         </div>
         HTML;
     }
