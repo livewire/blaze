@@ -189,6 +189,7 @@ body {
 .main {
     flex: 1;
     display: flex;
+    flex-direction: column;
     overflow: hidden;
 }
 
@@ -199,6 +200,7 @@ body {
     flex-direction: column;
     overflow: hidden;
     position: relative;
+    min-height: 0;
 }
 
 .minimap-wrap {
@@ -241,24 +243,28 @@ body {
 
 .flame-scroll canvas { display: block; }
 
-/* ── Sidebar ─────────────────────────────────────── */
+/* ── Bottom Panels ───────────────────────────────── */
 .sidebar {
-    width: 320px;
-    border-left: 1px solid var(--border);
+    border-top: 1px solid var(--border);
     background: var(--bg-card-solid);
-    overflow-y: auto;
+    overflow-x: auto;
+    overflow-y: hidden;
     flex-shrink: 0;
+    display: flex;
+    min-height: 340px;
     scrollbar-width: thin;
     scrollbar-color: #334155 transparent;
 }
 
-.sidebar::-webkit-scrollbar { width: 5px; }
+.sidebar::-webkit-scrollbar { height: 5px; }
 .sidebar::-webkit-scrollbar-track { background: transparent; }
 .sidebar::-webkit-scrollbar-thumb { background: #334155; border-radius: 3px; }
 
 .panel {
-    padding: 16px 18px;
-    border-bottom: 1px solid var(--border);
+    padding: 14px 18px;
+    border-right: 1px solid var(--border);
+    min-width: 200px;
+    flex-shrink: 0;
 }
 
 .panel-title {
@@ -379,7 +385,7 @@ body {
 
 .comp-name {
     color: var(--text);
-    max-width: 140px;
+    max-width: 200px;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -395,6 +401,17 @@ body {
     border-radius: 50%;
     margin-right: 6px;
     vertical-align: middle;
+}
+
+/* ── Hottest Columns ─────────────────────────────── */
+.hottest-columns {
+    display: flex;
+    gap: 16px;
+}
+
+.hottest-columns .comp-table {
+    flex: 1;
+    min-width: 0;
 }
 
 /* ── Detail Panel ────────────────────────────────── */
@@ -553,36 +570,33 @@ body {
     </div>
 
     <div class="sidebar" id="sidebar">
-        <div class="panel" id="panel-strat">
+        <div class="panel" id="panel-strat" style="min-width:240px;">
             <div class="panel-title">Strategy Breakdown</div>
             <div class="strat-bar-wrap" id="strat-bar"></div>
             <div class="strat-rows" id="strat-rows"></div>
         </div>
 
-        <div class="panel" id="panel-comparison" style="display:none">
+        <div class="panel" id="panel-comparison" style="display:none;min-width:220px;">
             <div class="panel-title">Blade vs Blaze</div>
             <div id="comparison-content"></div>
         </div>
 
-        <div class="panel" id="panel-memo">
+        <div class="panel" id="panel-memo" style="min-width:200px;">
             <div class="panel-title">Memoization</div>
             <div id="memo-content"></div>
         </div>
 
-        <div class="panel" id="panel-detail" style="display:none">
+        <div class="panel" id="panel-detail" style="display:none;min-width:220px;">
             <div class="panel-title">Component Detail</div>
             <div class="detail-grid" id="detail-grid"></div>
         </div>
 
-        <div class="panel">
+        <div class="panel" id="panel-hottest" style="min-width:360px;flex:1;max-height:340px;overflow-y:auto;">
             <div class="panel-title">Hottest Components</div>
-            <table class="comp-table" id="comp-table">
-                <thead><tr><th>Component</th><th style="text-align:right;">Self</th><th style="text-align:right;">Total</th></tr></thead>
-                <tbody id="comp-tbody"></tbody>
-            </table>
+            <div id="hottest-columns" class="hottest-columns"></div>
         </div>
 
-        <div class="panel">
+        <div class="panel" style="min-width:220px;">
             <div class="panel-title">Render Density</div>
             <canvas id="heatmap" style="width:100%;height:40px;border-radius:6px;"></canvas>
             <div style="display:flex;justify-content:space-between;margin-top:4px;font-size:9px;color:var(--text-muted);">
@@ -628,6 +642,7 @@ let totalDuration = 1;
 let maxDepth = 0;
 let hovered = null;
 let renderList = [];
+let gaps = [];          // { at: <collapsed-time>, original: <ms>, label: 'Livewire …' }
 
 // ─── DOM refs ───────────────────────────────────────────────────────
 const $flame       = document.getElementById('flame');
@@ -756,6 +771,71 @@ async function fetchTrace() {
 function processData() {
     if (!entries.length) return;
 
+    // Store original times before any collapsing.
+    for (const e of entries) {
+        e._origStart = e.start;
+        e._origEnd   = e.end;
+    }
+
+    // ── Collapse gaps between depth-0 entries ──────────────────────
+    // Find depth-0 spans (they define the top-level time regions).
+    const roots = entries.filter(e => e.depth === 0).sort((a, b) => a.start - b.start);
+    gaps = [];
+
+    if (roots.length > 1) {
+        // Residual gap to keep so there's a visible seam (ms).
+        const GAP_KEEP = 0.5;
+
+        // Build list of collapses: [ { from, to, collapse } ]
+        const collapses = [];
+        for (let i = 1; i < roots.length; i++) {
+            const gapStart = roots[i - 1].end;
+            const gapEnd   = roots[i].start;
+            const gapSize  = gapEnd - gapStart;
+
+            if (gapSize > GAP_KEEP * 2) {
+                collapses.push({ from: gapStart, to: gapEnd, collapse: gapSize - GAP_KEEP });
+            }
+        }
+
+        if (collapses.length) {
+            // Apply collapses: shift every entry's start/end by cumulative offset.
+            for (const e of entries) {
+                let shift = 0;
+                for (const c of collapses) {
+                    if (e.start >= c.to) {
+                        shift += c.collapse;
+                    } else if (e.start > c.from) {
+                        // Entry starts inside the gap — clamp to gap start.
+                        shift += (e.start - c.from);
+                    }
+                }
+                e.start -= shift;
+
+                let shiftEnd = 0;
+                for (const c of collapses) {
+                    if (e.end >= c.to) {
+                        shiftEnd += c.collapse;
+                    } else if (e.end > c.from) {
+                        shiftEnd += (e.end - c.from);
+                    }
+                }
+                e.end -= shiftEnd;
+            }
+
+            // Record gap markers (in collapsed time-space) for rendering.
+            let cumShift = 0;
+            for (const c of collapses) {
+                gaps.push({
+                    at: c.from - cumShift + GAP_KEEP / 2,
+                    original: c.to - c.from,
+                });
+                cumShift += c.collapse;
+            }
+        }
+    }
+
+    // ── Compute totals ─────────────────────────────────────────────
     totalDuration = 0;
     maxDepth = 0;
 
@@ -905,9 +985,9 @@ function updateSidebar() {
         compContent.innerHTML = html || '<div style="font-size:11px;color:var(--text-muted);">Load in both modes to compare.</div>';
     }
 
-    // Component table with self-time
-    const tbody = document.getElementById('comp-tbody');
-    tbody.innerHTML = '';
+    // Component table with self-time (multi-column)
+    const hottestContainer = document.getElementById('hottest-columns');
+    hottestContainer.innerHTML = '';
 
     // Compute self-time: duration minus time spent in direct children
     const selfTimes = {};
@@ -929,16 +1009,37 @@ function updateSidebar() {
     const maxSelfTime = Math.max(...Object.values(selfTimes).map(s => s.selfTime), 0.001);
     const sorted = Object.entries(selfTimes).sort((a, b) => b[1].selfTime - a[1].selfTime);
 
-    for (const [name, info] of sorted) {
-        const c = colorFor(info.strategy);
-        const selfPct = (info.selfTime / maxSelfTime) * 100;
-        const tr = document.createElement('tr');
-        tr.innerHTML = `
-            <td class="comp-name" title="${name}"><span class="comp-strat-dot" style="background:${c.bg}"></span>${name}<span style="color:var(--text-muted);font-size:9px;margin-left:4px;">${info.count}x</span></td>
-            <td class="comp-time">${fmtMs(info.selfTime)}<div class="heat-bar" style="background:${c.bg};width:${selfPct}%;opacity:0.5;"></div></td>
-            <td class="comp-time">${fmtMs(info.totalTime)}</td>
-        `;
-        tbody.appendChild(tr);
+    // Split into columns: pick column count based on item count and panel width
+    const panelWidth = document.getElementById('panel-hottest').clientWidth;
+    const colCount = sorted.length <= 6 ? 1 : sorted.length <= 15 || panelWidth < 600 ? 2 : 3;
+    const perCol = Math.ceil(sorted.length / colCount);
+
+    for (let col = 0; col < colCount; col++) {
+        const slice = sorted.slice(col * perCol, (col + 1) * perCol);
+        if (!slice.length) break;
+
+        const table = document.createElement('table');
+        table.className = 'comp-table';
+        const rank = col * perCol;
+        table.innerHTML = `<thead><tr><th>#</th><th>Component</th><th style="text-align:right;">Self</th><th style="text-align:right;">Total</th></tr></thead>`;
+        const tbody = document.createElement('tbody');
+
+        for (let i = 0; i < slice.length; i++) {
+            const [name, info] = slice[i];
+            const c = colorFor(info.strategy);
+            const selfPct = (info.selfTime / maxSelfTime) * 100;
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td style="color:var(--text-muted);font-size:9px;padding-right:6px;width:16px;">${rank + i + 1}</td>
+                <td class="comp-name" title="${name}"><span class="comp-strat-dot" style="background:${c.bg}"></span>${name}<span style="color:var(--text-muted);font-size:9px;margin-left:4px;">${info.count}x</span></td>
+                <td class="comp-time">${fmtMs(info.selfTime)}<div class="heat-bar" style="background:${c.bg};width:${selfPct}%;opacity:0.5;"></div></td>
+                <td class="comp-time">${fmtMs(info.totalTime)}</td>
+            `;
+            tbody.appendChild(tr);
+        }
+
+        table.appendChild(tbody);
+        hottestContainer.appendChild(table);
     }
 
     // Render density heatmap
@@ -1106,6 +1207,18 @@ function renderMinimap() {
         ctx.fillRect(x, y, bw, barH - 1);
     }
 
+    // Gap indicators on minimap
+    ctx.globalAlpha = 0.5;
+    ctx.strokeStyle = '#94a3b8';
+    ctx.lineWidth = 1;
+    for (const gap of gaps) {
+        const gx = (gap.at / totalDuration) * w;
+        ctx.beginPath();
+        ctx.moveTo(gx, 0);
+        ctx.lineTo(gx, h);
+        ctx.stroke();
+    }
+
     ctx.globalAlpha = 1;
 }
 
@@ -1155,6 +1268,23 @@ function renderTimeAxis() {
 
         ctx.fillText(fmtMs(t), x + 4, 10);
     }
+
+    // Gap indicators on time axis
+    for (const gap of gaps) {
+        const gx = ((gap.at - viewStart) / viewDuration) * w;
+        if (gx < -20 || gx > w + 20) continue;
+
+        ctx.strokeStyle = 'rgba(148, 163, 184, 0.5)';
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        const step = 4, amp = 3;
+        for (let y2 = 0; y2 < h; y2 += step) {
+            const xOff = (Math.floor(y2 / step) % 2 === 0) ? -amp : amp;
+            if (y2 === 0) ctx.moveTo(gx + xOff, y2);
+            else ctx.lineTo(gx + xOff, y2);
+        }
+        ctx.stroke();
+    }
 }
 
 function renderFlameChart() {
@@ -1186,6 +1316,36 @@ function renderFlameChart() {
         ctx.moveTo(x, 0);
         ctx.lineTo(x, chartH);
         ctx.stroke();
+    }
+
+    // Draw gap indicators (zigzag break lines)
+    for (const gap of gaps) {
+        const gx = ((gap.at - viewStart) / viewDuration) * w;
+        if (gx < -20 || gx > w + 20) continue;
+
+        // Zigzag line
+        ctx.strokeStyle = 'rgba(148, 163, 184, 0.5)';
+        ctx.lineWidth = 1.5;
+        ctx.setLineDash([]);
+        ctx.beginPath();
+        const step = 6;
+        const amp = 4;
+        for (let y = 0; y < chartH; y += step) {
+            const xOff = (Math.floor(y / step) % 2 === 0) ? -amp : amp;
+            if (y === 0) ctx.moveTo(gx + xOff, y);
+            else ctx.lineTo(gx + xOff, y);
+        }
+        ctx.stroke();
+
+        // Label
+        ctx.save();
+        const label = fmtMs(gap.original) + ' gap';
+        ctx.font = '500 9px ui-monospace, SFMono-Regular, monospace';
+        ctx.fillStyle = 'rgba(148, 163, 184, 0.7)';
+        ctx.textBaseline = 'top';
+        ctx.textAlign = 'center';
+        ctx.fillText(label, gx, 8 + (maxDepth + 1) * ROW_FULL + 4);
+        ctx.restore();
     }
 
     // Draw render list (individual entries + clusters)
@@ -1470,7 +1630,7 @@ function handleHover(ev) {
                 <div class="tooltip-row"><span class="tooltip-label">Strategy</span><span class="tooltip-val">${stratLabel}</span></div>
                 <div class="tooltip-row"><span class="tooltip-label">Depth</span><span class="tooltip-val">${e.depth}</span></div>
                 <div class="tooltip-row"><span class="tooltip-label">Children</span><span class="tooltip-val">${e.children}</span></div>
-                <div class="tooltip-row"><span class="tooltip-label">% of render</span><span class="tooltip-val">${((e.duration / totalDuration) * 100).toFixed(1)}%</span></div>
+                <div class="tooltip-row"><span class="tooltip-label">% of render</span><span class="tooltip-val">${((e.duration / (data.renderTime || totalDuration)) * 100).toFixed(1)}%</span></div>
             `;
         } else {
             showClusterDetail(found);
