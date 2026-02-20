@@ -118,7 +118,9 @@ class BlazeManager
                 $nameExpr = '($__blaze->debugger->resolveViewName() ?? \''.addslashes(pathinfo($path, PATHINFO_FILENAME)).'\')';
             }
 
-            $output = '<'.'?php $__blazeViewName = '.$nameExpr.'; $__blaze->debugger->startTimer($__blazeViewName, \'view\'); ?>'
+            $relativePath = addslashes($this->relativePath($path));
+
+            $output = '<'.'?php $__blazeViewName = '.$nameExpr.'; $__blaze->debugger->startTimer($__blazeViewName, \'view\', \''.$relativePath.'\'); ?>'
                 .$output
                 .'<'.'?php $__blaze->debugger->stopTimer($__blazeViewName); ?>';
         }
@@ -383,6 +385,30 @@ class BlazeManager
         }
 
         return null;
+    }
+
+    /**
+     * Strip the base path prefix to produce a short relative path.
+     */
+    protected function relativePath(string $absolutePath): string
+    {
+        $base = base_path().'/';
+
+        if (str_starts_with($absolutePath, $base)) {
+            return substr($absolutePath, strlen($base));
+        }
+
+        $resolved = realpath($absolutePath) ?: $absolutePath;
+
+        if (str_starts_with($resolved, $base)) {
+            return substr($resolved, strlen($base));
+        }
+
+        if (preg_match('#(/resources/views/.+)$#', $absolutePath, $m)) {
+            return ltrim($m[1], '/');
+        }
+
+        return basename($absolutePath);
     }
 
     /**

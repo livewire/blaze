@@ -29,15 +29,20 @@ class Instrumenter
      */
     public function instrument(Node $node, string $componentName, ?string $strategy = null): Node
     {
+        $source = new ComponentSource($componentName);
+
         if ($strategy === null) {
             $isBlade = $node instanceof ComponentNode;
-            $strategy = $isBlade ? 'blade' : $this->resolveStrategy($componentName);
+            $strategy = $isBlade ? 'blade' : $this->resolveStrategy($source);
         }
+
+        $file = $source->exists() ? $this->relativePath($source->path) : null;
 
         $output = $node->render();
         $escapedName = addslashes($componentName);
+        $fileArg = $file !== null ? ', \''.addslashes($file).'\'' : '';
 
-        $wrapped = '<'.'?php $__blaze->debugger->startTimer(\''.$escapedName.'\', \''.$strategy.'\'); ?>'
+        $wrapped = '<'.'?php $__blaze->debugger->startTimer(\''.$escapedName.'\', \''.$strategy.'\''.$fileArg.'); ?>'
             .$output
             .'<'.'?php $__blaze->debugger->stopTimer(\''.$escapedName.'\'); ?>';
 
@@ -47,10 +52,8 @@ class Instrumenter
     /**
      * Determine the optimization strategy configured for a Blaze component.
      */
-    protected function resolveStrategy(string $componentName): string
+    protected function resolveStrategy(ComponentSource $source): string
     {
-        $source = new ComponentSource($componentName);
-
         if (! $source->exists()) {
             return 'compiled';
         }
@@ -69,5 +72,35 @@ class Instrumenter
         }
 
         return $strategy;
+    }
+
+    /**
+     * Strip the base path prefix to produce a short relative path.
+     *
+     * Tries the raw path first (preserves vendor/ symlink structure), then
+     * falls back to extracting a meaningful suffix for external packages.
+     */
+    protected function relativePath(string $absolutePath): string
+    {
+        $base = base_path().'/';
+
+        // Try raw path first (preserves vendor/ symlink structure).
+        if (str_starts_with($absolutePath, $base)) {
+            return substr($absolutePath, strlen($base));
+        }
+
+        // Try resolved path (follows symlinks).
+        $resolved = realpath($absolutePath) ?: $absolutePath;
+
+        if (str_starts_with($resolved, $base)) {
+            return substr($resolved, strlen($base));
+        }
+
+        // Extract from resources/views/ for external packages.
+        if (preg_match('#(/resources/views/.+)$#', $absolutePath, $m)) {
+            return ltrim($m[1], '/');
+        }
+
+        return basename($absolutePath);
     }
 }

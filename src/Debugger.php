@@ -76,7 +76,7 @@ class Debugger
      * initialization). Name and strategy are injected at compile time by the
      * Instrumenter so there's no hash indirection at runtime.
      */
-    public function startTimer(string $name, string $strategy = 'blade'): void
+    public function startTimer(string $name, string $strategy = 'blade', ?string $file = null): void
     {
         $now = hrtime(true);
 
@@ -84,13 +84,19 @@ class Debugger
             $this->traceOrigin = $now;
         }
 
-        $this->traceStack[] = [
+        $entry = [
             'name'     => $name,
             'start'    => ($now - $this->traceOrigin) / 1e6, // ms from origin
             'depth'    => count($this->traceStack),
             'children' => 0,
             'strategy' => $strategy,
         ];
+
+        if ($file !== null) {
+            $entry['file'] = $file;
+        }
+
+        $this->traceStack[] = $entry;
     }
 
     /**

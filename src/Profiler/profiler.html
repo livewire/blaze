@@ -493,6 +493,36 @@ body {
     margin-top: 3px;
 }
 
+/* ── Drag-to-zoom selection ──────────────────────── */
+.flame-scroll.dragging { cursor: col-resize; }
+
+.drag-selection {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    background: rgba(249, 115, 22, 0.08);
+    border-left: 1.5px solid rgba(249, 115, 22, 0.6);
+    border-right: 1.5px solid rgba(249, 115, 22, 0.6);
+    pointer-events: none;
+    z-index: 10;
+}
+
+.drag-selection::before,
+.drag-selection::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    width: 100%;
+    background: repeating-linear-gradient(
+        -45deg,
+        transparent,
+        transparent 4px,
+        rgba(249, 115, 22, 0.04) 4px,
+        rgba(249, 115, 22, 0.04) 8px
+    );
+}
+
 /* ── Animations ──────────────────────────────────── */
 @keyframes pulse-glow {
     0%, 100% { opacity: 0.5; }
@@ -551,7 +581,7 @@ body {
     <div class="controls-right">
         <button class="control-btn" onclick="resetZoom()">Reset Zoom</button>
         <button class="control-btn" onclick="fetchTrace()">Refresh</button>
-        <span class="control-hint">Scroll to pan, Ctrl/&#8984;+scroll to zoom</span>
+        <span class="control-hint">Scroll to pan, Ctrl/&#8984;+scroll to zoom, drag to select</span>
     </div>
 </div>
 
@@ -643,6 +673,8 @@ let maxDepth = 0;
 let hovered = null;
 let renderList = [];
 let gaps = [];          // { at: <collapsed-time>, original: <ms>, label: 'Livewire …' }
+let dragState = null;   // { startX, startTime } when drag-selecting
+let $dragSel = null;    // the drag selection overlay element
 
 // ─── DOM refs ───────────────────────────────────────────────────────
 const $flame       = document.getElementById('flame');
@@ -684,6 +716,8 @@ function fmtCount(n) {
     if (n >= 1000) return (n / 1000).toFixed(1) + 'k';
     return n.toString();
 }
+
+
 
 function clusterDominantStrategy(strategies) {
     let max = 0, dom = 'compiled';
@@ -1106,11 +1140,16 @@ function showDetail(entry) {
     }
     const selfTime = entry.duration - childTime;
 
+    const fileRow = entry.file
+        ? `<div class="detail-label">File</div><div class="detail-value" style="font-size:10px;word-break:break-all;">${entry.file}</div>`
+        : '';
+
     grid.innerHTML = `
         <div class="detail-label">Name</div>
         <div class="detail-value">${entry.name}</div>
         <div class="detail-label">Strategy</div>
         <div class="detail-value"><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${c.bg};margin-right:6px;vertical-align:middle;"></span>${stratLabel}</div>
+        ${fileRow}
         <div class="detail-label">Total time</div>
         <div class="detail-value">${fmtMs(entry.duration)}</div>
         <div class="detail-label">Self time</div>
@@ -1564,9 +1603,77 @@ $flameScroll.addEventListener('wheel', function(ev) {
     render();
 }, { passive: false });
 
+// Drag-to-zoom: mousedown starts selection, mousemove extends, mouseup zooms
+$flameScroll.addEventListener('mousedown', function(ev) {
+    if (ev.button !== 0) return; // left click only
+    if (ev.ctrlKey || ev.metaKey) return; // don't interfere with ctrl+click
+
+    const rect = $flameScroll.getBoundingClientRect();
+    const mx = ev.clientX - rect.left;
+    const viewDuration = viewEnd - viewStart;
+    const startTime = viewStart + (mx / rect.width) * viewDuration;
+
+    dragState = { startX: mx, startTime, rect };
+
+    // Create selection overlay
+    if ($dragSel) $dragSel.remove();
+    $dragSel = document.createElement('div');
+    $dragSel.className = 'drag-selection';
+    $dragSel.style.left = mx + 'px';
+    $dragSel.style.width = '0px';
+    $flameScroll.appendChild($dragSel);
+});
+
 window.addEventListener('mousemove', function(ev) {
-    // Hover detection
+    if (dragState) {
+        const rect = dragState.rect;
+        const mx = Math.max(0, Math.min(ev.clientX - rect.left, rect.width));
+        const left = Math.min(dragState.startX, mx);
+        const width = Math.abs(mx - dragState.startX);
+
+        // Only show selection + change cursor once dragged > 4px (avoids flicker on clicks)
+        if (width > 4) {
+            $flameScroll.classList.add('dragging');
+            $dragSel.style.left = left + 'px';
+            $dragSel.style.width = width + 'px';
+            $dragSel.style.display = 'block';
+            $tooltip.style.display = 'none';
+        } else {
+            $dragSel.style.display = 'none';
+            $flameScroll.classList.remove('dragging');
+        }
+        return;
+    }
+
+    // Hover detection (only when not dragging)
     handleHover(ev);
+});
+
+window.addEventListener('mouseup', function(ev) {
+    if (!dragState) return;
+
+    const rect = dragState.rect;
+    const mx = Math.max(0, Math.min(ev.clientX - rect.left, rect.width));
+    const width = Math.abs(mx - dragState.startX);
+
+    $flameScroll.classList.remove('dragging');
+    if ($dragSel) { $dragSel.remove(); $dragSel = null; }
+
+    // Only zoom if dragged more than 4px (otherwise it was a click)
+    if (width > 4) {
+        const viewDuration = viewEnd - viewStart;
+        const endTime = viewStart + (mx / rect.width) * viewDuration;
+        const t1 = Math.min(dragState.startTime, endTime);
+        const t2 = Math.max(dragState.startTime, endTime);
+
+        viewStart = Math.max(0, t1);
+        viewEnd = Math.min(totalDuration, t2);
+        if (viewEnd - viewStart < 0.001) viewEnd = viewStart + 0.001;
+
+        render();
+    }
+
+    dragState = null;
 });
 
 // Hover / tooltip
@@ -1623,8 +1730,11 @@ function handleHover(ev) {
             }
             const selfTime = e.duration - childTime;
 
+            const fileHtml = e.file ? `<div style="font-size:10px;color:var(--text-muted);margin-bottom:6px;font-family:ui-monospace,monospace;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:280px;" title="${e.file}">${e.file}</div>` : '';
+
             $tooltip.innerHTML = `
                 <div class="tooltip-name" style="border-left: 3px solid ${c.bg}; padding-left: 8px;">${e.name}</div>
+                ${fileHtml}
                 <div class="tooltip-row"><span class="tooltip-label">Total time</span><span class="tooltip-val">${fmtMs(e.duration)}</span></div>
                 <div class="tooltip-row"><span class="tooltip-label">Self time</span><span class="tooltip-val">${fmtMs(selfTime)}</span></div>
                 <div class="tooltip-row"><span class="tooltip-label">Strategy</span><span class="tooltip-val">${stratLabel}</span></div>
@@ -1733,6 +1843,14 @@ function resetZoom() {
     viewEnd = totalDuration;
     render();
 }
+
+// ─── Keyboard shortcuts ─────────────────────────────────────────────
+window.addEventListener('keydown', function(ev) {
+    if ((ev.ctrlKey || ev.metaKey) && ev.key === '0') {
+        ev.preventDefault();
+        resetZoom();
+    }
+});
 
 // ─── Resize handling ────────────────────────────────────────────────
 let resizeTimer;
