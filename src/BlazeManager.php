@@ -88,8 +88,9 @@ class BlazeManager
                 $node = $this->memoizer->memoize($node);
                 $node = $this->compiler->compile($node);
 
-                if ($wasComponent && ! $wasFolded && $this->debug && ! $this->folding) {
-                    $node = $this->instrumenter->instrument($node, $componentName);
+                if ($wasComponent && $this->debug && ! $this->folding) {
+                    $strategy = $wasFolded ? 'folded' : null;
+                    $node = $this->instrumenter->instrument($node, $componentName, $strategy);
                 }
 
                 return $node;
@@ -103,6 +104,11 @@ class BlazeManager
 
         if ($path && ($directives->blaze() || $this->config->shouldCompile($path))) {
             $output = $this->wrapper->wrap($output, $path, $source);
+        } elseif ($this->debug && ! $this->folding && $path) {
+            $viewName = addslashes($this->viewNameFromPath($path));
+            $output = '<'.'?php $__blaze->debugger->startTimer(\''.$viewName.'\', \'view\'); ?>'
+                .$output
+                .'<'.'?php $__blaze->debugger->stopTimer(\''.$viewName.'\'); ?>';
         }
 
         BladeService::deleteTemporaryCacheDirectory();
@@ -346,6 +352,24 @@ class BlazeManager
     public function optimize(): Config
     {
         return $this->config;
+    }
+
+    /**
+     * Extract a human-readable view name from a file path.
+     */
+    protected function viewNameFromPath(string $path): string
+    {
+        $resolved = realpath($path) ?: $path;
+
+        if (preg_match('#/resources/views/(.+?)\.blade\.php$#', $resolved, $matches)) {
+            $name = str_replace('/', '.', $matches[1]);
+
+            return preg_replace('/\.index$/', '', $name);
+        }
+
+        $filename = pathinfo($resolved, PATHINFO_FILENAME);
+
+        return str_replace('.blade', '', $filename);
     }
 
     /**

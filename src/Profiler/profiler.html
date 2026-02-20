@@ -524,11 +524,12 @@ body {
 
 <div class="controls">
     <div class="legend">
-        <div class="legend-item"><div class="legend-swatch" style="background: var(--orange)"></div>Compiled</div>
-        <div class="legend-item"><div class="legend-swatch" style="background: var(--green)"></div>Fold configured</div>
-        <div class="legend-item"><div class="legend-swatch" style="background: var(--purple)"></div>Memo miss</div>
-        <div class="legend-item"><div class="legend-swatch" style="background: var(--cyan)"></div>Fold+Memo</div>
-        <div class="legend-item"><div class="legend-swatch" style="background: var(--blue)"></div>Memo hit (cached)</div>
+        <div class="legend-item"><div class="legend-swatch" style="background: #f97316"></div>Compiled</div>
+        <div class="legend-item"><div class="legend-swatch" style="background: #10b981"></div>Folded</div>
+        <div class="legend-item"><div class="legend-swatch" style="background: #a855f7"></div>Memo miss</div>
+        <div class="legend-item"><div class="legend-swatch" style="background: #3b82f6"></div>Blade</div>
+        <div class="legend-item"><div class="legend-swatch" style="background: #64748b"></div>View</div>
+        <div class="legend-item"><div class="legend-swatch" style="background: repeating-linear-gradient(-45deg, var(--gray), var(--gray) 2px, transparent 2px, transparent 4px); opacity: 0.6;"></div>Clustered</div>
     </div>
     <div class="controls-right">
         <button class="control-btn" onclick="resetZoom()">Reset Zoom</button>
@@ -604,12 +605,18 @@ const COLORS = {
     'compiled+fold':      { bg: '#22c55e', bgDim: 'rgba(34,197,94,0.18)',  text: '#fff' },
     'compiled+memo':      { bg: '#a855f7', bgDim: 'rgba(168,85,247,0.18)', text: '#fff' },
     'compiled+fold+memo': { bg: '#06b6d4', bgDim: 'rgba(6,182,212,0.18)',  text: '#fff' },
+    'folded':             { bg: '#10b981', bgDim: 'rgba(16,185,129,0.18)', text: '#fff' },
+    'view':               { bg: '#64748b', bgDim: 'rgba(100,116,139,0.18)', text: '#fff' },
+    'blade':              { bg: '#3b82f6', bgDim: 'rgba(59,130,246,0.18)', text: '#fff' },
 };
 const STRAT_LABELS = {
     'compiled':           'Compiled (Blaze)',
     'compiled+fold':      'Fold configured',
     'compiled+memo':      'Memo (cache miss)',
     'compiled+fold+memo': 'Fold + Memo',
+    'folded':             'Folded (pre-rendered)',
+    'view':               'View',
+    'blade':              'Blade (standard)',
 };
 
 // ─── State ──────────────────────────────────────────────────────────
@@ -623,6 +630,7 @@ let hovered = null;
 let isDragging = false;
 let dragStartX = 0;
 let dragViewStart = 0;
+let renderList = [];
 
 // ─── DOM refs ───────────────────────────────────────────────────────
 const $flame       = document.getElementById('flame');
@@ -655,6 +663,84 @@ function sizeCanvas(canvas, w, h) {
     const ctx = canvas.getContext('2d');
     ctx.scale(r, r);
     return ctx;
+}
+
+// ─── Clustering ─────────────────────────────────────────────────────
+const CLUSTER_PX = 8; // entries narrower than this (px) get clustered
+
+function fmtCount(n) {
+    if (n >= 1000) return (n / 1000).toFixed(1) + 'k';
+    return n.toString();
+}
+
+function clusterDominantStrategy(strategies) {
+    let max = 0, dom = 'compiled';
+    for (const [s, n] of Object.entries(strategies)) {
+        if (n > max) { max = n; dom = s; }
+    }
+    return dom;
+}
+
+function buildRenderList() {
+    const w = $flameScroll.clientWidth;
+    const viewDuration = viewEnd - viewStart;
+    if (viewDuration <= 0 || !entries.length || !w) return [];
+
+    // Group visible entries by depth
+    const byDepth = new Map();
+    for (const e of entries) {
+        if (e.end < viewStart || e.start > viewEnd) continue;
+        if (!byDepth.has(e.depth)) byDepth.set(e.depth, []);
+        byDepth.get(e.depth).push(e);
+    }
+
+    const list = [];
+
+    for (const [depth, depthEntries] of byDepth) {
+        let cluster = null;
+
+        for (const e of depthEntries) {
+            const px = (e.duration / viewDuration) * w;
+
+            if (px >= CLUSTER_PX) {
+                // Big enough to show individually
+                if (cluster) { list.push(cluster); cluster = null; }
+                list.push({ type: 'entry', entry: e });
+            } else {
+                // Too small — add to cluster
+                if (cluster) {
+                    const gapPx = ((e.start - cluster.end) / viewDuration) * w;
+                    if (gapPx > CLUSTER_PX * 3) {
+                        list.push(cluster);
+                        cluster = null;
+                    }
+                }
+
+                if (!cluster) {
+                    cluster = {
+                        type: 'cluster',
+                        start: e.start,
+                        end: e.end,
+                        depth: depth,
+                        count: 0,
+                        totalDuration: 0,
+                        strategies: {},
+                        names: {},
+                    };
+                }
+
+                cluster.end = Math.max(cluster.end, e.end);
+                cluster.count++;
+                cluster.totalDuration += e.duration;
+                cluster.strategies[e.strategy] = (cluster.strategies[e.strategy] || 0) + 1;
+                cluster.names[e.name] = (cluster.names[e.name] || 0) + 1;
+            }
+        }
+
+        if (cluster) list.push(cluster);
+    }
+
+    return list;
 }
 
 // ─── Data Fetch ─────────────────────────────────────────────────────
@@ -942,8 +1028,58 @@ function showDetail(entry) {
     `;
 }
 
+function showClusterDetail(cluster) {
+    const panel = document.getElementById('panel-detail');
+    const grid = document.getElementById('detail-grid');
+    panel.style.display = 'block';
+
+    const uniqueNames = Object.keys(cluster.names);
+    const avgDuration = cluster.totalDuration / cluster.count;
+    const clusterSpan = cluster.end - cluster.start;
+
+    let stratHtml = '';
+    for (const [s, n] of Object.entries(cluster.strategies).sort((a, b) => b[1] - a[1])) {
+        const sc = colorFor(s);
+        const sl = STRAT_LABELS[s] || s;
+        stratHtml += `<span style="display:inline-flex;align-items:center;gap:4px;margin-bottom:2px;"><span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:${sc.bg};"></span>${sl} (${n}\u00d7)</span><br>`;
+    }
+
+    let namesHtml = '';
+    const sortedNames = Object.entries(cluster.names).sort((a, b) => b[1] - a[1]).slice(0, 5);
+    for (const [name, count] of sortedNames) {
+        namesHtml += `<span style="color:var(--text-dim)">${name}</span> <span style="color:var(--text)">${count}\u00d7</span><br>`;
+    }
+    if (uniqueNames.length > 5) {
+        namesHtml += `<span style="color:var(--text-muted)">+${uniqueNames.length - 5} more</span>`;
+    }
+
+    grid.innerHTML = `
+        <div class="detail-label">Type</div>
+        <div class="detail-value" style="color:var(--orange)">Cluster</div>
+        <div class="detail-label">Components</div>
+        <div class="detail-value">${cluster.count}</div>
+        <div class="detail-label">Unique</div>
+        <div class="detail-value">${uniqueNames.length}</div>
+        <div class="detail-label">Total time</div>
+        <div class="detail-value">${fmtMs(cluster.totalDuration)}</div>
+        <div class="detail-label">Avg time</div>
+        <div class="detail-value" style="color:var(--orange)">${fmtMs(avgDuration)}</div>
+        <div class="detail-label">Span</div>
+        <div class="detail-value">${fmtMs(clusterSpan)}</div>
+        <div class="detail-label">Depth</div>
+        <div class="detail-value">${cluster.depth}</div>
+        <div class="detail-label">Strategies</div>
+        <div class="detail-value">${stratHtml}</div>
+        <div class="detail-label">Top names</div>
+        <div class="detail-value">${namesHtml}</div>
+    `;
+}
+
 // ─── Rendering ──────────────────────────────────────────────────────
 function render() {
+    renderList = buildRenderList();
+    hovered = null;
+    $tooltip.style.display = 'none';
     renderMinimap();
     renderMinimapViewport();
     renderTimeAxis();
@@ -1055,75 +1191,165 @@ function renderFlameChart() {
         ctx.stroke();
     }
 
-    for (const e of entries) {
-        // Skip if out of view
-        if (e.end < viewStart || e.start > viewEnd) continue;
+    // Draw render list (individual entries + clusters)
+    for (const item of renderList) {
+        if (item.type === 'entry') {
+            drawEntry(ctx, item.entry, w, viewDuration);
+        } else {
+            drawCluster(ctx, item, w, viewDuration);
+        }
+    }
+}
 
-        const x = ((e.start - viewStart) / viewDuration) * w;
-        const x2 = ((e.end - viewStart) / viewDuration) * w;
-        let bw = x2 - x;
-        if (bw < MIN_BAR_W) bw = MIN_BAR_W;
+function drawEntry(ctx, e, w, viewDuration) {
+    const x = ((e.start - viewStart) / viewDuration) * w;
+    const x2 = ((e.end - viewStart) / viewDuration) * w;
+    let bw = x2 - x;
+    if (bw < MIN_BAR_W) bw = MIN_BAR_W;
 
-        const y = 8 + e.depth * ROW_FULL;
-        const c = colorFor(e.strategy);
-        const isHovered = hovered === e;
+    const y = 8 + e.depth * ROW_FULL;
+    const c = colorFor(e.strategy);
+    const isHovered = hovered && hovered.type === 'entry' && hovered.entry === e;
 
-        // Bar background
-        ctx.fillStyle = c.bg;
-        ctx.globalAlpha = isHovered ? 1 : 0.82;
+    // Bar background
+    ctx.fillStyle = c.bg;
+    ctx.globalAlpha = isHovered ? 1 : 0.82;
+    roundRect(ctx, x, y, bw, ROW_H, 4);
+    ctx.fill();
+
+    // Subtle gradient overlay
+    if (bw > 20) {
+        const grad = ctx.createLinearGradient(x, y, x, y + ROW_H);
+        grad.addColorStop(0, isHovered ? 'rgba(255,255,255,0.22)' : 'rgba(255,255,255,0.12)');
+        grad.addColorStop(1, 'rgba(0,0,0,0.08)');
+        ctx.fillStyle = grad;
         roundRect(ctx, x, y, bw, ROW_H, 4);
         ctx.fill();
+    }
 
-        // Subtle gradient overlay
-        if (bw > 20) {
-            const grad = ctx.createLinearGradient(x, y, x, y + ROW_H);
-            grad.addColorStop(0, isHovered ? 'rgba(255,255,255,0.22)' : 'rgba(255,255,255,0.12)');
-            grad.addColorStop(1, 'rgba(0,0,0,0.08)');
-            ctx.fillStyle = grad;
-            roundRect(ctx, x, y, bw, ROW_H, 4);
-            ctx.fill();
-        }
+    // Hover outline
+    if (isHovered) {
+        ctx.strokeStyle = '#fff';
+        ctx.lineWidth = 1.5;
+        ctx.globalAlpha = 0.6;
+        roundRect(ctx, x, y, bw, ROW_H, 4);
+        ctx.stroke();
+    }
 
-        // Hover outline
-        if (isHovered) {
-            ctx.strokeStyle = '#fff';
-            ctx.lineWidth = 1.5;
+    ctx.globalAlpha = 1;
+
+    // Text label
+    if (bw > 40) {
+        ctx.fillStyle = c.text;
+        ctx.font = '600 11px ui-sans-serif, system-ui, sans-serif';
+        ctx.textBaseline = 'middle';
+
+        const label = e.name;
+        const timeLabel = ' ' + fmtMs(e.duration);
+        const maxTextW = bw - 12;
+
+        ctx.save();
+        ctx.beginPath();
+        ctx.rect(x + 6, y, maxTextW, ROW_H);
+        ctx.clip();
+
+        ctx.globalAlpha = 0.95;
+        ctx.fillText(label, x + 6, y + ROW_H / 2);
+
+        if (bw > 120) {
+            const nameW = ctx.measureText(label).width;
             ctx.globalAlpha = 0.6;
-            roundRect(ctx, x, y, bw, ROW_H, 4);
-            ctx.stroke();
+            ctx.font = '500 10px ui-monospace, SFMono-Regular, monospace';
+            ctx.fillText(timeLabel, x + 6 + nameW, y + ROW_H / 2);
         }
 
-        ctx.globalAlpha = 1;
+        ctx.restore();
+    }
+}
 
-        // Text label
-        if (bw > 40) {
-            ctx.fillStyle = c.text;
-            ctx.font = '600 11px ui-sans-serif, system-ui, sans-serif';
-            ctx.textBaseline = 'middle';
+function drawCluster(ctx, item, w, viewDuration) {
+    const x = ((item.start - viewStart) / viewDuration) * w;
+    const x2 = ((item.end - viewStart) / viewDuration) * w;
+    let bw = Math.max(x2 - x, CLUSTER_PX);
+    const y = 8 + item.depth * ROW_FULL;
+    const isHovered = hovered === item;
 
-            const label = e.name;
-            const timeLabel = ' ' + fmtMs(e.duration);
-            const maxTextW = bw - 12;
+    // Clip to rounded rect for strategy segments + stripes
+    ctx.save();
+    roundRect(ctx, x, y, bw, ROW_H, 4);
+    ctx.clip();
 
-            ctx.save();
-            ctx.beginPath();
-            ctx.rect(x + 6, y, maxTextW, ROW_H);
-            ctx.clip();
+    // Draw strategy-colored segments proportional to count
+    let segX = x;
+    const sortedStrats = Object.entries(item.strategies).sort((a, b) => b[1] - a[1]);
+    for (const [s, n] of sortedStrats) {
+        const segW = (n / item.count) * bw;
+        const sc = colorFor(s);
+        ctx.fillStyle = sc.bg;
+        ctx.globalAlpha = isHovered ? 0.35 : 0.2;
+        ctx.fillRect(segX, y, segW + 1, ROW_H);
+        segX += segW;
+    }
 
-            // Component name
-            ctx.globalAlpha = 0.95;
-            ctx.fillText(label, x + 6, y + ROW_H / 2);
+    // Diagonal stripes overlay
+    ctx.strokeStyle = '#fff';
+    ctx.lineWidth = 1;
+    ctx.globalAlpha = isHovered ? 0.12 : 0.06;
+    const spacing = 7;
+    for (let sx = x - ROW_H; sx < x + bw + ROW_H; sx += spacing) {
+        ctx.beginPath();
+        ctx.moveTo(sx, y + ROW_H);
+        ctx.lineTo(sx + ROW_H, y);
+        ctx.stroke();
+    }
 
-            // Duration (dimmer, after name)
-            if (bw > 120) {
-                const nameW = ctx.measureText(label).width;
-                ctx.globalAlpha = 0.6;
-                ctx.font = '500 10px ui-monospace, SFMono-Regular, monospace';
-                ctx.fillText(timeLabel, x + 6 + nameW, y + ROW_H / 2);
-            }
+    ctx.restore();
 
-            ctx.restore();
+    // Border
+    const dom = clusterDominantStrategy(item.strategies);
+    const c = colorFor(dom);
+    ctx.globalAlpha = isHovered ? 0.6 : 0.3;
+    ctx.strokeStyle = c.bg;
+    ctx.lineWidth = 1;
+    roundRect(ctx, x, y, bw, ROW_H, 4);
+    ctx.stroke();
+
+    // Hover outline
+    if (isHovered) {
+        ctx.strokeStyle = '#fff';
+        ctx.lineWidth = 1.5;
+        ctx.globalAlpha = 0.5;
+        roundRect(ctx, x, y, bw, ROW_H, 4);
+        ctx.stroke();
+    }
+
+    ctx.globalAlpha = 1;
+
+    // Count label
+    if (bw > 28) {
+        ctx.save();
+        ctx.beginPath();
+        ctx.rect(x + 4, y, bw - 8, ROW_H);
+        ctx.clip();
+
+        ctx.fillStyle = '#fff';
+        ctx.globalAlpha = 0.8;
+        ctx.font = '700 10px ui-monospace, SFMono-Regular, monospace';
+        ctx.textBaseline = 'middle';
+        ctx.textAlign = 'center';
+
+        const uniqueNames = Object.keys(item.names).length;
+        let label = '\u00d7' + fmtCount(item.count);
+        if (bw > 160 && uniqueNames <= 2) {
+            const topName = Object.entries(item.names).sort((a, b) => b[1] - a[1])[0][0];
+            label = topName + ' \u00d7' + fmtCount(item.count);
+        } else if (bw > 90) {
+            label = fmtCount(item.count) + ' components';
         }
+
+        ctx.fillText(label, x + bw / 2, y + ROW_H / 2);
+        ctx.textAlign = 'left';
+        ctx.restore();
     }
 }
 
@@ -1224,10 +1450,19 @@ function handleHover(ev) {
 
     let found = null;
 
-    for (const e of entries) {
-        if (e.depth === mouseDepth && mouseTime >= e.start && mouseTime <= e.end) {
-            found = e;
-            break;
+    // Check render list (entries + clusters)
+    for (const item of renderList) {
+        if (item.type === 'entry') {
+            const e = item.entry;
+            if (e.depth === mouseDepth && mouseTime >= e.start && mouseTime <= e.end) {
+                found = item;
+                break;
+            }
+        } else {
+            if (item.depth === mouseDepth && mouseTime >= item.start && mouseTime <= item.end) {
+                found = item;
+                break;
+            }
         }
     }
 
@@ -1235,33 +1470,72 @@ function handleHover(ev) {
 
     if (found) {
         hovered = found;
-        showDetail(found);
 
-        const c = colorFor(found.strategy);
-        const stratLabel = STRAT_LABELS[found.strategy] || found.strategy;
+        if (found.type === 'entry') {
+            const e = found.entry;
+            showDetail(e);
 
-        // Compute self time for this specific entry
-        let childTime = 0;
-        for (const ch of entries) {
-            if (ch.depth === found.depth + 1 && ch.start >= found.start && ch.end <= found.end) {
-                childTime += ch.duration;
+            const c = colorFor(e.strategy);
+            const stratLabel = STRAT_LABELS[e.strategy] || e.strategy;
+
+            let childTime = 0;
+            for (const ch of entries) {
+                if (ch.depth === e.depth + 1 && ch.start >= e.start && ch.end <= e.end) {
+                    childTime += ch.duration;
+                }
             }
-        }
-        const selfTime = found.duration - childTime;
+            const selfTime = e.duration - childTime;
 
-        $tooltip.innerHTML = `
-            <div class="tooltip-name" style="border-left: 3px solid ${c.bg}; padding-left: 8px;">${found.name}</div>
-            <div class="tooltip-row"><span class="tooltip-label">Total time</span><span class="tooltip-val">${fmtMs(found.duration)}</span></div>
-            <div class="tooltip-row"><span class="tooltip-label">Self time</span><span class="tooltip-val">${fmtMs(selfTime)}</span></div>
-            <div class="tooltip-row"><span class="tooltip-label">Strategy</span><span class="tooltip-val">${stratLabel}</span></div>
-            <div class="tooltip-row"><span class="tooltip-label">Depth</span><span class="tooltip-val">${found.depth}</span></div>
-            <div class="tooltip-row"><span class="tooltip-label">Children</span><span class="tooltip-val">${found.children}</span></div>
-            <div class="tooltip-row"><span class="tooltip-label">% of render</span><span class="tooltip-val">${((found.duration / totalDuration) * 100).toFixed(1)}%</span></div>
-        `;
+            $tooltip.innerHTML = `
+                <div class="tooltip-name" style="border-left: 3px solid ${c.bg}; padding-left: 8px;">${e.name}</div>
+                <div class="tooltip-row"><span class="tooltip-label">Total time</span><span class="tooltip-val">${fmtMs(e.duration)}</span></div>
+                <div class="tooltip-row"><span class="tooltip-label">Self time</span><span class="tooltip-val">${fmtMs(selfTime)}</span></div>
+                <div class="tooltip-row"><span class="tooltip-label">Strategy</span><span class="tooltip-val">${stratLabel}</span></div>
+                <div class="tooltip-row"><span class="tooltip-label">Depth</span><span class="tooltip-val">${e.depth}</span></div>
+                <div class="tooltip-row"><span class="tooltip-label">Children</span><span class="tooltip-val">${e.children}</span></div>
+                <div class="tooltip-row"><span class="tooltip-label">% of render</span><span class="tooltip-val">${((e.duration / totalDuration) * 100).toFixed(1)}%</span></div>
+            `;
+        } else {
+            showClusterDetail(found);
+
+            const dom = clusterDominantStrategy(found.strategies);
+            const c = colorFor(dom);
+            const uniqueNames = Object.keys(found.names);
+            const avgDuration = found.totalDuration / found.count;
+            const clusterSpan = found.end - found.start;
+
+            let stratHtml = '';
+            for (const [s, n] of Object.entries(found.strategies).sort((a, b) => b[1] - a[1])) {
+                const sc = colorFor(s);
+                const sl = STRAT_LABELS[s] || s;
+                stratHtml += `<div class="tooltip-row"><span class="tooltip-label" style="display:flex;align-items:center;gap:4px;"><span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:${sc.bg};"></span>${sl}</span><span class="tooltip-val">${n}\u00d7</span></div>`;
+            }
+
+            let namesHtml = '';
+            const sortedNames = Object.entries(found.names).sort((a, b) => b[1] - a[1]).slice(0, 5);
+            for (const [name, count] of sortedNames) {
+                namesHtml += `<div class="tooltip-row"><span class="tooltip-label">${name}</span><span class="tooltip-val">${count}\u00d7</span></div>`;
+            }
+            if (uniqueNames.length > 5) {
+                namesHtml += `<div style="font-size:10px;color:var(--text-muted);margin-top:2px;">+${uniqueNames.length - 5} more</div>`;
+            }
+
+            $tooltip.innerHTML = `
+                <div class="tooltip-name" style="border-left: 3px solid ${c.bg}; padding-left: 8px;">Cluster \u00b7 ${fmtCount(found.count)} components</div>
+                <div class="tooltip-row"><span class="tooltip-label">Span</span><span class="tooltip-val">${fmtMs(clusterSpan)}</span></div>
+                <div class="tooltip-row"><span class="tooltip-label">Total time</span><span class="tooltip-val">${fmtMs(found.totalDuration)}</span></div>
+                <div class="tooltip-row"><span class="tooltip-label">Avg / component</span><span class="tooltip-val">${fmtMs(avgDuration)}</span></div>
+                <div class="tooltip-row"><span class="tooltip-label">Unique names</span><span class="tooltip-val">${uniqueNames.length}</span></div>
+                <div style="border-top:1px solid var(--border);margin:6px 0 4px;"></div>
+                ${stratHtml}
+                <div style="border-top:1px solid var(--border);margin:6px 0 4px;"></div>
+                ${namesHtml}
+                <div style="margin-top:8px;font-size:9px;color:var(--text-muted);text-align:center;">Double-click to zoom in</div>
+            `;
+        }
 
         $tooltip.style.display = 'block';
 
-        // Position tooltip
         let tx = ev.clientX + 14;
         let ty = ev.clientY + 14;
         const tw = $tooltip.offsetWidth;
@@ -1276,19 +1550,29 @@ function handleHover(ev) {
         hovered = null;
     }
 
-    // Re-render flame chart when hover changes for highlight effect
     if (prevHovered !== hovered) {
         renderFlameChart();
     }
 }
 
-// Click to zoom into a component
+// Click to zoom into a component or cluster
 $flameScroll.addEventListener('dblclick', function(ev) {
     if (!hovered) return;
 
-    const padding = hovered.duration * 0.15;
-    viewStart = Math.max(0, hovered.start - padding);
-    viewEnd = Math.min(totalDuration, hovered.end + padding);
+    let start, end, duration;
+    if (hovered.type === 'entry') {
+        start = hovered.entry.start;
+        end = hovered.entry.end;
+        duration = hovered.entry.duration;
+    } else {
+        start = hovered.start;
+        end = hovered.end;
+        duration = end - start;
+    }
+
+    const padding = duration * 0.15;
+    viewStart = Math.max(0, start - padding);
+    viewEnd = Math.min(totalDuration, end + padding);
 
     render();
 });

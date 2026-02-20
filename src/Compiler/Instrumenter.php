@@ -27,10 +27,12 @@ class Instrumenter
     /**
      * Wrap a compiled component node's output with timer start/stop calls.
      */
-    public function instrument(Node $node, string $componentName): Node
+    public function instrument(Node $node, string $componentName, ?string $strategy = null): Node
     {
-        $isBlade = $node instanceof ComponentNode;
-        $strategy = $isBlade ? 'blade' : $this->resolveStrategy($componentName);
+        if ($strategy === null) {
+            $isBlade = $node instanceof ComponentNode;
+            $strategy = $isBlade ? 'blade' : $this->resolveStrategy($componentName);
+        }
 
         $output = $node->render();
         $escapedName = addslashes($componentName);
