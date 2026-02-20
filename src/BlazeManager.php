@@ -20,9 +20,9 @@ use Livewire\Blaze\Parser\Nodes\SlotNode;
 
 class BlazeManager
 {
-    protected $enabled = true;
+    protected $enabled;
     protected $throw = false;
-    protected $debug = false;
+    protected $debug;
     protected $folding = false;
     
     protected $foldedEvents = [];
@@ -38,6 +38,13 @@ class BlazeManager
         protected Wrapper $wrapper,
         protected Config $config,
     ) {
+        $this->enabled = config('blaze.enabled', true);
+        $this->debug = config('blaze.debug', false);
+
+        if ($this->debug) {
+            DebuggerMiddleware::register();
+        }
+
         Event::listen(ComponentFolded::class, function (ComponentFolded $event) {
             $this->foldedEvents[] = $event;
         });
@@ -260,6 +267,10 @@ class BlazeManager
      */
     public function debug()
     {
+        if ($this->debug) {
+            return;
+        }
+        
         $this->debug = true;
 
         DebuggerMiddleware::register();
