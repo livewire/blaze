@@ -104,7 +104,7 @@ class BlazeManager
 
         if ($path && ($directives->blaze() || $this->config->shouldCompile($path))) {
             $output = $this->wrapper->wrap($output, $path, $source);
-        } elseif ($this->debug && ! $this->folding && $path) {
+        } elseif ($this->debug && ! $this->folding && $path && ! $this->isComponentTemplatePath($path)) {
             $viewName = $this->viewNameFromPath($path);
 
             if ($viewName !== null) {
@@ -193,7 +193,7 @@ class BlazeManager
         // Inject view-level timer for the view file itself.
         $path = app('blade.compiler')->getPath();
 
-        if ($path) {
+        if ($path && ! $this->isComponentTemplatePath($path)) {
             $viewName = $this->viewNameFromPath($path);
 
             if ($viewName !== null) {
@@ -463,6 +463,34 @@ class BlazeManager
         }
 
         return basename($absolutePath);
+    }
+
+    /**
+     * Check if a path belongs to a Blade component template directory.
+     *
+     * Component templates already have call-site timers from the Instrumenter,
+     * so they don't need view-level timers (which would be misleading because
+     * Blade evaluates slot content before the component template executes).
+     */
+    protected function isComponentTemplatePath(string $path): bool
+    {
+        $resolved = realpath($path) ?: $path;
+
+        $dirs = [resource_path('views/components')];
+
+        foreach (app('blade.compiler')->getAnonymousComponentPaths() as $registration) {
+            $dirs[] = $registration['path'];
+        }
+
+        foreach ($dirs as $dir) {
+            $normalizedDir = rtrim(realpath($dir) ?: $dir, '/').'/';
+
+            if (str_starts_with($resolved, $normalizedDir) || str_starts_with($path, $normalizedDir)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /**
