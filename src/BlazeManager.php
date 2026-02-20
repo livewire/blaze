@@ -162,6 +162,60 @@ class BlazeManager
     }
 
     /**
+     * Compile a template for debug-only mode (Blaze disabled).
+     *
+     * Parses the template to find components and wraps them with timer
+     * calls, but does NOT fold, memoize, or compile — Blade handles that.
+     * Also injects view-level timers for non-wrapped views.
+     */
+    public function compileForDebug(string $template): string
+    {
+        $source = $template;
+
+        $clean = $template;
+        $clean = BladeService::preStoreUncompiledBlocks($clean);
+        $clean = BladeService::compileComments($clean);
+
+        $ast = $this->walker->walk(
+            nodes: $this->parser->parse($clean),
+            preCallback: fn ($node) => $node,
+            postCallback: function ($node) {
+                if (! ($node instanceof ComponentNode)) {
+                    return $node;
+                }
+
+                return $this->instrumenter->instrument($node, $node->name, 'blade');
+            },
+        );
+
+        $output = $this->render($ast);
+
+        // Inject view-level timer for the view file itself.
+        $path = app('blade.compiler')->getPath();
+
+        if ($path) {
+            $viewName = $this->viewNameFromPath($path);
+
+            if ($viewName !== null) {
+                $safe = addslashes($viewName);
+                $nameExpr = "'{$safe}'";
+            } elseif (str_contains($source, '$layout->viewContext')) {
+                $nameExpr = '\'layout:\' . ($layout->view ?? \'unknown\')';
+            } else {
+                $nameExpr = '($__blaze->debugger->resolveViewName() ?? \''.addslashes(pathinfo($path, PATHINFO_FILENAME)).'\')';
+            }
+
+            $relativePath = addslashes($this->relativePath($path));
+
+            $output = '<'.'?php $__blazeViewName = '.$nameExpr.'; $__blaze->debugger->startTimer($__blazeViewName, \'view\', \''.$relativePath.'\'); ?>'
+                .$output
+                .'<'.'?php $__blaze->debugger->stopTimer($__blazeViewName); ?>';
+        }
+
+        return $output;
+    }
+
+    /**
      * Compile for folding context - only tag compiler and component compiler.
      * No folding or memoization to avoid infinite recursion.
      */

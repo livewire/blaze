@@ -87,11 +87,15 @@ class BlazeServiceProvider extends ServiceProvider
     protected function interceptBladeCompilation(): void
     {
         BladeService::earliestPreCompilationHook(function ($input) {
-            if (Blaze::isDisabled()) {
+            if (BladeService::containsLaravelExceptionView($input)) {
                 return $input;
             }
 
-            if (BladeService::containsLaravelExceptionView($input)) {
+            if (Blaze::isDisabled()) {
+                if (Blaze::isDebugging()) {
+                    return Blaze::compileForDebug($input);
+                }
+
                 return $input;
             }
 
