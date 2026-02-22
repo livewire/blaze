@@ -1265,10 +1265,22 @@ function drawEntry(ctx, e, w, viewDuration) {
     roundRect(ctx, x, y, bw, ROW_H, 4);
     ctx.clip();
 
-    // Solid background fill
+    // Dim background fill
     ctx.fillStyle = c.bg;
-    ctx.globalAlpha = isHovered ? 0.18 : 0.10;
+    ctx.globalAlpha = isHovered ? 0.16 : 0.08;
     ctx.fillRect(x, y, bw, ROW_H);
+
+    // Diagonal hatch lines
+    ctx.strokeStyle = c.bg;
+    ctx.lineWidth = 1;
+    ctx.globalAlpha = isHovered ? 0.5 : 0.3;
+    const spacing = 7;
+    for (let sx = x - ROW_H; sx < x + bw + ROW_H; sx += spacing) {
+        ctx.beginPath();
+        ctx.moveTo(sx, y + ROW_H);
+        ctx.lineTo(sx + ROW_H, y);
+        ctx.stroke();
+    }
 
     ctx.restore();
 
@@ -1334,10 +1346,22 @@ function drawCluster(ctx, item, w, viewDuration) {
     roundRect(ctx, x, y, bw, ROW_H, 4);
     ctx.clip();
 
-    // Solid background fill
+    // Dim background fill
     ctx.fillStyle = c.bg;
-    ctx.globalAlpha = isHovered ? 0.18 : 0.10;
+    ctx.globalAlpha = isHovered ? 0.16 : 0.08;
     ctx.fillRect(x, y, bw, ROW_H);
+
+    // Diagonal hatch lines
+    ctx.strokeStyle = c.bg;
+    ctx.lineWidth = 1;
+    ctx.globalAlpha = isHovered ? 0.5 : 0.3;
+    const clSpacing = 7;
+    for (let sx = x - ROW_H; sx < x + bw + ROW_H; sx += clSpacing) {
+        ctx.beginPath();
+        ctx.moveTo(sx, y + ROW_H);
+        ctx.lineTo(sx + ROW_H, y);
+        ctx.stroke();
+    }
 
     ctx.restore();
 
