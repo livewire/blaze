@@ -4,29 +4,32 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Blaze Profiler</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Roboto+Mono:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
 <style>
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
 :root {
-    --bg: #0a0e1a;
-    --bg-card: rgba(15, 23, 42, 0.85);
-    --bg-card-solid: #0f172a;
-    --border: rgba(51, 65, 85, 0.4);
-    --text: #e2e8f0;
-    --text-dim: #64748b;
-    --text-muted: #475569;
-    --orange: #f97316;
-    --orange-dim: rgba(249, 115, 22, 0.15);
+    --bg: #000000;
+    --bg-card: rgba(255, 255, 255, 0.03);
+    --bg-card-solid: #0a0a0a;
+    --border: #1b1b1b;
+    --text: #ffffff;
+    --text-dim: rgba(255, 255, 255, 0.5);
+    --text-muted: rgba(255, 255, 255, 0.3);
+    --orange: #FF8602;
+    --orange-dim: rgba(255, 134, 2, 0.12);
     --green: #22c55e;
-    --green-dim: rgba(34, 197, 94, 0.15);
+    --green-dim: rgba(34, 197, 94, 0.12);
     --purple: #a855f7;
-    --purple-dim: rgba(168, 85, 247, 0.15);
+    --purple-dim: rgba(168, 85, 247, 0.12);
     --cyan: #06b6d4;
-    --cyan-dim: rgba(6, 182, 212, 0.15);
+    --cyan-dim: rgba(6, 182, 212, 0.12);
     --blue: #3b82f6;
-    --blue-dim: rgba(59, 130, 246, 0.15);
+    --blue-dim: rgba(59, 130, 246, 0.12);
     --red: #ef4444;
-    --gray: #64748b;
+    --gray: rgba(255, 255, 255, 0.3);
     --row-h: 28;
     --row-gap: 2;
 }
@@ -34,11 +37,13 @@
 body {
     background: var(--bg);
     color: var(--text);
-    font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    font-family: "Roboto Mono", ui-monospace, SFMono-Regular, monospace;
     overflow: hidden;
     height: 100vh;
     display: flex;
     flex-direction: column;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
 }
 
 /* ── Header ─────────────────────────────────────── */
@@ -48,8 +53,7 @@ body {
     align-items: center;
     gap: 16px;
     border-bottom: 1px solid var(--border);
-    background: var(--bg-card);
-    backdrop-filter: blur(12px);
+    background: var(--bg);
     flex-shrink: 0;
     z-index: 10;
 }
@@ -59,21 +63,20 @@ body {
     align-items: center;
     gap: 8px;
     font-weight: 800;
-    font-size: 15px;
+    font-size: 14px;
     letter-spacing: -0.3px;
-    color: var(--orange);
-    text-transform: uppercase;
+    color: var(--text);
 }
 
-.logo svg { width: 20px; height: 20px; }
+.logo svg { width: 18px; height: 18px; color: var(--orange); }
 
 .header-url {
-    font-family: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, monospace;
+    font-family: inherit;
     font-size: 12px;
-    color: var(--text-dim);
-    background: rgba(30, 41, 59, 0.6);
+    color: var(--text-muted);
+    background: rgba(255, 255, 255, 0.03);
     padding: 5px 12px;
-    border-radius: 6px;
+    border-radius: 4px;
     border: 1px solid var(--border);
     max-width: 300px;
     overflow: hidden;
@@ -82,12 +85,12 @@ body {
 }
 
 .header-mode {
-    font-size: 10px;
+    font-size: 9px;
     font-weight: 700;
     letter-spacing: 0.06em;
     text-transform: uppercase;
     padding: 4px 10px;
-    border-radius: 9999px;
+    border-radius: 2px;
     line-height: 1;
 }
 
@@ -109,8 +112,8 @@ body {
 }
 
 .stat-value {
-    font-family: ui-monospace, SFMono-Regular, monospace;
-    font-size: 18px;
+    font-family: inherit;
+    font-size: 16px;
     font-weight: 700;
     letter-spacing: -0.5px;
     color: var(--text);
@@ -133,7 +136,7 @@ body {
     align-items: center;
     gap: 16px;
     border-bottom: 1px solid var(--border);
-    background: var(--bg-card);
+    background: var(--bg);
     flex-shrink: 0;
 }
 
@@ -155,7 +158,7 @@ body {
 .legend-swatch {
     width: 10px;
     height: 10px;
-    border-radius: 3px;
+    border-radius: 2px;
 }
 
 .controls-right {
@@ -166,19 +169,19 @@ body {
 }
 
 .control-btn {
-    background: rgba(30, 41, 59, 0.6);
+    background: rgba(255, 255, 255, 0.03);
     border: 1px solid var(--border);
     color: var(--text-dim);
     font-size: 11px;
     font-weight: 500;
     padding: 4px 12px;
-    border-radius: 6px;
+    border-radius: 4px;
     cursor: pointer;
     transition: all 0.15s;
     font-family: inherit;
 }
 
-.control-btn:hover { background: rgba(51, 65, 85, 0.5); color: var(--text); }
+.control-btn:hover { background: rgba(255, 255, 255, 0.06); color: var(--text); }
 
 .control-hint {
     font-size: 10px;
@@ -206,7 +209,7 @@ body {
 .minimap-wrap {
     height: 36px;
     border-bottom: 1px solid var(--border);
-    background: var(--bg-card-solid);
+    background: var(--bg);
     position: relative;
     flex-shrink: 0;
     cursor: pointer;
@@ -218,16 +221,16 @@ body {
     position: absolute;
     top: 0;
     height: 100%;
-    background: rgba(249, 115, 22, 0.08);
-    border-left: 2px solid rgba(249, 115, 22, 0.5);
-    border-right: 2px solid rgba(249, 115, 22, 0.5);
+    background: rgba(255, 134, 2, 0.08);
+    border-left: 2px solid rgba(255, 134, 2, 0.5);
+    border-right: 2px solid rgba(255, 134, 2, 0.5);
     pointer-events: none;
 }
 
 .time-axis {
     height: 24px;
     border-bottom: 1px solid var(--border);
-    background: var(--bg-card-solid);
+    background: var(--bg);
     flex-shrink: 0;
     position: relative;
     overflow: hidden;
@@ -246,19 +249,19 @@ body {
 /* ── Bottom Panels ───────────────────────────────── */
 .sidebar {
     border-top: 1px solid var(--border);
-    background: var(--bg-card-solid);
+    background: var(--bg);
     overflow-x: auto;
     overflow-y: hidden;
     flex-shrink: 0;
     display: flex;
     min-height: 340px;
     scrollbar-width: thin;
-    scrollbar-color: #334155 transparent;
+    scrollbar-color: #1b1b1b transparent;
 }
 
 .sidebar::-webkit-scrollbar { height: 5px; }
 .sidebar::-webkit-scrollbar-track { background: transparent; }
-.sidebar::-webkit-scrollbar-thumb { background: #334155; border-radius: 3px; }
+.sidebar::-webkit-scrollbar-thumb { background: #1b1b1b; border-radius: 3px; }
 
 .panel {
     padding: 14px 18px;
@@ -310,14 +313,14 @@ body {
 
 .strat-row-count {
     font-size: 11px;
-    font-family: ui-monospace, SFMono-Regular, monospace;
+    font-family: inherit;
     color: var(--text);
     font-weight: 600;
 }
 
 .strat-row-time {
     font-size: 11px;
-    font-family: ui-monospace, SFMono-Regular, monospace;
+    font-family: inherit;
     color: var(--text-dim);
     min-width: 60px;
     text-align: right;
@@ -336,7 +339,7 @@ body {
 .memo-stat-value {
     font-size: 13px;
     font-weight: 700;
-    font-family: ui-monospace, SFMono-Regular, monospace;
+    font-family: inherit;
 }
 
 .memo-stat-value.hit { color: var(--green); }
@@ -349,7 +352,7 @@ body {
     border-radius: 3px;
     overflow: hidden;
     margin-top: 8px;
-    background: rgba(30, 41, 59, 0.6);
+    background: rgba(255, 255, 255, 0.05);
 }
 
 .memo-bar-hit { background: var(--green); height: 100%; transition: width 0.3s; }
@@ -377,11 +380,11 @@ body {
 .comp-table td {
     font-size: 11px;
     padding: 5px 0;
-    border-bottom: 1px solid rgba(51, 65, 85, 0.2);
-    font-family: ui-monospace, SFMono-Regular, monospace;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+    font-family: inherit;
 }
 
-.comp-table tr:hover td { background: rgba(51, 65, 85, 0.15); }
+.comp-table tr:hover td { background: rgba(255, 255, 255, 0.03); }
 
 .comp-name {
     color: var(--text);
@@ -426,21 +429,20 @@ body {
 
 .detail-value {
     color: var(--text);
-    font-family: ui-monospace, SFMono-Regular, monospace;
+    font-family: inherit;
 }
 
 /* ── Tooltip ─────────────────────────────────────── */
 .tooltip {
     position: fixed;
     z-index: 100;
-    background: rgba(15, 23, 42, 0.96);
-    backdrop-filter: blur(12px);
+    background: rgba(10, 10, 10, 0.96);
     border: 1px solid var(--border);
-    border-radius: 8px;
+    border-radius: 4px;
     padding: 10px 14px;
     pointer-events: none;
     display: none;
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.6);
     max-width: 300px;
 }
 
@@ -465,7 +467,7 @@ body {
 .tooltip-label { color: var(--text-muted); }
 
 .tooltip-val {
-    font-family: ui-monospace, SFMono-Regular, monospace;
+    font-family: inherit;
     color: var(--text);
     font-weight: 500;
 }
@@ -484,7 +486,7 @@ body {
 .empty-state svg { opacity: 0.3; }
 
 .empty-state p { font-size: 13px; max-width: 320px; text-align: center; line-height: 1.6; }
-.empty-state code { color: var(--text-dim); background: rgba(30,41,59,0.6); padding: 2px 6px; border-radius: 4px; font-size: 12px; }
+.empty-state code { color: var(--text-dim); background: rgba(255,255,255,0.05); padding: 2px 6px; border-radius: 2px; font-size: 12px; }
 
 /* ── Waterfall heat bar ──────────────────────────── */
 .heat-bar {
@@ -500,9 +502,9 @@ body {
     position: absolute;
     top: 0;
     bottom: 0;
-    background: rgba(249, 115, 22, 0.08);
-    border-left: 1.5px solid rgba(249, 115, 22, 0.6);
-    border-right: 1.5px solid rgba(249, 115, 22, 0.6);
+    background: rgba(255, 134, 2, 0.08);
+    border-left: 1.5px solid rgba(255, 134, 2, 0.6);
+    border-right: 1.5px solid rgba(255, 134, 2, 0.6);
     pointer-events: none;
     z-index: 10;
 }
@@ -518,8 +520,8 @@ body {
         -45deg,
         transparent,
         transparent 4px,
-        rgba(249, 115, 22, 0.04) 4px,
-        rgba(249, 115, 22, 0.04) 8px
+        rgba(255, 134, 2, 0.04) 4px,
+        rgba(255, 134, 2, 0.04) 8px
     );
 }
 
@@ -571,12 +573,12 @@ body {
 
 <div class="controls">
     <div class="legend">
-        <div class="legend-item"><div class="legend-swatch" style="background: #f97316"></div>Compiled</div>
+        <div class="legend-item"><div class="legend-swatch" style="background: #FF8602"></div>Compiled</div>
         <div class="legend-item"><div class="legend-swatch" style="background: #10b981"></div>Folded</div>
         <div class="legend-item"><div class="legend-swatch" style="background: #a855f7"></div>Memo miss</div>
         <div class="legend-item"><div class="legend-swatch" style="background: #3b82f6"></div>Blade</div>
-        <div class="legend-item"><div class="legend-swatch" style="background: #64748b"></div>View</div>
-        <div class="legend-item"><div class="legend-swatch" style="background: repeating-linear-gradient(-45deg, var(--gray), var(--gray) 2px, transparent 2px, transparent 4px); opacity: 0.6;"></div>Clustered</div>
+        <div class="legend-item"><div class="legend-swatch" style="background: rgba(255,255,255,0.3)"></div>View</div>
+        <div class="legend-item"><div class="legend-swatch" style="background: repeating-linear-gradient(-45deg, rgba(255,255,255,0.3), rgba(255,255,255,0.3) 2px, transparent 2px, transparent 4px); opacity: 0.6;"></div>Clustered</div>
     </div>
     <div class="controls-right">
         <button class="control-btn" onclick="resetZoom()">Reset Zoom</button>
@@ -628,7 +630,7 @@ body {
 
         <div class="panel" style="min-width:220px;">
             <div class="panel-title">Render Density</div>
-            <canvas id="heatmap" style="width:100%;height:40px;border-radius:6px;"></canvas>
+            <canvas id="heatmap" style="width:100%;height:40px;border-radius:2px;"></canvas>
             <div style="display:flex;justify-content:space-between;margin-top:4px;font-size:9px;color:var(--text-muted);">
                 <span>0ms</span><span id="heatmap-end">--</span>
             </div>
@@ -645,19 +647,15 @@ const ROW_GAP = 2;
 const ROW_FULL = ROW_H + ROW_GAP;
 const MIN_BAR_W = 2;
 const COLORS = {
-    'compiled':           { bg: '#f97316', bgDim: 'rgba(249,115,22,0.18)', text: '#fff' },
-    'compiled+fold':      { bg: '#22c55e', bgDim: 'rgba(34,197,94,0.18)',  text: '#fff' },
+    'compiled':           { bg: '#FF8602', bgDim: 'rgba(255,134,2,0.18)', text: '#fff' },
     'compiled+memo':      { bg: '#a855f7', bgDim: 'rgba(168,85,247,0.18)', text: '#fff' },
-    'compiled+fold+memo': { bg: '#06b6d4', bgDim: 'rgba(6,182,212,0.18)',  text: '#fff' },
     'folded':             { bg: '#10b981', bgDim: 'rgba(16,185,129,0.18)', text: '#fff' },
-    'view':               { bg: '#64748b', bgDim: 'rgba(100,116,139,0.18)', text: '#fff' },
+    'view':               { bg: 'rgba(255,255,255,0.3)', bgDim: 'rgba(255,255,255,0.06)', text: '#fff' },
     'blade':              { bg: '#3b82f6', bgDim: 'rgba(59,130,246,0.18)', text: '#fff' },
 };
 const STRAT_LABELS = {
     'compiled':           'Compiled (Blaze)',
-    'compiled+fold':      'Fold configured',
     'compiled+memo':      'Memo (cache miss)',
-    'compiled+fold+memo': 'Fold + Memo',
     'folded':             'Folded (pre-rendered)',
     'view':               'View',
     'blade':              'Blade (standard)',
@@ -949,8 +947,7 @@ function updateSidebar() {
     const memoContent = document.getElementById('memo-content');
     const hits = data.memoHits || 0;
     const memoMisses = stratCounts['compiled+memo'] || 0;
-    const memoFoldMisses = stratCounts['compiled+fold+memo'] || 0;
-    const totalMemoComponents = hits + memoMisses + memoFoldMisses;
+    const totalMemoComponents = hits + memoMisses;
     const hitPct = totalMemoComponents ? ((hits / totalMemoComponents) * 100).toFixed(0) : 0;
 
     if (totalMemoComponents > 0) {
@@ -961,7 +958,7 @@ function updateSidebar() {
             </div>
             <div class="memo-stat-row">
                 <span class="memo-stat-label">Cache misses</span>
-                <span class="memo-stat-value miss">${memoMisses + memoFoldMisses}</span>
+                <span class="memo-stat-value miss">${memoMisses}</span>
             </div>
             <div class="memo-stat-row">
                 <span class="memo-stat-label">Hit ratio</span>
@@ -980,7 +977,7 @@ function updateSidebar() {
             for (const [name, count] of sorted) {
                 hitList += `<div style="display:flex;justify-content:space-between;padding:2px 0;font-size:11px;">
                     <span style="color:var(--text-dim);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:180px;" title="${name}">${name}</span>
-                    <span style="color:var(--green);font-family:ui-monospace,monospace;font-weight:600;">${count}x</span>
+                    <span style="color:var(--green);font-family:inherit;font-weight:600;">${count}x</span>
                 </div>`;
             }
             memoContent.innerHTML += hitList;
@@ -1008,9 +1005,9 @@ function updateSidebar() {
             const word = faster ? 'faster' : 'slower';
             return `<div style="display:flex;align-items:baseline;gap:8px;padding:6px 0;border-bottom:1px solid var(--border);">
                 <span style="font-size:10px;color:var(--text-muted);width:40px;">${label}</span>
-                <span style="font-size:16px;font-weight:800;color:${color};font-family:ui-monospace,monospace;">${mult.toFixed(1)}x</span>
+                <span style="font-size:16px;font-weight:800;color:${color};font-family:inherit;">${mult.toFixed(1)}x</span>
                 <span style="font-size:10px;color:${color};font-weight:600;">${word}</span>
-                <span style="margin-left:auto;font-size:10px;color:var(--text-dim);font-family:ui-monospace,monospace;">${fmtMs(theirs)} &rarr; ${fmtMs(ours)}</span>
+                <span style="margin-left:auto;font-size:10px;color:var(--text-dim);font-family:inherit;">${fmtMs(theirs)} &rarr; ${fmtMs(ours)}</span>
             </div>`;
         };
 
@@ -1110,10 +1107,10 @@ function renderHeatmap() {
         const bw = w / buckets + 0.5;
         const intensity = density[i] / maxDensity;
 
-        // Gradient from dark blue to orange
-        const r = Math.round(15 + intensity * 234);
-        const g = Math.round(23 + intensity * 92);
-        const b = Math.round(42 + intensity * (22 - 42));
+        // Gradient from black to orange
+        const r = Math.round(10 + intensity * 245);
+        const g = Math.round(10 + intensity * 124);
+        const b = Math.round(10 + intensity * (-8));
 
         ctx.fillStyle = `rgb(${r}, ${g}, ${b})`;
         ctx.fillRect(x, 0, bw, h);
@@ -1248,7 +1245,7 @@ function renderMinimap() {
 
     // Gap indicators on minimap
     ctx.globalAlpha = 0.5;
-    ctx.strokeStyle = '#94a3b8';
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
     ctx.lineWidth = 1;
     for (const gap of gaps) {
         const gx = (gap.at / totalDuration) * w;
@@ -1292,14 +1289,14 @@ function renderTimeAxis() {
 
     const firstTick = Math.ceil(viewStart / interval) * interval;
 
-    ctx.fillStyle = '#475569';
-    ctx.font = '10px ui-monospace, SFMono-Regular, monospace';
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.3)';
+    ctx.font = '10px "Roboto Mono", ui-monospace, monospace';
     ctx.textBaseline = 'middle';
 
     for (let t = firstTick; t <= viewEnd; t += interval) {
         const x = ((t - viewStart) / viewDuration) * w;
 
-        ctx.strokeStyle = 'rgba(51, 65, 85, 0.4)';
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.06)';
         ctx.beginPath();
         ctx.moveTo(x, 16);
         ctx.lineTo(x, h);
@@ -1313,7 +1310,7 @@ function renderTimeAxis() {
         const gx = ((gap.at - viewStart) / viewDuration) * w;
         if (gx < -20 || gx > w + 20) continue;
 
-        ctx.strokeStyle = 'rgba(148, 163, 184, 0.5)';
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.25)';
         ctx.lineWidth = 1.5;
         ctx.beginPath();
         const step = 4, amp = 3;
@@ -1347,7 +1344,7 @@ function renderFlameChart() {
     for (const n of nice) { if (n >= interval) { interval = n; break; } }
     const firstTick = Math.ceil(viewStart / interval) * interval;
 
-    ctx.strokeStyle = 'rgba(51, 65, 85, 0.18)';
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.04)';
     ctx.lineWidth = 1;
     for (let t = firstTick; t <= viewEnd; t += interval) {
         const x = ((t - viewStart) / viewDuration) * w;
@@ -1363,7 +1360,7 @@ function renderFlameChart() {
         if (gx < -20 || gx > w + 20) continue;
 
         // Zigzag line
-        ctx.strokeStyle = 'rgba(148, 163, 184, 0.5)';
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.25)';
         ctx.lineWidth = 1.5;
         ctx.setLineDash([]);
         ctx.beginPath();
@@ -1379,8 +1376,8 @@ function renderFlameChart() {
         // Label
         ctx.save();
         const label = fmtMs(gap.original) + ' gap';
-        ctx.font = '500 9px ui-monospace, SFMono-Regular, monospace';
-        ctx.fillStyle = 'rgba(148, 163, 184, 0.7)';
+        ctx.font = '500 9px "Roboto Mono", ui-monospace, monospace';
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.3)';
         ctx.textBaseline = 'top';
         ctx.textAlign = 'center';
         ctx.fillText(label, gx, 8 + (maxDepth + 1) * ROW_FULL + 4);
@@ -1437,7 +1434,7 @@ function drawEntry(ctx, e, w, viewDuration) {
     // Text label
     if (bw > 40) {
         ctx.fillStyle = c.text;
-        ctx.font = '600 11px ui-sans-serif, system-ui, sans-serif';
+        ctx.font = '600 11px "Roboto Mono", ui-monospace, monospace';
         ctx.textBaseline = 'middle';
 
         const label = e.name;
@@ -1455,7 +1452,7 @@ function drawEntry(ctx, e, w, viewDuration) {
         if (bw > 120) {
             const nameW = ctx.measureText(label).width;
             ctx.globalAlpha = 0.6;
-            ctx.font = '500 10px ui-monospace, SFMono-Regular, monospace';
+            ctx.font = '500 10px "Roboto Mono", ui-monospace, monospace';
             ctx.fillText(timeLabel, x + 6 + nameW, y + ROW_H / 2);
         }
 
@@ -1530,7 +1527,7 @@ function drawCluster(ctx, item, w, viewDuration) {
 
         ctx.fillStyle = '#fff';
         ctx.globalAlpha = 0.8;
-        ctx.font = '700 10px ui-monospace, SFMono-Regular, monospace';
+        ctx.font = '700 10px "Roboto Mono", ui-monospace, monospace';
         ctx.textBaseline = 'middle';
         ctx.textAlign = 'center';
 
@@ -1730,7 +1727,7 @@ function handleHover(ev) {
             }
             const selfTime = e.duration - childTime;
 
-            const fileHtml = e.file ? `<div style="font-size:10px;color:var(--text-muted);margin-bottom:6px;font-family:ui-monospace,monospace;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:280px;" title="${e.file}">${e.file}</div>` : '';
+            const fileHtml = e.file ? `<div style="font-size:10px;color:var(--text-muted);margin-bottom:6px;font-family:inherit;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:280px;" title="${e.file}">${e.file}</div>` : '';
 
             $tooltip.innerHTML = `
                 <div class="tooltip-name" style="border-left: 3px solid ${c.bg}; padding-left: 8px;">${e.name}</div>

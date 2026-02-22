@@ -334,10 +334,12 @@ class Debugger
 
     protected function renderStyles(array $data): string
     {
-        $accentRgb = $data['blazeEnabled'] ? '249, 115, 22' : '99, 102, 241';
+        $accentRgb = $data['blazeEnabled'] ? '255, 134, 2' : '99, 102, 241';
 
         return <<<HTML
         <style>
+            @import url('https://fonts.googleapis.com/css2?family=Roboto+Mono:wght@400;500;600;700;800;900&display=swap');
+
             #blaze-debugbar *, #blaze-debugbar *::before, #blaze-debugbar *::after {
                 box-sizing: border-box;
                 margin: 0;
@@ -349,41 +351,41 @@ class Debugger
                 bottom: 20px;
                 right: 20px;
                 z-index: 99999;
-                font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+                font-family: "Roboto Mono", ui-monospace, SFMono-Regular, monospace;
                 display: flex;
                 flex-direction: column;
                 align-items: flex-end;
                 gap: 12px;
+                -webkit-font-smoothing: antialiased;
+                -moz-osx-font-smoothing: grayscale;
             }
 
             #blaze-bubble {
-                width: 56px;
-                height: 56px;
-                border-radius: 50%;
+                width: 48px;
+                height: 48px;
+                border-radius: 4px;
                 display: flex;
                 align-items: center;
                 justify-content: center;
                 cursor: pointer;
                 text-decoration: none;
-                transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.3s ease;
+                transition: transform 0.15s ease, box-shadow 0.2s ease;
                 position: relative;
                 flex-shrink: 0;
             }
 
-            #blaze-bubble:hover { transform: scale(1.1); }
-            #blaze-bubble:active { transform: scale(0.92); transition-duration: 0.1s; }
+            #blaze-bubble:hover { transform: scale(1.05); }
+            #blaze-bubble:active { transform: scale(0.95); transition-duration: 0.1s; }
 
             #blaze-card {
-                background: rgba(15, 23, 42, 0.96);
-                backdrop-filter: blur(16px);
-                -webkit-backdrop-filter: blur(16px);
-                border: 1px solid rgba(51, 65, 85, 0.5);
-                border-radius: 16px;
+                background: #000000;
+                border: 1px solid #1b1b1b;
+                border-radius: 6px;
                 padding: 16px;
                 min-width: 280px;
                 max-width: 340px;
-                box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(255, 255, 255, 0.03);
-                animation: blaze-card-in 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
+                box-shadow: 0 4px 24px rgba(0, 0, 0, 0.6);
+                animation: blaze-card-in 0.25s ease-out;
                 transform-origin: bottom right;
             }
 
@@ -391,31 +393,30 @@ class Debugger
                 max-height: 240px;
                 overflow-y: auto;
                 scrollbar-width: thin;
-                scrollbar-color: #334155 transparent;
+                scrollbar-color: #1b1b1b transparent;
             }
 
             #blaze-detail-panel::-webkit-scrollbar { width: 4px; }
             #blaze-detail-panel::-webkit-scrollbar-track { background: transparent; }
-            #blaze-detail-panel::-webkit-scrollbar-thumb { background: #334155; border-radius: 2px; }
+            #blaze-detail-panel::-webkit-scrollbar-thumb { background: #1b1b1b; border-radius: 2px; }
 
             @keyframes blaze-card-in {
-                from { opacity: 0; transform: scale(0.9) translateY(8px); }
-                to { opacity: 1; transform: scale(1) translateY(0); }
+                from { opacity: 0; transform: translateY(6px); }
+                to { opacity: 1; transform: translateY(0); }
             }
 
             @keyframes blaze-pulse {
-                0%, 100% { box-shadow: 0 4px 20px rgba({$accentRgb}, 0.35); }
-                50% { box-shadow: 0 4px 28px rgba({$accentRgb}, 0.55), 0 0 0 8px rgba({$accentRgb}, 0.08); }
+                0%, 100% { box-shadow: 0 2px 12px rgba({$accentRgb}, 0.3); }
+                50% { box-shadow: 0 2px 16px rgba({$accentRgb}, 0.5), 0 0 0 4px rgba({$accentRgb}, 0.06); }
             }
 
             @keyframes blaze-savings-in {
-                0% { opacity: 0; transform: scale(0.85); }
-                60% { transform: scale(1.03); }
-                100% { opacity: 1; transform: scale(1); }
+                0% { opacity: 0; transform: translateY(4px); }
+                100% { opacity: 1; transform: translateY(0); }
             }
 
             #blaze-detail-toggle { transition: color 0.15s ease; }
-            #blaze-detail-toggle:hover { color: #cbd5e1 !important; }
+            #blaze-detail-toggle:hover { color: #ffffff !important; }
         </style>
         HTML;
     }
@@ -433,20 +434,20 @@ class Debugger
     protected function renderCard(array $data): string
     {
         $isBlaze = $data['blazeEnabled'];
-        $accentColor = $isBlaze ? '#f97316' : '#6366f1';
+        $accentColor = $isBlaze ? '#FF8602' : '#6366f1';
         $modeName = $isBlaze ? 'Blaze' : 'Blade';
         $timeFormatted = $this->formatMs($data['totalTime']);
         $totalComponents = $isBlaze ? $data['totalComponents'] : $data['bladeComponentCount'];
         $componentsFormatted = $this->formatCount($totalComponents);
 
         $coldTag = $data['isColdRender']
-            ? ' <span style="color: #94a3b8; font-size: 9px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; background: rgba(148, 163, 184, 0.1); border: 1px solid rgba(148, 163, 184, 0.2); padding: 3px 6px; border-radius: 9999px; line-height: 1;">cold</span>'
+            ? ' <span style="color: rgba(255,255,255,0.3); font-size: 9px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; background: rgba(255,255,255,0.03); border: 1px solid #1b1b1b; padding: 3px 6px; border-radius: 2px; line-height: 1;">cold</span>'
             : '';
 
         $timerViewHtml = '';
         if ($data['timerView']) {
             $viewName = htmlspecialchars($data['timerView']);
-            $timerViewHtml = '<div style="color: #475569; font-size: 10px; margin-top: 4px; font-family: ui-monospace, SFMono-Regular, monospace; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">' . $viewName . '</div>';
+            $timerViewHtml = '<div style="color: rgba(255,255,255,0.3); font-size: 10px; margin-top: 4px; font-family: inherit; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">' . $viewName . '</div>';
         }
 
         $savingsHtml = $this->renderSavingsBlock($data);
@@ -455,14 +456,14 @@ class Debugger
         return <<<HTML
         <div id="blaze-card">
             <div style="display: flex; align-items: center; gap: 7px; margin-bottom: 4px;">
-                <span style="color: {$accentColor}; font-weight: 700; font-size: 12px; letter-spacing: 0.03em; text-transform: uppercase;">{$modeName}</span>
-                <button id="blaze-card-close" title="Close" style="margin-left: auto; background: none; border: none; cursor: pointer; color: #475569; padding: 2px; line-height: 1; font-size: 16px; transition: color 0.15s ease;" onmouseover="this.style.color='#cbd5e1'" onmouseout="this.style.color='#475569'">
+                <span style="color: {$accentColor}; font-weight: 700; font-size: 11px; letter-spacing: 0.05em; text-transform: uppercase;">{$modeName}</span>
+                <button id="blaze-card-close" title="Close" style="margin-left: auto; background: none; border: none; cursor: pointer; color: rgba(255,255,255,0.3); padding: 2px; line-height: 1; font-size: 16px; transition: color 0.15s ease;" onmouseover="this.style.color='#ffffff'" onmouseout="this.style.color='rgba(255,255,255,0.3)'">
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6L6 18"/><path d="M6 6l12 12"/></svg>
                 </button>
             </div>
 
             <div style="display: flex; align-items: center; gap: 8px;">
-                <span style="color: #f1f5f9; font-weight: 700; font-size: 28px; font-family: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, monospace; letter-spacing: -1.5px; line-height: 1; font-variant-numeric: tabular-nums;">{$timeFormatted}</span>
+                <span style="color: #ffffff; font-weight: 700; font-size: 26px; font-family: inherit; letter-spacing: -1.5px; line-height: 1; font-variant-numeric: tabular-nums;">{$timeFormatted}</span>
                 {$coldTag}
             </div>
 
@@ -470,9 +471,9 @@ class Debugger
 
             {$savingsHtml}
 
-            <div style="margin-top: 8px; padding: 4px 0 ;">
-                <div id="blaze-detail-toggle" style="color: #94a3b8; font-size: 11px; cursor: pointer; user-select: none; display: flex; align-items: center; gap: 5px; font-weight: 500;">
-                    <span id="blaze-detail-arrow" style="font-size: 8px; transition: transform 0.2s ease; display: inline-block;">▶</span>
+            <div style="margin-top: 8px; padding: 4px 0;">
+                <div id="blaze-detail-toggle" style="color: rgba(255,255,255,0.5); font-size: 11px; cursor: pointer; user-select: none; display: flex; align-items: center; gap: 5px; font-weight: 500;">
+                    <span id="blaze-detail-arrow" style="font-size: 8px; transition: transform 0.2s ease; display: inline-block;">&#9654;</span>
                     <span>{$componentsFormatted} components</span>
                 </div>
                 <div id="blaze-detail-panel" style="display: none; margin-top: 10px;">
@@ -480,7 +481,7 @@ class Debugger
                 </div>
             </div>
 
-            <a href="/_blaze/profiler" target="_blank" id="blaze-profiler-link" style="display: flex; align-items: center; gap: 6px; margin-top: 10px; padding: 7px 10px; border-radius: 8px; background: rgba(249, 115, 22, 0.08); border: 1px solid rgba(249, 115, 22, 0.18); color: #f97316; font-size: 11px; font-weight: 600; text-decoration: none; transition: all 0.15s ease; cursor: pointer;" onmouseover="this.style.background='rgba(249,115,22,0.15)';this.style.borderColor='rgba(249,115,22,0.3)'" onmouseout="this.style.background='rgba(249,115,22,0.08)';this.style.borderColor='rgba(249,115,22,0.18)'">
+            <a href="/_blaze/profiler" target="_blank" id="blaze-profiler-link" style="display: flex; align-items: center; gap: 6px; margin-top: 10px; padding: 7px 10px; border-radius: 4px; background: rgba(255,134,2,0.08); border: 1px solid rgba(255,134,2,0.15); color: #FF8602; font-size: 11px; font-weight: 600; text-decoration: none; transition: all 0.15s ease; cursor: pointer;" onmouseover="this.style.background='rgba(255,134,2,0.12)';this.style.borderColor='rgba(255,134,2,0.25)'" onmouseout="this.style.background='rgba(255,134,2,0.08)';this.style.borderColor='rgba(255,134,2,0.15)'">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M7 16l4-8 4 4 4-8"/></svg>
                 <span>Open Profiler</span>
                 <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="margin-left: auto; opacity: 0.5;"><path d="M7 17L17 7"/><path d="M7 7h10v10"/></svg>
@@ -497,7 +498,7 @@ class Debugger
 
         if (! $isBlaze) {
             return <<<HTML
-            <div style="color: #475569; font-size: 11px; margin-top: 10px; line-height: 1.5;">
+            <div style="color: rgba(255,255,255,0.3); font-size: 11px; margin-top: 10px; line-height: 1.5;">
                 Click the bubble to enable Blaze<br>
                 and see performance savings
             </div>
@@ -506,7 +507,7 @@ class Debugger
 
         if (! $comparison) {
             return <<<HTML
-            <div style="color: #475569; font-size: 11px; margin-top: 10px; line-height: 1.5;">
+            <div style="color: rgba(255,255,255,0.3); font-size: 11px; margin-top: 10px; line-height: 1.5;">
                 Reload in Blade mode first to<br>
                 record baseline render times
             </div>
@@ -541,7 +542,7 @@ class Debugger
         }
 
         return <<<HTML
-        <div style="margin-top: 12px; display: flex; flex-direction: column; gap: 8px; animation: blaze-savings-in 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) 0.15s both;">
+        <div style="margin-top: 12px; display: flex; flex-direction: column; gap: 8px; animation: blaze-savings-in 0.3s ease-out 0.1s both;">
             {$primaryHtml}
             {$secondaryHtml}
         </div>
@@ -567,28 +568,28 @@ class Debugger
 
         if ($isPrimary) {
             return <<<HTML
-            <div style="background: rgba({$rgb}, 0.08); border: 1px solid rgba({$rgb}, 0.18); border-radius: 10px; padding: 10px 12px;">
+            <div style="background: rgba({$rgb}, 0.06); border: 1px solid rgba({$rgb}, 0.12); border-radius: 4px; padding: 10px 12px;">
                 <div style="display: flex; align-items: baseline; gap: 6px;">
-                    <span style="color: {$color}; font-weight: 800; font-size: 20px; letter-spacing: -0.5px; line-height: 1;">{$multiplierFormatted}</span>
+                    <span style="color: {$color}; font-weight: 800; font-size: 18px; letter-spacing: -0.5px; line-height: 1;">{$multiplierFormatted}</span>
                     <span style="color: {$color}; font-size: 11px; font-weight: 600;">{$word}</span>
-                    <span style="color: #475569; font-size: 10px; margin-left: auto; align-self: start;">{$type}</span>
+                    <span style="color: rgba(255,255,255,0.3); font-size: 10px; margin-left: auto; align-self: start;">{$type}</span>
                 </div>
-                <div style="color: #64748b; font-size: 11px; margin-top: 5px; font-family: ui-monospace, SFMono-Regular, monospace;">
-                    {$otherFormatted} → {$currentFormatted}
+                <div style="color: rgba(255,255,255,0.3); font-size: 11px; margin-top: 5px; font-family: inherit;">
+                    {$otherFormatted} &#8594; {$currentFormatted}
                 </div>
             </div>
             HTML;
         }
 
         return <<<HTML
-        <div style="background: rgba({$rgb}, 0.05); border: 1px solid rgba({$rgb}, 0.12); border-radius: 8px; padding: 8px 12px;">
+        <div style="background: rgba({$rgb}, 0.04); border: 1px solid rgba({$rgb}, 0.08); border-radius: 4px; padding: 8px 12px;">
             <div style="display: flex; align-items: baseline; gap: 6px;">
                 <span style="color: {$color}; font-weight: 700; font-size: 13px;">{$multiplierFormatted}</span>
                 <span style="color: {$color}; font-size: 10px; font-weight: 600;">{$word}</span>
-                <span style="color: #475569; font-size: 9px; margin-left: auto; align-self: start;">{$type}</span>
+                <span style="color: rgba(255,255,255,0.3); font-size: 9px; margin-left: auto; align-self: start;">{$type}</span>
             </div>
-            <div style="color: #64748b; font-size: 10px; margin-top: 2px; font-family: ui-monospace, SFMono-Regular, monospace;">
-                {$otherFormatted} → {$currentFormatted}
+            <div style="color: rgba(255,255,255,0.3); font-size: 10px; margin-top: 2px; font-family: inherit;">
+                {$otherFormatted} &#8594; {$currentFormatted}
             </div>
         </div>
         HTML;
@@ -606,11 +607,11 @@ class Debugger
     protected function renderBlazeComponentTable(array $components): string
     {
         if (empty($components)) {
-            return '<div style="color: #475569; font-size: 11px; padding: 4px 0;">No components rendered.</div>';
+            return '<div style="color: rgba(255,255,255,0.3); font-size: 11px; padding: 4px 0;">No components rendered.</div>';
         }
 
-        $thStyle = 'padding: 4px 0; font-size: 9px; font-weight: 600; color: #475569; text-transform: uppercase; letter-spacing: 0.06em; border-bottom: 1px solid #1e293b;';
-        $tdStyle = 'padding: 3px 0; font-family: ui-monospace, SFMono-Regular, monospace; font-size: 11px; white-space: nowrap;';
+        $thStyle = 'padding: 4px 0; font-size: 9px; font-weight: 600; color: rgba(255,255,255,0.3); text-transform: uppercase; letter-spacing: 0.06em; border-bottom: 1px solid #1b1b1b;';
+        $tdStyle = 'padding: 3px 0; font-family: inherit; font-size: 11px; white-space: nowrap;';
 
         $rows = '';
         foreach ($components as $component) {
@@ -619,9 +620,9 @@ class Debugger
             $time = $this->formatMs($component['totalTime']);
             $rows .= <<<HTML
             <tr>
-                <td style="{$tdStyle} color: #cbd5e1; overflow: hidden; text-overflow: ellipsis; max-width: 140px;">{$name}</td>
-                <td style="{$tdStyle} color: #64748b; text-align: right; padding-left: 8px; padding-right: 8px;">{$count}×</td>
-                <td style="{$tdStyle} color: #94a3b8; text-align: right;">{$time}</td>
+                <td style="{$tdStyle} color: rgba(255,255,255,0.7); overflow: hidden; text-overflow: ellipsis; max-width: 140px;">{$name}</td>
+                <td style="{$tdStyle} color: rgba(255,255,255,0.3); text-align: right; padding-left: 8px; padding-right: 8px;">{$count}&#215;</td>
+                <td style="{$tdStyle} color: rgba(255,255,255,0.5); text-align: right;">{$time}</td>
             </tr>
             HTML;
         }
@@ -643,11 +644,11 @@ class Debugger
     protected function renderBladeComponentTable(array $components): string
     {
         if (empty($components)) {
-            return '<div style="color: #475569; font-size: 11px; padding: 4px 0;">No components rendered.</div>';
+            return '<div style="color: rgba(255,255,255,0.3); font-size: 11px; padding: 4px 0;">No components rendered.</div>';
         }
 
-        $thStyle = 'padding: 4px 0; font-size: 9px; font-weight: 600; color: #475569; text-transform: uppercase; letter-spacing: 0.06em; border-bottom: 1px solid #1e293b;';
-        $tdStyle = 'padding: 3px 0; font-family: ui-monospace, SFMono-Regular, monospace; font-size: 11px; white-space: nowrap;';
+        $thStyle = 'padding: 4px 0; font-size: 9px; font-weight: 600; color: rgba(255,255,255,0.3); text-transform: uppercase; letter-spacing: 0.06em; border-bottom: 1px solid #1b1b1b;';
+        $tdStyle = 'padding: 3px 0; font-family: inherit; font-size: 11px; white-space: nowrap;';
 
         $rows = '';
         foreach ($components as $component) {
@@ -655,8 +656,8 @@ class Debugger
             $count = $component['count'];
             $rows .= <<<HTML
             <tr>
-                <td style="{$tdStyle} color: #cbd5e1; overflow: hidden; text-overflow: ellipsis; max-width: 170px;">{$name}</td>
-                <td style="{$tdStyle} color: #64748b; text-align: right;">{$count}×</td>
+                <td style="{$tdStyle} color: rgba(255,255,255,0.7); overflow: hidden; text-overflow: ellipsis; max-width: 170px;">{$name}</td>
+                <td style="{$tdStyle} color: rgba(255,255,255,0.3); text-align: right;">{$count}&#215;</td>
             </tr>
             HTML;
         }
@@ -677,11 +678,11 @@ class Debugger
     protected function renderBubble(array $data): string
     {
         if ($data['blazeEnabled']) {
-            $bgStyle = 'background: linear-gradient(135deg, #f97316, #ea580c); animation: blaze-pulse 2.5s ease-in-out infinite;';
+            $bgStyle = 'background: #FF8602; animation: blaze-pulse 3s ease-in-out infinite;';
             $icon = $this->boltSvg('#ffffff');
             $tooltip = 'Disable Blaze';
         } else {
-            $bgStyle = 'background: #1e293b; border: 2px solid #334155; box-shadow: 0 4px 20px rgba(0, 0, 0, 0.35);';
+            $bgStyle = 'background: #0a0a0a; border: 1px solid #1b1b1b; box-shadow: 0 2px 12px rgba(0, 0, 0, 0.4);';
             $icon = $this->boltSvg('#6366f1');
             $tooltip = 'Enable Blaze';
         }
@@ -696,7 +697,7 @@ class Debugger
     protected function boltSvg(string $color): string
     {
         return <<<HTML
-        <svg width="26" height="26" viewBox="0 0 24 24" fill="{$color}" xmlns="http://www.w3.org/2000/svg">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="{$color}" xmlns="http://www.w3.org/2000/svg">
             <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/>
         </svg>
         HTML;

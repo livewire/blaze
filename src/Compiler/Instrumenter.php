@@ -58,14 +58,9 @@ class Instrumenter
             return 'compiled';
         }
 
-        $fold = $source->directives->blaze('fold') ?? $this->config->shouldFold($source->path);
         $memo = $source->directives->blaze('memo') ?? $this->config->shouldMemoize($source->path);
 
         $strategy = 'compiled';
-
-        if ($fold) {
-            $strategy .= '+fold';
-        }
 
         if ($memo) {
             $strategy .= '+memo';
