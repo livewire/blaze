@@ -246,28 +246,56 @@ body {
 
 .flame-scroll canvas { display: block; }
 
+/* ── Resize Handle ───────────────────────────────── */
+.sidebar-resize {
+    height: 5px;
+    border-top: 1px solid var(--border);
+    cursor: ns-resize;
+    flex-shrink: 0;
+    transition: background 0.15s;
+}
+
+.sidebar-resize:hover,
+.sidebar-resize.active {
+    background: rgba(255, 134, 2, 0.3);
+}
+
 /* ── Bottom Panels ───────────────────────────────── */
 .sidebar {
-    border-top: 1px solid var(--border);
     background: var(--bg);
-    overflow-x: auto;
-    overflow-y: hidden;
+    overflow: hidden;
     flex-shrink: 0;
     display: flex;
-    min-height: 340px;
+    height: 300px;
+}
+
+.sidebar-left {
+    width: 380px;
+    flex-shrink: 0;
+    overflow-y: auto;
+    border-right: 1px solid var(--border);
     scrollbar-width: thin;
     scrollbar-color: #1b1b1b transparent;
 }
 
-.sidebar::-webkit-scrollbar { height: 5px; }
-.sidebar::-webkit-scrollbar-track { background: transparent; }
-.sidebar::-webkit-scrollbar-thumb { background: #1b1b1b; border-radius: 3px; }
+.sidebar-left::-webkit-scrollbar { width: 5px; }
+.sidebar-left::-webkit-scrollbar-track { background: transparent; }
+.sidebar-left::-webkit-scrollbar-thumb { background: #1b1b1b; border-radius: 3px; }
+
+.sidebar-right {
+    flex: 1;
+    min-width: 0;
+    overflow-y: auto;
+    scrollbar-width: thin;
+    scrollbar-color: #1b1b1b transparent;
+}
+
+.sidebar-right::-webkit-scrollbar { width: 5px; }
+.sidebar-right::-webkit-scrollbar-track { background: transparent; }
+.sidebar-right::-webkit-scrollbar-thumb { background: #1b1b1b; border-radius: 3px; }
 
 .panel {
     padding: 14px 18px;
-    border-right: 1px solid var(--border);
-    min-width: 200px;
-    flex-shrink: 0;
 }
 
 .panel-title {
@@ -326,38 +354,6 @@ body {
     text-align: right;
 }
 
-/* ── Memo Stats ──────────────────────────────────── */
-.memo-stat-row {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 4px 0;
-}
-
-.memo-stat-label { font-size: 11px; color: var(--text-dim); }
-
-.memo-stat-value {
-    font-size: 13px;
-    font-weight: 700;
-    font-family: inherit;
-}
-
-.memo-stat-value.hit { color: var(--green); }
-.memo-stat-value.miss { color: var(--purple); }
-.memo-stat-value.ratio { color: var(--text); }
-
-.memo-bar-wrap {
-    display: flex;
-    height: 6px;
-    border-radius: 3px;
-    overflow: hidden;
-    margin-top: 8px;
-    background: rgba(255, 255, 255, 0.05);
-}
-
-.memo-bar-hit { background: var(--green); height: 100%; transition: width 0.3s; }
-.memo-bar-miss { background: var(--purple); height: 100%; transition: width 0.3s; }
-
 /* ── Component Table ─────────────────────────────── */
 .comp-table {
     width: 100%;
@@ -395,7 +391,7 @@ body {
 }
 
 .comp-count { color: var(--text-dim); padding: 0 8px; }
-.comp-time { text-align: right; color: var(--text-dim); }
+.comp-time { text-align: right; color: var(--text-dim); vertical-align: top; }
 
 .comp-strat-dot {
     display: inline-block;
@@ -578,7 +574,6 @@ body {
         <div class="legend-item"><div class="legend-swatch" style="background: #a855f7"></div>Memo miss</div>
         <div class="legend-item"><div class="legend-swatch" style="background: #3b82f6"></div>Blade</div>
         <div class="legend-item"><div class="legend-swatch" style="background: rgba(255,255,255,0.3)"></div>View</div>
-        <div class="legend-item"><div class="legend-swatch" style="background: repeating-linear-gradient(-45deg, rgba(255,255,255,0.3), rgba(255,255,255,0.3) 2px, transparent 2px, transparent 4px); opacity: 0.6;"></div>Clustered</div>
     </div>
     <div class="controls-right">
         <button class="control-btn" onclick="resetZoom()">Reset Zoom</button>
@@ -601,38 +596,19 @@ body {
         </div>
     </div>
 
+    <div class="sidebar-resize" id="sidebar-resize"></div>
     <div class="sidebar" id="sidebar">
-        <div class="panel" id="panel-strat" style="min-width:240px;">
+        <div class="panel sidebar-left" id="panel-left">
             <div class="panel-title">Strategy Breakdown</div>
             <div class="strat-bar-wrap" id="strat-bar"></div>
             <div class="strat-rows" id="strat-rows"></div>
-        </div>
-
-        <div class="panel" id="panel-comparison" style="display:none;min-width:220px;">
-            <div class="panel-title">Blade vs Blaze</div>
-            <div id="comparison-content"></div>
-        </div>
-
-        <div class="panel" id="panel-memo" style="min-width:200px;">
-            <div class="panel-title">Memoization</div>
-            <div id="memo-content"></div>
-        </div>
-
-        <div class="panel" id="panel-detail" style="display:none;min-width:220px;">
-            <div class="panel-title">Component Detail</div>
-            <div class="detail-grid" id="detail-grid"></div>
-        </div>
-
-        <div class="panel" id="panel-hottest" style="min-width:360px;flex:1;max-height:340px;overflow-y:auto;">
-            <div class="panel-title">Hottest Components</div>
+            <div class="panel-title" style="margin-top:16px;">Hottest Components</div>
             <div id="hottest-columns" class="hottest-columns"></div>
         </div>
-
-        <div class="panel" style="min-width:220px;">
-            <div class="panel-title">Render Density</div>
-            <canvas id="heatmap" style="width:100%;height:40px;border-radius:2px;"></canvas>
-            <div style="display:flex;justify-content:space-between;margin-top:4px;font-size:9px;color:var(--text-muted);">
-                <span>0ms</span><span id="heatmap-end">--</span>
+        <div class="panel sidebar-right" id="panel-detail">
+            <div class="panel-title">Component Detail</div>
+            <div class="detail-grid" id="detail-grid">
+                <div style="color:var(--text-muted);font-size:11px;grid-column:1/-1;">Hover a component to see details</div>
             </div>
         </div>
     </div>
@@ -673,6 +649,7 @@ let renderList = [];
 let gaps = [];          // { at: <collapsed-time>, original: <ms>, label: 'Livewire …' }
 let dragState = null;   // { startX, startTime } when drag-selecting
 let $dragSel = null;    // the drag selection overlay element
+let resizeState = null; // { startY, startH } when resizing sidebar
 
 // ─── DOM refs ───────────────────────────────────────────────────────
 const $flame       = document.getElementById('flame');
@@ -682,6 +659,8 @@ const $minimapWrap = document.getElementById('minimap-wrap');
 const $minimapVp   = document.getElementById('minimap-vp');
 const $timeAxis    = document.getElementById('time-axis');
 const $tooltip     = document.getElementById('tooltip');
+const $sidebar     = document.getElementById('sidebar');
+const $sidebarResize = document.getElementById('sidebar-resize');
 
 // ─── Helpers ────────────────────────────────────────────────────────
 function fmtMs(v) {
@@ -943,79 +922,6 @@ function updateSidebar() {
         stratRows.appendChild(row);
     }
 
-    // Memo stats
-    const memoContent = document.getElementById('memo-content');
-    const hits = data.memoHits || 0;
-    const memoMisses = stratCounts['compiled+memo'] || 0;
-    const totalMemoComponents = hits + memoMisses;
-    const hitPct = totalMemoComponents ? ((hits / totalMemoComponents) * 100).toFixed(0) : 0;
-
-    if (totalMemoComponents > 0) {
-        memoContent.innerHTML = `
-            <div class="memo-stat-row">
-                <span class="memo-stat-label">Cache hits</span>
-                <span class="memo-stat-value hit">${hits}</span>
-            </div>
-            <div class="memo-stat-row">
-                <span class="memo-stat-label">Cache misses</span>
-                <span class="memo-stat-value miss">${memoMisses}</span>
-            </div>
-            <div class="memo-stat-row">
-                <span class="memo-stat-label">Hit ratio</span>
-                <span class="memo-stat-value ratio">${hitPct}%</span>
-            </div>
-            <div class="memo-bar-wrap">
-                <div class="memo-bar-hit" style="width:${hitPct}%"></div>
-                <div class="memo-bar-miss" style="width:${100 - hitPct}%"></div>
-            </div>
-        `;
-
-        // Memo hit detail
-        if (data.memoHitNames && Object.keys(data.memoHitNames).length) {
-            let hitList = '<div style="margin-top:10px; font-size:10px; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.06em; font-weight:600; margin-bottom:6px;">Cached Components</div>';
-            const sorted = Object.entries(data.memoHitNames).sort((a,b) => b[1] - a[1]);
-            for (const [name, count] of sorted) {
-                hitList += `<div style="display:flex;justify-content:space-between;padding:2px 0;font-size:11px;">
-                    <span style="color:var(--text-dim);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:180px;" title="${name}">${name}</span>
-                    <span style="color:var(--green);font-family:inherit;font-weight:600;">${count}x</span>
-                </div>`;
-            }
-            memoContent.innerHTML += hitList;
-        }
-    } else {
-        memoContent.innerHTML = '<div style="font-size:11px;color:var(--text-muted);">No memoized components on this page.</div>';
-    }
-
-    // Comparison panel (Blade vs Blaze)
-    const compPanel = document.getElementById('panel-comparison');
-    const compContent = document.getElementById('comparison-content');
-    const cmp = data.debugBar?.comparison;
-
-    if (cmp) {
-        compPanel.style.display = 'block';
-        const warm = cmp.warm;
-        const cold = cmp.cold;
-        let html = '';
-
-        const renderCmpRow = (label, ours, theirs) => {
-            if (!ours || !theirs) return '';
-            const faster = ours < theirs;
-            const mult = faster ? (theirs / ours) : (ours / theirs);
-            const color = faster ? 'var(--green)' : 'var(--red)';
-            const word = faster ? 'faster' : 'slower';
-            return `<div style="display:flex;align-items:baseline;gap:8px;padding:6px 0;border-bottom:1px solid var(--border);">
-                <span style="font-size:10px;color:var(--text-muted);width:40px;">${label}</span>
-                <span style="font-size:16px;font-weight:800;color:${color};font-family:inherit;">${mult.toFixed(1)}x</span>
-                <span style="font-size:10px;color:${color};font-weight:600;">${word}</span>
-                <span style="margin-left:auto;font-size:10px;color:var(--text-dim);font-family:inherit;">${fmtMs(theirs)} &rarr; ${fmtMs(ours)}</span>
-            </div>`;
-        };
-
-        if (warm) html += renderCmpRow('Warm', warm.currentTime, warm.otherTime);
-        if (cold) html += renderCmpRow('Cold', cold.currentTime, cold.otherTime);
-        compContent.innerHTML = html || '<div style="font-size:11px;color:var(--text-muted);">Load in both modes to compare.</div>';
-    }
-
     // Component table with self-time (multi-column)
     const hottestContainer = document.getElementById('hottest-columns');
     hottestContainer.innerHTML = '';
@@ -1040,9 +946,7 @@ function updateSidebar() {
     const maxSelfTime = Math.max(...Object.values(selfTimes).map(s => s.selfTime), 0.001);
     const sorted = Object.entries(selfTimes).sort((a, b) => b[1].selfTime - a[1].selfTime);
 
-    // Split into columns: pick column count based on item count and panel width
-    const panelWidth = document.getElementById('panel-hottest').clientWidth;
-    const colCount = sorted.length <= 6 ? 1 : sorted.length <= 15 || panelWidth < 600 ? 2 : 3;
+    const colCount = 1;
     const perCol = Math.ceil(sorted.length / colCount);
 
     for (let col = 0; col < colCount; col++) {
@@ -1073,57 +977,11 @@ function updateSidebar() {
         hottestContainer.appendChild(table);
     }
 
-    // Render density heatmap
-    renderHeatmap();
-}
-
-function renderHeatmap() {
-    const canvas = document.getElementById('heatmap');
-    if (!canvas || !entries.length) return;
-
-    const w = canvas.parentElement.clientWidth - 4;
-    const h = 40;
-    const ctx = sizeCanvas(canvas, w, h);
-
-    ctx.clearRect(0, 0, w, h);
-
-    // Bucket entries into time slots
-    const buckets = 100;
-    const bucketWidth = totalDuration / buckets;
-    const density = new Float64Array(buckets);
-
-    for (const e of entries) {
-        const startBucket = Math.floor(e.start / bucketWidth);
-        const endBucket = Math.min(Math.floor(e.end / bucketWidth), buckets - 1);
-        for (let i = startBucket; i <= endBucket; i++) {
-            density[i] += e.duration / Math.max(1, endBucket - startBucket + 1);
-        }
-    }
-
-    const maxDensity = Math.max(...density) || 1;
-
-    for (let i = 0; i < buckets; i++) {
-        const x = (i / buckets) * w;
-        const bw = w / buckets + 0.5;
-        const intensity = density[i] / maxDensity;
-
-        // Gradient from black to orange
-        const r = Math.round(10 + intensity * 245);
-        const g = Math.round(10 + intensity * 124);
-        const b = Math.round(10 + intensity * (-8));
-
-        ctx.fillStyle = `rgb(${r}, ${g}, ${b})`;
-        ctx.fillRect(x, 0, bw, h);
-    }
-
-    document.getElementById('heatmap-end').textContent = fmtMs(totalDuration);
 }
 
 // ─── Detail Panel ───────────────────────────────────────────────────
 function showDetail(entry) {
-    const panel = document.getElementById('panel-detail');
     const grid = document.getElementById('detail-grid');
-    panel.style.display = 'block';
 
     const c = colorFor(entry.strategy);
     const stratLabel = STRAT_LABELS[entry.strategy] || entry.strategy;
@@ -1163,9 +1021,7 @@ function showDetail(entry) {
 }
 
 function showClusterDetail(cluster) {
-    const panel = document.getElementById('panel-detail');
     const grid = document.getElementById('detail-grid');
-    panel.style.display = 'block';
 
     const uniqueNames = Object.keys(cluster.names);
     const avgDuration = cluster.totalDuration / cluster.count;
@@ -1404,21 +1260,24 @@ function drawEntry(ctx, e, w, viewDuration) {
     const c = colorFor(e.strategy);
     const isHovered = hovered && hovered.type === 'entry' && hovered.entry === e;
 
-    // Bar background
-    ctx.fillStyle = c.bg;
-    ctx.globalAlpha = isHovered ? 1 : 0.82;
+    // Clip to rounded rect
+    ctx.save();
     roundRect(ctx, x, y, bw, ROW_H, 4);
-    ctx.fill();
+    ctx.clip();
 
-    // Subtle gradient overlay
-    if (bw > 20) {
-        const grad = ctx.createLinearGradient(x, y, x, y + ROW_H);
-        grad.addColorStop(0, isHovered ? 'rgba(255,255,255,0.22)' : 'rgba(255,255,255,0.12)');
-        grad.addColorStop(1, 'rgba(0,0,0,0.08)');
-        ctx.fillStyle = grad;
-        roundRect(ctx, x, y, bw, ROW_H, 4);
-        ctx.fill();
-    }
+    // Solid background fill
+    ctx.fillStyle = c.bg;
+    ctx.globalAlpha = isHovered ? 0.18 : 0.10;
+    ctx.fillRect(x, y, bw, ROW_H);
+
+    ctx.restore();
+
+    // Border
+    ctx.strokeStyle = c.bg;
+    ctx.lineWidth = 1;
+    ctx.globalAlpha = isHovered ? 0.7 : 0.4;
+    roundRect(ctx, x, y, bw, ROW_H, 4);
+    ctx.stroke();
 
     // Hover outline
     if (isHovered) {
@@ -1467,43 +1326,25 @@ function drawCluster(ctx, item, w, viewDuration) {
     const y = 8 + item.depth * ROW_FULL;
     const isHovered = hovered === item;
 
-    // Clip to rounded rect for strategy segments + stripes
+    const dom = clusterDominantStrategy(item.strategies);
+    const c = colorFor(dom);
+
+    // Clip to rounded rect
     ctx.save();
     roundRect(ctx, x, y, bw, ROW_H, 4);
     ctx.clip();
 
-    // Draw strategy-colored segments proportional to count
-    let segX = x;
-    const sortedStrats = Object.entries(item.strategies).sort((a, b) => b[1] - a[1]);
-    for (const [s, n] of sortedStrats) {
-        const segW = (n / item.count) * bw;
-        const sc = colorFor(s);
-        ctx.fillStyle = sc.bg;
-        ctx.globalAlpha = isHovered ? 0.35 : 0.2;
-        ctx.fillRect(segX, y, segW + 1, ROW_H);
-        segX += segW;
-    }
-
-    // Diagonal stripes overlay
-    ctx.strokeStyle = '#fff';
-    ctx.lineWidth = 1;
-    ctx.globalAlpha = isHovered ? 0.12 : 0.06;
-    const spacing = 7;
-    for (let sx = x - ROW_H; sx < x + bw + ROW_H; sx += spacing) {
-        ctx.beginPath();
-        ctx.moveTo(sx, y + ROW_H);
-        ctx.lineTo(sx + ROW_H, y);
-        ctx.stroke();
-    }
+    // Solid background fill
+    ctx.fillStyle = c.bg;
+    ctx.globalAlpha = isHovered ? 0.18 : 0.10;
+    ctx.fillRect(x, y, bw, ROW_H);
 
     ctx.restore();
 
     // Border
-    const dom = clusterDominantStrategy(item.strategies);
-    const c = colorFor(dom);
-    ctx.globalAlpha = isHovered ? 0.6 : 0.3;
     ctx.strokeStyle = c.bg;
     ctx.lineWidth = 1;
+    ctx.globalAlpha = isHovered ? 0.7 : 0.4;
     roundRect(ctx, x, y, bw, ROW_H, 4);
     ctx.stroke();
 
@@ -1600,6 +1441,16 @@ $flameScroll.addEventListener('wheel', function(ev) {
     render();
 }, { passive: false });
 
+// Sidebar resize: mousedown on handle starts resize
+$sidebarResize.addEventListener('mousedown', function(ev) {
+    if (ev.button !== 0) return;
+    ev.preventDefault();
+    resizeState = { startY: ev.clientY, startH: $sidebar.offsetHeight };
+    $sidebarResize.classList.add('active');
+    document.body.style.cursor = 'ns-resize';
+    document.body.style.userSelect = 'none';
+});
+
 // Drag-to-zoom: mousedown starts selection, mousemove extends, mouseup zooms
 $flameScroll.addEventListener('mousedown', function(ev) {
     if (ev.button !== 0) return; // left click only
@@ -1622,6 +1473,14 @@ $flameScroll.addEventListener('mousedown', function(ev) {
 });
 
 window.addEventListener('mousemove', function(ev) {
+    if (resizeState) {
+        const delta = resizeState.startY - ev.clientY;
+        const newH = Math.max(80, Math.min(window.innerHeight - 200, resizeState.startH + delta));
+        $sidebar.style.height = newH + 'px';
+        render();
+        return;
+    }
+
     if (dragState) {
         const rect = dragState.rect;
         const mx = Math.max(0, Math.min(ev.clientX - rect.left, rect.width));
@@ -1647,6 +1506,14 @@ window.addEventListener('mousemove', function(ev) {
 });
 
 window.addEventListener('mouseup', function(ev) {
+    if (resizeState) {
+        resizeState = null;
+        $sidebarResize.classList.remove('active');
+        document.body.style.cursor = '';
+        document.body.style.userSelect = '';
+        return;
+    }
+
     if (!dragState) return;
 
     const rect = dragState.rect;
