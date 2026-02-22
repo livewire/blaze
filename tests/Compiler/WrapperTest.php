@@ -2,6 +2,7 @@
 
 use Livewire\Blaze\Support\Utils;
 use Livewire\Blaze\Compiler\Wrapper;
+use Livewire\Blaze\BladeService;
 
 test('wraps component templates into function definitions', function () {
     $path = fixture_path('components/input.blade.php');
@@ -38,4 +39,16 @@ test('injects variables', function ($source, $expected) {
     'livewire' => ['{{ $__livewire->id }}', '$__livewire = $__env->shared(\'__livewire\');'],
     'entangle' => ['<div x-data="{ name: @entangle(\'name\') }"></div>', '$__livewire = $__env->shared(\'__livewire\');'],
     'app' => ['{{ $app->name }}', '$app = $__blaze->app;'],
+]);
+
+test('hoists use statements', function ($statement) {
+    $source = BladeService::preStoreUncompiledBlocks("{$statement}\n\n<div></div>");
+
+    expect(app(Wrapper::class)->wrap($source, '', $source))->toStartWith('<?php use App\Models\User; ?>');
+})->with([
+    ['@use(\'App\Models\User\')'],
+    ['@php use App\Models\User; @endphp'],
+    ['<?php use App\Models\User; ?>'],
+    ["<?php\nuse App\Models\User;\n?>"],
+    ["<?php\n\tuse App\Models\User;\n?>"],
 ]);

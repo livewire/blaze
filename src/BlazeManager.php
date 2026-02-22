@@ -125,7 +125,11 @@ class BlazeManager
                 .'<'.'?php $__blaze->debugger->stopTimer($__blazeViewName); ?>';
         }
 
-        BladeService::deleteTemporaryCacheDirectory();
+        try {
+            BladeService::deleteTemporaryCacheDirectory();
+        } catch (\Throwable $e) {
+            //
+        }
 
         return $output;
     }

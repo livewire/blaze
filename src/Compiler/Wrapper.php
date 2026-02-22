@@ -39,7 +39,6 @@ class Wrapper
 
         $compiled = $this->stripDirective($compiled, 'blaze');
         $compiled = $this->stripDirective($compiled, 'aware');
-        $compiled = $this->stripDirective($compiled, 'use');
 
         $propsUseAttributes = $propAssignments !== null && str_contains($propAssignments, '$attributes');
         $sourceUsesAttributes = str_contains($this->stripDirective($source, 'props'), '$attributes') || str_contains($source, '<flux:delegate-component');
@@ -81,14 +80,18 @@ class Wrapper
         }
 
         // Hoist PHP use statements out of the template so they appear before
-        // the function definition. We extract from the source because @php
-        // blocks are stored as raw block placeholders during compilation and
-        // are not yet present in $compiled at this point.
-        [$compiled, $useStatements] = $this->extractUseStatements($source, $compiled);
+        // the function definition. First restore any raw block placeholders
+        // (from @php blocks) so all PHP is visible, then protect @verbatim
+        // blocks from modification, compile @use directives into PHP, and
+        // extract all use statements uniformly.
+        $compiled = BladeService::restoreRawBlocks($compiled);
+        $compiled = BladeService::storeVerbatimBlocks($compiled);
+        $compiled = $this->compileUseDirective($compiled);
+        [$compiled, $useStatements] = $this->extractUseStatements($compiled);
 
         $needsEchoHandler = $this->hasEchoHandlers() && $this->hasEchoSyntax($source);
 
-        $sourceUsesThis = str_contains($source, '$this');
+        $sourceUsesThis = str_contains($source, '$this') || str_contains($compiled, '@script');
 
         $variables = [
             '$app' => '$app = $__blaze->app;',
@@ -101,7 +104,7 @@ class Wrapper
         $variables = array_filter($variables, fn ($pattern) => str_contains($source, $pattern) || str_contains($compiled, $pattern), ARRAY_FILTER_USE_KEY);
         $variables = implode("\n", $variables);
 
-        return implode('', array_filter([
+        $output = implode('', array_filter([
             $useStatements ? '<'.'?php '.$useStatements.' ?>' : null,
             '<'.'?php if (!function_exists(\''.$name.'\')):'."\n",
             'function '.$name.'($__blaze, $__data = [], $__slots = [], $__bound = [], $__this = null) {'."\n",
@@ -122,84 +125,74 @@ class Wrapper
             $sourceUsesThis ? '<'.'?php };'."\n".'if ($__this !== null) { $__blazeFn->call($__this); } else { $__blazeFn(); }'."\n".'} endif; ?>' : null,
             !$sourceUsesThis ? '<'.'?php } endif; ?>' : null,
         ]));
+
+        // Restore @verbatim blocks that were protected during use statement extraction.
+        return BladeService::restoreRawBlocks($output);
+    }
+
+    /**
+     * Compile @use directives into PHP use statement blocks.
+     */
+    protected function compileUseDirective(string $content): string
+    {
+        return BladeService::compileDirective($content, 'use', function ($expression) {
+            $segments = explode(',', preg_replace("/[\(\)]/", '', $expression));
+            $use = ltrim(trim($segments[0], " '\""), '\\');
+            $as = isset($segments[1]) ? ' as '.trim($segments[1], " '\"") : '';
+
+            return '<'."?php use {$use}{$as}; ?>";
+        });
     }
 
     /**
      * Extract PHP use statements from compiled output and return them separately.
      *
-     * Handles both forms:
-     * - @php use Foo\Bar; @endphp  → compiled as <?php use Foo\Bar; ?>
-     * - @use('Foo\Bar')            → compiled as <?php use \Foo\Bar; ?>
+     * At this point raw blocks have been restored and @verbatim blocks are
+     * protected behind placeholders, so all use statements are visible as
+     * plain `use Foo\Bar;` lines inside PHP blocks.
      *
      * @return array{string, string|null} Tuple of [compiled without use statements, hoisted use statements]
      */
-    /**
-     * Extract PHP use statements from the source template and strip the
-     * corresponding raw block placeholders from the compiled output.
-     *
-     * Use statements in Blade templates appear as either:
-     * - @php use Foo\Bar; @endphp (inside @php blocks, possibly with other code)
-     * - @use('Foo\Bar') or @use('Foo\Bar', 'Alias') (Blade directive)
-     *
-     * The @use directive is already stripped via stripDirective(). For @php
-     * blocks, the use statements are hidden behind raw block placeholders in
-     * $compiled, so we extract them from the original $source instead.
-     *
-     * @return array{string, string|null} Tuple of [compiled with use-only raw blocks removed, hoisted use statements]
-     */
-    protected function extractUseStatements(string $source, string $compiled): array
+    protected function extractUseStatements(string $compiled): array
     {
         $useStatements = [];
 
-        // Match use statements in the source template (inside @php blocks or bare PHP).
-        $usePattern = '/^[ \t]*use\s+((?:function\s+|const\s+)?\\\\?[a-zA-Z_][a-zA-Z0-9_\\\\]*(?:\s+as\s+[a-zA-Z_][a-zA-Z0-9_]*)?)\s*;\s*$/m';
+        $useFragment = 'use\s+((?:function\s+|const\s+)?\\\\?[a-zA-Z_][a-zA-Z0-9_\\\\]*(?:\s+as\s+[a-zA-Z_][a-zA-Z0-9_]*)?)\s*;';
 
-        preg_match_all($usePattern, $source, $matches);
+        // Pass 1: Remove complete PHP blocks that contain only use statements.
+        // Use statements never contain string literals, so matching the
+        // closing tag is unambiguous here.
+        $compiled = preg_replace_callback(
+            '/<\?php(\s*'.$useFragment.'\s*)+\?>/s',
+            function ($match) use (&$useStatements, $useFragment) {
+                preg_match_all('/'.$useFragment.'/', $match[0], $uses);
 
-        foreach ($matches[0] as $match) {
-            $useStatements[] = trim($match);
-        }
+                foreach ($uses[0] as $use) {
+                    $useStatements[] = trim($use);
+                }
 
-        // The @php blocks containing use statements are stored as raw block
-        // placeholders (@__raw_block_N__@) in $compiled. We need to find
-        // these placeholders and either remove them entirely (if the @php
-        // block contained only use statements) or strip the use lines from
-        // the restored content. Since raw blocks are opaque at this stage,
-        // we restore them, strip the use lines, and re-store them.
-        //
-        // This also handles empty @php @endphp blocks (no use statements,
-        // no other code) — their placeholders must be removed to avoid
-        // leaving behind extra blank lines in the rendered output.
-        $compiler = app('blade.compiler');
-        $rawBlocksProperty = new \ReflectionProperty($compiler, 'rawBlocks');
-        $rawBlocks = $rawBlocksProperty->getValue($compiler);
+                return '';
+            },
+            $compiled,
+        );
 
-        foreach ($rawBlocks as $index => &$block) {
-            // Strip use statements from the raw block content.
-            $stripped = preg_replace($usePattern, '', $block);
+        // Pass 2: Extract bare use lines from mixed PHP blocks (blocks that
+        // contain other code alongside use statements).
+        $compiled = preg_replace_callback(
+            '/^[ \t]*'.$useFragment.'\s*$/m',
+            function ($match) use (&$useStatements) {
+                $useStatements[] = trim($match[0]);
 
-            // If the block is now empty (only had use statements or was
-            // already empty), remove the placeholder from compiled output.
-            $strippedContent = trim(
-                preg_replace('/^<\x3Fphp\s*/s', '',
-                    preg_replace('/\s*\x3F>$/s', '', $stripped))
-            );
-
-            if ($strippedContent === '') {
-                $compiled = preg_replace('/^[ \t]*@__raw_block_' . $index . '__@\s*/m', '', $compiled);
-            } else {
-                $block = $stripped;
-            }
-        }
-        unset($block);
-
-        $rawBlocksProperty->setValue($compiler, $rawBlocks);
+                return '';
+            },
+            $compiled,
+        );
 
         if (empty($useStatements)) {
             return [$compiled, null];
         }
 
-        return [$compiled, implode("\n", $useStatements) . "\n"];
+        return [$compiled, implode("\n", $useStatements)];
     }
 
     /**
