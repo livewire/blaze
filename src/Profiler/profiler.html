@@ -97,38 +97,6 @@ body {
 .header-mode.blaze { background: var(--orange-dim); color: var(--orange); }
 .header-mode.blade { background: var(--blue-dim); color: var(--blue); }
 
-.header-stats {
-    margin-left: auto;
-    display: flex;
-    gap: 20px;
-    align-items: center;
-}
-
-.stat {
-    display: flex;
-    flex-direction: column;
-    align-items: flex-end;
-    gap: 1px;
-}
-
-.stat-value {
-    font-family: inherit;
-    font-size: 16px;
-    font-weight: 700;
-    letter-spacing: -0.5px;
-    color: var(--text);
-    line-height: 1;
-}
-
-.stat-label {
-    font-size: 9px;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.06em;
-    color: var(--text-muted);
-    line-height: 1;
-}
-
 /* ── Legend + Controls ────────────────────────────── */
 .controls {
     padding: 8px 24px;
@@ -269,30 +237,67 @@ body {
     height: 300px;
 }
 
-.sidebar-left {
-    width: 380px;
-    flex-shrink: 0;
+.sidebar-col {
     overflow-y: auto;
-    border-right: 1px solid var(--border);
     scrollbar-width: thin;
     scrollbar-color: #1b1b1b transparent;
+    border-right: 1px solid var(--border);
 }
 
-.sidebar-left::-webkit-scrollbar { width: 5px; }
-.sidebar-left::-webkit-scrollbar-track { background: transparent; }
-.sidebar-left::-webkit-scrollbar-thumb { background: #1b1b1b; border-radius: 3px; }
+.sidebar-col:last-child { border-right: none; }
 
-.sidebar-right {
+.sidebar-col::-webkit-scrollbar { width: 5px; }
+.sidebar-col::-webkit-scrollbar-track { background: transparent; }
+.sidebar-col::-webkit-scrollbar-thumb { background: #1b1b1b; border-radius: 3px; }
+
+.sidebar-col-left {
+    width: 340px;
+    flex-shrink: 0;
+}
+
+.sidebar-col-mid {
     flex: 1;
     min-width: 0;
-    overflow-y: auto;
-    scrollbar-width: thin;
-    scrollbar-color: #1b1b1b transparent;
 }
 
-.sidebar-right::-webkit-scrollbar { width: 5px; }
-.sidebar-right::-webkit-scrollbar-track { background: transparent; }
-.sidebar-right::-webkit-scrollbar-thumb { background: #1b1b1b; border-radius: 3px; }
+.sidebar-col-right {
+    width: 300px;
+    flex-shrink: 0;
+}
+
+/* ── Sidebar Stats ───────────────────────────────── */
+.sidebar-stats {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    margin-bottom: 16px;
+    padding-bottom: 14px;
+    border-bottom: 1px solid var(--border);
+}
+
+.sidebar-stat {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.sidebar-stat-value {
+    font-family: inherit;
+    font-size: 16px;
+    font-weight: 700;
+    letter-spacing: -0.5px;
+    color: var(--text);
+    line-height: 1;
+}
+
+.sidebar-stat-label {
+    font-size: 9px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--text-muted);
+    line-height: 1;
+}
 
 .panel {
     padding: 14px 18px;
@@ -577,28 +582,6 @@ body {
     </div>
     <div class="header-url" id="hdr-url">Loading...</div>
     <div class="header-mode blaze" id="hdr-mode">BLAZE</div>
-    <div class="header-stats">
-        <div class="stat">
-            <div class="stat-value" id="stat-time">--</div>
-            <div class="stat-label">Render time</div>
-        </div>
-        <div class="stat">
-            <div class="stat-value" id="stat-components">--</div>
-            <div class="stat-label">Components</div>
-        </div>
-        <div class="stat">
-            <div class="stat-value" id="stat-depth">--</div>
-            <div class="stat-label">Max depth</div>
-        </div>
-        <div class="stat">
-            <div class="stat-value" id="stat-avg">--</div>
-            <div class="stat-label">Avg/component</div>
-        </div>
-        <div class="stat" id="stat-memo-wrap" style="display:none;">
-            <div class="stat-value" id="stat-memo" style="color:var(--green)">--</div>
-            <div class="stat-label">Memo hits</div>
-        </div>
-    </div>
 </div>
 
 <div class="controls">
@@ -637,14 +620,31 @@ body {
 
     <div class="sidebar-resize" id="sidebar-resize"></div>
     <div class="sidebar" id="sidebar">
-        <div class="panel sidebar-left" id="panel-left">
+        <div class="panel sidebar-col sidebar-col-left" id="panel-left">
+            <div class="sidebar-stats" id="sidebar-stats">
+                <div class="sidebar-stat">
+                    <div class="sidebar-stat-value" id="stat-time">--</div>
+                    <div class="sidebar-stat-label">Render time</div>
+                </div>
+                <div class="sidebar-stat">
+                    <div class="sidebar-stat-value" id="stat-components">--</div>
+                    <div class="sidebar-stat-label">Components</div>
+                </div>
+
+                <div class="sidebar-stat" id="stat-memo-wrap" style="display:none;">
+                    <div class="sidebar-stat-value" id="stat-memo" style="color:var(--green)">--</div>
+                    <div class="sidebar-stat-label">Memo hits</div>
+                </div>
+            </div>
             <div class="panel-title">Strategy Breakdown</div>
             <div class="strat-bar-wrap" id="strat-bar"></div>
             <div class="strat-rows" id="strat-rows"></div>
-            <div class="panel-title" style="margin-top:16px;">Hottest Components</div>
+        </div>
+        <div class="panel sidebar-col sidebar-col-mid" id="panel-hottest">
+            <div class="panel-title">Hottest Components</div>
             <div id="hottest-columns" class="hottest-columns"></div>
         </div>
-        <div class="panel sidebar-right" id="panel-detail">
+        <div class="panel sidebar-col sidebar-col-right" id="panel-detail">
             <div class="panel-title">Component Detail</div>
             <div class="detail-grid" id="detail-grid">
                 <div style="color:var(--text-muted);font-size:11px;grid-column:1/-1;">Hover a component to see details</div>
@@ -909,6 +909,7 @@ function processData() {
 
     buildChildIndex();
     updateHeader();
+    updateSidebarStats();
     updateSidebar();
 }
 
@@ -987,20 +988,19 @@ document.getElementById('search-input').addEventListener('input', function(ev) {
     updateSearch(ev.target.value);
 });
 
-// ─── Header Stats ───────────────────────────────────────────────────
+// ─── Header ─────────────────────────────────────────────────────────
 function updateHeader() {
     document.getElementById('hdr-url').textContent = data.url || '—';
 
     const modeEl = document.getElementById('hdr-mode');
     modeEl.textContent = (data.mode || 'blaze').toUpperCase();
     modeEl.className = 'header-mode ' + (data.mode || 'blaze');
+}
 
+// ─── Sidebar Stats ──────────────────────────────────────────────────
+function updateSidebarStats() {
     document.getElementById('stat-time').textContent = fmtMs(data.renderTime || 0);
     document.getElementById('stat-components').textContent = entries.length;
-    document.getElementById('stat-depth').textContent = maxDepth + 1;
-
-    const totalEntryTime = entries.reduce((s, e) => s + e.duration, 0);
-    document.getElementById('stat-avg').textContent = entries.length ? fmtMs(totalEntryTime / entries.length) : '--';
 
     // Memo cache hits
     const memoHits = data.memoHits || 0;
