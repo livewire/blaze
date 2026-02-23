@@ -46,12 +46,30 @@ class BladeService
         {
             public function compileStatementsMadePublic($template)
             {
+                $result = '';
+                
                 $template = $this->storeUncompiledBlocks($template);
                 $template = $this->compileComments($template);
-                $template = $this->compileStatements($template);
-                $template = $this->restoreRawContent($template);
 
-                return $template;
+                foreach (token_get_all($template) as $token) {
+                    if (! is_array($token)) {
+                        $result .= $token;
+
+                        continue;
+                    }
+    
+                    [$id, $content] = $token;
+
+                    if ($id == T_INLINE_HTML) {
+                        $result .= $this->compileStatements($content);
+                    } else {
+                        $result .= $content;
+                    }
+                }
+
+                $result = $this->restoreRawContent($result);
+
+                return $result;
             }
 
             /**
@@ -258,6 +276,18 @@ class BladeService
 
             return $str;
         })->call($compiler, $attributeString);
+    }
+
+    public static function compileUseStatements(string $input): string
+    {
+        return static::compileDirective($input, 'use', function ($expression) {
+            $compiler = app('blade.compiler');
+
+            $reflection = new \ReflectionClass($compiler);
+            $method = $reflection->getMethod('compileUse');
+
+            return $method->invoke($compiler, $expression);
+        });
     }
 
     /**

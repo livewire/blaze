@@ -12,6 +12,8 @@ class BlazeServiceProvider extends ServiceProvider
 {
     public function register(): void
     {
+        $this->registerConfig();
+
         $this->app->singleton(BlazeRuntime::class);
         $this->app->singleton(Config::class);
         $this->app->singleton(Debugger::class);
@@ -24,6 +26,15 @@ class BlazeServiceProvider extends ServiceProvider
         $this->app->alias(BlazeRuntime::class, 'blaze.runtime');
         $this->app->alias(Config::class, 'blaze.config');
         $this->app->alias(Debugger::class, 'blaze.debugger');
+    }
+
+    protected function registerConfig(): void
+    {
+        $config = __DIR__.'/../config/blaze.php';
+
+        $this->publishes([$config => base_path('config/blaze.php')], ['blaze', 'blaze:config']);
+
+        $this->mergeConfigFrom($config, 'blaze');
     }
 
     public function boot(): void
