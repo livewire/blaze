@@ -37,43 +37,75 @@ class Wrapper
             return $this->awareCompiler->compile($expression);
         });
 
-        $needsEchoHandler = $this->hasEchoHandlers() && $this->hasEchoSyntax($source);
-
         $isDebugging = app('blaze')->isDebugging() && ! app('blaze')->isFolding();
-        $componentName = $isDebugging ? app('blaze.runtime')->debugger->extractComponentName($path) : null;
         $sourceUsesThis = str_contains($source, '$this');
 
-        $variables = [
+        $output = '';
+
+        // Start of function definition...
+
+        $output .= '<'.'?php if (!function_exists(\''.$name.'\')):'."\n";
+        $output .= 'function '.$name.'($__blaze, $__data = [], $__slots = [], $__bound = [], $__this = null) {'."\n";
+
+        if ($isDebugging) {
+            $componentName = app('blaze.runtime')->debugger->extractComponentName($path);
+            $output .= '$__blaze->debugger->increment(\''.$name.'\', \''.$componentName.'\');'."\n";
+            $output .= '$__blaze->debugger->startTimer(\''.$name.'\');'."\n";
+        }
+
+        if ($sourceUsesThis) {
+            $output .= '$__blazeFn = function () use ($__blaze, $__data, $__slots, $__bound) {'."\n";
+        }
+
+        $output .= 'if (($__data[\'attributes\'] ?? null) instanceof \Illuminate\View\ComponentAttributeBag) { $__data = $__data + $__data[\'attributes\']->all(); unset($__data[\'attributes\']); }'."\n";
+        $output .= '$attributes = \\Livewire\\Blaze\\Runtime\\BlazeAttributeBag::sanitized($__data, $__bound);'."\n";
+        $output .= 'extract($__slots, EXTR_SKIP); unset($__slots);'."\n";
+        $output .= 'extract($__data, EXTR_SKIP); unset($__data, $__bound);'."\n";
+        $output .= $this->globalVariables($source, $compiled);
+        $output .= '?>' . "\n";
+
+        // Content...
+        $output .= $compiled;
+
+        // End of function definition...
+
+        $output .= '<?php ';
+
+        if ($sourceUsesThis) {
+            $output .= '}; if ($__this !== null) { $__blazeFn->call($__this); } else { $__blazeFn(); }'."\n";
+        }
+
+        if ($isDebugging) {
+            $output .= '$__blaze->debugger->stopTimer(\''.$name.'\');'."\n";
+        }
+
+        $output .= '} endif; ?>';
+
+        return $output;
+    }
+    
+    protected function globalVariables(string $source, string $compiled): string
+    {
+        $output = '';
+
+        $output .= '$__env = $__blaze->env;' . "\n";
+
+        if ($this->hasEchoHandlers() && ($this->hasEchoSyntax($source) || $this->hasEchoSyntax($compiled))) {
+            $output .= '$__bladeCompiler = app(\'blade.compiler\');' . "\n";
+        }
+
+        $output .= implode("\n", array_filter([
             '$app' => '$app = $__blaze->app;',
             '$errors' => '$errors = $__blaze->errors;',
             '@error' => '$errors = $__blaze->errors;',
             '$__livewire' => '$__livewire = $__env->shared(\'__livewire\');',
             '@entangle' => '$__livewire = $__env->shared(\'__livewire\');',
             '$slot' => '$__slots[\'slot\'] ??= new \Illuminate\View\ComponentSlot(\'\');',
-        ];
+        ], function ($pattern) use ($source, $compiled) {
+            return str_contains($source, $pattern) || str_contains($compiled, $pattern);
+        }, ARRAY_FILTER_USE_KEY)) . "\n";
 
-        $variables = array_filter($variables, fn ($pattern) => str_contains($source, $pattern) || str_contains($compiled, $pattern), ARRAY_FILTER_USE_KEY);
-        $variables = implode("\n", $variables);
-
-        return implode('', array_filter([
-            '<'.'?php if (!function_exists(\''.$name.'\')):'."\n",
-            'function '.$name.'($__blaze, $__data = [], $__slots = [], $__bound = [], $__this = null) {'."\n",
-            $sourceUsesThis ? '$__blazeFn = function () use ($__blaze, $__data, $__slots, $__bound) {'."\n" : null,
-            $isDebugging ? '$__blaze->debugger->increment(\''.$name.'\', \''.$componentName.'\');'."\n" : null,
-            $isDebugging ? '$__blaze->debugger->startTimer(\''.$name.'\');'."\n" : null,
-            '$__env = $__blaze->env;'."\n",
-            $variables,
-            $needsEchoHandler ? '$__bladeCompiler = app(\'blade.compiler\');'."\n" : null,
-            'if (($__data[\'attributes\'] ?? null) instanceof \Illuminate\View\ComponentAttributeBag) { $__data = $__data + $__data[\'attributes\']->all(); unset($__data[\'attributes\']); }'."\n",
-            'extract($__slots, EXTR_SKIP); unset($__slots);'."\n",
-            '$attributes = \\Livewire\\Blaze\\Runtime\\BlazeAttributeBag::sanitized($__data, $__bound);'."\n",
-            'extract($__data, EXTR_SKIP);'."\n",
-            'unset($__data, $__bound); ?>'."\n",
-            $compiled,
-            $isDebugging ? '<'.'?php $__blaze->debugger->stopTimer(\''.$name.'\'); ?>' : null,
-            $sourceUsesThis ? '<'.'?php };'."\n".'if ($__this !== null) { $__blazeFn->call($__this); } else { $__blazeFn(); }'."\n".'} endif; ?>' : null,
-            !$sourceUsesThis ? '<'.'?php } endif; ?>' : null,
-        ]));
+        return $output;
     }
 
     /**

@@ -14,11 +14,11 @@ test('wraps component templates into function definitions', function () {
 
     expect($wrapped)->toEqualCollapsingWhitespace(join('', [
         '<?php if (!function_exists(\'_'. $hash .'\')): function _'. $hash .'($__blaze, $__data = [], $__slots = [], $__bound = [], $__this = null) { ',
-        '$__env = $__blaze->env; ',
         'if (($__data[\'attributes\'] ?? null) instanceof \Illuminate\View\ComponentAttributeBag) { $__data = $__data + $__data[\'attributes\']->all(); unset($__data[\'attributes\']); } ',
-        'extract($__slots, EXTR_SKIP); unset($__slots); ',
         '$attributes = \Livewire\Blaze\Runtime\BlazeAttributeBag::sanitized($__data, $__bound); ',
-        'unset($__data, $__bound); ?> ',
+        'extract($__slots, EXTR_SKIP); unset($__slots); ',
+        'extract($__data, EXTR_SKIP); unset($__data, $__bound); ',
+        '$__env = $__blaze->env; ?> ',
         '@blaze ',
         '<?php $__defaults = [\'type\' => \'text\', \'disabled\' => false]; ',
         '$type ??= $attributes[\'type\'] ?? $__defaults[\'type\']; unset($attributes[\'type\']); ',
@@ -38,11 +38,11 @@ test('compiles aware props', function () {
 
     expect($wrapped)->toEqualCollapsingWhitespace(join('', [
         '<?php if (!function_exists(\'_'. $hash .'\')): function _'. $hash .'($__blaze, $__data = [], $__slots = [], $__bound = [], $__this = null) { ',
-        '$__env = $__blaze->env; ',
         'if (($__data[\'attributes\'] ?? null) instanceof \Illuminate\View\ComponentAttributeBag) { $__data = $__data + $__data[\'attributes\']->all(); unset($__data[\'attributes\']); } ',
-        'extract($__slots, EXTR_SKIP); unset($__slots); ',
         '$attributes = \Livewire\Blaze\Runtime\BlazeAttributeBag::sanitized($__data, $__bound); ',
-        'unset($__data, $__bound); ?> ',
+        'extract($__slots, EXTR_SKIP); unset($__slots); ',
+        'extract($__data, EXTR_SKIP); unset($__data, $__bound); ',
+        '$__env = $__blaze->env; ?> ',
         '@blaze ',
         '<?php $__awareDefaults = [\'type\' => \'text\']; ',
         '$type = $__blaze->getConsumableData(\'type\', $__awareDefaults[\'type\']); ',
