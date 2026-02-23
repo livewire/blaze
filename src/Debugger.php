@@ -332,12 +332,8 @@ class Debugger
 
     protected function renderStyles(array $data): string
     {
-        $accentRgb = $data['blazeEnabled'] ? '255, 134, 2' : '99, 102, 241';
-
         return <<<HTML
         <style>
-            @import url('https://fonts.googleapis.com/css2?family=Roboto+Mono:wght@400;500;600;700;800;900&display=swap');
-
             #blaze-debugbar *, #blaze-debugbar *::before, #blaze-debugbar *::after {
                 box-sizing: border-box;
                 margin: 0;
@@ -349,7 +345,7 @@ class Debugger
                 bottom: 20px;
                 right: 20px;
                 z-index: 99999;
-                font-family: "Roboto Mono", ui-monospace, SFMono-Regular, monospace;
+                font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
                 display: flex;
                 flex-direction: column;
                 align-items: flex-end;
@@ -358,28 +354,11 @@ class Debugger
                 -moz-osx-font-smoothing: grayscale;
             }
 
-            #blaze-bubble {
-                width: 48px;
-                height: 48px;
-                border-radius: 4px;
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                cursor: pointer;
-                text-decoration: none;
-                transition: transform 0.15s ease, box-shadow 0.2s ease;
-                position: relative;
-                flex-shrink: 0;
-            }
-
-            #blaze-bubble:hover { transform: scale(1.05); }
-            #blaze-bubble:active { transform: scale(0.95); transition-duration: 0.1s; }
-
             #blaze-card {
                 background: #000000;
                 border: 1px solid #1b1b1b;
-                border-radius: 6px;
-                padding: 16px;
+                border-radius: 16px;
+                padding: 20px 20px 24px;
                 min-width: 280px;
                 max-width: 340px;
                 box-shadow: 0 4px 24px rgba(0, 0, 0, 0.6);
@@ -390,11 +369,6 @@ class Debugger
             @keyframes blaze-card-in {
                 from { opacity: 0; transform: translateY(6px); }
                 to { opacity: 1; transform: translateY(0); }
-            }
-
-            @keyframes blaze-pulse {
-                0%, 100% { box-shadow: 0 2px 12px rgba({$accentRgb}, 0.3); }
-                50% { box-shadow: 0 2px 16px rgba({$accentRgb}, 0.5), 0 0 0 4px rgba({$accentRgb}, 0.06); }
             }
 
             @keyframes blaze-savings-in {
@@ -411,7 +385,6 @@ class Debugger
         return <<<HTML
         <div id="blaze-debugbar">
             {$this->renderCard($data)}
-            {$this->renderBubble($data)}
         </div>
         HTML;
     }
@@ -424,13 +397,13 @@ class Debugger
         $timeFormatted = $this->formatMs($data['totalTime']);
 
         $coldTag = $data['isColdRender']
-            ? ' <span style="color: rgba(255,255,255,0.3); font-size: 9px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; background: rgba(255,255,255,0.03); border: 1px solid #1b1b1b; padding: 3px 6px; border-radius: 2px; line-height: 1;">cold</span>'
+            ? ' <span style="color: rgba(255,255,255,0.3); font-size: 9px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; background: rgba(255,255,255,0.03); border: 1px solid #1b1b1b; padding: 3px 6px; border-radius: 2px; line-height: 1;">first load</span>'
             : '';
 
         $timerViewHtml = '';
         if ($data['timerView']) {
             $viewName = htmlspecialchars($data['timerView']);
-            $timerViewHtml = '<div style="color: rgba(255,255,255,0.3); font-size: 10px; margin-top: 4px; font-family: inherit; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">' . $viewName . '</div>';
+            $timerViewHtml = '<div style="color: rgba(255,255,255,0.3); font-size: 10px; margin-top: 4px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">' . $viewName . '</div>';
         }
 
         $savingsHtml = $this->renderSavingsBlock($data);
@@ -445,7 +418,7 @@ class Debugger
             </div>
 
             <div style="display: flex; align-items: center; gap: 8px;">
-                <span style="color: #ffffff; font-weight: 700; font-size: 26px; font-family: inherit; letter-spacing: -1.5px; line-height: 1; font-variant-numeric: tabular-nums;">{$timeFormatted}</span>
+                <span style="color: #ffffff; font-weight: 700; font-size: 26px; letter-spacing: -1.5px; line-height: 1; font-variant-numeric: tabular-nums;">{$timeFormatted}</span>
                 {$coldTag}
             </div>
 
@@ -492,8 +465,8 @@ class Debugger
         // Primary = the comparison matching the current render temperature.
         $primary = $isCold ? $cold : $warm;
         $secondary = $isCold ? $warm : $cold;
-        $primaryType = $isCold ? 'cold' : 'warm';
-        $secondaryType = $isCold ? 'warm' : 'cold';
+        $primaryType = $isCold ? 'first load' : 'most recent';
+        $secondaryType = $isCold ? 'most recent' : 'first load';
 
         if (! $primary) {
             $primary = $secondary;
@@ -546,7 +519,7 @@ class Debugger
                     <span style="color: {$color}; font-size: 11px; font-weight: 600;">{$word}</span>
                     <span style="color: rgba(255,255,255,0.3); font-size: 10px; margin-left: auto; align-self: start;">{$type}</span>
                 </div>
-                <div style="color: rgba(255,255,255,0.3); font-size: 11px; margin-top: 5px; font-family: inherit;">
+                <div style="color: rgba(255,255,255,0.3); font-size: 11px; margin-top: 5px;">
                     {$otherFormatted} &#8594; {$currentFormatted}
                 </div>
             </div>
@@ -560,38 +533,10 @@ class Debugger
                 <span style="color: {$color}; font-size: 10px; font-weight: 600;">{$word}</span>
                 <span style="color: rgba(255,255,255,0.3); font-size: 9px; margin-left: auto; align-self: start;">{$type}</span>
             </div>
-            <div style="color: rgba(255,255,255,0.3); font-size: 10px; margin-top: 2px; font-family: inherit;">
+            <div style="color: rgba(255,255,255,0.3); font-size: 10px; margin-top: 2px;">
                 {$otherFormatted} &#8594; {$currentFormatted}
             </div>
         </div>
-        HTML;
-    }
-
-    protected function renderBubble(array $data): string
-    {
-        if ($data['blazeEnabled']) {
-            $bgStyle = 'background: #FF8602; animation: blaze-pulse 3s ease-in-out infinite;';
-            $icon = $this->boltSvg('#ffffff');
-            $tooltip = 'Disable Blaze';
-        } else {
-            $bgStyle = 'background: #0a0a0a; border: 1px solid #1b1b1b; box-shadow: 0 2px 12px rgba(0, 0, 0, 0.4);';
-            $icon = $this->boltSvg('#6366f1');
-            $tooltip = 'Enable Blaze';
-        }
-
-        return <<<HTML
-        <a href="/_blaze/toggle" id="blaze-bubble" style="{$bgStyle}" title="{$tooltip}">
-            {$icon}
-        </a>
-        HTML;
-    }
-
-    protected function boltSvg(string $color): string
-    {
-        return <<<HTML
-        <svg width="22" height="22" viewBox="0 0 24 24" fill="{$color}" xmlns="http://www.w3.org/2000/svg">
-            <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/>
-        </svg>
         HTML;
     }
 
@@ -602,32 +547,12 @@ class Debugger
         (function() {
             var card = document.getElementById('blaze-card');
             var closeBtn = document.getElementById('blaze-card-close');
-            var bubble = document.getElementById('blaze-bubble');
-            var hoverTimer = null;
 
             if (closeBtn && card) {
                 closeBtn.addEventListener('click', function(e) {
                     e.preventDefault();
                     e.stopPropagation();
                     card.style.display = 'none';
-                });
-            }
-
-            if (bubble && card) {
-                bubble.addEventListener('mouseenter', function() {
-                    if (card.style.display === 'none') {
-                        hoverTimer = setTimeout(function() {
-                            card.style.display = '';
-                            card.style.animation = 'blaze-card-in 0.35s cubic-bezier(0.34, 1.56, 0.64, 1)';
-                        }, 400);
-                    }
-                });
-
-                bubble.addEventListener('mouseleave', function() {
-                    if (hoverTimer) {
-                        clearTimeout(hoverTimer);
-                        hoverTimer = null;
-                    }
                 });
             }
         })();
