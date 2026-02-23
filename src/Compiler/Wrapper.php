@@ -103,8 +103,7 @@ class Wrapper
 
         $output .= implode("\n", array_filter(Arr::map([
             [['$app'], '$app = $__blaze->app;'],
-            [['$errors'], '$errors = $__blaze->errors;'],
-            [['@error'], '$errors = $__blaze->errors;'],
+            [['$errors', '@error'], '$errors = $__blaze->errors;'],
             [['$__livewire', '@entangle', '@this'], '$__livewire = $__env->shared(\'__livewire\');'],
             [['@this'], '$_instance = $__livewire;'],
             [['$slot'], '$__slots[\'slot\'] ??= new \Illuminate\View\ComponentSlot(\'\');'],
