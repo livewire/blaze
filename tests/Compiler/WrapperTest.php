@@ -2,6 +2,8 @@
 
 use Livewire\Blaze\Support\Utils;
 use Livewire\Blaze\Compiler\Wrapper;
+use Illuminate\Support\Facades\Blade;
+use Livewire\Blaze\BladeService;
 
 test('wraps component templates into function definitions', function () {
     $path = fixture_path('components/input.blade.php');
@@ -13,20 +15,56 @@ test('wraps component templates into function definitions', function () {
     expect($wrapped)->toEqualCollapsingWhitespace(join('', [
         '<?php if (!function_exists(\'_'. $hash .'\')): function _'. $hash .'($__blaze, $__data = [], $__slots = [], $__bound = [], $__this = null) { ',
         '$__env = $__blaze->env; ',
-        'if (($__data[\'attributes\'] ?? null) instanceof \Illuminate\View\ComponentAttributeBag) { ',
-        '$__data = $__data + $__data[\'attributes\']->all(); unset($__data[\'attributes\']); ',
-        '} ',
+        'if (($__data[\'attributes\'] ?? null) instanceof \Illuminate\View\ComponentAttributeBag) { $__data = $__data + $__data[\'attributes\']->all(); unset($__data[\'attributes\']); } ',
         'extract($__slots, EXTR_SKIP); unset($__slots); ',
-        '$attributes = new \Livewire\Blaze\Runtime\BlazeAttributeBag($__data); ?><?php ',
-        '$__data = array_intersect_key($__data, $attributes->getAttributes()); ',
-        '$__defaults = [\'type\' => \'text\', \'disabled\' => false]; ',
-        '$type ??= $__data[\'type\'] ?? $__defaults[\'type\']; unset($__data[\'type\']); ',
-        '$disabled ??= $__data[\'disabled\'] ?? $__defaults[\'disabled\']; unset($__data[\'disabled\']); ',
-        'unset($__defaults); ',
-        '$attributes = \Livewire\Blaze\Runtime\BlazeAttributeBag::sanitized($__data, $__bound); unset($__data, $__bound); ?> ',
+        '$attributes = \Livewire\Blaze\Runtime\BlazeAttributeBag::sanitized($__data, $__bound); ',
+        'unset($__data, $__bound); ?> ',
+        '@blaze ',
+        '<?php $__defaults = [\'type\' => \'text\', \'disabled\' => false]; ',
+        '$type ??= $attributes[\'type\'] ?? $__defaults[\'type\']; unset($attributes[\'type\']); ',
+        '$disabled ??= $attributes[\'disabled\'] ?? $__defaults[\'disabled\']; unset($attributes[\'disabled\']); ',
+        'unset($__defaults); ?> ',
         '<input {{ $attributes }} type="{{ $type }}" @if ($disabled) disabled @endif >',
         '<?php } endif; ?>',
     ]));
+});
+
+test('compiles aware props', function () {
+    $path = fixture_path('components/input-aware.blade.php');
+    $source = file_get_contents($path);
+    $hash = Utils::hash($path);
+
+    $wrapped = app(Wrapper::class)->wrap($source, $path, $source);
+
+    expect($wrapped)->toEqualCollapsingWhitespace(join('', [
+        '<?php if (!function_exists(\'_'. $hash .'\')): function _'. $hash .'($__blaze, $__data = [], $__slots = [], $__bound = [], $__this = null) { ',
+        '$__env = $__blaze->env; ',
+        'if (($__data[\'attributes\'] ?? null) instanceof \Illuminate\View\ComponentAttributeBag) { $__data = $__data + $__data[\'attributes\']->all(); unset($__data[\'attributes\']); } ',
+        'extract($__slots, EXTR_SKIP); unset($__slots); ',
+        '$attributes = \Livewire\Blaze\Runtime\BlazeAttributeBag::sanitized($__data, $__bound); ',
+        'unset($__data, $__bound); ?> ',
+        '@blaze ',
+        '<?php $__awareDefaults = [\'type\' => \'text\']; ',
+        '$type = $__blaze->getConsumableData(\'type\', $__awareDefaults[\'type\']); ',
+        'unset($__awareDefaults); ?> ',
+        '<?php $__defaults = [\'type\' => \'text\', \'disabled\' => false]; ',
+        '$type ??= $attributes[\'type\'] ?? $__defaults[\'type\']; unset($attributes[\'type\']); ',
+        '$disabled ??= $attributes[\'disabled\'] ?? $__defaults[\'disabled\']; unset($attributes[\'disabled\']); ',
+        'unset($__defaults); ?> ',
+        '<input {{ $attributes }} type="{{ $type }}" @if ($disabled) disabled @endif >',
+        '<?php } endif; ?>',
+    ]));
+});
+
+test('extracts props when props are not defined', function () {
+    expect(app(Wrapper::class)->wrap('<div></div>', ''))->toContain('extract($__data, EXTR_SKIP);');
+});
+
+test('wraps in closure if source uses this', function () {
+    expect(app(Wrapper::class)->wrap('{{ $this->orders }}', ''))->toContain(
+        '$__blazeFn = function () use ($__blaze, $__data, $__slots, $__bound) {',
+        'if ($__this !== null) { $__blazeFn->call($__this); } else { $__blazeFn(); }',
+    );
 });
 
 test('injects variables', function ($source, $expected) {
@@ -38,4 +76,23 @@ test('injects variables', function ($source, $expected) {
     'livewire' => ['{{ $__livewire->id }}', '$__livewire = $__env->shared(\'__livewire\');'],
     'entangle' => ['<div x-data="{ name: @entangle(\'name\') }"></div>', '$__livewire = $__env->shared(\'__livewire\');'],
     'app' => ['{{ $app->name }}', '$app = $__blaze->app;'],
+    'slot' => ['{{ $slot }}', '$__slots[\'slot\'] ??= new \Illuminate\View\ComponentSlot(\'\');'],
+]);
+
+test('injects echo handler', function () {
+    Blade::stringable((new class {})::class, fn () => 'dummy');
+
+    expect(app(Wrapper::class)->wrap('{{ $a }}', ''))->toContain('$__bladeCompiler = app(\'blade.compiler\');');
+});
+
+test('hoists use statements', function ($statement) {
+    $source = BladeService::preStoreUncompiledBlocks("{$statement}\n\n<div></div>");
+
+    expect(app(Wrapper::class)->wrap($source, '', $source))->toStartWith('<?php use App\Models\User; ?>');
+})->with([
+    ['@use(\'App\Models\User\')'],
+    ['@php use App\Models\User; @endphp'],
+    ['<?php use App\Models\User; ?>'],
+    ["<?php\nuse App\Models\User;\n?>"],
+    ["<?php\n\tuse App\Models\User;\n?>"],
 ]);
