@@ -18,14 +18,15 @@ test('wraps component templates into function definitions', function () {
         'if (($__data[\'attributes\'] ?? null) instanceof \Illuminate\View\ComponentAttributeBag) { $__data = $__data + $__data[\'attributes\']->all(); unset($__data[\'attributes\']); } ',
         '$attributes = \Livewire\Blaze\Runtime\BlazeAttributeBag::sanitized($__data, $__bound); ',
         'extract($__slots, EXTR_SKIP); unset($__slots); ',
-        'extract($__data, EXTR_SKIP); unset($__data, $__bound); ?> ',
+        'extract($__data, EXTR_SKIP); unset($__data, $__bound); ',
+        'ob_start(); ?> ',
         '@blaze ',
         '<?php $__defaults = [\'type\' => \'text\', \'disabled\' => false]; ',
         '$type ??= $attributes[\'type\'] ?? $__defaults[\'type\']; unset($attributes[\'type\']); ',
         '$disabled ??= $attributes[\'disabled\'] ?? $__defaults[\'disabled\']; unset($attributes[\'disabled\']); ',
         'unset($__defaults); ?> ',
         '<input {{ $attributes }} type="{{ $type }}" @if ($disabled) disabled @endif >',
-        '<?php } endif; ?>',
+        '<?php echo ltrim(ob_get_clean()); } endif; ?>',
     ]));
 });
 
@@ -42,7 +43,8 @@ test('compiles aware props', function () {
         'if (($__data[\'attributes\'] ?? null) instanceof \Illuminate\View\ComponentAttributeBag) { $__data = $__data + $__data[\'attributes\']->all(); unset($__data[\'attributes\']); } ',
         '$attributes = \Livewire\Blaze\Runtime\BlazeAttributeBag::sanitized($__data, $__bound); ',
         'extract($__slots, EXTR_SKIP); unset($__slots); ',
-        'extract($__data, EXTR_SKIP); unset($__data, $__bound); ?> ',
+        'extract($__data, EXTR_SKIP); unset($__data, $__bound); ',
+        'ob_start(); ?> ',
         '@blaze ',
         '<?php $__awareDefaults = [\'type\' => \'text\']; ',
         '$type = $__blaze->getConsumableData(\'type\', $__awareDefaults[\'type\']); ',
@@ -52,7 +54,7 @@ test('compiles aware props', function () {
         '$disabled ??= $attributes[\'disabled\'] ?? $__defaults[\'disabled\']; unset($attributes[\'disabled\']); ',
         'unset($__defaults); ?> ',
         '<input {{ $attributes }} type="{{ $type }}" @if ($disabled) disabled @endif >',
-        '<?php } endif; ?>',
+        '<?php echo ltrim(ob_get_clean()); } endif; ?>',
     ]));
 });
 

@@ -69,6 +69,7 @@ class Wrapper
         $output .= '$attributes = \\Livewire\\Blaze\\Runtime\\BlazeAttributeBag::sanitized($__data, $__bound);'."\n";
         $output .= 'extract($__slots, EXTR_SKIP); unset($__slots);'."\n";
         $output .= 'extract($__data, EXTR_SKIP); unset($__data, $__bound);'."\n";
+        $output .= 'ob_start();' . "\n";
         $output .= '?>' . "\n";
 
         $compiled = BladeService::compileDirective($compiled, 'props', $this->propsCompiler->compile(...));
@@ -76,7 +77,9 @@ class Wrapper
 
         $output .= $compiled;
 
-        $output .= '<?php ';
+        $output .= '<?php' . "\n";
+
+        $output .= 'echo ltrim(ob_get_clean());' . "\n";
 
         if ($sourceUsesThis) {
             $output .= '}; if ($__this !== null) { $__blazeFn->call($__this); } else { $__blazeFn(); }'."\n";
