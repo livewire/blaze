@@ -22,8 +22,8 @@
     --orange-dim: rgba(255, 134, 2, 0.12);
     --green: #22c55e;
     --green-dim: rgba(34, 197, 94, 0.12);
-    --cyan: #06b6d4;
-    --cyan-dim: rgba(6, 182, 212, 0.12);
+    --purple: #a855f7;
+    --purple-dim: rgba(168, 85, 247, 0.12);
     --blue: #3b82f6;
     --blue-dim: rgba(59, 130, 246, 0.12);
     --red: #ef4444;
@@ -586,7 +586,7 @@ body {
     <div class="legend">
         <div class="legend-item"><div class="legend-swatch" style="background: #FF8602"></div>Compiled</div>
         <div class="legend-item"><div class="legend-swatch" style="background: #10b981"></div>Folded</div>
-        <div class="legend-item"><div class="legend-swatch" style="background: #06b6d4"></div>Memoized</div>
+        <div class="legend-item"><div class="legend-swatch" style="background: #a855f7"></div>Memoized</div>
         <div class="legend-item"><div class="legend-swatch" style="background: #3b82f6"></div>Blade</div>
         <div class="legend-item"><div class="legend-swatch" style="background: rgba(255,255,255,0.3)"></div>View</div>
     </div>
@@ -596,7 +596,8 @@ body {
             <input class="search-input" id="search-input" type="text" placeholder="Search components..." spellcheck="false" autocomplete="off">
         </div>
         <button class="control-btn" onclick="resetZoom()">Reset Zoom</button>
-        <span class="control-hint">Scroll to pan, Ctrl/&#8984;+scroll zoom, drag select, WASD nav, / search</span>
+        <span class="control-hint"><span id="zoom-mod">Ctrl</span>+scroll to zoom · Scroll to pan</span>
+        <script>if (navigator.platform.indexOf('Mac') !== -1) document.getElementById('zoom-mod').textContent = '\u2318';</script>
     </div>
 </div>
 
@@ -659,7 +660,7 @@ const ROW_FULL = ROW_H + ROW_GAP;
 const MIN_BAR_W = 2;
 const COLORS = {
     'compiled':           { bg: '#FF8602', bgDim: 'rgba(255,134,2,0.18)', text: '#fff', bgSolid: '#452401', bgSolidHover: '#6B3801' },
-    'memo':               { bg: '#06b6d4', bgDim: 'rgba(6,182,212,0.18)', text: '#fff', bgSolid: '#0a2e36', bgSolidHover: '#0f4450' },
+    'memo':               { bg: '#a855f7', bgDim: 'rgba(168,85,247,0.18)', text: '#fff', bgSolid: '#2D1743', bgSolidHover: '#472468' },
     'folded':             { bg: '#10b981', bgDim: 'rgba(16,185,129,0.18)', text: '#fff', bgSolid: '#043223', bgSolidHover: '#074E36' },
     'blade':              { bg: '#3b82f6', bgDim: 'rgba(59,130,246,0.18)', text: '#fff', bgSolid: '#102342', bgSolidHover: '#193767' },
     'view':               { bg: 'rgba(255,255,255,0.3)', bgDim: 'rgba(255,255,255,0.06)', text: '#fff', bgSolid: '#151515', bgSolidHover: '#202020' },
