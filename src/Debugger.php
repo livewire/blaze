@@ -372,7 +372,7 @@ class Debugger
             #blaze-card {
                 background: #000000;
                 border: 1px solid #1b1b1b;
-                border-radius: 16px;
+                border-radius: 14px;
                 padding: 20px 20px 24px;
                 min-width: 280px;
                 max-width: 340px;
@@ -411,24 +411,6 @@ class Debugger
         $modeName = $isBlaze ? 'Blaze' : 'Blade';
         $timeFormatted = $this->formatMs($data['totalTime']);
 
-        // Compute diff from baseline if comparison data is available.
-        $diffHtml = '';
-        $comparison = $data['comparison'];
-        if ($comparison) {
-            $isCold = $data['isColdRender'];
-            $primary = $isCold ? ($comparison['cold'] ?? null) : ($comparison['warm'] ?? null);
-            if (! $primary) {
-                $primary = $isCold ? ($comparison['warm'] ?? null) : ($comparison['cold'] ?? null);
-            }
-            if ($primary && $primary['otherTime'] > 0) {
-                $diff = $data['totalTime'] - $primary['otherTime'];
-                $sign = $diff < 0 ? '-' : '+';
-                $color = $diff <= 0 ? '#22c55e' : '#ef4444';
-                $diffFormatted = $sign . $this->formatMsWithSeparator($diff);
-                $diffHtml = '<span style="color: ' . $color . '; font-size: 12px; font-weight: 600; line-height: 1;">' . $diffFormatted . '</span>';
-            }
-        }
-
         $timerViewHtml = '';
         if ($data['timerView']) {
             $viewName = htmlspecialchars($data['timerView']);
@@ -441,14 +423,13 @@ class Debugger
         <div id="blaze-card">
             <div style="display: flex; align-items: center; gap: 7px; margin-bottom: 4px;">
                 <span style="color: {$accentColor}; font-weight: 700; font-size: 11px; letter-spacing: 0.05em; text-transform: uppercase;">{$modeName}</span>
-                <button id="blaze-card-close" title="Close" style="margin-left: auto; background: none; border: none; cursor: pointer; color: rgba(255,255,255,0.3); padding: 2px; line-height: 1; font-size: 16px; transition: color 0.15s ease;" onmouseover="this.style.color='#ffffff'" onmouseout="this.style.color='rgba(255,255,255,0.3)'">
+                <button id="blaze-card-close" title="Close" style="margin-left: auto; background: none; border: none; cursor: pointer; color: #555555; padding: 2px; line-height: 1; font-size: 16px; transition: color 0.15s ease;" onmouseover="this.style.color='#ffffff'" onmouseout="this.style.color='#555555'">
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6L6 18"/><path d="M6 6l12 12"/></svg>
                 </button>
             </div>
 
             <div style="display: flex; align-items: baseline; gap: 8px;">
                 <span style="color: #ffffff; font-weight: 700; font-size: 26px; letter-spacing: -1.5px; line-height: 1; font-variant-numeric: tabular-nums;">{$timeFormatted}</span>
-                {$diffHtml}
             </div>
 
             {$timerViewHtml}
@@ -530,13 +511,15 @@ class Debugger
         }
 
         $isFaster = $currentTime < $otherTime;
+        $diff = $currentTime - $otherTime;
+        $sign = $diff < 0 ? '-' : '+';
         $multiplier = $isFaster ? ($otherTime / $currentTime) : ($currentTime / $otherTime);
         $multiplierFormatted = round($multiplier, 1) . 'x';
 
         $color = $isFaster ? '#22c55e' : '#ef4444';
         $rgb = $isFaster ? '34, 197, 94' : '239, 68, 68';
         $word = $isFaster ? 'faster' : 'slower';
-
+        $diffFormatted = $sign . $this->formatMsWithSeparator($diff);
         $otherFormatted = $this->formatMs($otherTime);
         $currentFormatted = $this->formatMs($currentTime);
 
@@ -544,12 +527,12 @@ class Debugger
             return <<<HTML
             <div style="background: rgba({$rgb}, 0.06); border: 1px solid rgba({$rgb}, 0.12); border-radius: 4px; padding: 10px 12px;">
                 <div style="display: flex; align-items: baseline; gap: 6px;">
-                    <span style="color: {$color}; font-weight: 800; font-size: 18px; letter-spacing: -0.5px; line-height: 1;">{$multiplierFormatted}</span>
-                    <span style="color: {$color}; font-size: 11px; font-weight: 600;">{$word}</span>
+                    <span style="color: {$color}; font-weight: 800; font-size: 18px; letter-spacing: -0.5px; line-height: 1;">{$diffFormatted}</span>
                     <span style="color: rgba(255,255,255,0.3); font-size: 10px; margin-left: auto; align-self: start;">{$type}</span>
                 </div>
-                <div style="color: rgba(255,255,255,0.3); font-size: 11px; margin-top: 5px;">
-                    {$otherFormatted} &#8594; {$currentFormatted}
+                <div style="display: flex; align-items: baseline; gap: 6px; margin-top: 5px;">
+                    <span style="color: rgba(255,255,255,0.3); font-size: 11px;">{$multiplierFormatted} {$word}</span>
+                    <span style="color: rgba(255,255,255,0.3); font-size: 10px; margin-left: auto;">{$otherFormatted} &#8594; {$currentFormatted}</span>
                 </div>
             </div>
             HTML;
@@ -558,12 +541,12 @@ class Debugger
         return <<<HTML
         <div style="background: rgba({$rgb}, 0.04); border: 1px solid rgba({$rgb}, 0.08); border-radius: 4px; padding: 8px 12px;">
             <div style="display: flex; align-items: baseline; gap: 6px;">
-                <span style="color: {$color}; font-weight: 700; font-size: 13px;">{$multiplierFormatted}</span>
-                <span style="color: {$color}; font-size: 10px; font-weight: 600;">{$word}</span>
-                <span style="color: rgba(255,255,255,0.3); font-size: 9px; margin-left: auto; align-self: start;">{$type}</span>
+                <span style="color: {$color}; font-weight: 700; font-size: 13px;">{$diffFormatted}</span>
+                    <span style="color: rgba(255,255,255,0.3); font-size: 9px; margin-left: auto; align-self: start;">{$type}</span>
             </div>
-            <div style="color: rgba(255,255,255,0.3); font-size: 10px; margin-top: 2px;">
-                {$otherFormatted} &#8594; {$currentFormatted}
+            <div style="display: flex; align-items: baseline; gap: 6px; margin-top: 2px;">
+                <span style="color: rgba(255,255,255,0.3); font-size: 10px;">{$multiplierFormatted} {$word}</span>
+                <span style="color: rgba(255,255,255,0.3); font-size: 9px; margin-left: auto;">{$otherFormatted} &#8594; {$currentFormatted}</span>
             </div>
         </div>
         HTML;
