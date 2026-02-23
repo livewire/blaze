@@ -3,26 +3,35 @@
 use Livewire\Blaze\Compiler\UseExtractor;
 
 test('extracts use statements from php blocks', function () {
+    $input = "<?php use App\Models\User;\nuse App\Models\Order;\nUser::find(1); ?>";
+
     $statements = [];
+    $result = (new UseExtractor)->extract($input, function ($s) use (&$statements) { $statements[] = $s; });
 
-    $result = (new UseExtractor)->extract('<?php use App\Models\User; ?>', function ($s) use (&$statements) {
-        $statements[] = $s;
-    });
-
-    expect($statements)->toBe(['use App\Models\User;'])
-        ->and($result)->toBe('');
+    expect($result)->toBe('<?php User::find(1); ?>');
+    expect($statements)->toBe(['use App\Models\User;', 'use App\Models\Order;']);
 });
 
-test('extracts multiple use statements and preserves remaining code', function () {
+test('handles different syntaxes', function ($input, $expected) {
     $statements = [];
+    $result = (new UseExtractor)->extract($input, function ($s) use (&$statements) { $statements[] = $s; });
 
-    $result = (new UseExtractor)->extract(
-        '<?php use App\Models\User;' . "\n" . 'use App\Models\Order;' . "\n" . 'User::find(1); ?>',
-        function ($s) use (&$statements) { $statements[] = $s; },
-    );
+    expect($result)->toBe('');
+    expect($statements)->toBe($expected);
+})->with([
+    'alias' => ['<?php use App\Models\User as UserModel; ?>', ['use App\Models\User as UserModel;']],
+    'group' => ['<?php use App\Models\{User, Order}; ?>', ['use App\Models\{User, Order};']],
+    'one line' => ['<?php use App\Models\User; use App\Models\Order; ?>', ['use App\Models\User;', 'use App\Models\Order;']],
+]);
 
-    expect($statements)->toBe(['use App\Models\User;', 'use App\Models\Order;'])
-        ->and($result)->toBe('<?php User::find(1); ?>');
+test('extracts use statements separated by comments', function () {
+    $input = '<?php use App\Models\User;' . "\n" . '// a comment' . "\n" . 'use App\Models\Order; ?>';
+
+    $statements = [];
+    $result = (new UseExtractor)->extract($input, function ($s) use (&$statements) { $statements[] = $s; });
+
+    expect($result)->toBe('');
+    expect($statements)->toBe(['use App\Models\User;', 'use App\Models\Order;']);
 });
 
 test('leaves blocks without use statements unchanged', function () {
@@ -33,39 +42,11 @@ test('leaves blocks without use statements unchanged', function () {
     expect($result)->toBe($input);
 });
 
-test('handles aliased and group use statements', function ($input, $expected) {
-    $statements = [];
-
-    (new UseExtractor)->extract($input, function ($s) use (&$statements) {
-        $statements[] = $s;
-    });
-
-    expect($statements)->toBe($expected);
-})->with([
-    'alias' => ['<?php use App\Models\User as UserModel; ?>', ['use App\Models\User as UserModel;']],
-    'group' => ['<?php use App\Models\{User, Order}; ?>', ['use App\Models\{User, Order};']],
-]);
-
-test('extracts use statements separated by comments', function () {
-    $statements = [];
-
-    $input = '<?php use App\Models\User;' . "\n" . '// a comment' . "\n" . 'use App\Models\Order; ?>';
-
-    $result = (new UseExtractor)->extract($input, function ($s) use (&$statements) {
-        $statements[] = $s;
-    });
-
-    expect($statements)->toBe(['use App\Models\User;', 'use App\Models\Order;'])
-        ->and($result)->toBe('');
-});
-
 test('preserves content around php blocks', function () {
-    $statements = [];
+    $input = '<div><?php use App\Models\User; ?></div>';
 
-    $result = (new UseExtractor)->extract(
-        '<div><?php use App\Models\User; ?></div>',
-        function ($s) use (&$statements) { $statements[] = $s; },
-    );
+    $statements = [];
+    $result = (new UseExtractor)->extract($input, function ($s) use (&$statements) { $statements[] = $s; });
 
     expect($statements)->toBe(['use App\Models\User;'])
         ->and($result)->toBe('<div></div>');
