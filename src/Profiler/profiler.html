@@ -193,6 +193,18 @@ body {
     pointer-events: none;
 }
 
+.minimap-edge {
+    position: absolute;
+    top: 0;
+    width: 8px;
+    height: 100%;
+    cursor: ew-resize;
+    z-index: 2;
+}
+
+.minimap-edge-left { left: -4px; }
+.minimap-edge-right { right: -4px; }
+
 .time-axis {
     height: 24px;
     border-bottom: 1px solid var(--border);
@@ -259,7 +271,7 @@ body {
 }
 
 .sidebar-col-right {
-    width: 300px;
+    width: 500px;
     flex-shrink: 0;
 }
 
@@ -681,6 +693,7 @@ let viewEnd = 1;
 let totalDuration = 1;
 let maxDepth = 0;
 let hovered = null;
+let active = null;   // clicked/pinned item — keeps detail panel locked
 let renderList = [];
 let gaps = [];          // { at: <collapsed-time>, original: <ms>, label: 'Livewire …' }
 let dragState = null;   // { startX, startTime } when drag-selecting
@@ -692,6 +705,7 @@ let pendingRender = null; // requestAnimationFrame handle for batched renders
 let searchQuery = '';     // current component search filter
 let searchMatches = new Set(); // indices of entries matching the search
 let minimapDrag = null;   // { startX, startViewStart } when dragging minimap viewport
+let minimapResize = null; // { edge: 'left'|'right', startX, startViewStart, startViewEnd, rect } when resizing edges
 
 
 // ─── DOM refs ───────────────────────────────────────────────────────
@@ -1063,8 +1077,8 @@ function updateSidebar() {
         selfTimes[e.name].selfTime += getSelfTime(e);
     }
 
-    const maxSelfTime = Math.max(...Object.values(selfTimes).map(s => s.selfTime), 0.001);
-    const sorted = Object.entries(selfTimes).sort((a, b) => b[1].selfTime - a[1].selfTime);
+    const maxTotalTime = Math.max(...Object.values(selfTimes).map(s => s.totalTime), 0.001);
+    const sorted = Object.entries(selfTimes).sort((a, b) => b[1].totalTime - a[1].totalTime);
 
     const colCount = 1;
     const perCol = Math.ceil(sorted.length / colCount);
@@ -1076,19 +1090,18 @@ function updateSidebar() {
         const table = document.createElement('table');
         table.className = 'comp-table';
         const rank = col * perCol;
-        table.innerHTML = `<thead><tr><th>#</th><th>Component</th><th style="text-align:right;">Self</th><th style="text-align:right;">Total</th></tr></thead>`;
+        table.innerHTML = `<thead><tr><th>#</th><th>Component</th><th style="text-align:right;">Total</th></tr></thead>`;
         const tbody = document.createElement('tbody');
 
         for (let i = 0; i < slice.length; i++) {
             const [name, info] = slice[i];
             const c = colorFor(info.strategy);
-            const selfPct = (info.selfTime / maxSelfTime) * 100;
+            const totalPct = (info.totalTime / maxTotalTime) * 100;
             const tr = document.createElement('tr');
             tr.innerHTML = `
                 <td style="color:var(--text-muted);font-size:9px;padding-right:6px;width:16px;">${rank + i + 1}</td>
                 <td class="comp-name" title="${name}"><span class="comp-strat-dot" style="background:${c.bg}"></span>${name}<span style="color:var(--text-muted);font-size:9px;margin-left:4px;">${info.count}x</span></td>
-                <td class="comp-time">${fmtMs(info.selfTime)}<div class="heat-bar" style="background:${c.bg};width:${selfPct}%;opacity:0.5;"></div></td>
-                <td class="comp-time">${fmtMs(info.totalTime)}</td>
+                <td class="comp-time">${fmtMs(info.totalTime)}<div class="heat-bar" style="background:${c.bg};width:${totalPct}%;opacity:0.5;margin-left:auto;"></div></td>
             `;
             tr.style.cursor = 'pointer';
             tr.addEventListener('mouseenter', () => updateSearch(name));
@@ -1405,6 +1418,7 @@ function drawEntry(ctx, e, w, viewDuration, nextStart) {
     const y = 8 + e.depth * ROW_FULL;
     const c = colorFor(e.strategy);
     const isHovered = hovered && hovered.type === 'entry' && hovered.entry === e;
+    const isActive = active && active.type === 'entry' && active.entry === e;
     const isSearchMatch = searchQuery && e._idx !== undefined && searchMatches.has(e._idx);
     const isDimmed = searchQuery && !isSearchMatch;
 
@@ -1415,13 +1429,13 @@ function drawEntry(ctx, e, w, viewDuration, nextStart) {
 
     // Solid background fill
     ctx.fillStyle = c.bg;
-    ctx.globalAlpha = isDimmed ? 0.12 : (isHovered ? 0.65 : 0.5);
+    ctx.globalAlpha = isDimmed ? 0.12 : (isActive ? 0.35 : (isHovered ? 0.65 : 0.5));
     ctx.fillRect(x, y, bw, ROW_H);
 
     // Border (inside clip, lineWidth doubled so inner half = 1px visible)
     ctx.strokeStyle = c.bg;
     ctx.lineWidth = 2;
-    ctx.globalAlpha = isDimmed ? 0.2 : (isHovered ? 0.85 : 0.6);
+    ctx.globalAlpha = isDimmed ? 0.2 : (isActive ? 0.45 : (isHovered ? 0.85 : 0.6));
     roundRect(ctx, x, y, bw, ROW_H, 4);
     ctx.stroke();
 
@@ -1483,6 +1497,7 @@ function drawCluster(ctx, item, w, viewDuration, nextStart) {
     let bw = Math.max(x2 - x, 2);
     const y = 8 + item.depth * ROW_FULL;
     const isHovered = hovered === item;
+    const isActive = active === item;
 
     // Check if any name in the cluster matches the search
     const hasSearchMatch = searchQuery && Object.keys(item.names).some(n => n.toLowerCase().includes(searchQuery));
@@ -1498,13 +1513,13 @@ function drawCluster(ctx, item, w, viewDuration, nextStart) {
 
     // Solid background fill
     ctx.fillStyle = c.bg;
-    ctx.globalAlpha = isDimmed ? 0.12 : (isHovered ? 0.65 : 0.5);
+    ctx.globalAlpha = isDimmed ? 0.12 : (isActive ? 0.35 : (isHovered ? 0.65 : 0.5));
     ctx.fillRect(x, y, bw, ROW_H);
 
     // Border (inside clip, lineWidth doubled so inner half = 1px visible)
     ctx.strokeStyle = c.bg;
     ctx.lineWidth = 2;
-    ctx.globalAlpha = isDimmed ? 0.2 : (isHovered ? 0.85 : 0.6);
+    ctx.globalAlpha = isDimmed ? 0.2 : (isActive ? 0.45 : (isHovered ? 0.85 : 0.6));
     roundRect(ctx, x, y, bw, ROW_H, 4);
     ctx.stroke();
 
@@ -1634,12 +1649,13 @@ $flameScroll.addEventListener('mousedown', function(ev) {
 
     dragState = { startX: mx, startTime, rect };
 
-    // Create selection overlay
+    // Create selection overlay (hidden until threshold is met)
     if ($dragSel) $dragSel.remove();
     $dragSel = document.createElement('div');
     $dragSel.className = 'drag-selection';
     $dragSel.style.left = mx + 'px';
     $dragSel.style.width = '0px';
+    $dragSel.style.display = 'none';
     $flameScroll.appendChild($dragSel);
 });
 
@@ -1660,7 +1676,7 @@ window.addEventListener('mousemove', function(ev) {
         const left = Math.min(dragState.startX, mx);
         const width = Math.abs(mx - dragState.startX);
 
-        // Only show selection + change cursor once dragged > 4px (avoids flicker on clicks)
+        // Only show selection + change cursor once dragged > 4px
         if (width > 4) {
             $flameScroll.classList.add('dragging');
             $dragSel.style.left = left + 'px';
@@ -1710,6 +1726,25 @@ window.addEventListener('mouseup', function(ev) {
         if (viewEnd - viewStart < 0.001) viewEnd = viewStart + 0.001;
 
         render();
+    } else {
+        // Click — toggle active/pinned component
+        if (hovered) {
+            const isSame = active === hovered ||
+                (active && hovered && active.type === 'entry' && hovered.type === 'entry' && active.entry === hovered.entry);
+            if (isSame) {
+                active = null;
+            } else {
+                active = hovered;
+                if (hovered.type === 'entry') {
+                    showDetail(hovered.entry);
+                } else {
+                    showClusterDetail(hovered);
+                }
+            }
+        } else {
+            active = null;
+        }
+        renderFlameChart();
     }
 
     dragState = null;
@@ -1756,7 +1791,7 @@ function handleHover(ev) {
 
         if (found.type === 'entry') {
             const e = found.entry;
-            showDetail(e);
+            if (!active) showDetail(e);
 
             const c = colorFor(e.strategy);
             const stratLabel = STRAT_LABELS[e.strategy] || e.strategy;
@@ -1776,7 +1811,7 @@ function handleHover(ev) {
                 <div class="tooltip-row"><span class="tooltip-label">% of render</span><span class="tooltip-val">${((e.duration / (data.renderTime || totalDuration)) * 100).toFixed(1)}%</span></div>
             `;
         } else {
-            showClusterDetail(found);
+            if (!active) showClusterDetail(found);
 
             const dom = clusterDominantStrategy(found.strategies);
             const c = colorFor(dom);
@@ -1857,12 +1892,54 @@ $flameScroll.addEventListener('dblclick', function(ev) {
     render();
 });
 
-// ─── Minimap: click to center + drag to pan ─────────────────────────
+// ─── Minimap: click to center, drag to pan, edges to resize ─────────
+const EDGE_THRESHOLD = 6; // px from viewport edge to trigger resize
+
+function getMinimapEdge(ev, rect) {
+    const vpLeftPx = (viewStart / totalDuration) * rect.width + rect.left;
+    const vpRightPx = (viewEnd / totalDuration) * rect.width + rect.left;
+
+    if (Math.abs(ev.clientX - vpLeftPx) <= EDGE_THRESHOLD) return 'left';
+    if (Math.abs(ev.clientX - vpRightPx) <= EDGE_THRESHOLD) return 'right';
+    return null;
+}
+
+$minimapWrap.addEventListener('mousemove', function(ev) {
+    if (minimapDrag || minimapResize) return;
+
+    const rect = $minimapWrap.getBoundingClientRect();
+    const edge = getMinimapEdge(ev, rect);
+    $minimapWrap.style.cursor = edge ? 'ew-resize' : 'pointer';
+});
+
+$minimapWrap.addEventListener('mouseleave', function() {
+    if (!minimapDrag && !minimapResize) {
+        $minimapWrap.style.cursor = '';
+    }
+});
+
 $minimapWrap.addEventListener('mousedown', function(ev) {
     if (ev.button !== 0) return;
     ev.preventDefault();
 
     const rect = $minimapWrap.getBoundingClientRect();
+    const edge = getMinimapEdge(ev, rect);
+
+    if (edge) {
+        // Start edge resize
+        minimapResize = {
+            edge: edge,
+            startX: ev.clientX,
+            startViewStart: viewStart,
+            startViewEnd: viewEnd,
+            rect: rect,
+        };
+        $minimapWrap.style.cursor = 'ew-resize';
+        document.body.style.cursor = 'ew-resize';
+        document.body.style.userSelect = 'none';
+        return;
+    }
+
     const clickPct = (ev.clientX - rect.left) / rect.width;
     const viewDuration = viewEnd - viewStart;
 
@@ -1879,7 +1956,7 @@ $minimapWrap.addEventListener('mousedown', function(ev) {
         render();
     }
 
-    // Always start dragging (whether we were inside or just snapped)
+    // Start panning
     minimapDrag = {
         startX: ev.clientX,
         startViewStart: viewStart,
@@ -1889,6 +1966,23 @@ $minimapWrap.addEventListener('mousedown', function(ev) {
 });
 
 window.addEventListener('mousemove', function(ev) {
+    if (minimapResize) {
+        const dx = ev.clientX - minimapResize.startX;
+        const timeDelta = (dx / minimapResize.rect.width) * totalDuration;
+        const MIN_VIEW = 0.001;
+
+        if (minimapResize.edge === 'left') {
+            viewStart = Math.max(0, minimapResize.startViewStart + timeDelta);
+            if (viewStart > viewEnd - MIN_VIEW) viewStart = viewEnd - MIN_VIEW;
+        } else {
+            viewEnd = Math.min(totalDuration, minimapResize.startViewEnd + timeDelta);
+            if (viewEnd < viewStart + MIN_VIEW) viewEnd = viewStart + MIN_VIEW;
+        }
+
+        scheduleRender();
+        return;
+    }
+
     if (!minimapDrag) return;
 
     const dx = ev.clientX - minimapDrag.startX;
@@ -1907,6 +2001,13 @@ window.addEventListener('mousemove', function(ev) {
 }, { capture: true });
 
 window.addEventListener('mouseup', function() {
+    if (minimapResize) {
+        minimapResize = null;
+        $minimapWrap.style.cursor = '';
+        document.body.style.cursor = '';
+        document.body.style.userSelect = '';
+        return;
+    }
     if (minimapDrag) {
         minimapDrag = null;
         $minimapWrap.style.cursor = '';
@@ -1927,6 +2028,21 @@ window.addEventListener('keydown', function(ev) {
             ev.target.value = '';
             updateSearch('');
             ev.target.blur();
+        }
+        return;
+    }
+
+    // Escape: cancel drag or clear active selection
+    if (ev.key === 'Escape') {
+        if (dragState) {
+            dragState = null;
+            $flameScroll.classList.remove('dragging');
+            if ($dragSel) { $dragSel.remove(); $dragSel = null; }
+            return;
+        }
+        if (active) {
+            active = null;
+            renderFlameChart();
         }
         return;
     }
