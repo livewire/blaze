@@ -1116,6 +1116,11 @@ function updateSidebar() {
 }
 
 // ─── Detail Panel ───────────────────────────────────────────────────
+function clearDetail() {
+    document.getElementById('detail-grid').innerHTML =
+        '<div style="color:var(--text-muted);font-size:11px;grid-column:1/-1;">Hover a component to see details</div>';
+}
+
 function showDetail(entry) {
     const grid = document.getElementById('detail-grid');
 
@@ -1733,6 +1738,7 @@ window.addEventListener('mouseup', function(ev) {
                 (active && hovered && active.type === 'entry' && hovered.type === 'entry' && active.entry === hovered.entry);
             if (isSame) {
                 active = null;
+                clearDetail();
             } else {
                 active = hovered;
                 if (hovered.type === 'entry') {
@@ -1743,6 +1749,7 @@ window.addEventListener('mouseup', function(ev) {
             }
         } else {
             active = null;
+            clearDetail();
         }
         renderFlameChart();
     }
@@ -2042,6 +2049,7 @@ window.addEventListener('keydown', function(ev) {
         }
         if (active) {
             active = null;
+            clearDetail();
             renderFlameChart();
         }
         return;
