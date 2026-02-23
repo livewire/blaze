@@ -407,13 +407,13 @@ body {
     vertical-align: middle;
 }
 
-/* ── Hottest Columns ─────────────────────────────── */
-.hottest-columns {
+/* ── Slowest Columns ─────────────────────────────── */
+.slowest-columns {
     display: flex;
     gap: 16px;
 }
 
-.hottest-columns .comp-table {
+.slowest-columns .comp-table {
     flex: 1;
     min-width: 0;
 }
@@ -640,9 +640,9 @@ body {
             <div class="strat-bar-wrap" id="strat-bar"></div>
             <div class="strat-rows" id="strat-rows"></div>
         </div>
-        <div class="panel sidebar-col sidebar-col-mid" id="panel-hottest">
-            <div class="panel-title">Hottest Components</div>
-            <div id="hottest-columns" class="hottest-columns"></div>
+        <div class="panel sidebar-col sidebar-col-mid" id="panel-slowest">
+            <div class="panel-title">Slowest Components</div>
+            <div id="slowest-columns" class="slowest-columns"></div>
         </div>
         <div class="panel sidebar-col sidebar-col-right" id="panel-detail">
             <div class="panel-title">Component Detail</div>
@@ -697,6 +697,7 @@ let pendingRender = null; // requestAnimationFrame handle for batched renders
 let searchQuery = '';     // current component search filter
 let searchMatches = new Set(); // indices of entries matching the search
 let minimapDrag = null;   // { startX, startViewStart } when dragging minimap viewport
+
 
 // ─── DOM refs ───────────────────────────────────────────────────────
 const $flame       = document.getElementById('flame');
@@ -1055,8 +1056,8 @@ function updateSidebar() {
     }
 
     // Component table with self-time (multi-column)
-    const hottestContainer = document.getElementById('hottest-columns');
-    hottestContainer.innerHTML = '';
+    const slowestContainer = document.getElementById('slowest-columns');
+    slowestContainer.innerHTML = '';
 
     // Compute self-time using precomputed index (O(1) per entry).
     const selfTimes = {};
@@ -1094,11 +1095,14 @@ function updateSidebar() {
                 <td class="comp-time">${fmtMs(info.selfTime)}<div class="heat-bar" style="background:${c.bg};width:${selfPct}%;opacity:0.5;"></div></td>
                 <td class="comp-time">${fmtMs(info.totalTime)}</td>
             `;
+            tr.style.cursor = 'pointer';
+            tr.addEventListener('mouseenter', () => updateSearch(name));
+            tr.addEventListener('mouseleave', () => updateSearch(document.getElementById('search-input').value));
             tbody.appendChild(tr);
         }
 
         table.appendChild(tbody);
-        hottestContainer.appendChild(table);
+        slowestContainer.appendChild(table);
     }
 
 }
