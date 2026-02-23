@@ -574,6 +574,7 @@ body {
         <div class="legend-item"><div class="legend-swatch" style="background: #a855f7"></div>Memo miss</div>
         <div class="legend-item"><div class="legend-swatch" style="background: #3b82f6"></div>Blade</div>
         <div class="legend-item"><div class="legend-swatch" style="background: rgba(255,255,255,0.3)"></div>View</div>
+        <div class="legend-item"><div class="legend-swatch" style="background:repeating-linear-gradient(-45deg,rgba(255,255,255,0.15),rgba(255,255,255,0.15) 2px,transparent 2px,transparent 4px)"></div>Clustered</div>
     </div>
     <div class="controls-right">
         <button class="control-btn" onclick="resetZoom()">Reset Zoom</button>
@@ -623,11 +624,11 @@ const ROW_GAP = 2;
 const ROW_FULL = ROW_H + ROW_GAP;
 const MIN_BAR_W = 2;
 const COLORS = {
-    'compiled':           { bg: '#FF8602', bgDim: 'rgba(255,134,2,0.18)', text: '#fff' },
-    'compiled+memo':      { bg: '#a855f7', bgDim: 'rgba(168,85,247,0.18)', text: '#fff' },
-    'folded':             { bg: '#10b981', bgDim: 'rgba(16,185,129,0.18)', text: '#fff' },
-    'view':               { bg: 'rgba(255,255,255,0.3)', bgDim: 'rgba(255,255,255,0.06)', text: '#fff' },
-    'blade':              { bg: '#3b82f6', bgDim: 'rgba(59,130,246,0.18)', text: '#fff' },
+    'compiled':           { bg: '#FF8602', bgDim: 'rgba(255,134,2,0.18)', text: '#fff', bgSolid: '#452401', bgSolidHover: '#6B3801' },
+    'compiled+memo':      { bg: '#a855f7', bgDim: 'rgba(168,85,247,0.18)', text: '#fff', bgSolid: '#2D1743', bgSolidHover: '#472468' },
+    'folded':             { bg: '#10b981', bgDim: 'rgba(16,185,129,0.18)', text: '#fff', bgSolid: '#043223', bgSolidHover: '#074E36' },
+    'view':               { bg: 'rgba(255,255,255,0.3)', bgDim: 'rgba(255,255,255,0.06)', text: '#fff', bgSolid: '#151515', bgSolidHover: '#202020' },
+    'blade':              { bg: '#3b82f6', bgDim: 'rgba(59,130,246,0.18)', text: '#fff', bgSolid: '#102342', bgSolidHover: '#193767' },
 };
 const STRAT_LABELS = {
     'compiled':           'Compiled (Blaze)',
@@ -1181,7 +1182,8 @@ function renderTimeAxis() {
 
 function renderFlameChart() {
     const w = $flameScroll.clientWidth;
-    const chartH = (maxDepth + 1) * ROW_FULL + 20;
+    const contentH = (maxDepth + 1) * ROW_FULL + 20;
+    const chartH = Math.max(contentH, $flameScroll.clientHeight);
     const ctx = sizeCanvas($flame, w, chartH);
 
     $flame.style.height = chartH + 'px';
@@ -1240,58 +1242,65 @@ function renderFlameChart() {
         ctx.restore();
     }
 
+    // Pre-process: cap widths so no bar overlaps the next bar at the same depth
+    const _byDepth = new Map();
+    for (const item of renderList) {
+        const d = item.type === 'entry' ? item.entry.depth : item.depth;
+        if (!_byDepth.has(d)) _byDepth.set(d, []);
+        _byDepth.get(d).push(item);
+    }
+    for (const items of _byDepth.values()) {
+        items.sort((a, b) => {
+            const as = a.type === 'entry' ? a.entry.start : a.start;
+            const bs = b.type === 'entry' ? b.entry.start : b.start;
+            return as - bs;
+        });
+        for (let i = 0; i < items.length - 1; i++) {
+            const next = items[i + 1];
+            items[i]._nextStart = next.type === 'entry' ? next.entry.start : next.start;
+        }
+    }
+
     // Draw render list (individual entries + clusters)
     for (const item of renderList) {
         if (item.type === 'entry') {
-            drawEntry(ctx, item.entry, w, viewDuration);
+            drawEntry(ctx, item.entry, w, viewDuration, item._nextStart);
         } else {
-            drawCluster(ctx, item, w, viewDuration);
+            drawCluster(ctx, item, w, viewDuration, item._nextStart);
         }
     }
 }
 
-function drawEntry(ctx, e, w, viewDuration) {
+function drawEntry(ctx, e, w, viewDuration, nextStart) {
     const x = ((e.start - viewStart) / viewDuration) * w;
-    const x2 = ((e.end - viewStart) / viewDuration) * w;
-    let bw = x2 - x;
-    if (bw < MIN_BAR_W) bw = MIN_BAR_W;
+    const end = nextStart !== undefined ? Math.min(e.end, nextStart) : e.end;
+    const x2 = ((end - viewStart) / viewDuration) * w;
+    let bw = Math.max(x2 - x, 1);
 
     const y = 8 + e.depth * ROW_FULL;
     const c = colorFor(e.strategy);
     const isHovered = hovered && hovered.type === 'entry' && hovered.entry === e;
 
-    // Clip to rounded rect
+    // Clip to rounded rect — fill + border drawn inside so nothing bleeds out
     ctx.save();
     roundRect(ctx, x, y, bw, ROW_H, 4);
     ctx.clip();
 
-    // Dim background fill
+    // Solid background fill
     ctx.fillStyle = c.bg;
-    ctx.globalAlpha = isHovered ? 0.16 : 0.08;
+    ctx.globalAlpha = isHovered ? 0.65 : 0.5;
     ctx.fillRect(x, y, bw, ROW_H);
 
-    // Diagonal hatch lines
+    // Border (inside clip, lineWidth doubled so inner half = 1px visible)
     ctx.strokeStyle = c.bg;
-    ctx.lineWidth = 1;
-    ctx.globalAlpha = isHovered ? 0.5 : 0.3;
-    const spacing = 7;
-    for (let sx = x - ROW_H; sx < x + bw + ROW_H; sx += spacing) {
-        ctx.beginPath();
-        ctx.moveTo(sx, y + ROW_H);
-        ctx.lineTo(sx + ROW_H, y);
-        ctx.stroke();
-    }
-
-    ctx.restore();
-
-    // Border
-    ctx.strokeStyle = c.bg;
-    ctx.lineWidth = 1;
-    ctx.globalAlpha = isHovered ? 0.7 : 0.4;
+    ctx.lineWidth = 2;
+    ctx.globalAlpha = isHovered ? 0.85 : 0.6;
     roundRect(ctx, x, y, bw, ROW_H, 4);
     ctx.stroke();
 
-    // Hover outline
+    ctx.restore();
+
+    // Hover outline (drawn outside clip so it sits on top)
     if (isHovered) {
         ctx.strokeStyle = '#fff';
         ctx.lineWidth = 1.5;
@@ -1331,48 +1340,37 @@ function drawEntry(ctx, e, w, viewDuration) {
     }
 }
 
-function drawCluster(ctx, item, w, viewDuration) {
+function drawCluster(ctx, item, w, viewDuration, nextStart) {
     const x = ((item.start - viewStart) / viewDuration) * w;
-    const x2 = ((item.end - viewStart) / viewDuration) * w;
-    let bw = Math.max(x2 - x, CLUSTER_PX);
+    const end = nextStart !== undefined ? Math.min(item.end, nextStart) : item.end;
+    const x2 = ((end - viewStart) / viewDuration) * w;
+    let bw = Math.max(x2 - x, 2);
     const y = 8 + item.depth * ROW_FULL;
     const isHovered = hovered === item;
 
     const dom = clusterDominantStrategy(item.strategies);
     const c = colorFor(dom);
 
-    // Clip to rounded rect
+    // Clip to rounded rect — fill + border drawn inside so nothing bleeds out
     ctx.save();
     roundRect(ctx, x, y, bw, ROW_H, 4);
     ctx.clip();
 
-    // Dim background fill
+    // Solid background fill
     ctx.fillStyle = c.bg;
-    ctx.globalAlpha = isHovered ? 0.16 : 0.08;
+    ctx.globalAlpha = isHovered ? 0.65 : 0.5;
     ctx.fillRect(x, y, bw, ROW_H);
 
-    // Diagonal hatch lines
+    // Border (inside clip, lineWidth doubled so inner half = 1px visible)
     ctx.strokeStyle = c.bg;
-    ctx.lineWidth = 1;
-    ctx.globalAlpha = isHovered ? 0.5 : 0.3;
-    const clSpacing = 7;
-    for (let sx = x - ROW_H; sx < x + bw + ROW_H; sx += clSpacing) {
-        ctx.beginPath();
-        ctx.moveTo(sx, y + ROW_H);
-        ctx.lineTo(sx + ROW_H, y);
-        ctx.stroke();
-    }
-
-    ctx.restore();
-
-    // Border
-    ctx.strokeStyle = c.bg;
-    ctx.lineWidth = 1;
-    ctx.globalAlpha = isHovered ? 0.7 : 0.4;
+    ctx.lineWidth = 2;
+    ctx.globalAlpha = isHovered ? 0.85 : 0.6;
     roundRect(ctx, x, y, bw, ROW_H, 4);
     ctx.stroke();
 
-    // Hover outline
+    ctx.restore();
+
+    // Hover outline (drawn outside clip so it sits on top)
     if (isHovered) {
         ctx.strokeStyle = '#fff';
         ctx.lineWidth = 1.5;
