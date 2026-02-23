@@ -7,6 +7,7 @@ use Livewire\Blaze\BladeService;
 use Livewire\Blaze\Support\Directives;
 use Livewire\Blaze\Support\Utils;
 use Livewire\Blaze\Blaze;
+use Illuminate\Support\Arr;
 
 /**
  * Compiles Blaze component templates into PHP function definitions.
@@ -100,16 +101,24 @@ class Wrapper
             $output .= '$__bladeCompiler = app(\'blade.compiler\');' . "\n";
         }
 
-        $output .= implode("\n", array_filter([
-            '$app' => '$app = $__blaze->app;',
-            '$errors' => '$errors = $__blaze->errors;',
-            '@error' => '$errors = $__blaze->errors;',
-            '$__livewire' => '$__livewire = $__env->shared(\'__livewire\');',
-            '@entangle' => '$__livewire = $__env->shared(\'__livewire\');',
-            '$slot' => '$__slots[\'slot\'] ??= new \Illuminate\View\ComponentSlot(\'\');',
-        ], function ($pattern) use ($source, $compiled) {
-            return str_contains($source, $pattern) || str_contains($compiled, $pattern);
-        }, ARRAY_FILTER_USE_KEY)) . "\n";
+        $output .= implode("\n", array_filter(Arr::map([
+            [['$app'], '$app = $__blaze->app;'],
+            [['$errors'], '$errors = $__blaze->errors;'],
+            [['@error'], '$errors = $__blaze->errors;'],
+            [['$__livewire', '@entangle', '@this'], '$__livewire = $__env->shared(\'__livewire\');'],
+            [['@this'], '$_instance = $__livewire;'],
+            [['$slot'], '$__slots[\'slot\'] ??= new \Illuminate\View\ComponentSlot(\'\');'],
+        ], function ($data) use ($source, $compiled) {
+            [$patterns, $variable] = $data;
+
+            foreach ($patterns as $pattern) {
+                if (str_contains($source, $pattern) || str_contains($compiled, $pattern)) {
+                    return $variable;
+                }
+            }
+
+            return null;
+        }))) . "\n";
 
         return $output;
     }

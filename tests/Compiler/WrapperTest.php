@@ -79,6 +79,7 @@ test('injects variables', function ($source, $expected) {
     'errors directive' => ['<input @error(\'name\') invalid @enderror >', '$errors = $__blaze->errors;'],
     'livewire' => ['{{ $__livewire->id }}', '$__livewire = $__env->shared(\'__livewire\');'],
     'entangle' => ['<div x-data="{ name: @entangle(\'name\') }"></div>', '$__livewire = $__env->shared(\'__livewire\');'],
+    'this directive' => ['<script> console.log(@this) </script>', '$__livewire = $__env->shared(\'__livewire\');' . "\n" . '$_instance = $__livewire;'],
     'app' => ['{{ $app->name }}', '$app = $__blaze->app;'],
     'slot' => ['{{ $slot }}', '$__slots[\'slot\'] ??= new \Illuminate\View\ComponentSlot(\'\');'],
 ]);
