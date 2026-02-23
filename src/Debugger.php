@@ -287,18 +287,6 @@ class Debugger
         ];
     }
 
-    /**
-     * Format a number for display (e.g. 83120 -> "83.12k").
-     */
-    protected function formatCount(int|float $value): string
-    {
-        if ($value >= 1000) {
-            return round($value / 1000, 2) . 'k';
-        }
-
-        return (string) $value;
-    }
-
     protected function formatMs(float $value): string
     {
         if ($value >= 1000) {
@@ -389,17 +377,6 @@ class Debugger
                 transform-origin: bottom right;
             }
 
-            #blaze-detail-panel {
-                max-height: 240px;
-                overflow-y: auto;
-                scrollbar-width: thin;
-                scrollbar-color: #1b1b1b transparent;
-            }
-
-            #blaze-detail-panel::-webkit-scrollbar { width: 4px; }
-            #blaze-detail-panel::-webkit-scrollbar-track { background: transparent; }
-            #blaze-detail-panel::-webkit-scrollbar-thumb { background: #1b1b1b; border-radius: 2px; }
-
             @keyframes blaze-card-in {
                 from { opacity: 0; transform: translateY(6px); }
                 to { opacity: 1; transform: translateY(0); }
@@ -415,8 +392,6 @@ class Debugger
                 100% { opacity: 1; transform: translateY(0); }
             }
 
-            #blaze-detail-toggle { transition: color 0.15s ease; }
-            #blaze-detail-toggle:hover { color: #ffffff !important; }
         </style>
         HTML;
     }
@@ -437,8 +412,6 @@ class Debugger
         $accentColor = $isBlaze ? '#FF8602' : '#6366f1';
         $modeName = $isBlaze ? 'Blaze' : 'Blade';
         $timeFormatted = $this->formatMs($data['totalTime']);
-        $totalComponents = $isBlaze ? $data['totalComponents'] : $data['bladeComponentCount'];
-        $componentsFormatted = $this->formatCount($totalComponents);
 
         $coldTag = $data['isColdRender']
             ? ' <span style="color: rgba(255,255,255,0.3); font-size: 9px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; background: rgba(255,255,255,0.03); border: 1px solid #1b1b1b; padding: 3px 6px; border-radius: 2px; line-height: 1;">cold</span>'
@@ -451,7 +424,6 @@ class Debugger
         }
 
         $savingsHtml = $this->renderSavingsBlock($data);
-        $detailHtml = $this->renderComponentDetail($data);
 
         return <<<HTML
         <div id="blaze-card">
@@ -470,16 +442,6 @@ class Debugger
             {$timerViewHtml}
 
             {$savingsHtml}
-
-            <div style="margin-top: 8px; padding: 4px 0;">
-                <div id="blaze-detail-toggle" style="color: rgba(255,255,255,0.5); font-size: 11px; cursor: pointer; user-select: none; display: flex; align-items: center; gap: 5px; font-weight: 500;">
-                    <span id="blaze-detail-arrow" style="font-size: 8px; transition: transform 0.2s ease; display: inline-block;">&#9654;</span>
-                    <span>{$componentsFormatted} components</span>
-                </div>
-                <div id="blaze-detail-panel" style="display: none; margin-top: 10px;">
-                    {$detailHtml}
-                </div>
-            </div>
 
             <a href="/_blaze/profiler" target="_blank" id="blaze-profiler-link" style="display: flex; align-items: center; gap: 6px; margin-top: 10px; padding: 7px 10px; border-radius: 4px; background: rgba(255,134,2,0.08); border: 1px solid rgba(255,134,2,0.15); color: #FF8602; font-size: 11px; font-weight: 600; text-decoration: none; transition: all 0.15s ease; cursor: pointer;" onmouseover="this.style.background='rgba(255,134,2,0.12)';this.style.borderColor='rgba(255,134,2,0.25)'" onmouseout="this.style.background='rgba(255,134,2,0.08)';this.style.borderColor='rgba(255,134,2,0.15)'">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M7 16l4-8 4 4 4-8"/></svg>
@@ -595,86 +557,6 @@ class Debugger
         HTML;
     }
 
-    protected function renderComponentDetail(array $data): string
-    {
-        if ($data['blazeEnabled']) {
-            return $this->renderBlazeComponentTable($data['components']);
-        }
-
-        return $this->renderBladeComponentTable($data['bladeComponents']);
-    }
-
-    protected function renderBlazeComponentTable(array $components): string
-    {
-        if (empty($components)) {
-            return '<div style="color: rgba(255,255,255,0.3); font-size: 11px; padding: 4px 0;">No components rendered.</div>';
-        }
-
-        $thStyle = 'padding: 4px 0; font-size: 9px; font-weight: 600; color: rgba(255,255,255,0.3); text-transform: uppercase; letter-spacing: 0.06em; border-bottom: 1px solid #1b1b1b;';
-        $tdStyle = 'padding: 3px 0; font-family: inherit; font-size: 11px; white-space: nowrap;';
-
-        $rows = '';
-        foreach ($components as $component) {
-            $name = htmlspecialchars($component['name']);
-            $count = $component['count'];
-            $time = $this->formatMs($component['totalTime']);
-            $rows .= <<<HTML
-            <tr>
-                <td style="{$tdStyle} color: rgba(255,255,255,0.7); overflow: hidden; text-overflow: ellipsis; max-width: 140px;">{$name}</td>
-                <td style="{$tdStyle} color: rgba(255,255,255,0.3); text-align: right; padding-left: 8px; padding-right: 8px;">{$count}&#215;</td>
-                <td style="{$tdStyle} color: rgba(255,255,255,0.5); text-align: right;">{$time}</td>
-            </tr>
-            HTML;
-        }
-
-        return <<<HTML
-        <table style="width: 100%; border-collapse: collapse;">
-            <thead>
-                <tr>
-                    <th style="{$thStyle} text-align: left;">Component</th>
-                    <th style="{$thStyle} text-align: right; padding-left: 8px; padding-right: 8px;">Count</th>
-                    <th style="{$thStyle} text-align: right;">Time</th>
-                </tr>
-            </thead>
-            <tbody>{$rows}</tbody>
-        </table>
-        HTML;
-    }
-
-    protected function renderBladeComponentTable(array $components): string
-    {
-        if (empty($components)) {
-            return '<div style="color: rgba(255,255,255,0.3); font-size: 11px; padding: 4px 0;">No components rendered.</div>';
-        }
-
-        $thStyle = 'padding: 4px 0; font-size: 9px; font-weight: 600; color: rgba(255,255,255,0.3); text-transform: uppercase; letter-spacing: 0.06em; border-bottom: 1px solid #1b1b1b;';
-        $tdStyle = 'padding: 3px 0; font-family: inherit; font-size: 11px; white-space: nowrap;';
-
-        $rows = '';
-        foreach ($components as $component) {
-            $name = htmlspecialchars($component['name']);
-            $count = $component['count'];
-            $rows .= <<<HTML
-            <tr>
-                <td style="{$tdStyle} color: rgba(255,255,255,0.7); overflow: hidden; text-overflow: ellipsis; max-width: 170px;">{$name}</td>
-                <td style="{$tdStyle} color: rgba(255,255,255,0.3); text-align: right;">{$count}&#215;</td>
-            </tr>
-            HTML;
-        }
-
-        return <<<HTML
-        <table style="width: 100%; border-collapse: collapse;">
-            <thead>
-                <tr>
-                    <th style="{$thStyle} text-align: left;">Component</th>
-                    <th style="{$thStyle} text-align: right;">Count</th>
-                </tr>
-            </thead>
-            <tbody>{$rows}</tbody>
-        </table>
-        HTML;
-    }
-
     protected function renderBubble(array $data): string
     {
         if ($data['blazeEnabled']) {
@@ -708,22 +590,10 @@ class Debugger
         return <<<HTML
         <script>
         (function() {
-            var toggle = document.getElementById('blaze-detail-toggle');
-            var panel = document.getElementById('blaze-detail-panel');
-            var arrow = document.getElementById('blaze-detail-arrow');
             var card = document.getElementById('blaze-card');
             var closeBtn = document.getElementById('blaze-card-close');
             var bubble = document.getElementById('blaze-bubble');
             var hoverTimer = null;
-
-            if (toggle && panel) {
-                toggle.addEventListener('click', function(e) {
-                    e.stopPropagation();
-                    var isHidden = panel.style.display === 'none';
-                    panel.style.display = isHidden ? 'block' : 'none';
-                    if (arrow) arrow.style.transform = isHidden ? 'rotate(90deg)' : '';
-                });
-            }
 
             if (closeBtn && card) {
                 closeBtn.addEventListener('click', function(e) {

@@ -536,13 +536,67 @@ body {
     animation: pulse-glow 1.5s ease-in-out infinite;
 }
 
+/* ── Search Input ────────────────────────────────── */
+.search-wrap {
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+
+.search-input {
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid var(--border);
+    color: var(--text);
+    font-family: inherit;
+    font-size: 11px;
+    padding: 4px 10px 4px 28px;
+    border-radius: 4px;
+    width: 180px;
+    outline: none;
+    transition: all 0.15s;
+}
+
+.search-input::placeholder { color: var(--text-muted); }
+.search-input:focus { border-color: rgba(255, 134, 2, 0.4); background: rgba(255, 255, 255, 0.05); }
+
+.search-icon {
+    position: absolute;
+    left: 8px;
+    color: var(--text-muted);
+    pointer-events: none;
+}
+
+.search-count {
+    font-size: 10px;
+    color: var(--text-muted);
+    margin-left: 6px;
+    white-space: nowrap;
+}
+
+/* ── Zoom History ────────────────────────────────── */
+.zoom-back {
+    background: rgba(255, 134, 2, 0.08);
+    border: 1px solid rgba(255, 134, 2, 0.15);
+    color: var(--orange);
+    font-size: 11px;
+    font-weight: 500;
+    padding: 4px 10px;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.15s;
+    font-family: inherit;
+    display: none;
+}
+
+.zoom-back:hover { background: rgba(255, 134, 2, 0.14); }
+
 </style>
 </head>
 <body>
 
 <div class="header">
     <div class="logo">
-        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+        &#x1f525;
         Profiler
     </div>
     <div class="header-url" id="hdr-url">Loading...</div>
@@ -564,6 +618,10 @@ body {
             <div class="stat-value" id="stat-avg">--</div>
             <div class="stat-label">Avg/component</div>
         </div>
+        <div class="stat" id="stat-memo-wrap" style="display:none;">
+            <div class="stat-value" id="stat-memo" style="color:var(--green)">--</div>
+            <div class="stat-label">Memo hits</div>
+        </div>
     </div>
 </div>
 
@@ -577,9 +635,15 @@ body {
         <div class="legend-item"><div class="legend-swatch" style="background:repeating-linear-gradient(-45deg,rgba(255,255,255,0.15),rgba(255,255,255,0.15) 2px,transparent 2px,transparent 4px)"></div>Clustered</div>
     </div>
     <div class="controls-right">
+        <div class="search-wrap">
+            <svg class="search-icon" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+            <input class="search-input" id="search-input" type="text" placeholder="Search components..." spellcheck="false" autocomplete="off">
+            <span class="search-count" id="search-count"></span>
+        </div>
+        <button class="zoom-back" id="zoom-back" onclick="zoomBack()">Back</button>
         <button class="control-btn" onclick="resetZoom()">Reset Zoom</button>
         <button class="control-btn" onclick="fetchTrace()">Refresh</button>
-        <span class="control-hint">Scroll to pan, Ctrl/&#8984;+scroll to zoom, drag to select</span>
+        <span class="control-hint">Scroll to pan, Ctrl/&#8984;+scroll zoom, drag select, WASD nav, / search</span>
     </div>
 </div>
 
@@ -603,6 +667,10 @@ body {
             <div class="panel-title">Strategy Breakdown</div>
             <div class="strat-bar-wrap" id="strat-bar"></div>
             <div class="strat-rows" id="strat-rows"></div>
+            <div id="memo-section" style="display:none;">
+                <div class="panel-title" style="margin-top:16px;">Memo Cache Hits</div>
+                <div id="memo-rows" class="strat-rows"></div>
+            </div>
             <div class="panel-title" style="margin-top:16px;">Hottest Components</div>
             <div id="hottest-columns" class="hottest-columns"></div>
         </div>
@@ -651,6 +719,13 @@ let gaps = [];          // { at: <collapsed-time>, original: <ms>, label: 'Livew
 let dragState = null;   // { startX, startTime } when drag-selecting
 let $dragSel = null;    // the drag selection overlay element
 let resizeState = null; // { startY, startH } when resizing sidebar
+let childIndex = null;  // Map<entryIndex, number[]> — indices of direct children
+let selfTimeCache = new Map(); // Map<entryIndex, number> — precomputed self-times
+let pendingRender = null; // requestAnimationFrame handle for batched renders
+let searchQuery = '';     // current component search filter
+let searchMatches = new Set(); // indices of entries matching the search
+let zoomHistory = [];     // stack of { viewStart, viewEnd } for back-navigation
+let minimapDrag = null;   // { startX, startViewStart } when dragging minimap viewport
 
 // ─── DOM refs ───────────────────────────────────────────────────────
 const $flame       = document.getElementById('flame');
@@ -861,8 +936,107 @@ function processData() {
     viewStart = 0;
     viewEnd = totalDuration;
 
+    buildChildIndex();
     updateHeader();
     updateSidebar();
+}
+
+// ─── Parent-Child Index ─────────────────────────────────────────────
+// Build a Map from entry index → array of direct-child indices.
+// Also precompute self-time for every entry (total - sum of children).
+// This turns every self-time lookup from O(n) to O(1).
+function buildChildIndex() {
+    childIndex = new Map();
+    selfTimeCache = new Map();
+
+    // Assign stable indices and sort by start time.
+    for (let i = 0; i < entries.length; i++) {
+        entries[i]._idx = i;
+        childIndex.set(i, []);
+    }
+
+    // Stack-based parent assignment in one pass (entries already sorted by start).
+    const stack = []; // stack of entry indices
+    for (let i = 0; i < entries.length; i++) {
+        const e = entries[i];
+
+        // Pop entries from the stack whose time range has ended.
+        while (stack.length && entries[stack[stack.length - 1]].end <= e.start) {
+            stack.pop();
+        }
+
+        // The top of the stack is the direct parent (deepest ancestor still open).
+        if (stack.length) {
+            const parentIdx = stack[stack.length - 1];
+            // Only add as direct child if depth is exactly parent + 1
+            if (e.depth === entries[parentIdx].depth + 1) {
+                childIndex.get(parentIdx).push(i);
+            }
+        }
+
+        stack.push(i);
+    }
+
+    // Compute self-time for every entry.
+    for (let i = 0; i < entries.length; i++) {
+        const e = entries[i];
+        let childTime = 0;
+        for (const ci of childIndex.get(i)) {
+            childTime += entries[ci].duration;
+        }
+        selfTimeCache.set(i, e.duration - childTime);
+    }
+}
+
+function getSelfTime(entry) {
+    if (entry._idx !== undefined && selfTimeCache.has(entry._idx)) {
+        return selfTimeCache.get(entry._idx);
+    }
+    // Fallback (should not happen after buildChildIndex).
+    return entry.duration;
+}
+
+// ─── Search ─────────────────────────────────────────────────────────
+function updateSearch(query) {
+    searchQuery = (query || '').toLowerCase().trim();
+    searchMatches = new Set();
+
+    if (searchQuery) {
+        for (let i = 0; i < entries.length; i++) {
+            if (entries[i].name.toLowerCase().includes(searchQuery)) {
+                searchMatches.add(i);
+            }
+        }
+        document.getElementById('search-count').textContent = searchMatches.size + ' match' + (searchMatches.size !== 1 ? 'es' : '');
+    } else {
+        document.getElementById('search-count').textContent = '';
+    }
+
+    renderFlameChart();
+}
+
+document.getElementById('search-input').addEventListener('input', function(ev) {
+    updateSearch(ev.target.value);
+});
+
+// ─── Zoom History ───────────────────────────────────────────────────
+function pushZoom() {
+    zoomHistory.push({ viewStart, viewEnd });
+    if (zoomHistory.length > 50) zoomHistory.shift();
+    document.getElementById('zoom-back').style.display = '';
+}
+
+function zoomBack() {
+    if (!zoomHistory.length) return;
+    const prev = zoomHistory.pop();
+    viewStart = prev.viewStart;
+    viewEnd = prev.viewEnd;
+
+    if (!zoomHistory.length) {
+        document.getElementById('zoom-back').style.display = 'none';
+    }
+
+    render();
 }
 
 // ─── Header Stats ───────────────────────────────────────────────────
@@ -879,6 +1053,15 @@ function updateHeader() {
 
     const totalEntryTime = entries.reduce((s, e) => s + e.duration, 0);
     document.getElementById('stat-avg').textContent = entries.length ? fmtMs(totalEntryTime / entries.length) : '--';
+
+    // Memo cache hits
+    const memoHits = data.memoHits || 0;
+    if (memoHits > 0) {
+        document.getElementById('stat-memo').textContent = memoHits;
+        document.getElementById('stat-memo-wrap').style.display = '';
+    } else {
+        document.getElementById('stat-memo-wrap').style.display = 'none';
+    }
 }
 
 // ─── Sidebar ────────────────────────────────────────────────────────
@@ -923,25 +1106,40 @@ function updateSidebar() {
         stratRows.appendChild(row);
     }
 
+    // Memo cache hits breakdown
+    const memoSection = document.getElementById('memo-section');
+    const memoRows = document.getElementById('memo-rows');
+    const memoHitNames = data.memoHitNames || {};
+    const memoHitEntries = Object.entries(memoHitNames).sort((a, b) => b[1] - a[1]);
+
+    if (memoHitEntries.length > 0) {
+        memoSection.style.display = '';
+        memoRows.innerHTML = '';
+        for (const [name, count] of memoHitEntries) {
+            const row = document.createElement('div');
+            row.className = 'strat-row';
+            row.innerHTML = `
+                <div class="strat-row-swatch" style="background:var(--green)"></div>
+                <div class="strat-row-name">${name}</div>
+                <div class="strat-row-count" style="color:var(--green)">${count}x skipped</div>
+            `;
+            memoRows.appendChild(row);
+        }
+    } else {
+        memoSection.style.display = 'none';
+    }
+
     // Component table with self-time (multi-column)
     const hottestContainer = document.getElementById('hottest-columns');
     hottestContainer.innerHTML = '';
 
-    // Compute self-time: duration minus time spent in direct children
+    // Compute self-time using precomputed index (O(1) per entry).
     const selfTimes = {};
     for (const e of entries) {
         selfTimes[e.name] = selfTimes[e.name] || { selfTime: 0, totalTime: 0, count: 0, strategy: e.strategy };
         selfTimes[e.name].totalTime += e.duration;
         selfTimes[e.name].count++;
-
-        // Self time = total - children's durations
-        let childTime = 0;
-        for (const c of entries) {
-            if (c.depth === e.depth + 1 && c.start >= e.start && c.end <= e.end) {
-                childTime += c.duration;
-            }
-        }
-        selfTimes[e.name].selfTime += (e.duration - childTime);
+        selfTimes[e.name].selfTime += getSelfTime(e);
     }
 
     const maxSelfTime = Math.max(...Object.values(selfTimes).map(s => s.selfTime), 0.001);
@@ -987,14 +1185,7 @@ function showDetail(entry) {
     const c = colorFor(entry.strategy);
     const stratLabel = STRAT_LABELS[entry.strategy] || entry.strategy;
 
-    // Compute self time
-    let childTime = 0;
-    for (const ch of entries) {
-        if (ch.depth === entry.depth + 1 && ch.start >= entry.start && ch.end <= entry.end) {
-            childTime += ch.duration;
-        }
-    }
-    const selfTime = entry.duration - childTime;
+    const selfTime = getSelfTime(entry);
 
     const fileRow = entry.file
         ? `<div class="detail-label">File</div><div class="detail-value" style="font-size:10px;word-break:break-all;">${entry.file}</div>`
@@ -1075,6 +1266,16 @@ function render() {
     renderMinimapViewport();
     renderTimeAxis();
     renderFlameChart();
+}
+
+// Batched render via requestAnimationFrame — call this from hot paths
+// (scroll, zoom, drag) to avoid layout thrashing and redundant paints.
+function scheduleRender() {
+    if (pendingRender) return;
+    pendingRender = requestAnimationFrame(() => {
+        pendingRender = null;
+        render();
+    });
 }
 
 function renderMinimap() {
@@ -1280,6 +1481,8 @@ function drawEntry(ctx, e, w, viewDuration, nextStart) {
     const y = 8 + e.depth * ROW_FULL;
     const c = colorFor(e.strategy);
     const isHovered = hovered && hovered.type === 'entry' && hovered.entry === e;
+    const isSearchMatch = searchQuery && e._idx !== undefined && searchMatches.has(e._idx);
+    const isDimmed = searchQuery && !isSearchMatch;
 
     // Clip to rounded rect — fill + border drawn inside so nothing bleeds out
     ctx.save();
@@ -1288,17 +1491,26 @@ function drawEntry(ctx, e, w, viewDuration, nextStart) {
 
     // Solid background fill
     ctx.fillStyle = c.bg;
-    ctx.globalAlpha = isHovered ? 0.65 : 0.5;
+    ctx.globalAlpha = isDimmed ? 0.12 : (isHovered ? 0.65 : 0.5);
     ctx.fillRect(x, y, bw, ROW_H);
 
     // Border (inside clip, lineWidth doubled so inner half = 1px visible)
     ctx.strokeStyle = c.bg;
     ctx.lineWidth = 2;
-    ctx.globalAlpha = isHovered ? 0.85 : 0.6;
+    ctx.globalAlpha = isDimmed ? 0.2 : (isHovered ? 0.85 : 0.6);
     roundRect(ctx, x, y, bw, ROW_H, 4);
     ctx.stroke();
 
     ctx.restore();
+
+    // Search match highlight ring
+    if (isSearchMatch) {
+        ctx.strokeStyle = '#FF8602';
+        ctx.lineWidth = 2;
+        ctx.globalAlpha = 0.9;
+        roundRect(ctx, x, y, bw, ROW_H, 4);
+        ctx.stroke();
+    }
 
     // Hover outline (drawn outside clip so it sits on top)
     if (isHovered) {
@@ -1326,12 +1538,12 @@ function drawEntry(ctx, e, w, viewDuration, nextStart) {
         ctx.rect(x + 6, y, maxTextW, ROW_H);
         ctx.clip();
 
-        ctx.globalAlpha = 0.95;
+        ctx.globalAlpha = isDimmed ? 0.25 : 0.95;
         ctx.fillText(label, x + 6, y + ROW_H / 2);
 
         if (bw > 120) {
             const nameW = ctx.measureText(label).width;
-            ctx.globalAlpha = 0.6;
+            ctx.globalAlpha = isDimmed ? 0.15 : 0.6;
             ctx.font = '500 10px "Roboto Mono", ui-monospace, monospace';
             ctx.fillText(timeLabel, x + 6 + nameW, y + ROW_H / 2);
         }
@@ -1348,6 +1560,10 @@ function drawCluster(ctx, item, w, viewDuration, nextStart) {
     const y = 8 + item.depth * ROW_FULL;
     const isHovered = hovered === item;
 
+    // Check if any name in the cluster matches the search
+    const hasSearchMatch = searchQuery && Object.keys(item.names).some(n => n.toLowerCase().includes(searchQuery));
+    const isDimmed = searchQuery && !hasSearchMatch;
+
     const dom = clusterDominantStrategy(item.strategies);
     const c = colorFor(dom);
 
@@ -1358,17 +1574,26 @@ function drawCluster(ctx, item, w, viewDuration, nextStart) {
 
     // Solid background fill
     ctx.fillStyle = c.bg;
-    ctx.globalAlpha = isHovered ? 0.65 : 0.5;
+    ctx.globalAlpha = isDimmed ? 0.12 : (isHovered ? 0.65 : 0.5);
     ctx.fillRect(x, y, bw, ROW_H);
 
     // Border (inside clip, lineWidth doubled so inner half = 1px visible)
     ctx.strokeStyle = c.bg;
     ctx.lineWidth = 2;
-    ctx.globalAlpha = isHovered ? 0.85 : 0.6;
+    ctx.globalAlpha = isDimmed ? 0.2 : (isHovered ? 0.85 : 0.6);
     roundRect(ctx, x, y, bw, ROW_H, 4);
     ctx.stroke();
 
     ctx.restore();
+
+    // Search match highlight ring
+    if (hasSearchMatch) {
+        ctx.strokeStyle = '#FF8602';
+        ctx.lineWidth = 2;
+        ctx.globalAlpha = 0.9;
+        roundRect(ctx, x, y, bw, ROW_H, 4);
+        ctx.stroke();
+    }
 
     // Hover outline (drawn outside clip so it sits on top)
     if (isHovered) {
@@ -1389,7 +1614,7 @@ function drawCluster(ctx, item, w, viewDuration, nextStart) {
         ctx.clip();
 
         ctx.fillStyle = '#fff';
-        ctx.globalAlpha = 0.8;
+        ctx.globalAlpha = isDimmed ? 0.2 : 0.8;
         ctx.font = '700 10px "Roboto Mono", ui-monospace, monospace';
         ctx.textBaseline = 'middle';
         ctx.textAlign = 'center';
@@ -1460,7 +1685,7 @@ $flameScroll.addEventListener('wheel', function(ev) {
     if (viewEnd > totalDuration) { viewStart -= (viewEnd - totalDuration); viewEnd = totalDuration; }
     if (viewStart < 0) viewStart = 0;
 
-    render();
+    scheduleRender();
 }, { passive: false });
 
 // Sidebar resize: mousedown on handle starts resize
@@ -1495,11 +1720,13 @@ $flameScroll.addEventListener('mousedown', function(ev) {
 });
 
 window.addEventListener('mousemove', function(ev) {
+    if (minimapDrag) return; // handled by capture-phase minimap listener
+
     if (resizeState) {
         const delta = resizeState.startY - ev.clientY;
         const newH = Math.max(80, Math.min(window.innerHeight - 200, resizeState.startH + delta));
         $sidebar.style.height = newH + 'px';
-        render();
+        scheduleRender();
         return;
     }
 
@@ -1528,6 +1755,8 @@ window.addEventListener('mousemove', function(ev) {
 });
 
 window.addEventListener('mouseup', function(ev) {
+    if (minimapDrag) return; // handled by capture-phase minimap listener
+
     if (resizeState) {
         resizeState = null;
         $sidebarResize.classList.remove('active');
@@ -1547,6 +1776,7 @@ window.addEventListener('mouseup', function(ev) {
 
     // Only zoom if dragged more than 4px (otherwise it was a click)
     if (width > 4) {
+        pushZoom();
         const viewDuration = viewEnd - viewStart;
         const endTime = viewStart + (mx / rect.width) * viewDuration;
         const t1 = Math.min(dragState.startTime, endTime);
@@ -1608,13 +1838,7 @@ function handleHover(ev) {
             const c = colorFor(e.strategy);
             const stratLabel = STRAT_LABELS[e.strategy] || e.strategy;
 
-            let childTime = 0;
-            for (const ch of entries) {
-                if (ch.depth === e.depth + 1 && ch.start >= e.start && ch.end <= e.end) {
-                    childTime += ch.duration;
-                }
-            }
-            const selfTime = e.duration - childTime;
+            const selfTime = getSelfTime(e);
 
             const fileHtml = e.file ? `<div style="font-size:10px;color:var(--text-muted);margin-bottom:6px;font-family:inherit;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:280px;" title="${e.file}">${e.file}</div>` : '';
 
@@ -1703,6 +1927,7 @@ $flameScroll.addEventListener('dblclick', function(ev) {
         duration = end - start;
     }
 
+    pushZoom();
     const padding = duration * 0.15;
     viewStart = Math.max(0, start - padding);
     viewEnd = Math.min(totalDuration, end + padding);
@@ -1710,31 +1935,155 @@ $flameScroll.addEventListener('dblclick', function(ev) {
     render();
 });
 
-// Minimap click to navigate
-$minimapWrap.addEventListener('click', function(ev) {
+// ─── Minimap: click to center, drag to pan ──────────────────────────
+$minimapWrap.addEventListener('mousedown', function(ev) {
+    if (ev.button !== 0) return;
+    ev.preventDefault();
+
     const rect = $minimapWrap.getBoundingClientRect();
     const clickPct = (ev.clientX - rect.left) / rect.width;
+    const clickTime = clickPct * totalDuration;
     const viewDuration = viewEnd - viewStart;
-    const center = clickPct * totalDuration;
 
-    viewStart = Math.max(0, center - viewDuration / 2);
-    viewEnd = Math.min(totalDuration, viewStart + viewDuration);
-    if (viewStart < 0) viewStart = 0;
+    // Check if click is inside the viewport indicator
+    const vpLeft = viewStart / totalDuration;
+    const vpRight = viewEnd / totalDuration;
 
-    render();
+    if (clickPct >= vpLeft && clickPct <= vpRight) {
+        // Start dragging the viewport
+        minimapDrag = {
+            startX: ev.clientX,
+            startViewStart: viewStart,
+            rect: rect,
+        };
+        $minimapWrap.style.cursor = 'grabbing';
+    } else {
+        // Click outside viewport — center on click position
+        viewStart = Math.max(0, clickTime - viewDuration / 2);
+        viewEnd = Math.min(totalDuration, viewStart + viewDuration);
+        if (viewStart < 0) viewStart = 0;
+        render();
+    }
 });
 
+window.addEventListener('mousemove', function(ev) {
+    if (!minimapDrag) return;
+
+    const dx = ev.clientX - minimapDrag.startX;
+    const timeDelta = (dx / minimapDrag.rect.width) * totalDuration;
+    const viewDuration = viewEnd - viewStart;
+
+    viewStart = minimapDrag.startViewStart + timeDelta;
+    viewEnd = viewStart + viewDuration;
+
+    // Clamp
+    if (viewStart < 0) { viewEnd -= viewStart; viewStart = 0; }
+    if (viewEnd > totalDuration) { viewStart -= (viewEnd - totalDuration); viewEnd = totalDuration; }
+    if (viewStart < 0) viewStart = 0;
+
+    scheduleRender();
+}, { capture: true });
+
+window.addEventListener('mouseup', function() {
+    if (minimapDrag) {
+        minimapDrag = null;
+        $minimapWrap.style.cursor = '';
+    }
+}, { capture: true });
+
 function resetZoom() {
+    if (viewStart !== 0 || viewEnd !== totalDuration) {
+        pushZoom();
+    }
     viewStart = 0;
     viewEnd = totalDuration;
+    zoomHistory = [];
+    document.getElementById('zoom-back').style.display = 'none';
     render();
 }
 
 // ─── Keyboard shortcuts ─────────────────────────────────────────────
 window.addEventListener('keydown', function(ev) {
+    // Don't capture when typing in the search input
+    if (ev.target.id === 'search-input') {
+        if (ev.key === 'Escape') {
+            ev.target.value = '';
+            updateSearch('');
+            ev.target.blur();
+        }
+        return;
+    }
+
+    const viewDuration = viewEnd - viewStart;
+
+    // Ctrl/Cmd+0: reset zoom
     if ((ev.ctrlKey || ev.metaKey) && ev.key === '0') {
         ev.preventDefault();
         resetZoom();
+        return;
+    }
+
+    // Arrow left/right or A/D: pan
+    if (ev.key === 'ArrowLeft' || ev.key === 'a') {
+        ev.preventDefault();
+        const panAmount = viewDuration * 0.15;
+        viewStart = Math.max(0, viewStart - panAmount);
+        viewEnd = viewStart + viewDuration;
+        scheduleRender();
+        return;
+    }
+
+    if (ev.key === 'ArrowRight' || ev.key === 'd') {
+        ev.preventDefault();
+        const panAmount = viewDuration * 0.15;
+        viewEnd = Math.min(totalDuration, viewEnd + panAmount);
+        viewStart = viewEnd - viewDuration;
+        if (viewStart < 0) { viewStart = 0; viewEnd = viewDuration; }
+        scheduleRender();
+        return;
+    }
+
+    // Arrow up/W or +/=: zoom in
+    if (ev.key === 'ArrowUp' || ev.key === 'w' || ev.key === '=' || ev.key === '+') {
+        ev.preventDefault();
+        const center = (viewStart + viewEnd) / 2;
+        const newDuration = Math.max(0.001, viewDuration / 1.3);
+        viewStart = Math.max(0, center - newDuration / 2);
+        viewEnd = Math.min(totalDuration, center + newDuration / 2);
+        scheduleRender();
+        return;
+    }
+
+    // Arrow down/S or -: zoom out
+    if (ev.key === 'ArrowDown' || ev.key === 's' || ev.key === '-') {
+        ev.preventDefault();
+        const center = (viewStart + viewEnd) / 2;
+        const newDuration = Math.min(totalDuration, viewDuration * 1.3);
+        viewStart = Math.max(0, center - newDuration / 2);
+        viewEnd = Math.min(totalDuration, center + newDuration / 2);
+        scheduleRender();
+        return;
+    }
+
+    // Backspace or B: zoom back
+    if (ev.key === 'Backspace' || ev.key === 'b') {
+        ev.preventDefault();
+        zoomBack();
+        return;
+    }
+
+    // /: focus search
+    if (ev.key === '/') {
+        ev.preventDefault();
+        document.getElementById('search-input').focus();
+        return;
+    }
+
+    // R: refresh
+    if (ev.key === 'r' && !ev.ctrlKey && !ev.metaKey) {
+        ev.preventDefault();
+        fetchTrace();
+        return;
     }
 });
 
