@@ -566,30 +566,6 @@ body {
     pointer-events: none;
 }
 
-.search-count {
-    font-size: 10px;
-    color: var(--text-muted);
-    margin-left: 6px;
-    white-space: nowrap;
-}
-
-/* ── Zoom History ────────────────────────────────── */
-.zoom-back {
-    background: rgba(255, 134, 2, 0.08);
-    border: 1px solid rgba(255, 134, 2, 0.15);
-    color: var(--orange);
-    font-size: 11px;
-    font-weight: 500;
-    padding: 4px 10px;
-    border-radius: 4px;
-    cursor: pointer;
-    transition: all 0.15s;
-    font-family: inherit;
-    display: none;
-}
-
-.zoom-back:hover { background: rgba(255, 134, 2, 0.14); }
-
 </style>
 </head>
 <body>
@@ -638,9 +614,7 @@ body {
         <div class="search-wrap">
             <svg class="search-icon" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
             <input class="search-input" id="search-input" type="text" placeholder="Search components..." spellcheck="false" autocomplete="off">
-            <span class="search-count" id="search-count"></span>
         </div>
-        <button class="zoom-back" id="zoom-back" onclick="zoomBack()">Back</button>
         <button class="control-btn" onclick="resetZoom()">Reset Zoom</button>
         <button class="control-btn" onclick="fetchTrace()">Refresh</button>
         <span class="control-hint">Scroll to pan, Ctrl/&#8984;+scroll zoom, drag select, WASD nav, / search</span>
@@ -724,7 +698,6 @@ let selfTimeCache = new Map(); // Map<entryIndex, number> — precomputed self-t
 let pendingRender = null; // requestAnimationFrame handle for batched renders
 let searchQuery = '';     // current component search filter
 let searchMatches = new Set(); // indices of entries matching the search
-let zoomHistory = [];     // stack of { viewStart, viewEnd } for back-navigation
 let minimapDrag = null;   // { startX, startViewStart } when dragging minimap viewport
 
 // ─── DOM refs ───────────────────────────────────────────────────────
@@ -1007,9 +980,6 @@ function updateSearch(query) {
                 searchMatches.add(i);
             }
         }
-        document.getElementById('search-count').textContent = searchMatches.size + ' match' + (searchMatches.size !== 1 ? 'es' : '');
-    } else {
-        document.getElementById('search-count').textContent = '';
     }
 
     renderFlameChart();
@@ -1018,26 +988,6 @@ function updateSearch(query) {
 document.getElementById('search-input').addEventListener('input', function(ev) {
     updateSearch(ev.target.value);
 });
-
-// ─── Zoom History ───────────────────────────────────────────────────
-function pushZoom() {
-    zoomHistory.push({ viewStart, viewEnd });
-    if (zoomHistory.length > 50) zoomHistory.shift();
-    document.getElementById('zoom-back').style.display = '';
-}
-
-function zoomBack() {
-    if (!zoomHistory.length) return;
-    const prev = zoomHistory.pop();
-    viewStart = prev.viewStart;
-    viewEnd = prev.viewEnd;
-
-    if (!zoomHistory.length) {
-        document.getElementById('zoom-back').style.display = 'none';
-    }
-
-    render();
-}
 
 // ─── Header Stats ───────────────────────────────────────────────────
 function updateHeader() {
@@ -1776,7 +1726,6 @@ window.addEventListener('mouseup', function(ev) {
 
     // Only zoom if dragged more than 4px (otherwise it was a click)
     if (width > 4) {
-        pushZoom();
         const viewDuration = viewEnd - viewStart;
         const endTime = viewStart + (mx / rect.width) * viewDuration;
         const t1 = Math.min(dragState.startTime, endTime);
@@ -1927,7 +1876,6 @@ $flameScroll.addEventListener('dblclick', function(ev) {
         duration = end - start;
     }
 
-    pushZoom();
     const padding = duration * 0.15;
     viewStart = Math.max(0, start - padding);
     viewEnd = Math.min(totalDuration, end + padding);
@@ -1935,35 +1883,35 @@ $flameScroll.addEventListener('dblclick', function(ev) {
     render();
 });
 
-// ─── Minimap: click to center, drag to pan ──────────────────────────
+// ─── Minimap: click to center + drag to pan ─────────────────────────
 $minimapWrap.addEventListener('mousedown', function(ev) {
     if (ev.button !== 0) return;
     ev.preventDefault();
 
     const rect = $minimapWrap.getBoundingClientRect();
     const clickPct = (ev.clientX - rect.left) / rect.width;
-    const clickTime = clickPct * totalDuration;
     const viewDuration = viewEnd - viewStart;
 
     // Check if click is inside the viewport indicator
     const vpLeft = viewStart / totalDuration;
     const vpRight = viewEnd / totalDuration;
 
-    if (clickPct >= vpLeft && clickPct <= vpRight) {
-        // Start dragging the viewport
-        minimapDrag = {
-            startX: ev.clientX,
-            startViewStart: viewStart,
-            rect: rect,
-        };
-        $minimapWrap.style.cursor = 'grabbing';
-    } else {
-        // Click outside viewport — center on click position
+    if (clickPct < vpLeft || clickPct > vpRight) {
+        // Click outside viewport — snap-center on click position first
+        const clickTime = clickPct * totalDuration;
         viewStart = Math.max(0, clickTime - viewDuration / 2);
         viewEnd = Math.min(totalDuration, viewStart + viewDuration);
         if (viewStart < 0) viewStart = 0;
         render();
     }
+
+    // Always start dragging (whether we were inside or just snapped)
+    minimapDrag = {
+        startX: ev.clientX,
+        startViewStart: viewStart,
+        rect: rect,
+    };
+    $minimapWrap.style.cursor = 'grabbing';
 });
 
 window.addEventListener('mousemove', function(ev) {
@@ -1992,13 +1940,8 @@ window.addEventListener('mouseup', function() {
 }, { capture: true });
 
 function resetZoom() {
-    if (viewStart !== 0 || viewEnd !== totalDuration) {
-        pushZoom();
-    }
     viewStart = 0;
     viewEnd = totalDuration;
-    zoomHistory = [];
-    document.getElementById('zoom-back').style.display = 'none';
     render();
 }
 
@@ -2062,13 +2005,6 @@ window.addEventListener('keydown', function(ev) {
         viewStart = Math.max(0, center - newDuration / 2);
         viewEnd = Math.min(totalDuration, center + newDuration / 2);
         scheduleRender();
-        return;
-    }
-
-    // Backspace or B: zoom back
-    if (ev.key === 'Backspace' || ev.key === 'b') {
-        ev.preventDefault();
-        zoomBack();
         return;
     }
 
