@@ -310,6 +310,21 @@ class Debugger
         return round($value, 2) . 'ms';
     }
 
+    protected function formatMsWithSeparator(float $value): string
+    {
+        $abs = abs($value);
+
+        if ($abs >= 1000) {
+            return number_format($abs / 1000, 2) . 's';
+        }
+
+        if ($abs < 0.01 && $abs > 0) {
+            return number_format($abs * 1000, 2) . 'μs';
+        }
+
+        return number_format($abs, 2) . 'ms';
+    }
+
     // ──────────────────────────────────────────
     //  Rendering
     // ──────────────────────────────────────────
@@ -396,9 +411,23 @@ class Debugger
         $modeName = $isBlaze ? 'Blaze' : 'Blade';
         $timeFormatted = $this->formatMs($data['totalTime']);
 
-        $coldTag = $data['isColdRender']
-            ? ' <span style="color: rgba(255,255,255,0.3); font-size: 9px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; background: rgba(255,255,255,0.03); border: 1px solid #1b1b1b; padding: 3px 6px; border-radius: 2px; line-height: 1;">first load</span>'
-            : '';
+        // Compute diff from baseline if comparison data is available.
+        $diffHtml = '';
+        $comparison = $data['comparison'];
+        if ($comparison) {
+            $isCold = $data['isColdRender'];
+            $primary = $isCold ? ($comparison['cold'] ?? null) : ($comparison['warm'] ?? null);
+            if (! $primary) {
+                $primary = $isCold ? ($comparison['warm'] ?? null) : ($comparison['cold'] ?? null);
+            }
+            if ($primary && $primary['otherTime'] > 0) {
+                $diff = $data['totalTime'] - $primary['otherTime'];
+                $sign = $diff < 0 ? '-' : '+';
+                $color = $diff <= 0 ? '#22c55e' : '#ef4444';
+                $diffFormatted = $sign . $this->formatMsWithSeparator($diff);
+                $diffHtml = '<span style="color: ' . $color . '; font-size: 12px; font-weight: 600; line-height: 1;">' . $diffFormatted . '</span>';
+            }
+        }
 
         $timerViewHtml = '';
         if ($data['timerView']) {
@@ -417,9 +446,9 @@ class Debugger
                 </button>
             </div>
 
-            <div style="display: flex; align-items: center; gap: 8px;">
+            <div style="display: flex; align-items: baseline; gap: 8px;">
                 <span style="color: #ffffff; font-weight: 700; font-size: 26px; letter-spacing: -1.5px; line-height: 1; font-variant-numeric: tabular-nums;">{$timeFormatted}</span>
-                {$coldTag}
+                {$diffHtml}
             </div>
 
             {$timerViewHtml}
