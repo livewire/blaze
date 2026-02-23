@@ -605,6 +605,7 @@ body {
     <div class="legend">
         <div class="legend-item"><div class="legend-swatch" style="background: #FF8602"></div>Compiled</div>
         <div class="legend-item"><div class="legend-swatch" style="background: #10b981"></div>Folded</div>
+        <div class="legend-item"><div class="legend-swatch" style="background: #06b6d4"></div>Memo hit</div>
         <div class="legend-item"><div class="legend-swatch" style="background: #a855f7"></div>Memo miss</div>
         <div class="legend-item"><div class="legend-swatch" style="background: #3b82f6"></div>Blade</div>
         <div class="legend-item"><div class="legend-swatch" style="background: rgba(255,255,255,0.3)"></div>View</div>
@@ -616,7 +617,6 @@ body {
             <input class="search-input" id="search-input" type="text" placeholder="Search components..." spellcheck="false" autocomplete="off">
         </div>
         <button class="control-btn" onclick="resetZoom()">Reset Zoom</button>
-        <button class="control-btn" onclick="fetchTrace()">Refresh</button>
         <span class="control-hint">Scroll to pan, Ctrl/&#8984;+scroll zoom, drag select, WASD nav, / search</span>
     </div>
 </div>
@@ -641,10 +641,6 @@ body {
             <div class="panel-title">Strategy Breakdown</div>
             <div class="strat-bar-wrap" id="strat-bar"></div>
             <div class="strat-rows" id="strat-rows"></div>
-            <div id="memo-section" style="display:none;">
-                <div class="panel-title" style="margin-top:16px;">Memo Cache Hits</div>
-                <div id="memo-rows" class="strat-rows"></div>
-            </div>
             <div class="panel-title" style="margin-top:16px;">Hottest Components</div>
             <div id="hottest-columns" class="hottest-columns"></div>
         </div>
@@ -668,13 +664,15 @@ const MIN_BAR_W = 2;
 const COLORS = {
     'compiled':           { bg: '#FF8602', bgDim: 'rgba(255,134,2,0.18)', text: '#fff', bgSolid: '#452401', bgSolidHover: '#6B3801' },
     'compiled+memo':      { bg: '#a855f7', bgDim: 'rgba(168,85,247,0.18)', text: '#fff', bgSolid: '#2D1743', bgSolidHover: '#472468' },
+    'memo':               { bg: '#06b6d4', bgDim: 'rgba(6,182,212,0.18)', text: '#fff', bgSolid: '#0a2e36', bgSolidHover: '#0f4450' },
     'folded':             { bg: '#10b981', bgDim: 'rgba(16,185,129,0.18)', text: '#fff', bgSolid: '#043223', bgSolidHover: '#074E36' },
     'view':               { bg: 'rgba(255,255,255,0.3)', bgDim: 'rgba(255,255,255,0.06)', text: '#fff', bgSolid: '#151515', bgSolidHover: '#202020' },
     'blade':              { bg: '#3b82f6', bgDim: 'rgba(59,130,246,0.18)', text: '#fff', bgSolid: '#102342', bgSolidHover: '#193767' },
 };
 const STRAT_LABELS = {
     'compiled':           'Compiled (Blaze)',
-    'compiled+memo':      'Memo (cache miss)',
+    'compiled+memo':      'Compiled (memo miss)',
+    'memo':               'Memo (cache hit)',
     'folded':             'Folded (pre-rendered)',
     'view':               'View',
     'blade':              'Blade (standard)',
@@ -1054,29 +1052,6 @@ function updateSidebar() {
             <div class="strat-row-time">${fmtMs(stratTimes[s])}</div>
         `;
         stratRows.appendChild(row);
-    }
-
-    // Memo cache hits breakdown
-    const memoSection = document.getElementById('memo-section');
-    const memoRows = document.getElementById('memo-rows');
-    const memoHitNames = data.memoHitNames || {};
-    const memoHitEntries = Object.entries(memoHitNames).sort((a, b) => b[1] - a[1]);
-
-    if (memoHitEntries.length > 0) {
-        memoSection.style.display = '';
-        memoRows.innerHTML = '';
-        for (const [name, count] of memoHitEntries) {
-            const row = document.createElement('div');
-            row.className = 'strat-row';
-            row.innerHTML = `
-                <div class="strat-row-swatch" style="background:var(--green)"></div>
-                <div class="strat-row-name">${name}</div>
-                <div class="strat-row-count" style="color:var(--green)">${count}x skipped</div>
-            `;
-            memoRows.appendChild(row);
-        }
-    } else {
-        memoSection.style.display = 'none';
     }
 
     // Component table with self-time (multi-column)

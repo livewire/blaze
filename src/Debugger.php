@@ -144,6 +144,11 @@ class Debugger
 
     /**
      * Record a memoization cache hit (component skipped rendering).
+     *
+     * This is called inside the cache-hit branch of the memoizer output,
+     * while the entry is still on the trace stack (between startTimer and
+     * stopTimer). We change its strategy from 'compiled+memo' to 'memo'
+     * so the profiler can visually distinguish cache hits from misses.
      */
     public function recordMemoHit(string $name): void
     {
@@ -154,6 +159,11 @@ class Debugger
         }
 
         $this->memoHitNames[$name]++;
+
+        // Re-tag the current trace entry so the profiler shows it as a hit.
+        if (! empty($this->traceStack)) {
+            $this->traceStack[count($this->traceStack) - 1]['strategy'] = 'memo';
+        }
     }
 
     /**
