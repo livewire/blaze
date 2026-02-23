@@ -28,7 +28,7 @@ class PropsCompiler
             return '';
         }
 
-        $output = '';
+        $output = '<?php'."\n";
 
         $output .= '$__defaults = ' . $expression . ';' . "\n";
 
@@ -41,14 +41,16 @@ class PropsCompiler
 
             $output .= ($hasKebabVariant
                 ? $this->compileKebabAssignment($name, $kebab, $hasDefault)
-                : $this->compileAssignment($name, $hasDefault)) . "\n";
+                : $this->compileAssignment($name, $hasDefault));
 
             $output .= ($hasKebabVariant
-                ? sprintf('unset($__data[\'%s\'], $__data[\'%s\']);', $name, $kebab)
-                : sprintf('unset($__data[\'%s\']);', $name)) . "\n";
+                ? sprintf(' unset($attributes[\'%s\'], $attributes[\'%s\']);', $name, $kebab)
+                : sprintf(' unset($attributes[\'%s\']);', $name)) . "\n";
         }
 
         $output .= 'unset($__defaults);' . "\n";
+
+        $output .= '?>';
 
         return $output;
     }
@@ -59,10 +61,10 @@ class PropsCompiler
     protected function compileAssignment(string $name, bool $hasDefault): string
     {
         if ($hasDefault) {
-            return sprintf('$%s ??= $__data[\'%s\'] ?? $__defaults[\'%s\'];', $name, $name, $name);
+            return sprintf('$%s ??= $attributes[\'%s\'] ?? $__defaults[\'%s\'];', $name, $name, $name);
         }
 
-        return sprintf('if (!isset($%s) && array_key_exists(\'%s\', $__data)) { $%s = $__data[\'%s\']; }', $name, $name, $name, $name);
+        return sprintf('$%s ??= $attributes[\'%s\'];', $name, $name);
     }
 
     /**
@@ -71,19 +73,9 @@ class PropsCompiler
     protected function compileKebabAssignment(string $name, string $kebab, bool $hasDefault): string
     {
         if ($hasDefault) {
-            return sprintf('$%s ??= $__data[\'%s\'] ?? $__data[\'%s\'] ?? $__defaults[\'%s\'];', $name, $kebab, $name, $name);
+            return sprintf('$%s ??= $attributes[\'%s\'] ?? $attributes[\'%s\'] ?? $__defaults[\'%s\'];', $name, $kebab, $name, $name);
         }
 
-        // Required props: check if key exists (allows explicit null)
-        return sprintf(
-            'if (!isset($%s)) { if (array_key_exists(\'%s\', $__data)) { $%s = $__data[\'%s\']; } elseif (array_key_exists(\'%s\', $__data)) { $%s = $__data[\'%s\']; } }',
-            $name,
-            $kebab,
-            $name,
-            $kebab,
-            $name,
-            $name,
-            $name
-        );
+        return sprintf('$%s ??= $attributes[\'%s\'] ?? $attributes[\'%s\'];', $name, $kebab, $name);
     }
 }

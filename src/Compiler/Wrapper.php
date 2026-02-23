@@ -2,10 +2,12 @@
 
 namespace Livewire\Blaze\Compiler;
 
+use Illuminate\Support\Str;
 use Livewire\Blaze\BladeService;
 use Livewire\Blaze\Support\Directives;
 use Livewire\Blaze\Support\Utils;
 use Livewire\Blaze\Blaze;
+use Illuminate\Support\Arr;
 
 /**
  * Compiles Blaze component templates into PHP function definitions.
@@ -15,6 +17,7 @@ class Wrapper
     public function __construct(
         protected PropsCompiler $propsCompiler = new PropsCompiler,
         protected AwareCompiler $awareCompiler = new AwareCompiler,
+        protected UseExtractor $useExtractor = new UseExtractor,
     ) {}
 
     /**
@@ -29,227 +32,97 @@ class Wrapper
         $source ??= $compiled;
         $name = (Blaze::isFolding() ? '__' : '_') . Utils::hash($path);
 
-        $directives = new Directives($source);
-
-        $propsExpression = $directives->get('props');
-        $awareExpression = $directives->get('aware');
-
-        $propAssignments = $propsExpression ? $this->propsCompiler->compile($propsExpression) : null;
-        $awareAssignments = $awareExpression ? $this->awareCompiler->compile($awareExpression) : null;
-
-        $compiled = $this->stripDirective($compiled, 'blaze');
-        $compiled = $this->stripDirective($compiled, 'aware');
-        $compiled = $this->stripDirective($compiled, 'use');
-
-        $propsUseAttributes = $propAssignments !== null && str_contains($propAssignments, '$attributes');
-        $sourceUsesAttributes = str_contains($this->stripDirective($source, 'props'), '$attributes') || str_contains($source, '<flux:delegate-component');
-
-        // Create an early unsanitized $attributes bag only when @props defaults
-        // reference $attributes (e.g. $attributes->get()). The sanitized bag is
-        // created in-place after @props runs, so template body code gets that one.
-        // Pre-@props @php blocks that use $attributes also need this early bag —
-        // $sourceUsesAttributes covers that because those blocks are part of the source.
-        $needsEarlyAttributes = $propsExpression !== null && ($sourceUsesAttributes || $propsUseAttributes);
-
-        // Compile @props in-place to preserve source execution order.
-        // This ensures @php blocks before @props run first, matching Blade's
-        // top-to-bottom behavior (e.g. Flux's $attributes->pluck() pattern).
-        if ($propsExpression !== null) {
-            $inPlaceCode = '';
-
-            // When an early $attributes bag exists, @php blocks before @props
-            // may have called $attributes->pluck() which removes keys from
-            // the bag but not from $__data.  Since we rebuild a fresh
-            // $attributes from $__data after @props, we must sync $__data
-            // first so plucked keys stay removed (matching native Blade where
-            // there is only one $attributes instance).
-            if ($needsEarlyAttributes) {
-                $inPlaceCode .= '$__data = array_intersect_key($__data, $attributes->getAttributes());'."\n";
-            }
-
-            $inPlaceCode .= $propAssignments ?: '';
-
-            if ($sourceUsesAttributes) {
-                $inPlaceCode .= '$attributes = \\Livewire\\Blaze\\Runtime\\BlazeAttributeBag::sanitized($__data, $__bound);'."\n";
-            }
-
-            $inPlaceCode .= 'unset($__data, $__bound);'."\n";
-
-            $compiled = $this->replaceDirectiveWithPhp($compiled, 'props', $inPlaceCode);
-        } else {
-            $compiled = $this->stripDirective($compiled, 'props');
-        }
-
-        // Hoist PHP use statements out of the template so they appear before
-        // the function definition. We extract from the source because @php
-        // blocks are stored as raw block placeholders during compilation and
-        // are not yet present in $compiled at this point.
-        [$compiled, $useStatements] = $this->extractUseStatements($source, $compiled);
-
-        $needsEchoHandler = $this->hasEchoHandlers() && $this->hasEchoSyntax($source);
-
         $isDebugging = app('blaze')->isDebugging() && ! app('blaze')->isFolding();
-        $componentName = $isDebugging ? app('blaze.runtime')->debugger->extractComponentName($path) : null;
-        $sourceUsesThis = str_contains($source, '$this');
+        $sourceUsesThis = str_contains($source, '$this') || str_contains($compiled, '@entangle') || str_contains($compiled, '@script');
 
-        $variables = [
-            '$app' => '$app = $__blaze->app;',
-            '$errors' => '$errors = $__blaze->errors;',
-            '@error' => '$errors = $__blaze->errors;',
-            '$__livewire' => '$__livewire = $__env->shared(\'__livewire\');',
-            '@entangle' => '$__livewire = $__env->shared(\'__livewire\');',
-        ];
+        $compiled = BladeService::compileUseStatements($compiled);
+        $compiled = BladeService::restoreRawBlocks($compiled);
+        $compiled = BladeService::storeVerbatimBlocks($compiled);
 
-        $variables = array_filter($variables, fn ($pattern) => str_contains($source, $pattern) || str_contains($compiled, $pattern), ARRAY_FILTER_USE_KEY);
-        $variables = implode("\n", $variables);
+        $imports = '';
+        
+        $compiled = $this->useExtractor->extract($compiled, function ($statement) use (&$imports) {
+            $imports .= $statement . "\n";
+        });
 
-        return implode('', array_filter([
-            $useStatements ? '<'.'?php '.$useStatements.' ?>' : null,
-            '<'.'?php if (!function_exists(\''.$name.'\')):'."\n",
-            'function '.$name.'($__blaze, $__data = [], $__slots = [], $__bound = [], $__this = null) {'."\n",
-            $sourceUsesThis ? '$__blazeFn = function () use ($__blaze, $__data, $__slots, $__bound) {'."\n" : null,
-            $isDebugging ? '$__blaze->debugger->increment(\''.$name.'\', \''.$componentName.'\');'."\n" : null,
-            $isDebugging ? '$__blaze->debugger->startTimer(\''.$name.'\');'."\n" : null,
-            '$__env = $__blaze->env;'."\n",
-            $needsEchoHandler ? '$__bladeCompiler = app(\'blade.compiler\');'."\n" : null,
-            'if (($__data[\'attributes\'] ?? null) instanceof \Illuminate\View\ComponentAttributeBag) { $__data = $__data + $__data[\'attributes\']->all(); unset($__data[\'attributes\']); }'."\n",
-            str_contains($source, '$slot') ? '$__slots[\'slot\'] ??= new \Illuminate\View\ComponentSlot(\'\');'."\n" : null,
-            $variables,
-            'extract($__slots, EXTR_SKIP);'."\n",
-            'unset($__slots);'."\n",
-            $propsExpression === null ? 'extract($__data, EXTR_SKIP);'."\n" : null,
-            $awareAssignments,
-            $needsEarlyAttributes ? '$attributes = new \\Livewire\\Blaze\\Runtime\\BlazeAttributeBag($__data);'."\n" : null,
-            ($propsExpression === null && $sourceUsesAttributes) ? '$attributes = \\Livewire\\Blaze\\Runtime\\BlazeAttributeBag::sanitized($__data, $__bound);'."\n" : null,
-            $propsExpression === null ? 'unset($__data, $__bound); ?>' : ' ?>',
-            $compiled,
-            $isDebugging ? '<'.'?php $__blaze->debugger->stopTimer(\''.$name.'\'); ?>' : null,
-            $sourceUsesThis ? '<'.'?php };'."\n".'if ($__this !== null) { $__blazeFn->call($__this); } else { $__blazeFn(); }'."\n".'} endif; ?>' : null,
-            !$sourceUsesThis ? '<'.'?php } endif; ?>' : null,
-        ]));
-    }
+        $compiled = BladeService::preStoreUncompiledBlocks($compiled);
 
-    /**
-     * Extract PHP use statements from compiled output and return them separately.
-     *
-     * Handles both forms:
-     * - @php use Foo\Bar; @endphp  → compiled as <?php use Foo\Bar; ?>
-     * - @use('Foo\Bar')            → compiled as <?php use \Foo\Bar; ?>
-     *
-     * @return array{string, string|null} Tuple of [compiled without use statements, hoisted use statements]
-     */
-    /**
-     * Extract PHP use statements from the source template and strip the
-     * corresponding raw block placeholders from the compiled output.
-     *
-     * Use statements in Blade templates appear as either:
-     * - @php use Foo\Bar; @endphp (inside @php blocks, possibly with other code)
-     * - @use('Foo\Bar') or @use('Foo\Bar', 'Alias') (Blade directive)
-     *
-     * The @use directive is already stripped via stripDirective(). For @php
-     * blocks, the use statements are hidden behind raw block placeholders in
-     * $compiled, so we extract them from the original $source instead.
-     *
-     * @return array{string, string|null} Tuple of [compiled with use-only raw blocks removed, hoisted use statements]
-     */
-    protected function extractUseStatements(string $source, string $compiled): array
-    {
-        $useStatements = [];
+        $output = '';
 
-        // Match use statements in the source template (inside @php blocks or bare PHP).
-        $usePattern = '/^[ \t]*use\s+((?:function\s+|const\s+)?\\\\?[a-zA-Z_][a-zA-Z0-9_\\\\]*(?:\s+as\s+[a-zA-Z_][a-zA-Z0-9_]*)?)\s*;\s*$/m';
+        $output .= '<'.'?php' . "\n";
+        $output .= $imports;
+        $output .= 'if (!function_exists(\''.$name.'\')):'."\n";
+        $output .= 'function '.$name.'($__blaze, $__data = [], $__slots = [], $__bound = [], $__this = null) {'."\n";
 
-        preg_match_all($usePattern, $source, $matches);
-
-        foreach ($matches[0] as $match) {
-            $useStatements[] = trim($match);
+        if ($isDebugging) {
+            $componentName = app('blaze.runtime')->debugger->extractComponentName($path);
+            $output .= '$__blaze->debugger->increment(\''.$name.'\', \''.$componentName.'\');'."\n";
+            $output .= '$__blaze->debugger->startTimer(\''.$name.'\');'."\n";
         }
 
-        // The @php blocks containing use statements are stored as raw block
-        // placeholders (@__raw_block_N__@) in $compiled. We need to find
-        // these placeholders and either remove them entirely (if the @php
-        // block contained only use statements) or strip the use lines from
-        // the restored content. Since raw blocks are opaque at this stage,
-        // we restore them, strip the use lines, and re-store them.
-        //
-        // This also handles empty @php @endphp blocks (no use statements,
-        // no other code) — their placeholders must be removed to avoid
-        // leaving behind extra blank lines in the rendered output.
-        $compiler = app('blade.compiler');
-        $rawBlocksProperty = new \ReflectionProperty($compiler, 'rawBlocks');
-        $rawBlocks = $rawBlocksProperty->getValue($compiler);
+        if ($sourceUsesThis) {
+            $output .= '$__blazeFn = function () use ($__blaze, $__data, $__slots, $__bound) {'."\n";
+        }
 
-        foreach ($rawBlocks as $index => &$block) {
-            // Strip use statements from the raw block content.
-            $stripped = preg_replace($usePattern, '', $block);
+        $output .= $this->globalVariables($source, $compiled);
+        $output .= 'if (($__data[\'attributes\'] ?? null) instanceof \Illuminate\View\ComponentAttributeBag) { $__data = $__data + $__data[\'attributes\']->all(); unset($__data[\'attributes\']); }'."\n";
+        $output .= '$attributes = \\Livewire\\Blaze\\Runtime\\BlazeAttributeBag::sanitized($__data, $__bound);'."\n";
+        $output .= 'extract($__slots, EXTR_SKIP); unset($__slots);'."\n";
+        $output .= 'extract($__data, EXTR_SKIP); unset($__data, $__bound);'."\n";
+        $output .= 'ob_start();' . "\n";
+        $output .= '?>' . "\n";
 
-            // If the block is now empty (only had use statements or was
-            // already empty), remove the placeholder from compiled output.
-            $strippedContent = trim(
-                preg_replace('/^<\x3Fphp\s*/s', '',
-                    preg_replace('/\s*\x3F>$/s', '', $stripped))
-            );
+        $compiled = BladeService::compileDirective($compiled, 'props', $this->propsCompiler->compile(...));
+        $compiled = BladeService::compileDirective($compiled, 'aware', $this->awareCompiler->compile(...));
 
-            if ($strippedContent === '') {
-                $compiled = preg_replace('/^[ \t]*@__raw_block_' . $index . '__@\s*/m', '', $compiled);
-            } else {
-                $block = $stripped;
+        $output .= $compiled;
+
+        $output .= '<?php' . "\n";
+
+        $output .= 'echo ltrim(ob_get_clean());' . "\n";
+
+        if ($sourceUsesThis) {
+            $output .= '}; if ($__this !== null) { $__blazeFn->call($__this); } else { $__blazeFn(); }'."\n";
+        }
+
+        if ($isDebugging) {
+            $output .= '$__blaze->debugger->stopTimer(\''.$name.'\');'."\n";
+        }
+
+        $output .= '} endif; ?>';
+
+        return $output;
+    }
+    
+    protected function globalVariables(string $source, string $compiled): string
+    {
+        $output = '';
+
+        $output .= '$__env = $__blaze->env;' . "\n";
+
+        if ($this->hasEchoHandlers() && ($this->hasEchoSyntax($source) || $this->hasEchoSyntax($compiled))) {
+            $output .= '$__bladeCompiler = app(\'blade.compiler\');' . "\n";
+        }
+
+        $output .= implode("\n", array_filter(Arr::map([
+            [['$app'], '$app = $__blaze->app;'],
+            [['$errors', '@error'], '$errors = $__blaze->errors;'],
+            [['$__livewire', '@entangle', '@this'], '$__livewire = $__env->shared(\'__livewire\');'],
+            [['@this'], '$_instance = $__livewire;'],
+            [['$slot'], '$__slots[\'slot\'] ??= new \Illuminate\View\ComponentSlot(\'\');'],
+        ], function ($data) use ($source, $compiled) {
+            [$patterns, $variable] = $data;
+
+            foreach ($patterns as $pattern) {
+                if (str_contains($source, $pattern) || str_contains($compiled, $pattern)) {
+                    return $variable;
+                }
             }
-        }
-        unset($block);
 
-        $rawBlocksProperty->setValue($compiler, $rawBlocks);
+            return null;
+        }))) . "\n";
 
-        if (empty($useStatements)) {
-            return [$compiled, null];
-        }
-
-        return [$compiled, implode("\n", $useStatements) . "\n"];
-    }
-
-    /**
-     * Strip a directive and its surrounding whitespace from content.
-     */
-    protected function stripDirective(string $content, string $directive): string
-    {
-        // Protect raw block placeholders so restoreRawContent doesn't resolve them
-        $content = preg_replace('/@__raw_block_(\d+)__@/', '__BLAZE_RAW_BLOCK_$1__', $content);
-
-        $marker = '__BLAZE_STRIP__';
-
-        $content = BladeService::compileDirective($content, $directive, function () use ($marker) {
-            return $marker;
-        });
-
-        $content = preg_replace('/^[ \t]*' . preg_quote($marker, '/') . '\s*/m', '', $content);
-
-        $content = preg_replace('/__BLAZE_RAW_BLOCK_(\d+)__/', '@__raw_block_$1__@', $content);
-
-        return $content;
-    }
-
-    /**
-     * Replace a directive with inline PHP code, preserving its position in the template.
-     */
-    protected function replaceDirectiveWithPhp(string $content, string $directive, string $phpCode): string
-    {
-        $content = preg_replace('/@__raw_block_(\d+)__@/', '__BLAZE_RAW_BLOCK_$1__', $content);
-
-        $marker = '__BLAZE_INLINE_'.strtoupper($directive).'__';
-
-        $content = BladeService::compileDirective($content, $directive, function () use ($marker) {
-            return $marker;
-        });
-
-        $content = preg_replace(
-            '/^[ \t]*'.preg_quote($marker, '/').'\s*/m',
-            '<'.'?php '.rtrim($phpCode)." ?>\n",
-            $content
-        );
-
-        $content = preg_replace('/__BLAZE_RAW_BLOCK_(\d+)__/', '@__raw_block_$1__@', $content);
-
-        return $content;
+        return $output;
     }
 
     /**
@@ -270,4 +143,6 @@ class Wrapper
     {
         return preg_match('/\{\{.+?\}\}|\{!!.+?!!\}/s', $source) === 1;
     }
+    
+
 }

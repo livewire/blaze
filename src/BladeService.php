@@ -46,12 +46,30 @@ class BladeService
         {
             public function compileStatementsMadePublic($template)
             {
+                $result = '';
+                
                 $template = $this->storeUncompiledBlocks($template);
                 $template = $this->compileComments($template);
-                $template = $this->compileStatements($template);
-                $template = $this->restoreRawContent($template);
 
-                return $template;
+                foreach (token_get_all($template) as $token) {
+                    if (! is_array($token)) {
+                        $result .= $token;
+
+                        continue;
+                    }
+    
+                    [$id, $content] = $token;
+
+                    if ($id == T_INLINE_HTML) {
+                        $result .= $this->compileStatements($content);
+                    } else {
+                        $result .= $content;
+                    }
+                }
+
+                $result = $this->restoreRawContent($result);
+
+                return $result;
             }
 
             /**
@@ -193,6 +211,32 @@ class BladeService
     }
 
     /**
+     * Store only @verbatim blocks as raw block placeholders.
+     */
+    public static function storeVerbatimBlocks(string $input): string
+    {
+        $compiler = app('blade.compiler');
+
+        $reflection = new \ReflectionClass($compiler);
+        $method = $reflection->getMethod('storeVerbatimBlocks');
+
+        return $method->invoke($compiler, $input);
+    }
+
+    /**
+     * Restore raw block placeholders to their original content.
+     */
+    public static function restoreRawBlocks(string $input): string
+    {
+        $compiler = app('blade.compiler');
+
+        $reflection = new \ReflectionClass($compiler);
+        $method = $reflection->getMethod('restoreRawContent');
+
+        return $method->invoke($compiler, $input);
+    }
+
+    /**
      * Invoke the Blade compiler's compileComments via reflection.
      */
     public static function compileComments(string $input): string
@@ -232,6 +276,18 @@ class BladeService
 
             return $str;
         })->call($compiler, $attributeString);
+    }
+
+    public static function compileUseStatements(string $input): string
+    {
+        return static::compileDirective($input, 'use', function ($expression) {
+            $compiler = app('blade.compiler');
+
+            $reflection = new \ReflectionClass($compiler);
+            $method = $reflection->getMethod('compileUse');
+
+            return $method->invoke($compiler, $expression);
+        });
     }
 
     /**
@@ -354,7 +410,11 @@ class BladeService
         try {
             return $viewFinder->find("components.{$name}");
         } catch (\Exception $e) {
-            return '';
+            try {
+                return $viewFinder->find("components.{$name}.index");
+            } catch (\Exception $e2) {
+                return '';
+            }
         }
     }
 
