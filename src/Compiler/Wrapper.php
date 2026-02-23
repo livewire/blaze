@@ -2,6 +2,7 @@
 
 namespace Livewire\Blaze\Compiler;
 
+use Illuminate\Support\Str;
 use Livewire\Blaze\BladeService;
 use Livewire\Blaze\Support\Directives;
 use Livewire\Blaze\Support\Utils;
@@ -15,6 +16,7 @@ class Wrapper
     public function __construct(
         protected PropsCompiler $propsCompiler = new PropsCompiler,
         protected AwareCompiler $awareCompiler = new AwareCompiler,
+        protected UseExtractor $useExtractor = new UseExtractor,
     ) {}
 
     /**
@@ -29,22 +31,26 @@ class Wrapper
         $source ??= $compiled;
         $name = (Blaze::isFolding() ? '__' : '_') . Utils::hash($path);
 
-        $compiled = BladeService::compileDirective($compiled, 'props', function ($expression) {
-            return $this->propsCompiler->compile($expression);
-        });
-
-        $compiled = BladeService::compileDirective($compiled, 'aware', function ($expression) {
-            return $this->awareCompiler->compile($expression);
-        });
-
         $isDebugging = app('blaze')->isDebugging() && ! app('blaze')->isFolding();
-        $sourceUsesThis = str_contains($source, '$this');
+        $sourceUsesThis = str_contains($source, '$this') || str_contains($compiled, '@entangle') || str_contains($compiled, '@script');
+
+        $compiled = BladeService::compileUseStatements($compiled);
+        $compiled = BladeService::restoreRawBlocks($compiled);
+        $compiled = BladeService::storeVerbatimBlocks($compiled);
+
+        $imports = '';
+        
+        $compiled = $this->useExtractor->extract($compiled, function ($statement) use (&$imports) {
+            $imports .= $statement . "\n";
+        });
+
+        $compiled = BladeService::preStoreUncompiledBlocks($compiled);
 
         $output = '';
 
-        // Start of function definition...
-
-        $output .= '<'.'?php if (!function_exists(\''.$name.'\')):'."\n";
+        $output .= '<'.'?php' . "\n";
+        $output .= $imports;
+        $output .= 'if (!function_exists(\''.$name.'\')):'."\n";
         $output .= 'function '.$name.'($__blaze, $__data = [], $__slots = [], $__bound = [], $__this = null) {'."\n";
 
         if ($isDebugging) {
@@ -57,17 +63,17 @@ class Wrapper
             $output .= '$__blazeFn = function () use ($__blaze, $__data, $__slots, $__bound) {'."\n";
         }
 
+        $output .= $this->globalVariables($source, $compiled);
         $output .= 'if (($__data[\'attributes\'] ?? null) instanceof \Illuminate\View\ComponentAttributeBag) { $__data = $__data + $__data[\'attributes\']->all(); unset($__data[\'attributes\']); }'."\n";
         $output .= '$attributes = \\Livewire\\Blaze\\Runtime\\BlazeAttributeBag::sanitized($__data, $__bound);'."\n";
         $output .= 'extract($__slots, EXTR_SKIP); unset($__slots);'."\n";
         $output .= 'extract($__data, EXTR_SKIP); unset($__data, $__bound);'."\n";
-        $output .= $this->globalVariables($source, $compiled);
         $output .= '?>' . "\n";
 
-        // Content...
-        $output .= $compiled;
+        $compiled = BladeService::compileDirective($compiled, 'props', $this->propsCompiler->compile(...));
+        $compiled = BladeService::compileDirective($compiled, 'aware', $this->awareCompiler->compile(...));
 
-        // End of function definition...
+        $output .= $compiled;
 
         $output .= '<?php ';
 
@@ -126,4 +132,6 @@ class Wrapper
     {
         return preg_match('/\{\{.+?\}\}|\{!!.+?!!\}/s', $source) === 1;
     }
+    
+
 }

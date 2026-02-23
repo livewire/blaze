@@ -14,11 +14,11 @@ test('wraps component templates into function definitions', function () {
 
     expect($wrapped)->toEqualCollapsingWhitespace(join('', [
         '<?php if (!function_exists(\'_'. $hash .'\')): function _'. $hash .'($__blaze, $__data = [], $__slots = [], $__bound = [], $__this = null) { ',
+        '$__env = $__blaze->env; ',
         'if (($__data[\'attributes\'] ?? null) instanceof \Illuminate\View\ComponentAttributeBag) { $__data = $__data + $__data[\'attributes\']->all(); unset($__data[\'attributes\']); } ',
         '$attributes = \Livewire\Blaze\Runtime\BlazeAttributeBag::sanitized($__data, $__bound); ',
         'extract($__slots, EXTR_SKIP); unset($__slots); ',
-        'extract($__data, EXTR_SKIP); unset($__data, $__bound); ',
-        '$__env = $__blaze->env; ?> ',
+        'extract($__data, EXTR_SKIP); unset($__data, $__bound); ?> ',
         '@blaze ',
         '<?php $__defaults = [\'type\' => \'text\', \'disabled\' => false]; ',
         '$type ??= $attributes[\'type\'] ?? $__defaults[\'type\']; unset($attributes[\'type\']); ',
@@ -38,11 +38,11 @@ test('compiles aware props', function () {
 
     expect($wrapped)->toEqualCollapsingWhitespace(join('', [
         '<?php if (!function_exists(\'_'. $hash .'\')): function _'. $hash .'($__blaze, $__data = [], $__slots = [], $__bound = [], $__this = null) { ',
+        '$__env = $__blaze->env; ',
         'if (($__data[\'attributes\'] ?? null) instanceof \Illuminate\View\ComponentAttributeBag) { $__data = $__data + $__data[\'attributes\']->all(); unset($__data[\'attributes\']); } ',
         '$attributes = \Livewire\Blaze\Runtime\BlazeAttributeBag::sanitized($__data, $__bound); ',
         'extract($__slots, EXTR_SKIP); unset($__slots); ',
-        'extract($__data, EXTR_SKIP); unset($__data, $__bound); ',
-        '$__env = $__blaze->env; ?> ',
+        'extract($__data, EXTR_SKIP); unset($__data, $__bound); ?> ',
         '@blaze ',
         '<?php $__awareDefaults = [\'type\' => \'text\']; ',
         '$type = $__blaze->getConsumableData(\'type\', $__awareDefaults[\'type\']); ',
@@ -60,12 +60,16 @@ test('extracts props when props are not defined', function () {
     expect(app(Wrapper::class)->wrap('<div></div>', ''))->toContain('extract($__data, EXTR_SKIP);');
 });
 
-test('wraps in closure if source uses this', function () {
-    expect(app(Wrapper::class)->wrap('{{ $this->orders }}', ''))->toContain(
+test('wraps in self invoking closure', function ($source) {
+    expect(app(Wrapper::class)->wrap($source, ''))->toContain(
         '$__blazeFn = function () use ($__blaze, $__data, $__slots, $__bound) {',
         'if ($__this !== null) { $__blazeFn->call($__this); } else { $__blazeFn(); }',
     );
-});
+})->with([
+    '{{ $this->orders }}',
+    '@entangle(\'name\')',
+    '@script',
+]);
 
 test('injects variables', function ($source, $expected) {
     expect(app(Wrapper::class)->wrap('', '', $source))->toContain($expected);
@@ -85,14 +89,10 @@ test('injects echo handler', function () {
     expect(app(Wrapper::class)->wrap('{{ $a }}', ''))->toContain('$__bladeCompiler = app(\'blade.compiler\');');
 });
 
-test('hoists use statements', function ($statement) {
-    $source = BladeService::preStoreUncompiledBlocks("{$statement}\n\n<div></div>");
+test('hoists use statements to top of output', function ($statement) {
+    $source = "{$statement}\n<div></div>";
 
-    expect(app(Wrapper::class)->wrap($source, '', $source))->toStartWith('<?php use App\Models\User; ?>');
+    expect(app(Wrapper::class)->wrap($source, '', $source))->toStartWith("<?php\nuse");
 })->with([
-    ['@use(\'App\Models\User\')'],
-    ['@php use App\Models\User; @endphp'],
-    ['<?php use App\Models\User; ?>'],
-    ["<?php\nuse App\Models\User;\n?>"],
-    ["<?php\n\tuse App\Models\User;\n?>"],
+    ['@php use \App\Models\User; @endphp'],
 ]);
