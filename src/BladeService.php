@@ -2,8 +2,11 @@
 
 namespace Livewire\Blaze;
 
+use Illuminate\Container\Container;
+use Illuminate\Contracts\Foundation\Application;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\Event;
+use Illuminate\Support\Facades\Facade;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Str;
 use Illuminate\View\Compilers\ComponentTagCompiler;
@@ -188,13 +191,36 @@ class BladeService
      */
     public static function earliestPreCompilationHook(callable $callback): void
     {
-        app()->booted(function () use ($callback) {
-            app('blade.compiler')->prepareStringsForCompilationUsing(function ($input) use ($callback) {
-                $output = $callback($input);
+        $app = app();
 
-                return $output;
+        $app->booted(function () use ($app, $callback) {
+            $app->make('blade.compiler')->prepareStringsForCompilationUsing(function ($input) use ($app, $callback) {
+                return static::inAppContext($app, fn () => $callback($input));
             });
         });
+    }
+
+    /**
+     * Execute a callback while forcing a specific app/container context.
+     */
+    protected static function inAppContext(Application $app, callable $callback): mixed
+    {
+        $previousContainer = Container::getInstance();
+        $previousFacadeApp = Facade::getFacadeApplication();
+
+        if ($previousContainer === $app && $previousFacadeApp === $app) {
+            return $callback();
+        }
+
+        Container::setInstance($app);
+        Facade::setFacadeApplication($app);
+
+        try {
+            return $callback();
+        } finally {
+            Container::setInstance($previousContainer);
+            Facade::setFacadeApplication($previousFacadeApp);
+        }
     }
 
     /**
