@@ -20,8 +20,6 @@ class BlazeRuntime
     public readonly Application $app;
     public readonly Debugger $debugger;
     public readonly Compiler $compiler;
-    protected ViewErrorBag $errors;
-
     public string $compiledPath;
 
     protected array $paths = [];
@@ -207,7 +205,7 @@ class BlazeRuntime
     public function __get(string $name): mixed
     {
         if ($name === 'errors') {
-            return $this->errors ??= $this->env->shared('errors') ?? new ViewErrorBag;
+            return $this->env->shared('errors') ?? new ViewErrorBag;
         }
 
         throw new \InvalidArgumentException("Property {$name} does not exist");
