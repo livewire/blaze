@@ -1058,8 +1058,8 @@ function updateSidebar() {
         selfTimes[e.name].selfTime += getSelfTime(e);
     }
 
-    const maxTotalTime = Math.max(...Object.values(selfTimes).map(s => s.totalTime), 0.001);
-    const sorted = Object.entries(selfTimes).sort((a, b) => b[1].totalTime - a[1].totalTime);
+    const maxSelfTime = Math.max(...Object.values(selfTimes).map(s => s.selfTime), 0.001);
+    const sorted = Object.entries(selfTimes).sort((a, b) => b[1].selfTime - a[1].selfTime);
 
     const colCount = 1;
     const perCol = Math.ceil(sorted.length / colCount);
@@ -1071,18 +1071,18 @@ function updateSidebar() {
         const table = document.createElement('table');
         table.className = 'comp-table';
         const rank = col * perCol;
-        table.innerHTML = `<thead><tr><th>#</th><th>Component</th><th style="text-align:right;">Total</th></tr></thead>`;
+        table.innerHTML = `<thead><tr><th>#</th><th>Component</th><th style="text-align:right;">Self</th></tr></thead>`;
         const tbody = document.createElement('tbody');
 
         for (let i = 0; i < slice.length; i++) {
             const [name, info] = slice[i];
             const c = colorFor(info.strategy);
-            const totalPct = (info.totalTime / maxTotalTime) * 100;
+            const selfPct = (info.selfTime / maxSelfTime) * 100;
             const tr = document.createElement('tr');
             tr.innerHTML = `
                 <td style="color:var(--text-muted);font-size:9px;padding-right:6px;width:16px;">${rank + i + 1}</td>
                 <td class="comp-name" title="${name}"><span class="comp-strat-dot" style="background:${c.bg}"></span>${name}<span style="color:var(--text-muted);font-size:9px;margin-left:4px;">${info.count}x</span></td>
-                <td class="comp-time">${fmtMs(info.totalTime)}<div class="heat-bar" style="background:${c.bg};width:${totalPct}%;opacity:0.5;margin-left:auto;"></div></td>
+                <td class="comp-time">${fmtMs(info.selfTime)}<div class="heat-bar" style="background:${c.bg};width:${selfPct}%;opacity:0.5;margin-left:auto;"></div></td>
             `;
             tr.style.cursor = 'pointer';
             tr.addEventListener('mouseenter', () => updateSearch(name));
