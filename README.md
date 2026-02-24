@@ -549,6 +549,71 @@ $external = $attributes->get('target') === '_blank';
 
 Any dynamic attributes will now cause folding to abort.
 
+# Debug Mode
+
+Blaze includes a built-in debug bar and profiler to help you measure rendering performance and compare Blaze against standard Blade.
+
+## Enabling debug mode
+
+Enable debug mode from your service provider:
+
+```php
+use Livewire\Blaze\Blaze;
+
+public function boot(): void
+{
+    Blaze::debug();
+
+    // ...
+}
+```
+
+Or set the environment variable in your `.env` file:
+
+```env
+BLAZE_DEBUG=true
+```
+
+After enabling, clear your compiled views:
+
+```bash
+php artisan view:clear
+```
+
+## The debug bar
+
+When debug mode is active, a small overlay appears on every page showing the rendering time for the current request.
+
+### Comparing Blaze vs Blade
+
+You can record baseline times with Blade and compare them against Blaze:
+
+1. Disable Blaze temporarily by setting `BLAZE_ENABLED=false` in your `.env` file
+2. Run `php artisan view:clear` to recompile views without Blaze
+3. Visit the page — the debug bar records the Blade rendering time
+4. Re-enable Blaze by removing the environment variable
+5. Run `php artisan view:clear` again to recompile with Blaze
+6. Visit the same page — the debug bar shows the Blaze time alongside the Blade baseline with the difference
+
+Refresh the page a few times in each mode to get the best result — the first load may include compilation overhead that skews the numbers.
+
+This gives you a direct comparison between the two rendering pipelines for any page.
+
+## The profiler
+
+The debug bar includes an **Open Profiler** button that opens a separate window displaying a flame chart trace for the last visited URL.
+
+The profiler workflow:
+
+1. Open the profiler window (it can stay open)
+2. Navigate to the page you want to profile
+3. Refresh the profiler window — it loads the trace for that page
+
+The trace shows every component rendered during the request, its duration, nesting depth, and which strategy was used (compiled, folded, memoized, or blade).
+
+> [!NOTE]
+> The profiler stores trace data in your application's default cache store. If the cache driver is set to `array` (e.g. `CACHE_STORE=array`) or the cache is otherwise unreachable, the profiler will not work.
+
 ## The Unblaze Directive
 
 When a component is mostly foldable but contains a dynamic section, use `@unblaze` to exclude that section:
@@ -596,6 +661,32 @@ Variables from the component scope must be passed explicitly using the `scope` p
 | `[name]` | A property / attribute / slot |
 | `attributes` | Attributes not defined in `@props` |
 
+
+### Methods
+
+```php
+Blaze::enable();    // Enable Blaze compilation
+Blaze::debug();     // Enable debug mode (debug bar + profiler)
+Blaze::throw();     // Throw exceptions encountered during folding
+```
+
+| Method | Description |
+|--------|-------------|
+| `Blaze::enable()` | Enable Blaze compilation at runtime |
+| `Blaze::debug()` | Enable the debug bar and profiler |
+| `Blaze::throw()` | Throw exceptions encountered during folding instead of silently falling back |
+
+### Environment Variables
+
+```env
+BLAZE_ENABLED=true
+BLAZE_DEBUG=false
+```
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `BLAZE_ENABLED` | `true` | Enable or disable Blaze compilation |
+| `BLAZE_DEBUG` | `false` | Enable the debug bar and profiler |
 
 ### Directory Configuration
 
