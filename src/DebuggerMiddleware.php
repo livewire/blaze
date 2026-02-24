@@ -35,8 +35,8 @@ class DebuggerMiddleware
     {
         $url = '/' . ltrim($request->path(), '/');
 
-        // Skip internal debug bar routes.
-        if (str_starts_with($url, '/_blaze/')) {
+        // Skip internal debug bar routes and Livewire requests.
+        if (str_starts_with($url, '/_blaze/') || $request->hasHeader('X-Livewire')) {
             return $next($request);
         }
 
