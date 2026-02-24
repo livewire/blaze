@@ -572,6 +572,71 @@ When a component is mostly foldable but contains a dynamic section, use `@unblaz
 
 Variables from the component scope must be passed explicitly using the `scope` parameter.
 
+# Debug Mode
+
+Blaze includes a powerful debug mode to help you measure rendering performance, compare Blaze against standard Blade and find performance bottlenecks.
+
+<img width="2372" height="902" alt="profiler-github" src="https://github.com/user-attachments/assets/61970b96-a1b6-40a2-a225-e0e6253ffdea" />
+
+## Enabling debug mode
+
+Enable debug mode from your service provider:
+
+```php
+use Livewire\Blaze\Blaze;
+
+public function boot(): void
+{
+    Blaze::debug();
+
+    // ...
+}
+```
+
+Or set the environment variable in your `.env` file:
+
+```env
+BLAZE_DEBUG=true
+```
+
+After enabling, clear your compiled views:
+
+```bash
+php artisan view:clear
+```
+
+## The overlay
+
+When debug mode is active, a small overlay appears on every page showing the rendering time for the current request.
+
+### Comparing Blaze vs Blade
+
+You can record baseline times with Blade and compare them against Blaze:
+
+1. Disable Blaze temporarily by setting `BLAZE_ENABLED=false` in your `.env` file
+2. Run `php artisan view:clear` to recompile views without Blaze
+3. Visit the page — the debug bar records the Blade rendering time
+4. Re-enable Blaze by removing the environment variable
+5. Run `php artisan view:clear` again to recompile with Blaze
+6. Visit the same page — the debug bar shows the Blaze time alongside the Blade baseline with the difference
+
+Refresh the page a few times in each mode to get the best result — the first load may include compilation overhead that skews the numbers. Blaze will display the difference in savings between the two rendering pipelines.
+
+## The profiler
+
+The debug overlay includes an **Open Profiler** button that opens a separate window displaying a flame chart trace for the last visited URL.
+
+The profiler workflow:
+
+1. Open the profiler window (it can stay open)
+2. Navigate to the page you want to profile
+3. Refresh the profiler window — it loads the trace for that page
+
+The trace shows every component rendered during the request, its duration, nesting depth, and which strategy was used (compiled, folded, memoized, or blade).
+
+> [!NOTE]
+> The profiler stores trace data in your application's default cache store. If the cache driver is set `CACHE_STORE=array` or the cache is otherwise unreachable, the profiler will not work.
+
 # Reference
 
 ### Directive Parameters
@@ -612,6 +677,32 @@ Blaze::optimize()
 | `compile` | `true` | Enable Blaze compilation. Set `false` to exclude. |
 | `fold` | `false` | Enable compile-time folding |
 | `memo` | `false` | Enable runtime memoization |
+
+### Blaze Methods
+
+```php
+Blaze::enable();    // Enable Blaze compilation
+Blaze::debug();     // Enable debug mode
+Blaze::throw();     // Throw exceptions encountered during folding
+```
+
+| Method | Description |
+|--------|-------------|
+| `Blaze::enable()` | Enable Blaze compilation at runtime |
+| `Blaze::debug()` | Enable the debug bar and profiler |
+| `Blaze::throw()` | Throw exceptions encountered during folding instead of silently falling back |
+
+### Environment Variables
+
+```env
+BLAZE_ENABLED=true
+BLAZE_DEBUG=false
+```
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `BLAZE_ENABLED` | `true` | Enable or disable Blaze compilation |
+| `BLAZE_DEBUG` | `false` | Enable the debug mode |
 
 ## License
 
