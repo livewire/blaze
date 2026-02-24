@@ -549,9 +549,32 @@ $external = $attributes->get('target') === '_blank';
 
 Any dynamic attributes will now cause folding to abort.
 
+## The Unblaze Directive
+
+When a component is mostly foldable but contains a dynamic section, use `@unblaze` to exclude that section:
+
+```blade
+@blaze(fold: true)
+
+@props(['name', 'label'])
+
+<div>
+    <label>{{ $label }}</label>
+    <input name="{{ $name }}">
+
+    @unblaze(scope: ['name' => $name])
+        @if($errors->has($scope['name']))
+            {{ $errors->first($scope['name']) }}
+        @endif
+    @endunblaze
+</div>
+```
+
+Variables from the component scope must be passed explicitly using the `scope` parameter.
+
 # Debug Mode
 
-Blaze includes a built-in debug bar and profiler to help you measure rendering performance and compare Blaze against standard Blade.
+Blaze includes a powerful debug mode to help you measure rendering performance, compare Blaze against standard Blade and find performance bottlenecks.
 
 ## Enabling debug mode
 
@@ -580,7 +603,7 @@ After enabling, clear your compiled views:
 php artisan view:clear
 ```
 
-## The debug bar
+## The overlay
 
 When debug mode is active, a small overlay appears on every page showing the rendering time for the current request.
 
@@ -595,13 +618,11 @@ You can record baseline times with Blade and compare them against Blaze:
 5. Run `php artisan view:clear` again to recompile with Blaze
 6. Visit the same page — the debug bar shows the Blaze time alongside the Blade baseline with the difference
 
-Refresh the page a few times in each mode to get the best result — the first load may include compilation overhead that skews the numbers.
-
-This gives you a direct comparison between the two rendering pipelines for any page.
+Refresh the page a few times in each mode to get the best result — the first load may include compilation overhead that skews the numbers. Blaze will display the difference in savings between the two rendering pipelines.
 
 ## The profiler
 
-The debug bar includes an **Open Profiler** button that opens a separate window displaying a flame chart trace for the last visited URL.
+The debug overlay includes an **Open Profiler** button that opens a separate window displaying a flame chart trace for the last visited URL.
 
 The profiler workflow:
 
@@ -612,30 +633,7 @@ The profiler workflow:
 The trace shows every component rendered during the request, its duration, nesting depth, and which strategy was used (compiled, folded, memoized, or blade).
 
 > [!NOTE]
-> The profiler stores trace data in your application's default cache store. If the cache driver is set to `array` (e.g. `CACHE_STORE=array`) or the cache is otherwise unreachable, the profiler will not work.
-
-## The Unblaze Directive
-
-When a component is mostly foldable but contains a dynamic section, use `@unblaze` to exclude that section:
-
-```blade
-@blaze(fold: true)
-
-@props(['name', 'label'])
-
-<div>
-    <label>{{ $label }}</label>
-    <input name="{{ $name }}">
-
-    @unblaze(scope: ['name' => $name])
-        @if($errors->has($scope['name']))
-            {{ $errors->first($scope['name']) }}
-        @endif
-    @endunblaze
-</div>
-```
-
-Variables from the component scope must be passed explicitly using the `scope` parameter.
+> The profiler stores trace data in your application's default cache store. If the cache driver is set `CACHE_STORE=array` or the cache is otherwise unreachable, the profiler will not work.
 
 # Reference
 
@@ -662,11 +660,27 @@ Variables from the component scope must be passed explicitly using the `scope` p
 | `attributes` | Attributes not defined in `@props` |
 
 
-### Methods
+### Directory Configuration
+
+```php
+Blaze::optimize()
+    ->in(resource_path('views/components'))
+    ->in(resource_path('views/components/ui'), fold: true)
+    ->in(resource_path('views/components/icons'), memo: true)
+    ->in(resource_path('views/components/legacy'), compile: false);
+```
+
+| Option | Default | Description |
+|--------|---------|-------------|
+| `compile` | `true` | Enable Blaze compilation. Set `false` to exclude. |
+| `fold` | `false` | Enable compile-time folding |
+| `memo` | `false` | Enable runtime memoization |
+
+### Blaze Methods
 
 ```php
 Blaze::enable();    // Enable Blaze compilation
-Blaze::debug();     // Enable debug mode (debug bar + profiler)
+Blaze::debug();     // Enable debug mode
 Blaze::throw();     // Throw exceptions encountered during folding
 ```
 
@@ -686,23 +700,7 @@ BLAZE_DEBUG=false
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `BLAZE_ENABLED` | `true` | Enable or disable Blaze compilation |
-| `BLAZE_DEBUG` | `false` | Enable the debug bar and profiler |
-
-### Directory Configuration
-
-```php
-Blaze::optimize()
-    ->in(resource_path('views/components'))
-    ->in(resource_path('views/components/ui'), fold: true)
-    ->in(resource_path('views/components/icons'), memo: true)
-    ->in(resource_path('views/components/legacy'), compile: false);
-```
-
-| Option | Default | Description |
-|--------|---------|-------------|
-| `compile` | `true` | Enable Blaze compilation. Set `false` to exclude. |
-| `fold` | `false` | Enable compile-time folding |
-| `memo` | `false` | Enable runtime memoization |
+| `BLAZE_DEBUG` | `false` | Enable the debug mode |
 
 ## License
 
