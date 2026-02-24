@@ -641,10 +641,6 @@ body {
                     <div class="sidebar-stat-label">Components</div>
                 </div>
 
-                <div class="sidebar-stat" id="stat-memo-wrap" style="display:none;">
-                    <div class="sidebar-stat-value" id="stat-memo" style="color:var(--green)">--</div>
-                    <div class="sidebar-stat-label">Memo hits</div>
-                </div>
             </div>
             <div class="panel-title">Strategy Breakdown</div>
             <div class="strat-bar-wrap" id="strat-bar"></div>
@@ -1012,15 +1008,6 @@ function updateHeader() {
 function updateSidebarStats() {
     document.getElementById('stat-time').textContent = fmtMs(data.renderTime || 0);
     document.getElementById('stat-components').textContent = entries.length;
-
-    // Memo cache hits
-    const memoHits = data.memoHits || 0;
-    if (memoHits > 0) {
-        document.getElementById('stat-memo').textContent = memoHits;
-        document.getElementById('stat-memo-wrap').style.display = '';
-    } else {
-        document.getElementById('stat-memo-wrap').style.display = 'none';
-    }
 }
 
 // ─── Sidebar ────────────────────────────────────────────────────────
