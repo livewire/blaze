@@ -64,7 +64,7 @@ class AttributeParser
                 continue;
             }
 
-            $dynamic = $isDynamic || (is_string($value) && str_contains($value, '{{'));
+            $dynamic = $isDynamic || (is_string($value) && (str_contains($value, '{{') || str_contains($value, '{!!')));
 
             $attributes[$camelName] = new Attribute(
                 name: $name,

@@ -45,6 +45,15 @@ test('parses attributes with blade echo', function () {
         ->dynamic->toBeTrue();
 });
 
+test('parses attributes with raw blade echo', function () {
+    $attrs = (new AttributeParser)->parseAttributeStringToArray('title="{!! $x !!}"');
+
+    expect($attrs)->toHaveKey('title');
+    expect($attrs['title'])
+        ->name->toBe('title')
+        ->value->toBe('{!! $x !!}')
+        ->dynamic->toBeTrue();
+});
 
 test('parses quotes', function () {
     $attrs = (new AttributeParser)->parseAttributeStringToArray('double="hello" single=\'hello\'');
