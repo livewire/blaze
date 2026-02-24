@@ -60,13 +60,7 @@ class Profiler
 
         $memo = $source->directives->blaze('memo') ?? $this->config->shouldMemoize($source->path);
 
-        $strategy = 'compiled';
-
-        if ($memo) {
-            $strategy .= '+memo';
-        }
-
-        return $strategy;
+        return 'compiled';
     }
 
     /**

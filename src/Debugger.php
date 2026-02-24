@@ -147,7 +147,7 @@ class Debugger
      *
      * This is called inside the cache-hit branch of the memoizer output,
      * while the entry is still on the trace stack (between startTimer and
-     * stopTimer). We change its strategy from 'compiled+memo' to 'memo'
+     * stopTimer). We change its strategy from 'compiled' to 'memo'
      * so the profiler can visually distinguish cache hits from misses.
      */
     public function recordMemoHit(string $name): void
