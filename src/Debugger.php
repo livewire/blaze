@@ -370,7 +370,7 @@ class Debugger
             }
 
             #blaze-card {
-                background: #000000;
+                background: #0b0809;
                 border: 1px solid #1b1b1b;
                 border-radius: 14px;
                 padding: 20px 20px 24px;
