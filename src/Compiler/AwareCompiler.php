@@ -4,6 +4,7 @@ namespace Livewire\Blaze\Compiler;
 
 use Livewire\Blaze\Exceptions\ArrayParserException;
 use Livewire\Blaze\Exceptions\InvalidAwareDefinitionException;
+use Illuminate\Support\Str;
 
 /**
  * Compiles @aware expressions into PHP code for accessing parent component data.
@@ -38,6 +39,12 @@ class AwareCompiler
             $output .= $hasDefault
                 ? sprintf('$%s = $__blaze->getConsumableData(\'%s\', $__awareDefaults[\'%s\']);', $name, $name, $name)
                 : sprintf('$%s = $__blaze->getConsumableData(\'%s\');', $name, $name);
+
+            $kebab = Str::kebab($name);
+
+            $output .= $kebab !== $name
+                ? sprintf(' unset($attributes[\'%s\'], $attributes[\'%s\']);', $name, $kebab)
+                : sprintf(' unset($attributes[\'%s\']);', $name);
 
             $output .= "\n";
         }

@@ -47,7 +47,7 @@ test('compiles aware props', function () {
         'ob_start(); ?> ',
         '@blaze ',
         '<?php $__awareDefaults = [\'type\' => \'text\']; ',
-        '$type = $__blaze->getConsumableData(\'type\', $__awareDefaults[\'type\']); ',
+        '$type = $__blaze->getConsumableData(\'type\', $__awareDefaults[\'type\']); unset($attributes[\'type\']); ',
         'unset($__awareDefaults); ?> ',
         '<?php $__defaults = [\'type\' => \'text\', \'disabled\' => false]; ',
         '$type ??= $attributes[\'type\'] ?? $__defaults[\'type\']; unset($attributes[\'type\']); ',
