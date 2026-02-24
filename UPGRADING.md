@@ -1,19 +1,17 @@
-# Upgrading from Blaze 1.0 to Blaze 2.0
+# Upgrading from 1.0-beta to 1.0
 
 ## Breaking change: `@blaze` no longer enables folding or memoization by default
 
-In Blaze 1.0, `@blaze` implicitly enabled both folding and memoization:
+In Blaze 1.0-beta, `@blaze` implicitly enabled both folding and memoization:
 
 ```php
-// Blaze 1.0 — this enabled folding + memoization
-@blaze
+@blaze // Before: folding + memoization
 ```
 
-In Blaze 2.0, `@blaze` enables **function compilation only**:
+In Blaze 1.0, `@blaze` enables **function compilation only**:
 
 ```php
-// Blaze 2.0 — this enables function compilation
-@blaze
+@blaze // Now: function compilation only
 ```
 
 To enable folding or memoization, you now need to opt in explicitly:
@@ -21,3 +19,14 @@ To enable folding or memoization, you now need to opt in explicitly:
 ```php
 @blaze(fold: true, memo: true)
 ```
+
+or using the `Blaze::optimize()` in your service provider:
+
+```php
+Blaze::optimize()
+    ->in(resource_path('views/components'))
+    ->in(resource_path('views/components/ui'), fold: true)
+    ->in(resource_path('views/components/icons'), memo: true);
+```
+
+Only use these strategies if you understand their limitations. To learn more, read the [Optimization strategies](README.md#optimization-strategies) section in the README.
