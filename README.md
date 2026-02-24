@@ -576,6 +576,8 @@ Variables from the component scope must be passed explicitly using the `scope` p
 
 Blaze includes a powerful debug mode to help you measure rendering performance, compare Blaze against standard Blade and find performance bottlenecks.
 
+<img width="2372" height="902" alt="profiler-github" src="https://github.com/user-attachments/assets/61970b96-a1b6-40a2-a225-e0e6253ffdea" />
+
 ## Enabling debug mode
 
 Enable debug mode from your service provider:
