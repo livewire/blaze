@@ -452,19 +452,18 @@ class Debugger
         $comparison = $data['comparison'];
 
         if (! $isBlaze) {
+            $message = $isCold ? 'First load time recorded' : 'Baseline time recorded';
             return <<<HTML
-            <div style="color: rgba(255,255,255,0.3); font-size: 11px; margin-top: 10px; line-height: 1.5;">
-                Click the bubble to enable Blaze<br>
-                and see performance savings
+            <div style="color: rgba(255,255,255,0.3); font-size: 11px; margin-top: 10px; line-height: 1.5; max-width: 220px;">
+                {$message}. Enable Blaze and reload the page to see comparison data.
             </div>
             HTML;
         }
 
         if (! $comparison) {
             return <<<HTML
-            <div style="color: rgba(255,255,255,0.3); font-size: 11px; margin-top: 10px; line-height: 1.5;">
-                Reload in Blade mode first to<br>
-                record baseline render times
+            <div style="color: rgba(255,255,255,0.3); font-size: 11px; margin-top: 10px; line-height: 1.5; max-width: 220px;">
+                Disable Blaze and reload the page to record baseline times and display comparison data.
             </div>
             HTML;
         }

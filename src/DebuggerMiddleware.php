@@ -4,7 +4,6 @@ namespace Livewire\Blaze;
 
 use Closure;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Route;
@@ -17,15 +16,6 @@ class DebuggerMiddleware
      */
     public static function register(): void
     {
-        Route::get('/_blaze/toggle', function (Request $request) {
-            Cache::put('blaze_enabled', ! Cache::get('blaze_enabled', false));
-            Cache::forget('blaze_seen_pages');
-
-            Artisan::call('view:clear');
-
-            return redirect()->to(url()->previous('/'));
-        })->middleware('web');
-
         Route::get('/_blaze/trace', function () {
             return response()->json(Cache::get('blaze_profiler_trace', ['entries' => [], 'url' => null]));
         })->middleware('web');
@@ -50,16 +40,10 @@ class DebuggerMiddleware
             return $next($request);
         }
 
-        $isBlaze = (bool) Cache::get('blaze_enabled', false);
+        $isBlaze = app('blaze')->isEnabled();
 
         $debugger = app('blaze.runtime')->debugger;
         $debugger->setBlazeEnabled($isBlaze);
-
-        if ($isBlaze) {
-            app('blaze')->enable();
-        } else {
-            app('blaze')->disable();
-        }
 
         // Inject render timer into the first view's compiled file so we
         // measure only actual view rendering, not the full request pipeline.
