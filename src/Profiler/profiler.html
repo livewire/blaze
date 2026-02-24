@@ -362,13 +362,7 @@ body {
     font-weight: 600;
 }
 
-.strat-row-time {
-    font-size: 11px;
-    font-family: inherit;
-    color: var(--text-dim);
-    min-width: 60px;
-    text-align: right;
-}
+
 
 /* ── Component Table ─────────────────────────────── */
 .comp-table {
@@ -1027,11 +1021,11 @@ function updateSidebar() {
     stratBar.innerHTML = '';
     stratRows.innerHTML = '';
 
-    const sortedStrats = Object.keys(stratCounts).sort((a, b) => (stratTimes[b] || 0) - (stratTimes[a] || 0));
+    const sortedStrats = Object.keys(stratCounts).sort((a, b) => stratCounts[b] - stratCounts[a]);
 
     for (const s of sortedStrats) {
         const c = colorFor(s);
-        const pct = ((stratTimes[s] / totalTime) * 100).toFixed(1);
+        const pct = ((stratCounts[s] / entries.length) * 100).toFixed(1);
 
         // Bar segment
         const seg = document.createElement('div');
@@ -1046,8 +1040,7 @@ function updateSidebar() {
         row.innerHTML = `
             <div class="strat-row-swatch" style="background:${c.bg}"></div>
             <div class="strat-row-name">${STRAT_LABELS[s] || s}</div>
-            <div class="strat-row-count">${stratCounts[s]}x</div>
-            <div class="strat-row-time">${fmtMs(stratTimes[s])}</div>
+            <div class="strat-row-count">${stratCounts[s]}</div>
         `;
         stratRows.appendChild(row);
     }
