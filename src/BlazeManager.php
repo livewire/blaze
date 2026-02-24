@@ -6,7 +6,7 @@ use Illuminate\Support\Facades\Event;
 use Illuminate\View\Engines\CompilerEngine;
 use Livewire\Blaze\Compiler\Wrapper;
 use Livewire\Blaze\Compiler\Compiler;
-use Livewire\Blaze\Compiler\Instrumenter;
+use Livewire\Blaze\Compiler\Profiler;
 use Livewire\Blaze\Directive\BlazeDirective;
 use Livewire\Blaze\Events\ComponentFolded;
 use Livewire\Blaze\Folder\Folder;
@@ -37,7 +37,7 @@ class BlazeManager
         protected Folder $folder,
         protected Memoizer $memoizer,
         protected Wrapper $wrapper,
-        protected Instrumenter $instrumenter,
+        protected Profiler $instrumenter,
         protected Config $config,
     ) {
         $this->enabled = config('blaze.enabled', true);
@@ -97,7 +97,7 @@ class BlazeManager
 
                 if ($wasComponent && $this->debug && ! $this->folding) {
                     $strategy = $wasFolded ? 'folded' : null;
-                    $node = $this->instrumenter->instrument($node, $componentName, $strategy);
+                    $node = $this->instrumenter->profile($node, $componentName, $strategy);
                 }
 
                 return $node;
@@ -111,25 +111,8 @@ class BlazeManager
 
         if ($path && ($directives->blaze() || $this->config->shouldCompile($path))) {
             $output = $this->wrapper->wrap($output, $path, $source);
-        } elseif ($this->debug && ! $this->folding && $path && ! $this->isComponentTemplatePath($path)) {
-            $viewName = $this->viewNameFromPath($path);
-
-            if ($viewName !== null) {
-                $safe = addslashes($viewName);
-                $nameExpr = "'{$safe}'";
-            } elseif (str_contains($source, '$layout->viewContext')) {
-                // Livewire layout wrapper: resolve the layout name at runtime.
-                $nameExpr = '\'layout:\' . ($layout->view ?? \'unknown\')';
-            } else {
-                // Livewire/Volt: resolve component name at runtime from shared view data.
-                $nameExpr = '($__blaze->debugger->resolveViewName() ?? \''.addslashes(pathinfo($path, PATHINFO_FILENAME)).'\')';
-            }
-
-            $relativePath = addslashes($this->relativePath($path));
-
-            $output = '<'.'?php $__blazeViewName = '.$nameExpr.'; $__blaze->debugger->startTimer($__blazeViewName, \'view\', \''.$relativePath.'\'); ?>'
-                .$output
-                .'<'.'?php $__blaze->debugger->stopTimer($__blazeViewName); ?>';
+        } elseif ($this->debug && ! $this->folding && $path) {
+            $output = $this->instrumenter->profileView($output, $path, $source);
         }
 
         try {
@@ -160,7 +143,7 @@ class BlazeManager
                 $node = $this->compiler->compile($node);
 
                 if ($wasComponent && $this->debug) {
-                    $node = $this->instrumenter->instrument($node, $componentName);
+                    $node = $this->instrumenter->profile($node, $componentName);
                 }
 
                 return $node;
@@ -195,7 +178,7 @@ class BlazeManager
                     return $node;
                 }
 
-                return $this->instrumenter->instrument($node, $node->name, 'blade');
+                return $this->instrumenter->profile($node, $node->name, 'blade');
             },
         );
 
@@ -204,23 +187,8 @@ class BlazeManager
         // Inject view-level timer for the view file itself.
         $path = app('blade.compiler')->getPath();
 
-        if ($path && ! $this->isComponentTemplatePath($path)) {
-            $viewName = $this->viewNameFromPath($path);
-
-            if ($viewName !== null) {
-                $safe = addslashes($viewName);
-                $nameExpr = "'{$safe}'";
-            } elseif (str_contains($source, '$layout->viewContext')) {
-                $nameExpr = '\'layout:\' . ($layout->view ?? \'unknown\')';
-            } else {
-                $nameExpr = '($__blaze->debugger->resolveViewName() ?? \''.addslashes(pathinfo($path, PATHINFO_FILENAME)).'\')';
-            }
-
-            $relativePath = addslashes($this->relativePath($path));
-
-            $output = '<'.'?php $__blazeViewName = '.$nameExpr.'; $__blaze->debugger->startTimer($__blazeViewName, \'view\', \''.$relativePath.'\'); ?>'
-                .$output
-                .'<'.'?php $__blaze->debugger->stopTimer($__blazeViewName); ?>';
+        if ($path) {
+            $output = $this->instrumenter->profileView($output, $path, $source);
         }
 
         return $output;
@@ -435,77 +403,6 @@ class BlazeManager
     public function optimize(): Config
     {
         return $this->config;
-    }
-
-    /**
-     * Extract a human-readable view name from a file path.
-     *
-     * Returns null when the path can't be resolved to a meaningful name
-     * (e.g. Livewire SFC / Volt hash paths in storage/).
-     */
-    protected function viewNameFromPath(string $path): ?string
-    {
-        $resolved = realpath($path) ?: $path;
-
-        if (preg_match('#/resources/views/(.+?)\.blade\.php$#', $resolved, $matches)) {
-            $name = str_replace('/', '.', $matches[1]);
-
-            return preg_replace('/\.index$/', '', $name);
-        }
-
-        return null;
-    }
-
-    /**
-     * Strip the base path prefix to produce a short relative path.
-     */
-    protected function relativePath(string $absolutePath): string
-    {
-        $base = base_path().'/';
-
-        if (str_starts_with($absolutePath, $base)) {
-            return substr($absolutePath, strlen($base));
-        }
-
-        $resolved = realpath($absolutePath) ?: $absolutePath;
-
-        if (str_starts_with($resolved, $base)) {
-            return substr($resolved, strlen($base));
-        }
-
-        if (preg_match('#(/resources/views/.+)$#', $absolutePath, $m)) {
-            return ltrim($m[1], '/');
-        }
-
-        return basename($absolutePath);
-    }
-
-    /**
-     * Check if a path belongs to a Blade component template directory.
-     *
-     * Component templates already have call-site timers from the Instrumenter,
-     * so they don't need view-level timers (which would be misleading because
-     * Blade evaluates slot content before the component template executes).
-     */
-    protected function isComponentTemplatePath(string $path): bool
-    {
-        $resolved = realpath($path) ?: $path;
-
-        $dirs = [resource_path('views/components')];
-
-        foreach (app('blade.compiler')->getAnonymousComponentPaths() as $registration) {
-            $dirs[] = $registration['path'];
-        }
-
-        foreach ($dirs as $dir) {
-            $normalizedDir = rtrim(realpath($dir) ?: $dir, '/').'/';
-
-            if (str_starts_with($resolved, $normalizedDir) || str_starts_with($path, $normalizedDir)) {
-                return true;
-            }
-        }
-
-        return false;
     }
 
     /**

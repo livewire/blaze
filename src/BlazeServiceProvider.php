@@ -2,7 +2,7 @@
 
 namespace Livewire\Blaze;
 
-use Livewire\Blaze\Compiler\Instrumenter;
+use Livewire\Blaze\Compiler\Profiler;
 use Livewire\Blaze\Runtime\BlazeRuntime;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Support\Facades\Blade;
@@ -17,7 +17,7 @@ class BlazeServiceProvider extends ServiceProvider
         $this->app->singleton(BlazeRuntime::class);
         $this->app->singleton(Config::class);
         $this->app->singleton(Debugger::class);
-        $this->app->singleton(Instrumenter::class);
+        $this->app->singleton(Profiler::class);
         $this->app->singleton(BlazeManager::class);
 
         $this->app->alias(BlazeManager::class, Blaze::class);
