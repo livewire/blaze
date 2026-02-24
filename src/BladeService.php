@@ -13,6 +13,13 @@ use Livewire\Blaze\Support\Utils;
 class BladeService
 {
     /**
+     * Cached reflection methods for the active Blade compiler by class.
+     *
+     * @var array<string, array<string, \ReflectionMethod>>
+     */
+    protected static $bladeCompilerMethods = [];
+
+    /**
      * Render a Blade template string in an isolated context.
      */
     public static function render(string $template): string
@@ -202,12 +209,7 @@ class BladeService
      */
     public static function preStoreUncompiledBlocks(string $input): string
     {
-        $compiler = app('blade.compiler');
-
-        $reflection = new \ReflectionClass($compiler);
-        $storeVerbatimBlocks = $reflection->getMethod('storeUncompiledBlocks');
-
-        return $storeVerbatimBlocks->invoke($compiler, $input);
+        return static::callBladeCompilerMethod('storeUncompiledBlocks', $input);
     }
 
     /**
@@ -215,12 +217,7 @@ class BladeService
      */
     public static function storeVerbatimBlocks(string $input): string
     {
-        $compiler = app('blade.compiler');
-
-        $reflection = new \ReflectionClass($compiler);
-        $method = $reflection->getMethod('storeVerbatimBlocks');
-
-        return $method->invoke($compiler, $input);
+        return static::callBladeCompilerMethod('storeVerbatimBlocks', $input);
     }
 
     /**
@@ -228,12 +225,7 @@ class BladeService
      */
     public static function restoreRawBlocks(string $input): string
     {
-        $compiler = app('blade.compiler');
-
-        $reflection = new \ReflectionClass($compiler);
-        $method = $reflection->getMethod('restoreRawContent');
-
-        return $method->invoke($compiler, $input);
+        return static::callBladeCompilerMethod('restoreRawContent', $input);
     }
 
     /**
@@ -241,12 +233,7 @@ class BladeService
      */
     public static function compileComments(string $input): string
     {
-        $compiler = app('blade.compiler');
-
-        $reflection = new \ReflectionClass($compiler);
-        $compileComments = $reflection->getMethod('compileComments');
-
-        return $compileComments->invoke($compiler, $input);
+        return static::callBladeCompilerMethod('compileComments', $input);
     }
 
     /**
@@ -281,13 +268,24 @@ class BladeService
     public static function compileUseStatements(string $input): string
     {
         return static::compileDirective($input, 'use', function ($expression) {
-            $compiler = app('blade.compiler');
-
-            $reflection = new \ReflectionClass($compiler);
-            $method = $reflection->getMethod('compileUse');
-
-            return $method->invoke($compiler, $expression);
+            return static::callBladeCompilerMethod('compileUse', $expression);
         });
+    }
+
+    /**
+     * Invoke a method on the current Blade compiler with cached reflection.
+     */
+    protected static function callBladeCompilerMethod(string $method, mixed ...$arguments): mixed
+    {
+        $compiler = app('blade.compiler');
+        $class = $compiler::class;
+
+        if (! isset(static::$bladeCompilerMethods[$class][$method])) {
+            $reflection = new ReflectionClass($compiler);
+            static::$bladeCompilerMethods[$class][$method] = $reflection->getMethod($method);
+        }
+
+        return static::$bladeCompilerMethods[$class][$method]->invoke($compiler, ...$arguments);
     }
 
     /**

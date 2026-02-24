@@ -12,6 +12,13 @@ use Illuminate\Support\Arr;
  */
 class Wrapper
 {
+    /**
+     * Cached reflection properties for Blade compiler classes.
+     *
+     * @var array<string, \ReflectionProperty>
+     */
+    protected static $echoHandlersProperties = [];
+
     public function __construct(
         protected PropsCompiler $propsCompiler = new PropsCompiler,
         protected AwareCompiler $awareCompiler = new AwareCompiler,
@@ -118,9 +125,13 @@ class Wrapper
     protected function hasEchoHandlers(): bool
     {
         $compiler = app('blade.compiler');
-        $reflection = new \ReflectionProperty($compiler, 'echoHandlers');
+        $class = $compiler::class;
 
-        return ! empty($reflection->getValue($compiler));
+        if (! isset(static::$echoHandlersProperties[$class])) {
+            static::$echoHandlersProperties[$class] = new \ReflectionProperty($compiler, 'echoHandlers');
+        }
+
+        return ! empty(static::$echoHandlersProperties[$class]->getValue($compiler));
     }
 
     /**
