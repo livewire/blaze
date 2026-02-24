@@ -1,0 +1,2135 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Blaze Profiler</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Roboto+Mono:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+    --bg: #000000;
+    --bg-card: rgba(255, 255, 255, 0.03);
+    --bg-card-solid: #0a0a0a;
+    --border: #1b1b1b;
+    --text: #ffffff;
+    --text-dim: rgba(255, 255, 255, 0.5);
+    --text-muted: rgba(255, 255, 255, 0.3);
+    --orange: #FF8602;
+    --orange-dim: rgba(255, 134, 2, 0.12);
+    --green: #22c55e;
+    --green-dim: rgba(34, 197, 94, 0.12);
+    --purple: #a855f7;
+    --purple-dim: rgba(168, 85, 247, 0.12);
+    --blue: #3b82f6;
+    --blue-dim: rgba(59, 130, 246, 0.12);
+    --red: #ef4444;
+    --gray: rgba(255, 255, 255, 0.3);
+    --row-h: 28;
+    --row-gap: 2;
+}
+
+body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: "Roboto Mono", ui-monospace, SFMono-Regular, monospace;
+    overflow: hidden;
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+}
+
+/* ── Header ─────────────────────────────────────── */
+.header {
+    padding: 14px 24px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    border-bottom: 1px solid var(--border);
+    background: var(--bg);
+    flex-shrink: 0;
+    z-index: 10;
+}
+
+.logo {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-weight: 800;
+    font-size: 14px;
+    letter-spacing: -0.3px;
+    color: var(--text);
+}
+
+.logo svg { width: 18px; height: 18px; color: var(--orange); }
+
+.header-url {
+    font-family: inherit;
+    font-size: 12px;
+    color: var(--text-muted);
+    background: rgba(255, 255, 255, 0.03);
+    padding: 5px 12px;
+    border-radius: 4px;
+    border: 1px solid var(--border);
+    max-width: 300px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.header-mode {
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    padding: 4px 10px;
+    border-radius: 2px;
+    line-height: 1;
+}
+
+.header-mode.blaze { background: var(--orange-dim); color: var(--orange); }
+.header-mode.blade { background: var(--blue-dim); color: var(--blue); }
+
+/* ── Legend + Controls ────────────────────────────── */
+.controls {
+    padding: 8px 24px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    border-bottom: 1px solid var(--border);
+    background: var(--bg);
+    flex-shrink: 0;
+}
+
+.legend {
+    display: flex;
+    gap: 14px;
+    align-items: center;
+}
+
+.legend-item {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 11px;
+    color: var(--text-dim);
+    cursor: default;
+}
+
+.legend-swatch {
+    width: 10px;
+    height: 10px;
+    border-radius: 2px;
+}
+
+.controls-right {
+    margin-left: auto;
+    display: flex;
+    gap: 10px;
+    align-items: center;
+}
+
+.control-btn {
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid var(--border);
+    color: var(--text-dim);
+    font-size: 11px;
+    font-weight: 500;
+    padding: 4px 12px;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.15s;
+    font-family: inherit;
+}
+
+.control-btn:hover { background: rgba(255, 255, 255, 0.06); color: var(--text); }
+
+.control-hint {
+    font-size: 10px;
+    color: var(--text-muted);
+}
+
+/* ── Main Content ────────────────────────────────── */
+.main {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+/* ── Flame Chart Area ────────────────────────────── */
+.flame-area {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    position: relative;
+    min-height: 0;
+}
+
+.minimap-wrap {
+    height: 36px;
+    border-bottom: 1px solid var(--border);
+    background: var(--bg);
+    position: relative;
+    flex-shrink: 0;
+    cursor: pointer;
+}
+
+.minimap-wrap canvas { width: 100%; height: 100%; display: block; }
+
+.minimap-viewport {
+    position: absolute;
+    top: 0;
+    height: 100%;
+    background: rgba(255, 134, 2, 0.08);
+    border-left: 2px solid rgba(255, 134, 2, 0.5);
+    border-right: 2px solid rgba(255, 134, 2, 0.5);
+    pointer-events: none;
+}
+
+.minimap-edge {
+    position: absolute;
+    top: 0;
+    width: 8px;
+    height: 100%;
+    cursor: ew-resize;
+    z-index: 2;
+}
+
+.minimap-edge-left { left: -4px; }
+.minimap-edge-right { right: -4px; }
+
+.time-axis {
+    height: 24px;
+    border-bottom: 1px solid var(--border);
+    background: var(--bg);
+    flex-shrink: 0;
+    position: relative;
+    overflow: hidden;
+}
+
+.time-axis canvas { width: 100%; height: 100%; display: block; }
+
+.flame-scroll {
+    flex: 1;
+    overflow: auto;
+    position: relative;
+}
+
+.flame-scroll canvas { display: block; }
+
+/* ── Resize Handle ───────────────────────────────── */
+.sidebar-resize {
+    height: 5px;
+    border-top: 1px solid var(--border);
+    cursor: ns-resize;
+    flex-shrink: 0;
+    transition: background 0.15s;
+}
+
+.sidebar-resize:hover,
+.sidebar-resize.active {
+    background: rgba(255, 134, 2, 0.3);
+}
+
+/* ── Bottom Panels ───────────────────────────────── */
+.sidebar {
+    background: var(--bg);
+    overflow: hidden;
+    flex-shrink: 0;
+    display: flex;
+    height: 300px;
+}
+
+.sidebar-col {
+    overflow-y: auto;
+    scrollbar-width: thin;
+    scrollbar-color: #1b1b1b transparent;
+    border-right: 1px solid var(--border);
+}
+
+.sidebar-col:last-child { border-right: none; }
+
+.sidebar-col::-webkit-scrollbar { width: 5px; }
+.sidebar-col::-webkit-scrollbar-track { background: transparent; }
+.sidebar-col::-webkit-scrollbar-thumb { background: #1b1b1b; border-radius: 3px; }
+
+.sidebar-col-left {
+    width: 340px;
+    flex-shrink: 0;
+}
+
+.sidebar-col-mid {
+    flex: 1;
+    min-width: 0;
+}
+
+.sidebar-col-right {
+    width: 500px;
+    flex-shrink: 0;
+}
+
+/* ── Sidebar Stats ───────────────────────────────── */
+.sidebar-stats {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    margin-bottom: 16px;
+    padding-bottom: 14px;
+    border-bottom: 1px solid var(--border);
+}
+
+.sidebar-stat {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.sidebar-stat-value {
+    font-family: inherit;
+    font-size: 16px;
+    font-weight: 700;
+    letter-spacing: -0.5px;
+    color: var(--text);
+    line-height: 1;
+}
+
+.sidebar-stat-label {
+    font-size: 9px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--text-muted);
+    line-height: 1;
+}
+
+.panel {
+    padding: 14px 18px;
+}
+
+.panel-title {
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--text-muted);
+    margin-bottom: 12px;
+}
+
+/* ── Strategy Breakdown ──────────────────────────── */
+.strat-bar-wrap {
+    display: flex;
+    height: 8px;
+    border-radius: 4px;
+    overflow: hidden;
+    margin-bottom: 12px;
+}
+
+.strat-bar-seg { height: 100%; min-width: 2px; transition: width 0.3s; }
+
+.strat-rows { display: flex; flex-direction: column; gap: 8px; }
+
+.strat-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.strat-row-swatch {
+    width: 8px;
+    height: 8px;
+    border-radius: 2px;
+    flex-shrink: 0;
+}
+
+.strat-row-name {
+    font-size: 11px;
+    color: var(--text-dim);
+    flex: 1;
+}
+
+.strat-row-count {
+    font-size: 11px;
+    font-family: inherit;
+    color: var(--text);
+    font-weight: 600;
+}
+
+.strat-row-time {
+    font-size: 11px;
+    font-family: inherit;
+    color: var(--text-dim);
+    min-width: 60px;
+    text-align: right;
+}
+
+/* ── Component Table ─────────────────────────────── */
+.comp-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.comp-table th {
+    font-size: 9px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--text-muted);
+    padding: 4px 0;
+    text-align: left;
+    border-bottom: 1px solid var(--border);
+}
+
+.comp-table th:last-child { text-align: right; }
+
+.comp-table td {
+    font-size: 11px;
+    padding: 5px 0;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+    font-family: inherit;
+}
+
+.comp-table tr:hover td { background: rgba(255, 255, 255, 0.03); }
+
+.comp-name {
+    color: var(--text);
+    max-width: 200px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.comp-count { color: var(--text-dim); padding: 0 8px; }
+.comp-time { text-align: right; color: var(--text-dim); vertical-align: top; }
+
+.comp-strat-dot {
+    display: inline-block;
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    margin-right: 6px;
+    vertical-align: middle;
+}
+
+/* ── Slowest Columns ─────────────────────────────── */
+.slowest-columns {
+    display: flex;
+    gap: 16px;
+}
+
+.slowest-columns .comp-table {
+    flex: 1;
+    min-width: 0;
+}
+
+/* ── Detail Panel ────────────────────────────────── */
+.detail-grid {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 6px 12px;
+    font-size: 11px;
+}
+
+.detail-label { color: var(--text-muted); }
+
+.detail-value {
+    color: var(--text);
+    font-family: inherit;
+}
+
+/* ── Tooltip ─────────────────────────────────────── */
+.tooltip {
+    position: fixed;
+    z-index: 100;
+    background: rgba(10, 10, 10, 0.96);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 10px 14px;
+    pointer-events: none;
+    display: none;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.6);
+    max-width: 300px;
+}
+
+.tooltip-name {
+    font-weight: 700;
+    font-size: 12px;
+    color: var(--text);
+    margin-bottom: 6px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.tooltip-row {
+    display: flex;
+    justify-content: space-between;
+    gap: 16px;
+    font-size: 11px;
+    line-height: 1.6;
+}
+
+.tooltip-label { color: var(--text-muted); }
+
+.tooltip-val {
+    font-family: inherit;
+    color: var(--text);
+    font-weight: 500;
+}
+
+/* ── Empty state ─────────────────────────────────── */
+.empty-state {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    color: var(--text-muted);
+}
+
+.empty-state svg { opacity: 0.3; }
+
+.empty-state p { font-size: 13px; max-width: 320px; text-align: center; line-height: 1.6; }
+.empty-state code { color: var(--text-dim); background: rgba(255,255,255,0.05); padding: 2px 6px; border-radius: 2px; font-size: 12px; }
+
+/* ── Waterfall heat bar ──────────────────────────── */
+.heat-bar {
+    height: 3px;
+    border-radius: 1.5px;
+    margin-top: 3px;
+}
+
+/* ── Drag-to-zoom selection ──────────────────────── */
+.flame-scroll.dragging { cursor: col-resize; }
+
+.drag-selection {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    background: rgba(255, 134, 2, 0.08);
+    border-left: 1.5px solid rgba(255, 134, 2, 0.6);
+    border-right: 1.5px solid rgba(255, 134, 2, 0.6);
+    pointer-events: none;
+    z-index: 10;
+}
+
+.drag-selection::before,
+.drag-selection::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    width: 100%;
+    background: repeating-linear-gradient(
+        -45deg,
+        transparent,
+        transparent 4px,
+        rgba(255, 134, 2, 0.04) 4px,
+        rgba(255, 134, 2, 0.04) 8px
+    );
+}
+
+/* ── Animations ──────────────────────────────────── */
+@keyframes pulse-glow {
+    0%, 100% { opacity: 0.5; }
+    50% { opacity: 1; }
+}
+
+.loading-dot {
+    display: inline-block;
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--orange);
+    animation: pulse-glow 1.5s ease-in-out infinite;
+}
+
+/* ── Search Input ────────────────────────────────── */
+.search-wrap {
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+
+.search-input {
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid var(--border);
+    color: var(--text);
+    font-family: inherit;
+    font-size: 11px;
+    padding: 4px 10px 4px 28px;
+    border-radius: 4px;
+    width: 180px;
+    outline: none;
+    transition: all 0.15s;
+}
+
+.search-input::placeholder { color: var(--text-muted); }
+.search-input:focus { border-color: rgba(255, 134, 2, 0.4); background: rgba(255, 255, 255, 0.05); }
+
+.search-icon {
+    position: absolute;
+    left: 8px;
+    color: var(--text-muted);
+    pointer-events: none;
+}
+
+</style>
+</head>
+<body>
+
+<div class="header">
+    <div class="logo">
+        &#x1f525;
+        Profiler
+    </div>
+    <div class="header-url" id="hdr-url">Loading...</div>
+    <div class="header-mode blaze" id="hdr-mode">BLAZE</div>
+</div>
+
+<div class="controls">
+    <div class="legend">
+        <div class="legend-item"><div class="legend-swatch" style="background: #FF8602"></div>Compiled</div>
+        <div class="legend-item"><div class="legend-swatch" style="background: #10b981"></div>Folded</div>
+        <div class="legend-item"><div class="legend-swatch" style="background: #a855f7"></div>Memoized</div>
+        <div class="legend-item"><div class="legend-swatch" style="background: #3b82f6"></div>Blade</div>
+        <div class="legend-item"><div class="legend-swatch" style="background: rgba(255,255,255,0.3)"></div>View</div>
+    </div>
+    <div class="controls-right">
+        <div class="search-wrap">
+            <svg class="search-icon" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+            <input class="search-input" id="search-input" type="text" placeholder="Search components..." spellcheck="false" autocomplete="off">
+        </div>
+        <button class="control-btn" onclick="resetZoom()">Reset Zoom</button>
+        <span class="control-hint"><span id="zoom-mod">Ctrl</span>+scroll to zoom · Scroll to pan</span>
+        <script>if (navigator.platform.indexOf('Mac') !== -1) document.getElementById('zoom-mod').textContent = '\u2318';</script>
+    </div>
+</div>
+
+<div class="main" id="main-area">
+    <div class="flame-area" id="flame-area">
+        <div class="minimap-wrap" id="minimap-wrap">
+            <canvas id="minimap"></canvas>
+            <div class="minimap-viewport" id="minimap-vp"></div>
+        </div>
+        <div class="time-axis">
+            <canvas id="time-axis"></canvas>
+        </div>
+        <div class="flame-scroll" id="flame-scroll">
+            <canvas id="flame"></canvas>
+        </div>
+    </div>
+
+    <div class="sidebar-resize" id="sidebar-resize"></div>
+    <div class="sidebar" id="sidebar">
+        <div class="panel sidebar-col sidebar-col-left" id="panel-left">
+            <div class="sidebar-stats" id="sidebar-stats">
+                <div class="sidebar-stat">
+                    <div class="sidebar-stat-value" id="stat-time">--</div>
+                    <div class="sidebar-stat-label">Render time</div>
+                </div>
+                <div class="sidebar-stat">
+                    <div class="sidebar-stat-value" id="stat-components">--</div>
+                    <div class="sidebar-stat-label">Components</div>
+                </div>
+
+                <div class="sidebar-stat" id="stat-memo-wrap" style="display:none;">
+                    <div class="sidebar-stat-value" id="stat-memo" style="color:var(--green)">--</div>
+                    <div class="sidebar-stat-label">Memo hits</div>
+                </div>
+            </div>
+            <div class="panel-title">Strategy Breakdown</div>
+            <div class="strat-bar-wrap" id="strat-bar"></div>
+            <div class="strat-rows" id="strat-rows"></div>
+        </div>
+        <div class="panel sidebar-col sidebar-col-mid" id="panel-slowest">
+            <div class="panel-title">Slowest Components</div>
+            <div id="slowest-columns" class="slowest-columns"></div>
+        </div>
+        <div class="panel sidebar-col sidebar-col-right" id="panel-detail">
+            <div class="panel-title">Component Detail</div>
+            <div class="detail-grid" id="detail-grid">
+                <div style="color:var(--text-muted);font-size:11px;grid-column:1/-1;">Hover a component to see details</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="tooltip" id="tooltip"></div>
+
+<script>
+// ─── Constants ──────────────────────────────────────────────────────
+const ROW_H   = 28;
+const ROW_GAP = 2;
+const ROW_FULL = ROW_H + ROW_GAP;
+const MIN_BAR_W = 2;
+const COLORS = {
+    'compiled':           { bg: '#FF8602', bgDim: 'rgba(255,134,2,0.18)', text: '#fff', bgSolid: '#452401', bgSolidHover: '#6B3801' },
+    'memo':               { bg: '#a855f7', bgDim: 'rgba(168,85,247,0.18)', text: '#fff', bgSolid: '#2D1743', bgSolidHover: '#472468' },
+    'folded':             { bg: '#10b981', bgDim: 'rgba(16,185,129,0.18)', text: '#fff', bgSolid: '#043223', bgSolidHover: '#074E36' },
+    'blade':              { bg: '#3b82f6', bgDim: 'rgba(59,130,246,0.18)', text: '#fff', bgSolid: '#102342', bgSolidHover: '#193767' },
+    'view':               { bg: 'rgba(255,255,255,0.3)', bgDim: 'rgba(255,255,255,0.06)', text: '#fff', bgSolid: '#151515', bgSolidHover: '#202020' },
+};
+const STRAT_LABELS = {
+    'compiled':           'Compiled',
+    'memo':               'Memoized',
+    'folded':             'Folded',
+    'blade':              'Blade',
+    'view':               'View',
+};
+
+// ─── State ──────────────────────────────────────────────────────────
+let data = null;
+let entries = [];
+let viewStart = 0;
+let viewEnd = 1;
+let totalDuration = 1;
+let maxDepth = 0;
+let hovered = null;
+let active = null;   // clicked/pinned item — keeps detail panel locked
+let renderList = [];
+let gaps = [];          // { at: <collapsed-time>, original: <ms>, label: 'Livewire …' }
+let dragState = null;   // { startX, startTime } when drag-selecting
+let $dragSel = null;    // the drag selection overlay element
+let resizeState = null; // { startY, startH } when resizing sidebar
+let childIndex = null;  // Map<entryIndex, number[]> — indices of direct children
+let selfTimeCache = new Map(); // Map<entryIndex, number> — precomputed self-times
+let pendingRender = null; // requestAnimationFrame handle for batched renders
+let searchQuery = '';     // current component search filter
+let searchMatches = new Set(); // indices of entries matching the search
+let minimapDrag = null;   // { startX, startViewStart } when dragging minimap viewport
+let minimapResize = null; // { edge: 'left'|'right', startX, startViewStart, startViewEnd, rect } when resizing edges
+
+
+// ─── DOM refs ───────────────────────────────────────────────────────
+const $flame       = document.getElementById('flame');
+const $flameScroll = document.getElementById('flame-scroll');
+const $minimap     = document.getElementById('minimap');
+const $minimapWrap = document.getElementById('minimap-wrap');
+const $minimapVp   = document.getElementById('minimap-vp');
+const $timeAxis    = document.getElementById('time-axis');
+const $tooltip     = document.getElementById('tooltip');
+const $sidebar     = document.getElementById('sidebar');
+const $sidebarResize = document.getElementById('sidebar-resize');
+
+// ─── Helpers ────────────────────────────────────────────────────────
+function fmtMs(v) {
+    if (v >= 1000) return (v / 1000).toFixed(2) + 's';
+    if (v < 0.01 && v > 0) return (v * 1000).toFixed(1) + 'us';
+    return v.toFixed(2) + 'ms';
+}
+
+function colorFor(strategy) {
+    return COLORS[strategy] || COLORS['compiled'];
+}
+
+function dpr() { return window.devicePixelRatio || 1; }
+
+function sizeCanvas(canvas, w, h) {
+    const r = dpr();
+    canvas.width = w * r;
+    canvas.height = h * r;
+    canvas.style.width = w + 'px';
+    canvas.style.height = h + 'px';
+    const ctx = canvas.getContext('2d');
+    ctx.scale(r, r);
+    return ctx;
+}
+
+// ─── Clustering ─────────────────────────────────────────────────────
+const CLUSTER_PX = 8; // entries narrower than this (px) get clustered
+
+function fmtCount(n) {
+    if (n >= 1000) return (n / 1000).toFixed(1) + 'k';
+    return n.toString();
+}
+
+
+
+function clusterDominantStrategy(strategies) {
+    let max = 0, dom = 'compiled';
+    for (const [s, n] of Object.entries(strategies)) {
+        if (n > max) { max = n; dom = s; }
+    }
+    return dom;
+}
+
+function buildRenderList() {
+    const w = $flameScroll.clientWidth;
+    const viewDuration = viewEnd - viewStart;
+    if (viewDuration <= 0 || !entries.length || !w) return [];
+
+    // Group visible entries by depth
+    const byDepth = new Map();
+    for (const e of entries) {
+        if (e.end < viewStart || e.start > viewEnd) continue;
+        if (!byDepth.has(e.depth)) byDepth.set(e.depth, []);
+        byDepth.get(e.depth).push(e);
+    }
+
+    const list = [];
+
+    for (const [depth, depthEntries] of byDepth) {
+        let cluster = null;
+
+        for (const e of depthEntries) {
+            const px = (e.duration / viewDuration) * w;
+
+            if (px >= CLUSTER_PX) {
+                // Big enough to show individually
+                if (cluster) { list.push(cluster); cluster = null; }
+                list.push({ type: 'entry', entry: e });
+            } else {
+                // Too small — add to cluster
+                if (cluster) {
+                    const gapPx = ((e.start - cluster.end) / viewDuration) * w;
+                    if (gapPx > CLUSTER_PX * 3) {
+                        list.push(cluster);
+                        cluster = null;
+                    }
+                }
+
+                if (!cluster) {
+                    cluster = {
+                        type: 'cluster',
+                        start: e.start,
+                        end: e.end,
+                        depth: depth,
+                        count: 0,
+                        totalDuration: 0,
+                        strategies: {},
+                        names: {},
+                    };
+                }
+
+                cluster.end = Math.max(cluster.end, e.end);
+                cluster.count++;
+                cluster.totalDuration += e.duration;
+                cluster.strategies[e.strategy] = (cluster.strategies[e.strategy] || 0) + 1;
+                cluster.names[e.name] = (cluster.names[e.name] || 0) + 1;
+            }
+        }
+
+        if (cluster) list.push(cluster);
+    }
+
+    return list;
+}
+
+// ─── Data Fetch ─────────────────────────────────────────────────────
+async function fetchTrace() {
+    try {
+        const resp = await fetch('/_blaze/trace');
+        data = await resp.json();
+        entries = data.entries || [];
+        processData();
+        render();
+    } catch (e) {
+        console.error('Failed to fetch trace:', e);
+    }
+}
+
+function processData() {
+    if (!entries.length) return;
+
+    // Store original times before any collapsing.
+    for (const e of entries) {
+        e._origStart = e.start;
+        e._origEnd   = e.end;
+    }
+
+    // ── Collapse gaps between depth-0 entries ──────────────────────
+    // Find depth-0 spans (they define the top-level time regions).
+    const roots = entries.filter(e => e.depth === 0).sort((a, b) => a.start - b.start);
+    gaps = [];
+
+    if (roots.length > 1) {
+        // Residual gap to keep so there's a visible seam (ms).
+        const GAP_KEEP = 0.5;
+
+        // Build list of collapses: [ { from, to, collapse } ]
+        const collapses = [];
+        for (let i = 1; i < roots.length; i++) {
+            const gapStart = roots[i - 1].end;
+            const gapEnd   = roots[i].start;
+            const gapSize  = gapEnd - gapStart;
+
+            if (gapSize > GAP_KEEP * 2) {
+                collapses.push({ from: gapStart, to: gapEnd, collapse: gapSize - GAP_KEEP });
+            }
+        }
+
+        if (collapses.length) {
+            // Apply collapses: shift every entry's start/end by cumulative offset.
+            for (const e of entries) {
+                let shift = 0;
+                for (const c of collapses) {
+                    if (e.start >= c.to) {
+                        shift += c.collapse;
+                    } else if (e.start > c.from) {
+                        // Entry starts inside the gap — clamp to gap start.
+                        shift += (e.start - c.from);
+                    }
+                }
+                e.start -= shift;
+
+                let shiftEnd = 0;
+                for (const c of collapses) {
+                    if (e.end >= c.to) {
+                        shiftEnd += c.collapse;
+                    } else if (e.end > c.from) {
+                        shiftEnd += (e.end - c.from);
+                    }
+                }
+                e.end -= shiftEnd;
+            }
+
+            // Record gap markers (in collapsed time-space) for rendering.
+            let cumShift = 0;
+            for (const c of collapses) {
+                gaps.push({
+                    at: c.from - cumShift + GAP_KEEP / 2,
+                    original: c.to - c.from,
+                });
+                cumShift += c.collapse;
+            }
+        }
+    }
+
+    // ── Compute totals ─────────────────────────────────────────────
+    totalDuration = 0;
+    maxDepth = 0;
+
+    for (const e of entries) {
+        if (e.end > totalDuration) totalDuration = e.end;
+        if (e.depth > maxDepth) maxDepth = e.depth;
+    }
+
+    if (totalDuration === 0) totalDuration = 1;
+
+    viewStart = 0;
+    viewEnd = totalDuration;
+
+    buildChildIndex();
+    updateHeader();
+    updateSidebarStats();
+    updateSidebar();
+}
+
+// ─── Parent-Child Index ─────────────────────────────────────────────
+// Build a Map from entry index → array of direct-child indices.
+// Also precompute self-time for every entry (total - sum of children).
+// This turns every self-time lookup from O(n) to O(1).
+function buildChildIndex() {
+    childIndex = new Map();
+    selfTimeCache = new Map();
+
+    // Assign stable indices and sort by start time.
+    for (let i = 0; i < entries.length; i++) {
+        entries[i]._idx = i;
+        childIndex.set(i, []);
+    }
+
+    // Stack-based parent assignment in one pass (entries already sorted by start).
+    const stack = []; // stack of entry indices
+    for (let i = 0; i < entries.length; i++) {
+        const e = entries[i];
+
+        // Pop entries from the stack whose time range has ended.
+        while (stack.length && entries[stack[stack.length - 1]].end <= e.start) {
+            stack.pop();
+        }
+
+        // The top of the stack is the direct parent (deepest ancestor still open).
+        if (stack.length) {
+            const parentIdx = stack[stack.length - 1];
+            // Only add as direct child if depth is exactly parent + 1
+            if (e.depth === entries[parentIdx].depth + 1) {
+                childIndex.get(parentIdx).push(i);
+            }
+        }
+
+        stack.push(i);
+    }
+
+    // Compute self-time for every entry.
+    for (let i = 0; i < entries.length; i++) {
+        const e = entries[i];
+        let childTime = 0;
+        for (const ci of childIndex.get(i)) {
+            childTime += entries[ci].duration;
+        }
+        selfTimeCache.set(i, e.duration - childTime);
+    }
+}
+
+function getSelfTime(entry) {
+    if (entry._idx !== undefined && selfTimeCache.has(entry._idx)) {
+        return selfTimeCache.get(entry._idx);
+    }
+    // Fallback (should not happen after buildChildIndex).
+    return entry.duration;
+}
+
+// ─── Search ─────────────────────────────────────────────────────────
+function updateSearch(query) {
+    searchQuery = (query || '').toLowerCase().trim();
+    searchMatches = new Set();
+
+    if (searchQuery) {
+        for (let i = 0; i < entries.length; i++) {
+            if (entries[i].name.toLowerCase().includes(searchQuery)) {
+                searchMatches.add(i);
+            }
+        }
+    }
+
+    renderFlameChart();
+}
+
+document.getElementById('search-input').addEventListener('input', function(ev) {
+    updateSearch(ev.target.value);
+});
+
+// ─── Header ─────────────────────────────────────────────────────────
+function updateHeader() {
+    document.getElementById('hdr-url').textContent = data.url || '—';
+
+    const modeEl = document.getElementById('hdr-mode');
+    modeEl.textContent = (data.mode || 'blaze').toUpperCase();
+    modeEl.className = 'header-mode ' + (data.mode || 'blaze');
+}
+
+// ─── Sidebar Stats ──────────────────────────────────────────────────
+function updateSidebarStats() {
+    document.getElementById('stat-time').textContent = fmtMs(data.renderTime || 0);
+    document.getElementById('stat-components').textContent = entries.length;
+
+    // Memo cache hits
+    const memoHits = data.memoHits || 0;
+    if (memoHits > 0) {
+        document.getElementById('stat-memo').textContent = memoHits;
+        document.getElementById('stat-memo-wrap').style.display = '';
+    } else {
+        document.getElementById('stat-memo-wrap').style.display = 'none';
+    }
+}
+
+// ─── Sidebar ────────────────────────────────────────────────────────
+function updateSidebar() {
+    // Strategy breakdown
+    const stratCounts = {};
+    const stratTimes = {};
+    for (const e of entries) {
+        const s = e.strategy || 'compiled';
+        stratCounts[s] = (stratCounts[s] || 0) + 1;
+        stratTimes[s] = (stratTimes[s] || 0) + e.duration;
+    }
+
+    const totalTime = entries.reduce((s, e) => s + e.duration, 0) || 1;
+    const stratBar = document.getElementById('strat-bar');
+    const stratRows = document.getElementById('strat-rows');
+    stratBar.innerHTML = '';
+    stratRows.innerHTML = '';
+
+    const sortedStrats = Object.keys(stratCounts).sort((a, b) => (stratTimes[b] || 0) - (stratTimes[a] || 0));
+
+    for (const s of sortedStrats) {
+        const c = colorFor(s);
+        const pct = ((stratTimes[s] / totalTime) * 100).toFixed(1);
+
+        // Bar segment
+        const seg = document.createElement('div');
+        seg.className = 'strat-bar-seg';
+        seg.style.width = pct + '%';
+        seg.style.background = c.bg;
+        stratBar.appendChild(seg);
+
+        // Row
+        const row = document.createElement('div');
+        row.className = 'strat-row';
+        row.innerHTML = `
+            <div class="strat-row-swatch" style="background:${c.bg}"></div>
+            <div class="strat-row-name">${STRAT_LABELS[s] || s}</div>
+            <div class="strat-row-count">${stratCounts[s]}x</div>
+            <div class="strat-row-time">${fmtMs(stratTimes[s])}</div>
+        `;
+        stratRows.appendChild(row);
+    }
+
+    // Component table with self-time (multi-column)
+    const slowestContainer = document.getElementById('slowest-columns');
+    slowestContainer.innerHTML = '';
+
+    // Compute self-time using precomputed index (O(1) per entry).
+    const selfTimes = {};
+    for (const e of entries) {
+        selfTimes[e.name] = selfTimes[e.name] || { selfTime: 0, totalTime: 0, count: 0, strategy: e.strategy };
+        selfTimes[e.name].totalTime += e.duration;
+        selfTimes[e.name].count++;
+        selfTimes[e.name].selfTime += getSelfTime(e);
+    }
+
+    const maxTotalTime = Math.max(...Object.values(selfTimes).map(s => s.totalTime), 0.001);
+    const sorted = Object.entries(selfTimes).sort((a, b) => b[1].totalTime - a[1].totalTime);
+
+    const colCount = 1;
+    const perCol = Math.ceil(sorted.length / colCount);
+
+    for (let col = 0; col < colCount; col++) {
+        const slice = sorted.slice(col * perCol, (col + 1) * perCol);
+        if (!slice.length) break;
+
+        const table = document.createElement('table');
+        table.className = 'comp-table';
+        const rank = col * perCol;
+        table.innerHTML = `<thead><tr><th>#</th><th>Component</th><th style="text-align:right;">Total</th></tr></thead>`;
+        const tbody = document.createElement('tbody');
+
+        for (let i = 0; i < slice.length; i++) {
+            const [name, info] = slice[i];
+            const c = colorFor(info.strategy);
+            const totalPct = (info.totalTime / maxTotalTime) * 100;
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td style="color:var(--text-muted);font-size:9px;padding-right:6px;width:16px;">${rank + i + 1}</td>
+                <td class="comp-name" title="${name}"><span class="comp-strat-dot" style="background:${c.bg}"></span>${name}<span style="color:var(--text-muted);font-size:9px;margin-left:4px;">${info.count}x</span></td>
+                <td class="comp-time">${fmtMs(info.totalTime)}<div class="heat-bar" style="background:${c.bg};width:${totalPct}%;opacity:0.5;margin-left:auto;"></div></td>
+            `;
+            tr.style.cursor = 'pointer';
+            tr.addEventListener('mouseenter', () => updateSearch(name));
+            tr.addEventListener('mouseleave', () => updateSearch(document.getElementById('search-input').value));
+            tbody.appendChild(tr);
+        }
+
+        table.appendChild(tbody);
+        slowestContainer.appendChild(table);
+    }
+
+}
+
+// ─── Detail Panel ───────────────────────────────────────────────────
+function clearDetail() {
+    document.getElementById('detail-grid').innerHTML =
+        '<div style="color:var(--text-muted);font-size:11px;grid-column:1/-1;">Hover a component to see details</div>';
+}
+
+function showDetail(entry) {
+    const grid = document.getElementById('detail-grid');
+
+    const c = colorFor(entry.strategy);
+    const stratLabel = STRAT_LABELS[entry.strategy] || entry.strategy;
+
+    const selfTime = getSelfTime(entry);
+
+    const fileRow = entry.file
+        ? `<div class="detail-label">File</div><div class="detail-value" style="font-size:10px;word-break:break-all;">${entry.file}</div>`
+        : '';
+
+    grid.innerHTML = `
+        <div class="detail-label">Name</div>
+        <div class="detail-value">${entry.name}</div>
+        <div class="detail-label">Strategy</div>
+        <div class="detail-value"><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${c.bg};margin-right:6px;vertical-align:middle;"></span>${stratLabel}</div>
+        ${fileRow}
+        <div class="detail-label">Total time</div>
+        <div class="detail-value">${fmtMs(entry.duration)}</div>
+        <div class="detail-label">Self time</div>
+        <div class="detail-value" style="color:var(--orange)">${fmtMs(selfTime)}</div>
+        <div class="detail-label">Start offset</div>
+        <div class="detail-value">${fmtMs(entry.start)}</div>
+        <div class="detail-label">Depth</div>
+        <div class="detail-value">${entry.depth}</div>
+        <div class="detail-label">Children</div>
+        <div class="detail-value">${entry.children}</div>
+        <div class="detail-label">% of render</div>
+        <div class="detail-value">${((entry.duration / totalDuration) * 100).toFixed(1)}%</div>
+    `;
+}
+
+function showClusterDetail(cluster) {
+    const grid = document.getElementById('detail-grid');
+
+    const uniqueNames = Object.keys(cluster.names);
+    const avgDuration = cluster.totalDuration / cluster.count;
+    const clusterSpan = cluster.end - cluster.start;
+
+    let stratHtml = '';
+    for (const [s, n] of Object.entries(cluster.strategies).sort((a, b) => b[1] - a[1])) {
+        const sc = colorFor(s);
+        const sl = STRAT_LABELS[s] || s;
+        stratHtml += `<span style="display:inline-flex;align-items:center;gap:4px;margin-bottom:2px;"><span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:${sc.bg};"></span>${sl} (${n}\u00d7)</span><br>`;
+    }
+
+    let namesHtml = '';
+    const sortedNames = Object.entries(cluster.names).sort((a, b) => b[1] - a[1]).slice(0, 5);
+    for (const [name, count] of sortedNames) {
+        namesHtml += `<span style="color:var(--text-dim)">${name}</span> <span style="color:var(--text)">${count}\u00d7</span><br>`;
+    }
+    if (uniqueNames.length > 5) {
+        namesHtml += `<span style="color:var(--text-muted)">+${uniqueNames.length - 5} more</span>`;
+    }
+
+    grid.innerHTML = `
+        <div class="detail-label">Type</div>
+        <div class="detail-value" style="color:var(--orange)">Cluster</div>
+        <div class="detail-label">Components</div>
+        <div class="detail-value">${cluster.count}</div>
+        <div class="detail-label">Unique</div>
+        <div class="detail-value">${uniqueNames.length}</div>
+        <div class="detail-label">Total time</div>
+        <div class="detail-value">${fmtMs(cluster.totalDuration)}</div>
+        <div class="detail-label">Avg time</div>
+        <div class="detail-value" style="color:var(--orange)">${fmtMs(avgDuration)}</div>
+        <div class="detail-label">Span</div>
+        <div class="detail-value">${fmtMs(clusterSpan)}</div>
+        <div class="detail-label">Depth</div>
+        <div class="detail-value">${cluster.depth}</div>
+        <div class="detail-label">Strategies</div>
+        <div class="detail-value">${stratHtml}</div>
+        <div class="detail-label">Top names</div>
+        <div class="detail-value">${namesHtml}</div>
+    `;
+}
+
+// ─── Rendering ──────────────────────────────────────────────────────
+function render() {
+    renderList = buildRenderList();
+    hovered = null;
+    $tooltip.style.display = 'none';
+    renderMinimap();
+    renderMinimapViewport();
+    renderTimeAxis();
+    renderFlameChart();
+}
+
+// Batched render via requestAnimationFrame — call this from hot paths
+// (scroll, zoom, drag) to avoid layout thrashing and redundant paints.
+function scheduleRender() {
+    if (pendingRender) return;
+    pendingRender = requestAnimationFrame(() => {
+        pendingRender = null;
+        render();
+    });
+}
+
+function renderMinimap() {
+    const wrap = document.getElementById('minimap-wrap');
+    const w = wrap.clientWidth;
+    const h = wrap.clientHeight;
+    const ctx = sizeCanvas($minimap, w, h);
+
+    ctx.clearRect(0, 0, w, h);
+
+    if (!entries.length) return;
+
+    const barH = Math.max(2, (h - 4) / (maxDepth + 1));
+
+    for (const e of entries) {
+        const x = (e.start / totalDuration) * w;
+        const bw = Math.max(1, (e.duration / totalDuration) * w);
+        const y = 2 + e.depth * barH;
+        const c = colorFor(e.strategy);
+
+        ctx.fillStyle = c.bg;
+        ctx.globalAlpha = 0.7;
+        ctx.fillRect(x, y, bw, barH - 1);
+    }
+
+    // Gap indicators on minimap
+    ctx.globalAlpha = 0.5;
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
+    ctx.lineWidth = 1;
+    for (const gap of gaps) {
+        const gx = (gap.at / totalDuration) * w;
+        ctx.beginPath();
+        ctx.moveTo(gx, 0);
+        ctx.lineTo(gx, h);
+        ctx.stroke();
+    }
+
+    ctx.globalAlpha = 1;
+}
+
+function renderMinimapViewport() {
+    const wrap = document.getElementById('minimap-wrap');
+    const w = wrap.clientWidth;
+    const vp = $minimapVp;
+    const left = (viewStart / totalDuration) * w;
+    const right = (viewEnd / totalDuration) * w;
+    vp.style.left = left + 'px';
+    vp.style.width = (right - left) + 'px';
+}
+
+function renderTimeAxis() {
+    const wrap = $timeAxis.parentElement;
+    const w = wrap.clientWidth || $flameScroll.clientWidth;
+    const h = 24;
+    const ctx = sizeCanvas($timeAxis, w, h);
+
+    ctx.clearRect(0, 0, w, h);
+
+    const viewDuration = viewEnd - viewStart;
+    if (viewDuration <= 0) return;
+
+    // Determine tick interval
+    const targetTicks = Math.floor(w / 90);
+    let interval = viewDuration / targetTicks;
+    const nice = [0.001, 0.002, 0.005, 0.01, 0.02, 0.05, 0.1, 0.2, 0.5, 1, 2, 5, 10, 20, 50, 100, 200, 500, 1000];
+    for (const n of nice) {
+        if (n >= interval) { interval = n; break; }
+    }
+
+    const firstTick = Math.ceil(viewStart / interval) * interval;
+
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.3)';
+    ctx.font = '10px "Roboto Mono", ui-monospace, monospace';
+    ctx.textBaseline = 'middle';
+
+    for (let t = firstTick; t <= viewEnd; t += interval) {
+        const x = ((t - viewStart) / viewDuration) * w;
+
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.06)';
+        ctx.beginPath();
+        ctx.moveTo(x, 16);
+        ctx.lineTo(x, h);
+        ctx.stroke();
+
+        ctx.fillText(fmtMs(t), x + 4, 10);
+    }
+
+    // Gap indicators on time axis
+    for (const gap of gaps) {
+        const gx = ((gap.at - viewStart) / viewDuration) * w;
+        if (gx < -20 || gx > w + 20) continue;
+
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.25)';
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        const step = 4, amp = 3;
+        for (let y2 = 0; y2 < h; y2 += step) {
+            const xOff = (Math.floor(y2 / step) % 2 === 0) ? -amp : amp;
+            if (y2 === 0) ctx.moveTo(gx + xOff, y2);
+            else ctx.lineTo(gx + xOff, y2);
+        }
+        ctx.stroke();
+    }
+}
+
+function renderFlameChart() {
+    const w = $flameScroll.clientWidth;
+    const contentH = (maxDepth + 1) * ROW_FULL + 20;
+    const chartH = Math.max(contentH, $flameScroll.clientHeight);
+    const ctx = sizeCanvas($flame, w, chartH);
+
+    $flame.style.height = chartH + 'px';
+
+    ctx.clearRect(0, 0, w, chartH);
+
+    if (!entries.length) return;
+
+    const viewDuration = viewEnd - viewStart;
+    if (viewDuration <= 0) return;
+
+    // Gridlines
+    const targetTicks = Math.floor(w / 90);
+    let interval = viewDuration / targetTicks;
+    const nice = [0.001, 0.002, 0.005, 0.01, 0.02, 0.05, 0.1, 0.2, 0.5, 1, 2, 5, 10, 20, 50, 100, 200, 500, 1000];
+    for (const n of nice) { if (n >= interval) { interval = n; break; } }
+    const firstTick = Math.ceil(viewStart / interval) * interval;
+
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.04)';
+    ctx.lineWidth = 1;
+    for (let t = firstTick; t <= viewEnd; t += interval) {
+        const x = ((t - viewStart) / viewDuration) * w;
+        ctx.beginPath();
+        ctx.moveTo(x, 0);
+        ctx.lineTo(x, chartH);
+        ctx.stroke();
+    }
+
+    // Draw gap indicators (zigzag break lines)
+    for (const gap of gaps) {
+        const gx = ((gap.at - viewStart) / viewDuration) * w;
+        if (gx < -20 || gx > w + 20) continue;
+
+        // Zigzag line
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.25)';
+        ctx.lineWidth = 1.5;
+        ctx.setLineDash([]);
+        ctx.beginPath();
+        const step = 6;
+        const amp = 4;
+        for (let y = 0; y < chartH; y += step) {
+            const xOff = (Math.floor(y / step) % 2 === 0) ? -amp : amp;
+            if (y === 0) ctx.moveTo(gx + xOff, y);
+            else ctx.lineTo(gx + xOff, y);
+        }
+        ctx.stroke();
+
+        // Label
+        ctx.save();
+        const label = fmtMs(gap.original) + ' gap';
+        ctx.font = '500 9px "Roboto Mono", ui-monospace, monospace';
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.3)';
+        ctx.textBaseline = 'top';
+        ctx.textAlign = 'center';
+        ctx.fillText(label, gx, 8 + (maxDepth + 1) * ROW_FULL + 4);
+        ctx.restore();
+    }
+
+    // Pre-process: cap widths so no bar overlaps the next bar at the same depth
+    const _byDepth = new Map();
+    for (const item of renderList) {
+        const d = item.type === 'entry' ? item.entry.depth : item.depth;
+        if (!_byDepth.has(d)) _byDepth.set(d, []);
+        _byDepth.get(d).push(item);
+    }
+    for (const items of _byDepth.values()) {
+        items.sort((a, b) => {
+            const as = a.type === 'entry' ? a.entry.start : a.start;
+            const bs = b.type === 'entry' ? b.entry.start : b.start;
+            return as - bs;
+        });
+        for (let i = 0; i < items.length - 1; i++) {
+            const next = items[i + 1];
+            items[i]._nextStart = next.type === 'entry' ? next.entry.start : next.start;
+        }
+    }
+
+    // Draw render list (individual entries + clusters)
+    for (const item of renderList) {
+        if (item.type === 'entry') {
+            drawEntry(ctx, item.entry, w, viewDuration, item._nextStart);
+        } else {
+            drawCluster(ctx, item, w, viewDuration, item._nextStart);
+        }
+    }
+}
+
+function drawEntry(ctx, e, w, viewDuration, nextStart) {
+    const x = ((e.start - viewStart) / viewDuration) * w;
+    const end = nextStart !== undefined ? Math.min(e.end, nextStart) : e.end;
+    const x2 = ((end - viewStart) / viewDuration) * w;
+    let bw = Math.max(x2 - x, 1);
+
+    const y = 8 + e.depth * ROW_FULL;
+    const c = colorFor(e.strategy);
+    const isHovered = hovered && hovered.type === 'entry' && hovered.entry === e;
+    const isActive = active && active.type === 'entry' && active.entry === e;
+    const isSearchMatch = searchQuery && e._idx !== undefined && searchMatches.has(e._idx);
+    const isDimmed = searchQuery && !isSearchMatch;
+
+    // Clip to rounded rect — fill + border drawn inside so nothing bleeds out
+    ctx.save();
+    roundRect(ctx, x, y, bw, ROW_H, 4);
+    ctx.clip();
+
+    // Solid background fill
+    ctx.fillStyle = c.bg;
+    ctx.globalAlpha = isDimmed ? 0.12 : (isActive ? 0.35 : (isHovered ? 0.65 : 0.5));
+    ctx.fillRect(x, y, bw, ROW_H);
+
+    // Border (inside clip, lineWidth doubled so inner half = 1px visible)
+    ctx.strokeStyle = c.bg;
+    ctx.lineWidth = 2;
+    ctx.globalAlpha = isDimmed ? 0.2 : (isActive ? 0.45 : (isHovered ? 0.85 : 0.6));
+    roundRect(ctx, x, y, bw, ROW_H, 4);
+    ctx.stroke();
+
+    ctx.restore();
+
+    // Search match highlight ring
+    if (isSearchMatch) {
+        ctx.strokeStyle = '#FF8602';
+        ctx.lineWidth = 2;
+        ctx.globalAlpha = 0.9;
+        roundRect(ctx, x, y, bw, ROW_H, 4);
+        ctx.stroke();
+    }
+
+    // Hover outline (drawn outside clip so it sits on top)
+    if (isHovered) {
+        ctx.strokeStyle = '#fff';
+        ctx.lineWidth = 1.5;
+        ctx.globalAlpha = 0.6;
+        roundRect(ctx, x, y, bw, ROW_H, 4);
+        ctx.stroke();
+    }
+
+    ctx.globalAlpha = 1;
+
+    // Text label
+    if (bw > 40) {
+        ctx.fillStyle = c.text;
+        ctx.font = '600 11px "Roboto Mono", ui-monospace, monospace';
+        ctx.textBaseline = 'middle';
+
+        const label = e.name;
+        const timeLabel = ' ' + fmtMs(e.duration);
+        const maxTextW = bw - 12;
+
+        ctx.save();
+        ctx.beginPath();
+        ctx.rect(x + 6, y, maxTextW, ROW_H);
+        ctx.clip();
+
+        ctx.globalAlpha = isDimmed ? 0.25 : 0.95;
+        ctx.fillText(label, x + 6, y + ROW_H / 2);
+
+        if (bw > 120) {
+            const nameW = ctx.measureText(label).width;
+            ctx.globalAlpha = isDimmed ? 0.15 : 0.6;
+            ctx.font = '500 10px "Roboto Mono", ui-monospace, monospace';
+            ctx.fillText(timeLabel, x + 6 + nameW, y + ROW_H / 2);
+        }
+
+        ctx.restore();
+    }
+}
+
+function drawCluster(ctx, item, w, viewDuration, nextStart) {
+    const x = ((item.start - viewStart) / viewDuration) * w;
+    const end = nextStart !== undefined ? Math.min(item.end, nextStart) : item.end;
+    const x2 = ((end - viewStart) / viewDuration) * w;
+    let bw = Math.max(x2 - x, 2);
+    const y = 8 + item.depth * ROW_FULL;
+    const isHovered = hovered === item;
+    const isActive = active === item;
+
+    // Check if any name in the cluster matches the search
+    const hasSearchMatch = searchQuery && Object.keys(item.names).some(n => n.toLowerCase().includes(searchQuery));
+    const isDimmed = searchQuery && !hasSearchMatch;
+
+    const dom = clusterDominantStrategy(item.strategies);
+    const c = colorFor(dom);
+
+    // Clip to rounded rect — fill + border drawn inside so nothing bleeds out
+    ctx.save();
+    roundRect(ctx, x, y, bw, ROW_H, 4);
+    ctx.clip();
+
+    // Solid background fill
+    ctx.fillStyle = c.bg;
+    ctx.globalAlpha = isDimmed ? 0.12 : (isActive ? 0.35 : (isHovered ? 0.65 : 0.5));
+    ctx.fillRect(x, y, bw, ROW_H);
+
+    // Border (inside clip, lineWidth doubled so inner half = 1px visible)
+    ctx.strokeStyle = c.bg;
+    ctx.lineWidth = 2;
+    ctx.globalAlpha = isDimmed ? 0.2 : (isActive ? 0.45 : (isHovered ? 0.85 : 0.6));
+    roundRect(ctx, x, y, bw, ROW_H, 4);
+    ctx.stroke();
+
+    ctx.restore();
+
+    // Search match highlight ring
+    if (hasSearchMatch) {
+        ctx.strokeStyle = '#FF8602';
+        ctx.lineWidth = 2;
+        ctx.globalAlpha = 0.9;
+        roundRect(ctx, x, y, bw, ROW_H, 4);
+        ctx.stroke();
+    }
+
+    // Hover outline (drawn outside clip so it sits on top)
+    if (isHovered) {
+        ctx.strokeStyle = '#fff';
+        ctx.lineWidth = 1.5;
+        ctx.globalAlpha = 0.5;
+        roundRect(ctx, x, y, bw, ROW_H, 4);
+        ctx.stroke();
+    }
+
+    ctx.globalAlpha = 1;
+
+    // Count label
+    if (bw > 28) {
+        ctx.save();
+        ctx.beginPath();
+        ctx.rect(x + 4, y, bw - 8, ROW_H);
+        ctx.clip();
+
+        ctx.fillStyle = '#fff';
+        ctx.globalAlpha = isDimmed ? 0.2 : 0.8;
+        ctx.font = '700 10px "Roboto Mono", ui-monospace, monospace';
+        ctx.textBaseline = 'middle';
+        ctx.textAlign = 'center';
+
+        const uniqueNames = Object.keys(item.names).length;
+        let label = '\u00d7' + fmtCount(item.count);
+        if (bw > 160 && uniqueNames <= 2) {
+            const topName = Object.entries(item.names).sort((a, b) => b[1] - a[1])[0][0];
+            label = topName + ' \u00d7' + fmtCount(item.count);
+        } else if (bw > 90) {
+            label = fmtCount(item.count) + ' components';
+        }
+
+        ctx.fillText(label, x + bw / 2, y + ROW_H / 2);
+        ctx.textAlign = 'left';
+        ctx.restore();
+    }
+}
+
+function roundRect(ctx, x, y, w, h, r) {
+    if (w < r * 2) r = w / 2;
+    ctx.beginPath();
+    ctx.moveTo(x + r, y);
+    ctx.lineTo(x + w - r, y);
+    ctx.arcTo(x + w, y, x + w, y + r, r);
+    ctx.lineTo(x + w, y + h - r);
+    ctx.arcTo(x + w, y + h, x + w - r, y + h, r);
+    ctx.lineTo(x + r, y + h);
+    ctx.arcTo(x, y + h, x, y + h - r, r);
+    ctx.lineTo(x, y + r);
+    ctx.arcTo(x, y, x + r, y, r);
+    ctx.closePath();
+}
+
+// ─── Interactions ───────────────────────────────────────────────────
+
+// Scroll: Ctrl/Cmd+wheel = zoom, plain wheel = pan
+$flameScroll.addEventListener('wheel', function(ev) {
+    ev.preventDefault();
+
+    const rect = $flameScroll.getBoundingClientRect();
+    const viewDuration = viewEnd - viewStart;
+
+    if (ev.ctrlKey || ev.metaKey) {
+        // Zoom toward cursor
+        const mouseX = (ev.clientX - rect.left) / rect.width;
+        const mouseTime = viewStart + mouseX * viewDuration;
+
+        const factor = ev.deltaY > 0 ? 1.03 : 1 / 1.03;
+        let newDuration = viewDuration * factor;
+
+        if (newDuration > totalDuration) newDuration = totalDuration;
+        if (newDuration < 0.001) newDuration = 0.001;
+
+        viewStart = mouseTime - mouseX * newDuration;
+        viewEnd = mouseTime + (1 - mouseX) * newDuration;
+    } else {
+        // Pan — use deltaX for horizontal scroll, fall back to deltaY
+        const delta = Math.abs(ev.deltaX) > Math.abs(ev.deltaY) ? ev.deltaX : ev.deltaY;
+        const timeDelta = (delta / rect.width) * viewDuration * 1.5;
+
+        viewStart += timeDelta;
+        viewEnd += timeDelta;
+    }
+
+    // Clamp
+    if (viewStart < 0) { viewEnd -= viewStart; viewStart = 0; }
+    if (viewEnd > totalDuration) { viewStart -= (viewEnd - totalDuration); viewEnd = totalDuration; }
+    if (viewStart < 0) viewStart = 0;
+
+    scheduleRender();
+}, { passive: false });
+
+// Sidebar resize: mousedown on handle starts resize
+$sidebarResize.addEventListener('mousedown', function(ev) {
+    if (ev.button !== 0) return;
+    ev.preventDefault();
+    resizeState = { startY: ev.clientY, startH: $sidebar.offsetHeight };
+    $sidebarResize.classList.add('active');
+    document.body.style.cursor = 'ns-resize';
+    document.body.style.userSelect = 'none';
+});
+
+// Drag-to-zoom: mousedown starts selection, mousemove extends, mouseup zooms
+$flameScroll.addEventListener('mousedown', function(ev) {
+    if (ev.button !== 0) return; // left click only
+    if (ev.ctrlKey || ev.metaKey) return; // don't interfere with ctrl+click
+
+    const rect = $flameScroll.getBoundingClientRect();
+    const mx = ev.clientX - rect.left;
+    const viewDuration = viewEnd - viewStart;
+    const startTime = viewStart + (mx / rect.width) * viewDuration;
+
+    dragState = { startX: mx, startTime, rect };
+
+    // Create selection overlay (hidden until threshold is met)
+    if ($dragSel) $dragSel.remove();
+    $dragSel = document.createElement('div');
+    $dragSel.className = 'drag-selection';
+    $dragSel.style.left = mx + 'px';
+    $dragSel.style.width = '0px';
+    $dragSel.style.display = 'none';
+    $flameScroll.appendChild($dragSel);
+});
+
+window.addEventListener('mousemove', function(ev) {
+    if (minimapDrag) return; // handled by capture-phase minimap listener
+
+    if (resizeState) {
+        const delta = resizeState.startY - ev.clientY;
+        const newH = Math.max(80, Math.min(window.innerHeight - 200, resizeState.startH + delta));
+        $sidebar.style.height = newH + 'px';
+        scheduleRender();
+        return;
+    }
+
+    if (dragState) {
+        const rect = dragState.rect;
+        const mx = Math.max(0, Math.min(ev.clientX - rect.left, rect.width));
+        const left = Math.min(dragState.startX, mx);
+        const width = Math.abs(mx - dragState.startX);
+
+        // Only show selection + change cursor once dragged > 4px
+        if (width > 4) {
+            $flameScroll.classList.add('dragging');
+            $dragSel.style.left = left + 'px';
+            $dragSel.style.width = width + 'px';
+            $dragSel.style.display = 'block';
+            $tooltip.style.display = 'none';
+        } else {
+            $dragSel.style.display = 'none';
+            $flameScroll.classList.remove('dragging');
+        }
+        return;
+    }
+
+    // Hover detection (only when not dragging)
+    handleHover(ev);
+});
+
+window.addEventListener('mouseup', function(ev) {
+    if (minimapDrag) return; // handled by capture-phase minimap listener
+
+    if (resizeState) {
+        resizeState = null;
+        $sidebarResize.classList.remove('active');
+        document.body.style.cursor = '';
+        document.body.style.userSelect = '';
+        return;
+    }
+
+    if (!dragState) return;
+
+    const rect = dragState.rect;
+    const mx = Math.max(0, Math.min(ev.clientX - rect.left, rect.width));
+    const width = Math.abs(mx - dragState.startX);
+
+    $flameScroll.classList.remove('dragging');
+    if ($dragSel) { $dragSel.remove(); $dragSel = null; }
+
+    // Only zoom if dragged more than 4px (otherwise it was a click)
+    if (width > 4) {
+        const viewDuration = viewEnd - viewStart;
+        const endTime = viewStart + (mx / rect.width) * viewDuration;
+        const t1 = Math.min(dragState.startTime, endTime);
+        const t2 = Math.max(dragState.startTime, endTime);
+
+        viewStart = Math.max(0, t1);
+        viewEnd = Math.min(totalDuration, t2);
+        if (viewEnd - viewStart < 0.001) viewEnd = viewStart + 0.001;
+
+        render();
+    } else {
+        // Click — toggle active/pinned component
+        if (hovered) {
+            const isSame = active === hovered ||
+                (active && hovered && active.type === 'entry' && hovered.type === 'entry' && active.entry === hovered.entry);
+            if (isSame) {
+                active = null;
+                clearDetail();
+            } else {
+                active = hovered;
+                if (hovered.type === 'entry') {
+                    showDetail(hovered.entry);
+                } else {
+                    showClusterDetail(hovered);
+                }
+            }
+        } else {
+            active = null;
+            clearDetail();
+        }
+        renderFlameChart();
+    }
+
+    dragState = null;
+});
+
+// Hover / tooltip
+function handleHover(ev) {
+    const rect = $flameScroll.getBoundingClientRect();
+    const mx = ev.clientX - rect.left;
+    const my = ev.clientY - rect.top + $flameScroll.scrollTop;
+
+    if (mx < 0 || mx > rect.width || ev.clientY < rect.top || ev.clientY > rect.bottom) {
+        $tooltip.style.display = 'none';
+        hovered = null;
+        return;
+    }
+
+    const viewDuration = viewEnd - viewStart;
+    const mouseTime = viewStart + (mx / rect.width) * viewDuration;
+    const mouseDepth = Math.floor((my - 8) / ROW_FULL);
+
+    let found = null;
+
+    // Check render list (entries + clusters)
+    for (const item of renderList) {
+        if (item.type === 'entry') {
+            const e = item.entry;
+            if (e.depth === mouseDepth && mouseTime >= e.start && mouseTime <= e.end) {
+                found = item;
+                break;
+            }
+        } else {
+            if (item.depth === mouseDepth && mouseTime >= item.start && mouseTime <= item.end) {
+                found = item;
+                break;
+            }
+        }
+    }
+
+    const prevHovered = hovered;
+
+    if (found) {
+        hovered = found;
+
+        if (found.type === 'entry') {
+            const e = found.entry;
+            if (!active) showDetail(e);
+
+            const c = colorFor(e.strategy);
+            const stratLabel = STRAT_LABELS[e.strategy] || e.strategy;
+
+            const selfTime = getSelfTime(e);
+
+            const fileHtml = e.file ? `<div style="font-size:10px;color:var(--text-muted);margin-bottom:6px;font-family:inherit;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:280px;" title="${e.file}">${e.file}</div>` : '';
+
+            $tooltip.innerHTML = `
+                <div class="tooltip-name" style="border-left: 3px solid ${c.bg}; padding-left: 8px;">${e.name}</div>
+                ${fileHtml}
+                <div class="tooltip-row"><span class="tooltip-label">Total time</span><span class="tooltip-val">${fmtMs(e.duration)}</span></div>
+                <div class="tooltip-row"><span class="tooltip-label">Self time</span><span class="tooltip-val">${fmtMs(selfTime)}</span></div>
+                <div class="tooltip-row"><span class="tooltip-label">Strategy</span><span class="tooltip-val">${stratLabel}</span></div>
+                <div class="tooltip-row"><span class="tooltip-label">Depth</span><span class="tooltip-val">${e.depth}</span></div>
+                <div class="tooltip-row"><span class="tooltip-label">Children</span><span class="tooltip-val">${e.children}</span></div>
+                <div class="tooltip-row"><span class="tooltip-label">% of render</span><span class="tooltip-val">${((e.duration / (data.renderTime || totalDuration)) * 100).toFixed(1)}%</span></div>
+            `;
+        } else {
+            if (!active) showClusterDetail(found);
+
+            const dom = clusterDominantStrategy(found.strategies);
+            const c = colorFor(dom);
+            const uniqueNames = Object.keys(found.names);
+            const avgDuration = found.totalDuration / found.count;
+            const clusterSpan = found.end - found.start;
+
+            let stratHtml = '';
+            for (const [s, n] of Object.entries(found.strategies).sort((a, b) => b[1] - a[1])) {
+                const sc = colorFor(s);
+                const sl = STRAT_LABELS[s] || s;
+                stratHtml += `<div class="tooltip-row"><span class="tooltip-label" style="display:flex;align-items:center;gap:4px;"><span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:${sc.bg};"></span>${sl}</span><span class="tooltip-val">${n}\u00d7</span></div>`;
+            }
+
+            let namesHtml = '';
+            const sortedNames = Object.entries(found.names).sort((a, b) => b[1] - a[1]).slice(0, 5);
+            for (const [name, count] of sortedNames) {
+                namesHtml += `<div class="tooltip-row"><span class="tooltip-label">${name}</span><span class="tooltip-val">${count}\u00d7</span></div>`;
+            }
+            if (uniqueNames.length > 5) {
+                namesHtml += `<div style="font-size:10px;color:var(--text-muted);margin-top:2px;">+${uniqueNames.length - 5} more</div>`;
+            }
+
+            $tooltip.innerHTML = `
+                <div class="tooltip-name" style="border-left: 3px solid ${c.bg}; padding-left: 8px;">Cluster \u00b7 ${fmtCount(found.count)} components</div>
+                <div class="tooltip-row"><span class="tooltip-label">Span</span><span class="tooltip-val">${fmtMs(clusterSpan)}</span></div>
+                <div class="tooltip-row"><span class="tooltip-label">Total time</span><span class="tooltip-val">${fmtMs(found.totalDuration)}</span></div>
+                <div class="tooltip-row"><span class="tooltip-label">Avg / component</span><span class="tooltip-val">${fmtMs(avgDuration)}</span></div>
+                <div class="tooltip-row"><span class="tooltip-label">Unique names</span><span class="tooltip-val">${uniqueNames.length}</span></div>
+                <div style="border-top:1px solid var(--border);margin:6px 0 4px;"></div>
+                ${stratHtml}
+                <div style="border-top:1px solid var(--border);margin:6px 0 4px;"></div>
+                ${namesHtml}
+                <div style="margin-top:8px;font-size:9px;color:var(--text-muted);text-align:center;">Double-click to zoom in</div>
+            `;
+        }
+
+        $tooltip.style.display = 'block';
+
+        let tx = ev.clientX + 14;
+        let ty = ev.clientY + 14;
+        const tw = $tooltip.offsetWidth;
+        const th = $tooltip.offsetHeight;
+        if (tx + tw > window.innerWidth - 10) tx = ev.clientX - tw - 14;
+        if (ty + th > window.innerHeight - 10) ty = ev.clientY - th - 14;
+
+        $tooltip.style.left = tx + 'px';
+        $tooltip.style.top = ty + 'px';
+    } else {
+        $tooltip.style.display = 'none';
+        hovered = null;
+    }
+
+    if (prevHovered !== hovered) {
+        renderFlameChart();
+    }
+}
+
+// Click to zoom into a component or cluster
+$flameScroll.addEventListener('dblclick', function(ev) {
+    if (!hovered) return;
+
+    let start, end, duration;
+    if (hovered.type === 'entry') {
+        start = hovered.entry.start;
+        end = hovered.entry.end;
+        duration = hovered.entry.duration;
+    } else {
+        start = hovered.start;
+        end = hovered.end;
+        duration = end - start;
+    }
+
+    const padding = duration * 0.15;
+    viewStart = Math.max(0, start - padding);
+    viewEnd = Math.min(totalDuration, end + padding);
+
+    render();
+});
+
+// ─── Minimap: click to center, drag to pan, edges to resize ─────────
+const EDGE_THRESHOLD = 6; // px from viewport edge to trigger resize
+
+function getMinimapEdge(ev, rect) {
+    const vpLeftPx = (viewStart / totalDuration) * rect.width + rect.left;
+    const vpRightPx = (viewEnd / totalDuration) * rect.width + rect.left;
+
+    if (Math.abs(ev.clientX - vpLeftPx) <= EDGE_THRESHOLD) return 'left';
+    if (Math.abs(ev.clientX - vpRightPx) <= EDGE_THRESHOLD) return 'right';
+    return null;
+}
+
+$minimapWrap.addEventListener('mousemove', function(ev) {
+    if (minimapDrag || minimapResize) return;
+
+    const rect = $minimapWrap.getBoundingClientRect();
+    const edge = getMinimapEdge(ev, rect);
+    $minimapWrap.style.cursor = edge ? 'ew-resize' : 'pointer';
+});
+
+$minimapWrap.addEventListener('mouseleave', function() {
+    if (!minimapDrag && !minimapResize) {
+        $minimapWrap.style.cursor = '';
+    }
+});
+
+$minimapWrap.addEventListener('mousedown', function(ev) {
+    if (ev.button !== 0) return;
+    ev.preventDefault();
+
+    const rect = $minimapWrap.getBoundingClientRect();
+    const edge = getMinimapEdge(ev, rect);
+
+    if (edge) {
+        // Start edge resize
+        minimapResize = {
+            edge: edge,
+            startX: ev.clientX,
+            startViewStart: viewStart,
+            startViewEnd: viewEnd,
+            rect: rect,
+        };
+        $minimapWrap.style.cursor = 'ew-resize';
+        document.body.style.cursor = 'ew-resize';
+        document.body.style.userSelect = 'none';
+        return;
+    }
+
+    const clickPct = (ev.clientX - rect.left) / rect.width;
+    const viewDuration = viewEnd - viewStart;
+
+    // Check if click is inside the viewport indicator
+    const vpLeft = viewStart / totalDuration;
+    const vpRight = viewEnd / totalDuration;
+
+    if (clickPct < vpLeft || clickPct > vpRight) {
+        // Click outside viewport — snap-center on click position first
+        const clickTime = clickPct * totalDuration;
+        viewStart = Math.max(0, clickTime - viewDuration / 2);
+        viewEnd = Math.min(totalDuration, viewStart + viewDuration);
+        if (viewStart < 0) viewStart = 0;
+        render();
+    }
+
+    // Start panning
+    minimapDrag = {
+        startX: ev.clientX,
+        startViewStart: viewStart,
+        rect: rect,
+    };
+    $minimapWrap.style.cursor = 'grabbing';
+});
+
+window.addEventListener('mousemove', function(ev) {
+    if (minimapResize) {
+        const dx = ev.clientX - minimapResize.startX;
+        const timeDelta = (dx / minimapResize.rect.width) * totalDuration;
+        const MIN_VIEW = 0.001;
+
+        if (minimapResize.edge === 'left') {
+            viewStart = Math.max(0, minimapResize.startViewStart + timeDelta);
+            if (viewStart > viewEnd - MIN_VIEW) viewStart = viewEnd - MIN_VIEW;
+        } else {
+            viewEnd = Math.min(totalDuration, minimapResize.startViewEnd + timeDelta);
+            if (viewEnd < viewStart + MIN_VIEW) viewEnd = viewStart + MIN_VIEW;
+        }
+
+        scheduleRender();
+        return;
+    }
+
+    if (!minimapDrag) return;
+
+    const dx = ev.clientX - minimapDrag.startX;
+    const timeDelta = (dx / minimapDrag.rect.width) * totalDuration;
+    const viewDuration = viewEnd - viewStart;
+
+    viewStart = minimapDrag.startViewStart + timeDelta;
+    viewEnd = viewStart + viewDuration;
+
+    // Clamp
+    if (viewStart < 0) { viewEnd -= viewStart; viewStart = 0; }
+    if (viewEnd > totalDuration) { viewStart -= (viewEnd - totalDuration); viewEnd = totalDuration; }
+    if (viewStart < 0) viewStart = 0;
+
+    scheduleRender();
+}, { capture: true });
+
+window.addEventListener('mouseup', function() {
+    if (minimapResize) {
+        minimapResize = null;
+        $minimapWrap.style.cursor = '';
+        document.body.style.cursor = '';
+        document.body.style.userSelect = '';
+        return;
+    }
+    if (minimapDrag) {
+        minimapDrag = null;
+        $minimapWrap.style.cursor = '';
+    }
+}, { capture: true });
+
+function resetZoom() {
+    viewStart = 0;
+    viewEnd = totalDuration;
+    render();
+}
+
+// ─── Keyboard shortcuts ─────────────────────────────────────────────
+window.addEventListener('keydown', function(ev) {
+    // Don't capture when typing in the search input
+    if (ev.target.id === 'search-input') {
+        if (ev.key === 'Escape') {
+            ev.target.value = '';
+            updateSearch('');
+            ev.target.blur();
+        }
+        return;
+    }
+
+    // Escape: cancel drag or clear active selection
+    if (ev.key === 'Escape') {
+        if (dragState) {
+            dragState = null;
+            $flameScroll.classList.remove('dragging');
+            if ($dragSel) { $dragSel.remove(); $dragSel = null; }
+            return;
+        }
+        if (active) {
+            active = null;
+            clearDetail();
+            renderFlameChart();
+        }
+        return;
+    }
+
+    const viewDuration = viewEnd - viewStart;
+
+    // Ctrl/Cmd+0: reset zoom
+    if ((ev.ctrlKey || ev.metaKey) && ev.key === '0') {
+        ev.preventDefault();
+        resetZoom();
+        return;
+    }
+
+    // Arrow left/right or A/D: pan
+    if (ev.key === 'ArrowLeft' || ev.key === 'a') {
+        ev.preventDefault();
+        const panAmount = viewDuration * 0.15;
+        viewStart = Math.max(0, viewStart - panAmount);
+        viewEnd = viewStart + viewDuration;
+        scheduleRender();
+        return;
+    }
+
+    if (ev.key === 'ArrowRight' || ev.key === 'd') {
+        ev.preventDefault();
+        const panAmount = viewDuration * 0.15;
+        viewEnd = Math.min(totalDuration, viewEnd + panAmount);
+        viewStart = viewEnd - viewDuration;
+        if (viewStart < 0) { viewStart = 0; viewEnd = viewDuration; }
+        scheduleRender();
+        return;
+    }
+
+    // Arrow up/W or +/=: zoom in
+    if (ev.key === 'ArrowUp' || ev.key === 'w' || ev.key === '=' || ev.key === '+') {
+        ev.preventDefault();
+        const center = (viewStart + viewEnd) / 2;
+        const newDuration = Math.max(0.001, viewDuration / 1.3);
+        viewStart = Math.max(0, center - newDuration / 2);
+        viewEnd = Math.min(totalDuration, center + newDuration / 2);
+        scheduleRender();
+        return;
+    }
+
+    // Arrow down/S or -: zoom out
+    if (ev.key === 'ArrowDown' || ev.key === 's' || ev.key === '-') {
+        ev.preventDefault();
+        const center = (viewStart + viewEnd) / 2;
+        const newDuration = Math.min(totalDuration, viewDuration * 1.3);
+        viewStart = Math.max(0, center - newDuration / 2);
+        viewEnd = Math.min(totalDuration, center + newDuration / 2);
+        scheduleRender();
+        return;
+    }
+
+    // /: focus search
+    if (ev.key === '/') {
+        ev.preventDefault();
+        document.getElementById('search-input').focus();
+        return;
+    }
+
+    // R: refresh
+    if (ev.key === 'r' && !ev.ctrlKey && !ev.metaKey) {
+        ev.preventDefault();
+        fetchTrace();
+        return;
+    }
+});
+
+// ─── Resize handling ────────────────────────────────────────────────
+let resizeTimer;
+window.addEventListener('resize', function() {
+    clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(render, 50);
+});
+
+// ─── Init ───────────────────────────────────────────────────────────
+fetchTrace();
+</script>
+</body>
+</html>

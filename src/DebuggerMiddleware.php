@@ -26,6 +26,15 @@ class DebuggerMiddleware
             return redirect()->to(url()->previous('/'));
         })->middleware('web');
 
+        Route::get('/_blaze/trace', function () {
+            return response()->json(Cache::get('blaze_profiler_trace', ['entries' => [], 'url' => null]));
+        })->middleware('web');
+
+        Route::get('/_blaze/profiler', function () {
+            $html = file_get_contents(__DIR__.'/Profiler/profiler.html');
+            return response($html)->header('Content-Type', 'text/html');
+        })->middleware('web');
+
         app('router')->pushMiddlewareToGroup('web', static::class);
     }
 
@@ -77,6 +86,7 @@ class DebuggerMiddleware
         $response = $next($request);
 
         $this->recordAndCompare($url, $debugger, $isBlaze);
+        $this->storeProfilerTrace($url, $debugger, $isBlaze);
         $this->injectDebugger($response, $debugger);
 
         return $response;
@@ -136,6 +146,25 @@ class DebuggerMiddleware
                 ? ['otherMode' => $otherMode, 'warm' => $warmComparison, 'cold' => $coldComparison]
                 : null
         );
+    }
+
+    /**
+     * Store profiler trace data in cache for the profiler page to consume.
+     */
+    protected function storeProfilerTrace(string $url, Debugger $debugger, bool $isBlaze): void
+    {
+        $trace = $debugger->getTraceData();
+
+        Cache::put('blaze_profiler_trace', [
+            'url'        => $url,
+            'mode'       => $isBlaze ? 'blaze' : 'blade',
+            'timestamp'  => now()->toIso8601String(),
+            'renderTime' => $trace['totalTime'],
+            'entries'    => $trace['entries'],
+            'memoHits'   => $trace['memoHits'],
+            'memoHitNames' => $trace['memoHitNames'],
+            'debugBar'   => $debugger->getDebugBarData(),
+        ], 300); // 5 minutes
     }
 
     /**

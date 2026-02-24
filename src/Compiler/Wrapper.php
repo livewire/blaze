@@ -2,9 +2,7 @@
 
 namespace Livewire\Blaze\Compiler;
 
-use Illuminate\Support\Str;
 use Livewire\Blaze\BladeService;
-use Livewire\Blaze\Support\Directives;
 use Livewire\Blaze\Support\Utils;
 use Livewire\Blaze\Blaze;
 use Illuminate\Support\Arr;
@@ -32,7 +30,6 @@ class Wrapper
         $source ??= $compiled;
         $name = (Blaze::isFolding() ? '__' : '_') . Utils::hash($path);
 
-        $isDebugging = app('blaze')->isDebugging() && ! app('blaze')->isFolding();
         $sourceUsesThis = str_contains($source, '$this') || str_contains($compiled, '@entangle') || str_contains($compiled, '@script');
 
         $compiled = BladeService::compileUseStatements($compiled);
@@ -53,12 +50,6 @@ class Wrapper
         $output .= $imports;
         $output .= 'if (!function_exists(\''.$name.'\')):'."\n";
         $output .= 'function '.$name.'($__blaze, $__data = [], $__slots = [], $__bound = [], $__this = null) {'."\n";
-
-        if ($isDebugging) {
-            $componentName = app('blaze.runtime')->debugger->extractComponentName($path);
-            $output .= '$__blaze->debugger->increment(\''.$name.'\', \''.$componentName.'\');'."\n";
-            $output .= '$__blaze->debugger->startTimer(\''.$name.'\');'."\n";
-        }
 
         if ($sourceUsesThis) {
             $output .= '$__blazeFn = function () use ($__blaze, $__data, $__slots, $__bound) {'."\n";
@@ -83,10 +74,6 @@ class Wrapper
 
         if ($sourceUsesThis) {
             $output .= '}; if ($__this !== null) { $__blazeFn->call($__this); } else { $__blazeFn(); }'."\n";
-        }
-
-        if ($isDebugging) {
-            $output .= '$__blaze->debugger->stopTimer(\''.$name.'\');'."\n";
         }
 
         $output .= '} endif; ?>';
@@ -143,6 +130,4 @@ class Wrapper
     {
         return preg_match('/\{\{.+?\}\}|\{!!.+?!!\}/s', $source) === 1;
     }
-    
-
 }

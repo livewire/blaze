@@ -22,6 +22,7 @@ use Illuminate\Support\Facades\Facade;
  * @method static bool shouldThrow()
  * @method static void debug()
  * @method static bool isDebugging()
+ * @method static string compileForDebug(string $template)
  *
  * @see \Livewire\Blaze\BlazeManager
  */

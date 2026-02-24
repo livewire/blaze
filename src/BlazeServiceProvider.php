@@ -2,6 +2,7 @@
 
 namespace Livewire\Blaze;
 
+use Livewire\Blaze\Compiler\Profiler;
 use Livewire\Blaze\Runtime\BlazeRuntime;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Support\Facades\Blade;
@@ -16,6 +17,7 @@ class BlazeServiceProvider extends ServiceProvider
         $this->app->singleton(BlazeRuntime::class);
         $this->app->singleton(Config::class);
         $this->app->singleton(Debugger::class);
+        $this->app->singleton(Profiler::class);
         $this->app->singleton(BlazeManager::class);
 
         $this->app->alias(BlazeManager::class, Blaze::class);
@@ -96,11 +98,15 @@ class BlazeServiceProvider extends ServiceProvider
     protected function interceptBladeCompilation(): void
     {
         BladeService::earliestPreCompilationHook(function ($input) {
-            if (Blaze::isDisabled()) {
+            if (BladeService::containsLaravelExceptionView($input)) {
                 return $input;
             }
 
-            if (BladeService::containsLaravelExceptionView($input)) {
+            if (Blaze::isDisabled()) {
+                if (Blaze::isDebugging()) {
+                    return Blaze::compileForDebug($input);
+                }
+
                 return $input;
             }
 

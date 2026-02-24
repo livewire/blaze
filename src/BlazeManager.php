@@ -6,6 +6,7 @@ use Illuminate\Support\Facades\Event;
 use Illuminate\View\Engines\CompilerEngine;
 use Livewire\Blaze\Compiler\Wrapper;
 use Livewire\Blaze\Compiler\Compiler;
+use Livewire\Blaze\Compiler\Profiler;
 use Livewire\Blaze\Directive\BlazeDirective;
 use Livewire\Blaze\Events\ComponentFolded;
 use Livewire\Blaze\Folder\Folder;
@@ -36,6 +37,7 @@ class BlazeManager
         protected Folder $folder,
         protected Memoizer $memoizer,
         protected Wrapper $wrapper,
+        protected Profiler $instrumenter,
         protected Config $config,
     ) {
         $this->enabled = config('blaze.enabled', true);
@@ -83,9 +85,20 @@ class BlazeManager
                     array_pop($dataStack);
                 }
 
+                $wasComponent = $node instanceof ComponentNode;
+                $componentName = $wasComponent ? $node->name : null;
+
+                $beforeFold = $node;
                 $node = $this->folder->fold($node);
+                $wasFolded = $wasComponent && $node !== $beforeFold;
+
                 $node = $this->memoizer->memoize($node);
                 $node = $this->compiler->compile($node);
+
+                if ($wasComponent && $this->debug && ! $this->folding) {
+                    $strategy = $wasFolded ? 'folded' : null;
+                    $node = $this->instrumenter->profile($node, $componentName, $strategy);
+                }
 
                 return $node;
             },
@@ -98,9 +111,15 @@ class BlazeManager
 
         if ($path && ($directives->blaze() || $this->config->shouldCompile($path))) {
             $output = $this->wrapper->wrap($output, $path, $source);
+        } elseif ($this->debug && ! $this->folding && $path) {
+            $output = $this->instrumenter->profileView($output, $path, $source);
         }
 
-        BladeService::deleteTemporaryCacheDirectory();
+        try {
+            BladeService::deleteTemporaryCacheDirectory();
+        } catch (\Throwable $e) {
+            //
+        }
 
         return $output;
     }
@@ -117,14 +136,60 @@ class BlazeManager
             nodes: $this->parser->parse($template),
             preCallback: fn ($node) => $node,
             postCallback: function ($node) {
+                $wasComponent = $node instanceof ComponentNode;
+                $componentName = $wasComponent ? $node->name : null;
+
                 $node = $this->memoizer->memoize($node);
                 $node = $this->compiler->compile($node);
+
+                if ($wasComponent && $this->debug) {
+                    $node = $this->instrumenter->profile($node, $componentName);
+                }
 
                 return $node;
             },
         );
 
         $output = $this->render($ast);
+
+        return $output;
+    }
+
+    /**
+     * Compile a template for debug-only mode (Blaze disabled).
+     *
+     * Parses the template to find components and wraps them with timer
+     * calls, but does NOT fold, memoize, or compile — Blade handles that.
+     * Also injects view-level timers for non-wrapped views.
+     */
+    public function compileForDebug(string $template): string
+    {
+        $source = $template;
+
+        $clean = $template;
+        $clean = BladeService::preStoreUncompiledBlocks($clean);
+        $clean = BladeService::compileComments($clean);
+
+        $ast = $this->walker->walk(
+            nodes: $this->parser->parse($clean),
+            preCallback: fn ($node) => $node,
+            postCallback: function ($node) {
+                if (! ($node instanceof ComponentNode)) {
+                    return $node;
+                }
+
+                return $this->instrumenter->profile($node, $node->name, 'blade');
+            },
+        );
+
+        $output = $this->render($ast);
+
+        // Inject view-level timer for the view file itself.
+        $path = app('blade.compiler')->getPath();
+
+        if ($path) {
+            $output = $this->instrumenter->profileView($output, $path, $source);
+        }
 
         return $output;
     }
