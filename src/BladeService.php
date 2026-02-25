@@ -211,32 +211,6 @@ class BladeService
     }
 
     /**
-     * Store only @verbatim blocks as raw block placeholders.
-     */
-    public static function storeVerbatimBlocks(string $input): string
-    {
-        $compiler = app('blade.compiler');
-
-        $reflection = new \ReflectionClass($compiler);
-        $method = $reflection->getMethod('storeVerbatimBlocks');
-
-        return $method->invoke($compiler, $input);
-    }
-
-    /**
-     * Restore raw block placeholders to their original content.
-     */
-    public static function restoreRawBlocks(string $input): string
-    {
-        $compiler = app('blade.compiler');
-
-        $reflection = new \ReflectionClass($compiler);
-        $method = $reflection->getMethod('restoreRawContent');
-
-        return $method->invoke($compiler, $input);
-    }
-
-    /**
      * Invoke the Blade compiler's compileComments via reflection.
      */
     public static function compileComments(string $input): string

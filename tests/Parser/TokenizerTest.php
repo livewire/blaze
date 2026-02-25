@@ -101,12 +101,75 @@ test('handles attributes with angled brackets', function () {
 
     expect($result)->toEqual([
         new TagOpenToken(
-            name: 'button', 
-            prefix: 'x-', 
+            name: 'button',
+            prefix: 'x-',
             attributes: [
                 ':data="[\'foo\' => \'bar\']"',
                 ':callback="fn () => 0"',
             ],
         ),
     ]);
+});
+
+test('skips component inside PHP single-line comment', function () {
+    $input = <<<'TPL'
+<?php // <x-button /> ?>
+<div>hello</div>
+TPL;
+
+    $tokens = app(Tokenizer::class)->tokenize($input);
+
+    $types = array_map(fn($t) => class_basename($t), $tokens);
+
+    expect($types)->each->toBe('TextToken');
+});
+
+test('skips component inside PHP block comment', function () {
+    $input = <<<'TPL'
+<?php /* <x-button /> */ ?>
+<div>hello</div>
+TPL;
+
+    $tokens = app(Tokenizer::class)->tokenize($input);
+
+    $types = array_map(fn($t) => class_basename($t), $tokens);
+
+    expect($types)->each->toBe('TextToken');
+});
+
+test('skips component inside PHP string', function () {
+    $input = <<<'TPL'
+<?php echo "<x-button />"; ?>
+<x-real />
+TPL;
+
+    $tokens = app(Tokenizer::class)->tokenize($input);
+
+    $selfClose = array_filter($tokens, fn($t) => $t instanceof TagSelfCloseToken);
+    expect(count($selfClose))->toBe(1);
+    expect(array_values($selfClose)[0]->name)->toBe('real');
+});
+
+test('skips component inside unclosed PHP block at EOF', function () {
+    $input = '<?php // <x-button />';
+
+    $tokens = app(Tokenizer::class)->tokenize($input);
+
+    $types = array_map(fn($t) => class_basename($t), $tokens);
+
+    expect($types)->each->toBe('TextToken');
+});
+
+test('handles multiple PHP blocks with real component between them', function () {
+    $input = <<<'TPL'
+<?php // <x-hidden1 /> ?>
+<x-visible />
+<?php /* <x-hidden2 /> */ ?>
+TPL;
+
+    $tokens = app(Tokenizer::class)->tokenize($input);
+
+    $selfClose = array_filter($tokens, fn($t) => $t instanceof TagSelfCloseToken);
+    expect(count($selfClose))->toBe(1);
+    expect(array_values($selfClose)[0]->name)->toBe('visible');
 });

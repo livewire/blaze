@@ -34,11 +34,10 @@ class Wrapper
 
         $compiled = BladeService::compileUseStatements($compiled);
 
-        // Don't restore rawBlocks here. Keeping @php/@verbatim content as
-        // @__raw_block_N__@ placeholders protects it from downstream
-        // precompilers (e.g. Livewire's morph precompiler) that would
-        // otherwise inject PHP tags into comment content. Laravel's own
-        // restoreRawContent() handles restoration at the end of compileString().
+        // Keep @php/@verbatim content as @__raw_block_N__@ placeholders so
+        // downstream precompilers can't match/modify patterns inside them.
+        // Laravel's restoreRawContent() handles restoration at the end of
+        // compileString().
 
         $imports = '';
 
