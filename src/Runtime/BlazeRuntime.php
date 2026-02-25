@@ -21,7 +21,9 @@ class BlazeRuntime
     public readonly Debugger $debugger;
     public readonly Compiler $compiler;
 
-    public string $compiledPath;
+    // Lazily cached from config('view.compiled') on first access via __get.
+    // This ensures parallel-testing per-worker path overrides are respected.
+    protected ?string $compiledPath = null;
 
     protected array $paths = [];
     protected array $compiled = [];
@@ -36,7 +38,6 @@ class BlazeRuntime
         $this->app = app();
         $this->debugger = app('blaze.debugger');
         $this->compiler = app('blade.compiler');
-        $this->compiledPath = config('view.compiled');
     }
 
     /**
@@ -77,7 +78,7 @@ class BlazeRuntime
         }
 
         $hash = Utils::hash($path);
-        $compiled = $this->compiledPath.'/'.$hash.'.php';
+        $compiled = $this->getCompiledPath().'/'.$hash.'.php';
 
         if (! isset($this->compiled[$path])) {
             $this->ensureCompiled($path, $compiled);
@@ -200,16 +201,21 @@ class BlazeRuntime
         return value($default);
     }
 
+    private function getCompiledPath(): string
+    {
+        return $this->compiledPath ??= config('view.compiled');
+    }
+
     /**
-     * Always read $errors fresh from the view factory rather than caching on the
-     * singleton — a cached value goes stale in long-lived processes (Octane, etc.).
+     * Lazy-load properties whose canonical values are set after BlazeRuntime is constructed
+     * ($errors by middleware, compiledPath by parallel testing infrastructure).
      */
     public function __get(string $name): mixed
     {
-        if ($name === 'errors') {
-            return $this->env->getShared()['errors'] ?? new ViewErrorBag;
-        }
-
-        throw new \InvalidArgumentException("Property {$name} does not exist");
+        return match ($name) {
+            'errors' => $this->env->getShared()['errors'] ?? new ViewErrorBag,
+            'compiledPath' => $this->getCompiledPath(),
+            default => throw new \InvalidArgumentException("Property {$name} does not exist"),
+        };
     }
 }

@@ -1,6 +1,7 @@
 <?php
 
 use Illuminate\Support\Facades\Blade;
+use Livewire\Blaze\Runtime\BlazeRuntime;
 
 test('ignores verbatim blocks', function () {
     $input = '@verbatim<x-input />@endverbatim';
