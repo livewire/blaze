@@ -22,8 +22,8 @@ class BlazeRuntime
     public readonly Compiler $compiler;
     protected ViewErrorBag $errors;
 
-    // Nullable so __get can lazily read config('view.compiled') on external access.
-    // This ensures parallel-testing config overrides are always respected.
+    // Lazily cached from config('view.compiled') on first access via __get.
+    // This ensures parallel-testing per-worker path overrides are respected.
     protected ?string $compiledPath = null;
 
     protected array $paths = [];
@@ -204,7 +204,7 @@ class BlazeRuntime
 
     private function getCompiledPath(): string
     {
-        return $this->compiledPath ?? config('view.compiled');
+        return $this->compiledPath ??= config('view.compiled');
     }
 
     /**
