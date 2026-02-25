@@ -14,6 +14,8 @@ class Directives
     public function __construct(
         protected string $content,
     ) {
+        $this->content = preg_replace('/(?<!@)@verbatim(\s*)(.*?)@endverbatim/s', '', $this->content);
+        $this->content = preg_replace('/(?<!@)@php(.*?)@endphp/s', '', $this->content);
     }
 
     /**
