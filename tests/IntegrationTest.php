@@ -40,6 +40,24 @@ test('BlazeRuntime uses updated compiled path after config change', function () 
     expect($runtime->compiledPath)->toBe($perProcessPath);
 });
 
+test('compiledPath respects reflection overrides used by freezeObjectProperties', function () {
+    // BladeService::freezeObjectProperties uses ReflectionProperty to temporarily
+    // override compiledPath during folding renders. Verify this still works.
+
+    $runtime = app(BlazeRuntime::class);
+    $original = config('view.compiled');
+
+    $prop = (new ReflectionClass($runtime))->getProperty('compiledPath');
+
+    // Simulate freeze: set to a temporary path
+    $prop->setValue($runtime, '/tmp/blaze-temp');
+    expect($runtime->compiledPath)->toBe('/tmp/blaze-temp');
+
+    // Simulate restore: set back to null so it falls through to config
+    $prop->setValue($runtime, null);
+    expect($runtime->compiledPath)->toBe($original);
+});
+
 // TODO: Install PHPStan, which probably would have caught this.
 test('supports php engine', function () {
     // Make sure our hooks do not break views

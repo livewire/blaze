@@ -22,7 +22,9 @@ class BlazeRuntime
     public readonly Compiler $compiler;
     protected ViewErrorBag $errors;
 
-    public string $compiledPath;
+    // Nullable so __get can lazily read config('view.compiled') on external access.
+    // This ensures parallel-testing config overrides are always respected.
+    protected ?string $compiledPath = null;
 
     protected array $paths = [];
     protected array $compiled = [];
@@ -37,7 +39,6 @@ class BlazeRuntime
         $this->app = app();
         $this->debugger = app('blaze.debugger');
         $this->compiler = app('blade.compiler');
-        $this->compiledPath = config('view.compiled');
     }
 
     /**
@@ -78,7 +79,7 @@ class BlazeRuntime
         }
 
         $hash = Utils::hash($path);
-        $compiled = $this->compiledPath.'/'.$hash.'.php';
+        $compiled = $this->getCompiledPath().'/'.$hash.'.php';
 
         if (! isset($this->compiled[$path])) {
             $this->ensureCompiled($path, $compiled);
@@ -201,15 +202,21 @@ class BlazeRuntime
         return value($default);
     }
 
+    private function getCompiledPath(): string
+    {
+        return $this->compiledPath ?? config('view.compiled');
+    }
+
     /**
-     * Lazy-load $errors since middleware sets them after BlazeRuntime is constructed.
+     * Lazy-load properties whose canonical values are set after BlazeRuntime is constructed
+     * ($errors by middleware, compiledPath by parallel testing infrastructure).
      */
     public function __get(string $name): mixed
     {
-        if ($name === 'errors') {
-            return $this->errors ??= $this->env->shared('errors') ?? new ViewErrorBag;
-        }
-
-        throw new \InvalidArgumentException("Property {$name} does not exist");
+        return match ($name) {
+            'errors' => $this->errors ??= $this->env->shared('errors') ?? new ViewErrorBag,
+            'compiledPath' => $this->getCompiledPath(),
+            default => throw new \InvalidArgumentException("Property {$name} does not exist"),
+        };
     }
 }
