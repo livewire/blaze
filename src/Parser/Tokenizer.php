@@ -45,6 +45,9 @@ class Tokenizer
 
     protected array $tagStack = [];
 
+    /** @var array<int, array{int, int}> Byte ranges of <?php ?> blocks to skip */
+    protected array $phpRanges = [];
+
     protected string $currentPrefix = '';
 
     protected string $currentSlotPrefix = '';
@@ -55,6 +58,8 @@ class Tokenizer
     public function tokenize(string $content): array
     {
         $this->resetTokenizer($content);
+
+        $this->buildPhpRangeMap();
 
         $state = TokenizerState::TEXT;
 
@@ -89,6 +94,43 @@ class Tokenizer
         $this->tagStack = [];
         $this->currentPrefix = '';
         $this->currentSlotPrefix = '';
+        $this->phpRanges = [];
+    }
+
+    /**
+     * Build a map of byte ranges inside raw PHP blocks using PHP's own tokenizer.
+     * This prevents the FSM from matching component tags inside PHP code.
+     */
+    protected function buildPhpRangeMap(): void
+    {
+        $this->phpRanges = [];
+
+        if (strpos($this->content, '<?') === false) {
+            return;
+        }
+
+        $tokens = @token_get_all($this->content);
+        $pos = 0;
+        $start = null;
+
+        foreach ($tokens as $token) {
+            $text = is_array($token) ? $token[1] : $token;
+            $type = is_array($token) ? $token[0] : null;
+
+            if ($type === T_OPEN_TAG || $type === T_OPEN_TAG_WITH_ECHO) {
+                $start = $pos;
+            } elseif ($type === T_CLOSE_TAG && $start !== null) {
+                $this->phpRanges[] = [$start, $pos + strlen($text)];
+                $start = null;
+            }
+
+            $pos += strlen($text);
+        }
+
+        // Unclosed PHP block at EOF
+        if ($start !== null) {
+            $this->phpRanges[] = [$start, $this->length];
+        }
     }
 
     /**
@@ -99,6 +141,17 @@ class Tokenizer
         $char = $this->current();
 
         if ($char === '<') {
+            // Skip component matching inside raw PHP blocks.
+            foreach ($this->phpRanges as [$start, $end]) {
+                if ($this->position >= $start && $this->position < $end) {
+                    $block = substr($this->content, $this->position, $end - $this->position);
+                    $this->buffer .= $block;
+                    $this->advance(strlen($block));
+
+                    return TokenizerState::TEXT;
+                }
+            }
+
             if ($slotInfo = $this->matchSlotOpen()) {
                 $this->flushBuffer();
 
