@@ -1,7 +1,7 @@
 <?php
 
 use Illuminate\Support\Facades\Blade;
-use Livewire\Blaze\Runtime\BlazeRuntime;
+use Livewire\Blaze\Blaze;
 
 test('ignores verbatim blocks', function () {
     $input = '@verbatim<x-input />@endverbatim';
@@ -19,6 +19,12 @@ test('ignores comments', function () {
     $input = '{{-- <x-input /> --}}';
 
     expect(Blade::render($input))->toBe('');
+});
+
+test('preserves php directives', function () {
+    $input = '@php /* uncompiled */ @endphp';
+
+    expect(Blaze::compile($input))->toBe($input);
 });
 
 // TODO: Install PHPStan, which probably would have caught this.

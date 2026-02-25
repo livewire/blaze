@@ -19,8 +19,10 @@ class UseExtractor
      */
     public function extract(string $compiled, callable $callback): string
     {
-        return preg_replace_callback('/<\?php(.*?)\?>/s', function ($match) use ($callback) {
-            $block = '<?php' . $match[1];
+        return preg_replace_callback('/<\?php(.*?)\?>|(?<!@)@php(.*?)@endphp/s', function ($match) use ($callback) {
+            $isDirective = $match[0][0] === '@';
+            $inner = $isDirective ? $match[2] : $match[1];
+            $block = '<?php' . $inner;
 
             $parser = (new ParserFactory)->createForNewestSupportedVersion();
 
@@ -59,7 +61,10 @@ class UseExtractor
                 return '';
             }
 
-            return '<?php ' . $remaining . '?>';
+            $open = $isDirective ? '@php ' : '<?php ';
+            $close = $isDirective ? '@endphp' : '?>';
+
+            return $open . $remaining . $close;
         }, $compiled);
     }
 }

@@ -51,3 +51,39 @@ test('preserves content around php blocks', function () {
     expect($statements)->toBe(['use App\Models\User;'])
         ->and($result)->toBe('<div></div>');
 });
+
+test('extracts use statements from @php blocks', function () {
+    $input = "@php use App\Models\User;\nuse App\Models\Order;\nUser::find(1); @endphp";
+
+    $statements = [];
+    $result = (new UseExtractor)->extract($input, function ($s) use (&$statements) { $statements[] = $s; });
+
+    expect($result)->toBe('@php User::find(1); @endphp');
+    expect($statements)->toBe(['use App\Models\User;', 'use App\Models\Order;']);
+});
+
+test('removes @php blocks containing only use statements', function () {
+    $input = '@php use App\Models\User; @endphp';
+
+    $statements = [];
+    $result = (new UseExtractor)->extract($input, function ($s) use (&$statements) { $statements[] = $s; });
+
+    expect($result)->toBe('');
+    expect($statements)->toBe(['use App\Models\User;']);
+});
+
+test('leaves @php blocks without use statements unchanged', function () {
+    $input = '@php echo "hello"; @endphp';
+
+    $result = (new UseExtractor)->extract($input, function () {});
+
+    expect($result)->toBe($input);
+});
+
+test('ignores escaped php blocks', function () {
+    $input = '@@php use App\Models\User; @endphp';
+
+    $result = (new UseExtractor)->extract($input, function () {});
+
+    expect($result)->toBe($input);
+});
