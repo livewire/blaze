@@ -44,6 +44,7 @@ class BlazeServiceProvider extends ServiceProvider
         $this->registerBladeMacros();
         $this->interceptViewCacheInvalidation();
         $this->interceptBladeCompilation();
+        $this->registerRequestTerminatingCallback();
     }
 
     /**
@@ -113,6 +114,16 @@ class BlazeServiceProvider extends ServiceProvider
             return Blaze::collectAndAppendFrontMatter($input, function ($input) {
                 return Blaze::compile($input);
             });
+        });
+    }
+
+    /**
+     * Flush request-scoped state from the BlazeRuntime singleton between requests.
+     */
+    protected function registerRequestTerminatingCallback(): void
+    {
+        $this->app->terminating(function () {
+            $this->app->make(BlazeRuntime::class)->requestTerminated();
         });
     }
 
