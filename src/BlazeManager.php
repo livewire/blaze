@@ -21,10 +21,11 @@ use Livewire\Blaze\Parser\Nodes\SlotNode;
 
 class BlazeManager
 {
-    protected $enabled;
-    protected $throw = false;
-    protected $debug;
-    protected $folding = false;
+    protected ?bool $enabled = null;
+    protected ?bool $debug = null;
+
+    protected bool $throw = false;
+    protected bool $folding = false;
     
     protected $foldedEvents = [];
     protected $expiredMemo = [];
@@ -40,13 +41,6 @@ class BlazeManager
         protected Profiler $instrumenter,
         protected Config $config,
     ) {
-        $this->enabled = config('blaze.enabled', true);
-        $this->debug = config('blaze.debug', false);
-
-        if ($this->debug) {
-            DebuggerMiddleware::register();
-        }
-
         Event::listen(ComponentFolded::class, function (ComponentFolded $event) {
             $this->foldedEvents[] = $event;
         });
@@ -95,7 +89,7 @@ class BlazeManager
                 $node = $this->memoizer->memoize($node);
                 $node = $this->compiler->compile($node);
 
-                if ($wasComponent && $this->debug && ! $this->folding) {
+                if ($wasComponent && $this->isDebugging() && ! $this->isFolding()) {
                     $strategy = $wasFolded ? 'folded' : null;
                     $node = $this->instrumenter->profile($node, $componentName, $strategy);
                 }
@@ -111,7 +105,7 @@ class BlazeManager
 
         if ($path && ($directives->blaze() || $this->config->shouldCompile($path))) {
             $output = $this->wrapper->wrap($output, $path, $source);
-        } elseif ($this->debug && ! $this->folding && $path) {
+        } elseif ($this->isDebugging() && ! $this->isFolding() && $path) {
             $output = $this->instrumenter->profileView($output, $path, $source);
         }
 
@@ -144,7 +138,7 @@ class BlazeManager
                 $node = $this->memoizer->memoize($node);
                 $node = $this->compiler->compile($node);
 
-                if ($wasComponent && $this->debug) {
+                if ($wasComponent && $this->isDebugging()) {
                     $node = $this->instrumenter->profile($node, $componentName);
                 }
 
@@ -334,13 +328,7 @@ class BlazeManager
      */
     public function debug()
     {
-        if ($this->debug) {
-            return;
-        }
-        
         $this->debug = true;
-
-        DebuggerMiddleware::register();
     }
 
     /**
@@ -364,7 +352,7 @@ class BlazeManager
      */
     public function isEnabled()
     {
-        return $this->enabled;
+        return $this->enabled ?? config('blaze.enabled', true);
     }
 
     /**
@@ -372,7 +360,7 @@ class BlazeManager
      */
     public function isDisabled()
     {
-        return ! $this->enabled;
+        return ! $this->isEnabled();
     }
 
     /**
@@ -388,7 +376,7 @@ class BlazeManager
      */
     public function isDebugging()
     {
-        return $this->debug;
+        return $this->debug ?? config('blaze.debug', false);
     }
 
     /**
