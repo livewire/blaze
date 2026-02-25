@@ -111,17 +111,28 @@ class BladeService
         $factory = app('view');
 
         [$factory, $restoreFactory] = static::freezeObjectProperties($factory, [
+            'renderCount' => 0,
+            'renderedOnce' => [],
+            'sections' => [],
+            'sectionStack' => [],
+            'pushes' => [],
+            'prepends' => [],
+            'pushStack' => [],
             'componentStack' => [],
             'componentData' => [],
             'currentComponentData' => [],
             'slots' => [],
             'slotStack' => [],
-            'renderCount' => 0,
+            'fragments' => [],
+            'fragmentStack' => [],
+            'loopsStack' => [],
+            'translationReplacements' => [],
         ]);
 
         [$compiler, $restore] = static::freezeObjectProperties($compiler, [
             'cachePath' => $temporaryCachePath,
-            'rawBlocks',
+            'rawBlocks' => [],
+            'footer' => [],
             'prepareStringsForCompilationUsing' => [
                 function ($input) {
                     if (Unblaze::hasUnblaze($input)) {
@@ -135,6 +146,10 @@ class BladeService
                 },
             ],
             'path' => null,
+            'forElseCounter' => 0,
+            'firstCaseInSwitch' => true,
+            'lastSection' => null,
+            'lastFragment' => null,
         ]);
 
         [$runtime, $restoreRuntime] = static::freezeObjectProperties(app('blaze.runtime'), [
