@@ -20,7 +20,6 @@ class BlazeRuntime
     public readonly Application $app;
     public readonly Debugger $debugger;
     public readonly Compiler $compiler;
-    protected ViewErrorBag $errors;
 
     // Lazily cached from config('view.compiled') on first access via __get.
     // This ensures parallel-testing per-worker path overrides are respected.
@@ -214,7 +213,7 @@ class BlazeRuntime
     public function __get(string $name): mixed
     {
         return match ($name) {
-            'errors' => $this->errors ??= $this->env->shared('errors') ?? new ViewErrorBag,
+            'errors' => $this->env->getShared()['errors'] ?? new ViewErrorBag,
             'compiledPath' => $this->getCompiledPath(),
             default => throw new \InvalidArgumentException("Property {$name} does not exist"),
         };
