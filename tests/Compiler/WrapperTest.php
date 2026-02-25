@@ -93,9 +93,12 @@ test('injects echo handler', function () {
 });
 
 test('hoists use statements to top of output', function ($statement) {
-    $source = "{$statement}\n<div></div>";
+    // Replace raw @php blocks for placeholders. This normally happens in BlazeManager before the template gets to the Wrapper
+    $source = BladeService::preStoreUncompiledBlocks($statement);
 
-    expect(app(Wrapper::class)->wrap($source, '', $source))->toStartWith("<?php\nuse");
+    expect(app(Wrapper::class)->wrap($source, '', $source))->toStartWith("<?php\nuse \App\Models\User");
 })->with([
+    ['@use(\'App\Models\User\')'],
     ['@php use \App\Models\User; @endphp'],
+    ['<?php use \App\Models\User; ?>'],
 ]);
