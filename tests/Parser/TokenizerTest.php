@@ -6,6 +6,7 @@ use Livewire\Blaze\Parser\Tokens\SlotOpenToken;
 use Livewire\Blaze\Parser\Tokens\TagCloseToken;
 use Livewire\Blaze\Parser\Tokens\TagOpenToken;
 use Livewire\Blaze\Parser\Tokens\TagSelfCloseToken;
+use Livewire\Blaze\Parser\Tokens\TextToken;
 
 test('tokenizes tags', function () {
     $input = '<x-button type="button"></x-button>';
@@ -111,65 +112,34 @@ test('handles attributes with angled brackets', function () {
     ]);
 });
 
-test('skips component inside PHP single-line comment', function () {
-    $input = <<<'TPL'
-<?php // <x-button /> ?>
-<div>hello</div>
-TPL;
+test('handles php blocks', function () {
+    $input = '<x-button><?php // <x-button /> ?></x-button>';
 
-    $tokens = app(Tokenizer::class)->tokenize($input);
+    $result = app(Tokenizer::class)->tokenize($input);
 
-    $types = array_map(fn($t) => class_basename($t), $tokens);
-
-    expect($types)->each->toBe('TextToken');
+    expect($result)->toEqual([
+        new TagOpenToken(name: 'button', prefix: 'x-'),
+        new TextToken(content: '<?php // <x-button /> ?>'),
+        new TagCloseToken(name: 'button', prefix: 'x-'),
+    ]);
 });
 
-test('skips component inside PHP block comment', function () {
-    $input = <<<'TPL'
-<?php /* <x-button /> */ ?>
-<div>hello</div>
-TPL;
-
-    $tokens = app(Tokenizer::class)->tokenize($input);
-
-    $types = array_map(fn($t) => class_basename($t), $tokens);
-
-    expect($types)->each->toBe('TextToken');
-});
-
-test('skips component inside PHP string', function () {
-    $input = <<<'TPL'
-<?php echo "<x-button />"; ?>
-<x-real />
-TPL;
-
-    $tokens = app(Tokenizer::class)->tokenize($input);
-
-    $selfClose = array_filter($tokens, fn($t) => $t instanceof TagSelfCloseToken);
-    expect(count($selfClose))->toBe(1);
-    expect(array_values($selfClose)[0]->name)->toBe('real');
-});
-
-test('skips component inside unclosed PHP block at EOF', function () {
+test('handles unclosed php blocks', function () {
     $input = '<?php // <x-button />';
 
-    $tokens = app(Tokenizer::class)->tokenize($input);
+    $result = app(Tokenizer::class)->tokenize($input);
 
-    $types = array_map(fn($t) => class_basename($t), $tokens);
-
-    expect($types)->each->toBe('TextToken');
+    expect($result)->toEqual([
+        new TextToken(content: '<?php // <x-button />'),
+    ]);
 });
 
-test('handles multiple PHP blocks with real component between them', function () {
-    $input = <<<'TPL'
-<?php // <x-hidden1 /> ?>
-<x-visible />
-<?php /* <x-hidden2 /> */ ?>
-TPL;
+test('handles php blocks inside tags', function () {
+    $input = '<x-button <?php echo \'disabled\'; ?>>';
 
-    $tokens = app(Tokenizer::class)->tokenize($input);
+    $result = app(Tokenizer::class)->tokenize($input);
 
-    $selfClose = array_filter($tokens, fn($t) => $t instanceof TagSelfCloseToken);
-    expect(count($selfClose))->toBe(1);
-    expect(array_values($selfClose)[0]->name)->toBe('visible');
+    expect($result)->toEqual([
+        new TextToken(content: '<x-button <?php echo \'disabled\'; ?>>'),
+    ]);
 });
