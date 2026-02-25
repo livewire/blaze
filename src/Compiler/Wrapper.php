@@ -65,6 +65,7 @@ class Wrapper
 
         $compiled = BladeService::compileDirective($compiled, 'props', $this->propsCompiler->compile(...));
         $compiled = BladeService::compileDirective($compiled, 'aware', $this->awareCompiler->compile(...));
+        $compiled = BladeService::restoreRawBlocks($compiled);
 
         $output .= $compiled;
 

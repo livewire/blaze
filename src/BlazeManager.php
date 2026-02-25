@@ -115,6 +115,8 @@ class BlazeManager
             $output = $this->instrumenter->profileView($output, $path, $source);
         }
 
+        $output = BladeService::restoreRawBlocks($output);
+
         try {
             BladeService::deleteTemporaryCacheDirectory();
         } catch (\Throwable $e) {

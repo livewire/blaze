@@ -47,9 +47,6 @@ class BladeService
             public function compileStatementsMadePublic($template)
             {
                 $result = '';
-                
-                $template = $this->storeUncompiledBlocks($template);
-                $template = $this->compileComments($template);
 
                 foreach (token_get_all($template) as $token) {
                     if (! is_array($token)) {
@@ -66,8 +63,6 @@ class BladeService
                         $result .= $content;
                     }
                 }
-
-                $result = $this->restoreRawContent($result);
 
                 return $result;
             }
@@ -203,11 +198,22 @@ class BladeService
     public static function preStoreUncompiledBlocks(string $input): string
     {
         $compiler = app('blade.compiler');
-
         $reflection = new \ReflectionClass($compiler);
-        $storeVerbatimBlocks = $reflection->getMethod('storeUncompiledBlocks');
+        
+        $storeVerbatimBlocks = $reflection->getMethod('storeVerbatimBlocks');
+        $storeRawBlock = $reflection->getMethod('storeRawBlock');
 
-        return $storeVerbatimBlocks->invoke($compiler, $input);
+        $output = $input;
+
+        $output = preg_replace_callback('/(?<!@)@verbatim(\s*)(.*?)@endverbatim/s', function ($matches) use ($storeRawBlock, $compiler) {
+            return $matches[1].$storeRawBlock->invoke($compiler, "@verbatim{$matches[2]}@endverbatim");
+        }, $output);
+
+        $output = preg_replace_callback('/(?<!@)@php(.*?)@endphp/s', function ($matches) use ($storeRawBlock, $compiler) {
+            return $storeRawBlock->invoke($compiler, "@php{$matches[1]}@endphp");
+        }, $output);
+        
+        return $output;
     }
 
     /**
@@ -232,6 +238,19 @@ class BladeService
 
         $reflection = new \ReflectionClass($compiler);
         $method = $reflection->getMethod('restoreRawContent');
+
+        return $method->invoke($compiler, $input);
+    }
+
+    /**
+     * Restore raw block placeholders to their original content.
+     */
+    public static function restorePhpBlocks(string $input): string
+    {
+        $compiler = app('blade.compiler');
+
+        $reflection = new \ReflectionClass($compiler);
+        $method = $reflection->getMethod('restorePhpBlocks');
 
         return $method->invoke($compiler, $input);
     }
