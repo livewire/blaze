@@ -44,6 +44,7 @@ class BlazeServiceProvider extends ServiceProvider
         $this->registerBladeMacros();
         $this->interceptViewCacheInvalidation();
         $this->interceptBladeCompilation();
+        $this->registerDebuggerMiddleware();
     }
 
     /**
@@ -130,5 +131,15 @@ class BlazeServiceProvider extends ServiceProvider
                 $invalidate();
             }
         });
+    }
+
+    /**
+     * Register the Debugger middleware.
+     */
+    protected function registerDebuggerMiddleware(): void
+    {
+        if (Blaze::isDebugging()) {
+            DebuggerMiddleware::register();
+        }
     }
 }
