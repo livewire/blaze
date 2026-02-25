@@ -102,7 +102,11 @@ class Config
             }
         }
 
-        return $match !== null ? ($config[$match] ?? false) : false;
+        if ($match === null) {
+            return false;
+        }
+
+        return $config[$match] ?? false;
     }
 
     /**
