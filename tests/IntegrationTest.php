@@ -38,7 +38,6 @@ test('protects php blocks from precompilers that inject php tags', function () {
     });
 
     $compiled = compile('php-comment-with-directive.blade.php');
-    dd($compiled);
 
     // If Blaze fails to protect the @php block content from precompilers,
     // the close-tag inside the injected prefix ends the // comment's PHP
