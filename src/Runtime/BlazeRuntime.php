@@ -20,7 +20,6 @@ class BlazeRuntime
     public readonly Application $app;
     public readonly Debugger $debugger;
     public readonly Compiler $compiler;
-    protected ViewErrorBag $errors;
 
     public string $compiledPath;
 
@@ -202,20 +201,13 @@ class BlazeRuntime
     }
 
     /**
-     * Flush request-scoped state so the singleton stays fresh across requests.
-     */
-    public function requestTerminated(): void
-    {
-        unset($this->errors);
-    }
-
-    /**
-     * Lazy-load $errors since middleware sets them after BlazeRuntime is constructed.
+     * Always read $errors fresh from the view factory rather than caching on the
+     * singleton — a cached value goes stale in long-lived processes (Octane, etc.).
      */
     public function __get(string $name): mixed
     {
         if ($name === 'errors') {
-            return $this->errors ??= $this->env->shared('errors') ?? new ViewErrorBag;
+            return $this->env->getShared()['errors'] ?? new ViewErrorBag;
         }
 
         throw new \InvalidArgumentException("Property {$name} does not exist");
