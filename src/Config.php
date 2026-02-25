@@ -102,6 +102,10 @@ class Config
             }
         }
 
+        if ($match === null) {
+            return false;
+        }
+
         return $config[$match] ?? false;
     }
 
