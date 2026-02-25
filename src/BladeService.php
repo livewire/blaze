@@ -200,7 +200,6 @@ class BladeService
         $compiler = app('blade.compiler');
         $reflection = new \ReflectionClass($compiler);
         
-        $storeVerbatimBlocks = $reflection->getMethod('storeVerbatimBlocks');
         $storeRawBlock = $reflection->getMethod('storeRawBlock');
 
         $output = $input;
