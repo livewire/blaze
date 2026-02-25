@@ -52,43 +52,48 @@ class Tokenizer
     /**
      * Tokenize a Blade template into an array of tokens.
      */
-    public function tokenize(string $content): array
+    public function tokenize(string $template): array
     {
-        $this->resetTokenizer($content);
-
-        $state = TokenizerState::TEXT;
-
-        while (!$this->isAtEnd()) {
-            $state = match($state) {
-                TokenizerState::TEXT => $this->handleTextState(),
-                TokenizerState::TAG_OPEN => $this->handleTagOpenState(),
-                TokenizerState::TAG_CLOSE => $this->handleTagCloseState(),
-                TokenizerState::SLOT_OPEN => $this->handleSlotOpenState(),
-                TokenizerState::SLOT_CLOSE => $this->handleSlotCloseState(),
-                TokenizerState::SHORT_SLOT => $this->handleShortSlotState(),
-                default => throw new \RuntimeException("Unknown state: $state"),
-            };
-        }
-
-        $this->flushBuffer();
-
-        return $this->tokens;
-    }
-
-    /**
-     * Reset all tokenizer state for a new tokenization pass.
-     */
-    protected function resetTokenizer(string $content): void
-    {
-        $this->content = $content;
-        $this->position = 0;
-        $this->length = strlen($content);
         $this->tokens = [];
         $this->buffer = '';
         $this->currentToken = null;
         $this->tagStack = [];
         $this->currentPrefix = '';
         $this->currentSlotPrefix = '';
+
+        $state = TokenizerState::TEXT;
+
+        foreach (token_get_all($template) as $token) {
+            if (is_array($token) && $token[0] === T_INLINE_HTML) {
+                $this->position = 0;
+                $this->content = $token[1];
+                $this->length = strlen($token[1]);
+
+                while (!$this->isAtEnd()) {
+                    $state = match ($state) {
+                        TokenizerState::TEXT => $this->handleTextState(),
+                        TokenizerState::TAG_OPEN => $this->handleTagOpenState(),
+                        TokenizerState::TAG_CLOSE => $this->handleTagCloseState(),
+                        TokenizerState::SLOT_OPEN => $this->handleSlotOpenState(),
+                        TokenizerState::SLOT_CLOSE => $this->handleSlotCloseState(),
+                        TokenizerState::SHORT_SLOT => $this->handleShortSlotState(),
+                        default => throw new \RuntimeException("Unknown state: $state"),
+                    };
+                }
+            } else {
+                // If we hit a non-HTML code inside a tag token, we should discard that token
+                // and consider everything buffered so far as plain text.
+                $this->currentToken = null;
+
+                $state = TokenizerState::TEXT;
+
+                $this->buffer .= is_array($token) ? $token[1] : $token;
+            }
+        }
+
+        $this->flushBuffer();
+
+        return $this->tokens;
     }
 
     /**
@@ -99,9 +104,9 @@ class Tokenizer
         $char = $this->current();
 
         if ($char === '<') {
-            if ($slotInfo = $this->matchSlotOpen()) {
-                $this->flushBuffer();
+            $this->flushBuffer();
 
+            if ($slotInfo = $this->matchSlotOpen()) {
                 $this->currentSlotPrefix = $slotInfo['prefix'];
 
                 if ($slotInfo['isShort']) {
@@ -116,8 +121,6 @@ class Tokenizer
             }
 
             if ($slotInfo = $this->matchSlotClose()) {
-                $this->flushBuffer();
-
                 $this->currentToken = new SlotCloseToken();
 
                 $this->currentSlotPrefix = $slotInfo['prefix'];
@@ -130,8 +133,6 @@ class Tokenizer
             }
 
             if ($prefixInfo = $this->matchComponentOpen()) {
-                $this->flushBuffer();
-
                 $this->currentPrefix = $prefixInfo['prefix'];
 
                 $this->currentToken = new TagOpenToken(
@@ -144,8 +145,6 @@ class Tokenizer
             }
 
             if ($this->peek(1) === '/' && ($prefixInfo = $this->matchComponentClose())) {
-                $this->flushBuffer();
-
                 $this->currentPrefix = $prefixInfo['prefix'];
 
                 $this->currentToken = new TagCloseToken(
@@ -157,8 +156,6 @@ class Tokenizer
                 return TokenizerState::TAG_CLOSE;
             }
         }
-
-        $this->buffer .= $char;
 
         $this->advance();
 
@@ -189,17 +186,17 @@ class Tokenizer
 
                 array_pop($this->tagStack);
 
-                $this->tokens[] = $this->currentToken;
-
                 $this->advance(2);
+
+                $this->emitToken();
 
                 return TokenizerState::TEXT;
             }
 
             if ($this->current() === '>') {
-                $this->tokens[] = $this->currentToken;
-
                 $this->advance();
+
+                $this->emitToken();
 
                 return TokenizerState::TEXT;
             }
@@ -224,9 +221,9 @@ class Tokenizer
         }
 
         if ($this->current() === '>') {
-            $this->tokens[] = $this->currentToken;
-
             $this->advance();
+
+            $this->emitToken();
 
             return TokenizerState::TEXT;
         }
@@ -257,9 +254,9 @@ class Tokenizer
         }
 
         if ($this->current() === '>') {
-            $this->tokens[] = $this->currentToken;
-
             $this->advance();
+
+            $this->emitToken();
 
             return TokenizerState::TEXT;
         }
@@ -281,9 +278,9 @@ class Tokenizer
         }
 
         if ($this->current() === '>') {
-            $this->tokens[] = $this->currentToken;
-
             $this->advance();
+
+            $this->emitToken();
 
             return TokenizerState::TEXT;
         }
@@ -306,9 +303,9 @@ class Tokenizer
             $this->collectAttributes();
 
             if ($this->current() === '>') {
-                $this->tokens[] = $this->currentToken;
-
                 $this->advance();
+
+                $this->emitToken();
 
                 return TokenizerState::TEXT;
             }
@@ -525,6 +522,8 @@ class Tokenizer
      */
     protected function advance(int $count = 1): void
     {
+        $this->buffer .= substr($this->content, $this->position, $count);
+
         $this->position += $count;
     }
 
@@ -534,6 +533,16 @@ class Tokenizer
     protected function isAtEnd(): bool
     {
         return $this->position >= $this->length;
+    }
+
+    /**
+     * Emit the current token and discard the raw buffer.
+     */
+    protected function emitToken(): void
+    {
+        $this->tokens[] = $this->currentToken;
+
+        $this->buffer = '';
     }
 
     /**

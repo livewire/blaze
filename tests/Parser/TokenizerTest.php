@@ -6,6 +6,7 @@ use Livewire\Blaze\Parser\Tokens\SlotOpenToken;
 use Livewire\Blaze\Parser\Tokens\TagCloseToken;
 use Livewire\Blaze\Parser\Tokens\TagOpenToken;
 use Livewire\Blaze\Parser\Tokens\TagSelfCloseToken;
+use Livewire\Blaze\Parser\Tokens\TextToken;
 
 test('tokenizes tags', function () {
     $input = '<x-button type="button"></x-button>';
@@ -101,12 +102,44 @@ test('handles attributes with angled brackets', function () {
 
     expect($result)->toEqual([
         new TagOpenToken(
-            name: 'button', 
-            prefix: 'x-', 
+            name: 'button',
+            prefix: 'x-',
             attributes: [
                 ':data="[\'foo\' => \'bar\']"',
                 ':callback="fn () => 0"',
             ],
         ),
+    ]);
+});
+
+test('handles php blocks', function () {
+    $input = '<x-button><?php // <x-button /> ?></x-button>';
+
+    $result = app(Tokenizer::class)->tokenize($input);
+
+    expect($result)->toEqual([
+        new TagOpenToken(name: 'button', prefix: 'x-'),
+        new TextToken(content: '<?php // <x-button /> ?>'),
+        new TagCloseToken(name: 'button', prefix: 'x-'),
+    ]);
+});
+
+test('handles unclosed php blocks', function () {
+    $input = '<?php // <x-button />';
+
+    $result = app(Tokenizer::class)->tokenize($input);
+
+    expect($result)->toEqual([
+        new TextToken(content: '<?php // <x-button />'),
+    ]);
+});
+
+test('handles php blocks inside tags', function () {
+    $input = '<x-button <?php echo \'disabled\'; ?>>';
+
+    $result = app(Tokenizer::class)->tokenize($input);
+
+    expect($result)->toEqual([
+        new TextToken(content: '<x-button <?php echo \'disabled\'; ?>>'),
     ]);
 });
