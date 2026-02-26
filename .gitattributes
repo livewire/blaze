@@ -3,7 +3,6 @@
 .gitattributes export-ignore
 .github/       export-ignore
 .gitignore     export-ignore
-LICENSE        export-ignore
 phpunit.xml    export-ignore
 README.md      export-ignore
 tests/         export-ignore
