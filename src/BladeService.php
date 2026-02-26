@@ -94,7 +94,7 @@ class BladeService
      */
     public static function getTemporaryCachePath(): string
     {
-        return config('view.compiled').'/blaze';
+        return rtrim(config('blaze.compiled_path', config('view.compiled')), DIRECTORY_SEPARATOR).'/temp';
     }
 
     /**

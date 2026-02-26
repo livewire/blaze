@@ -28,4 +28,17 @@ return [
 
     'debug' => env('BLAZE_DEBUG', false),
 
+    /*
+    |--------------------------------------------------------------------------
+    | Blaze Compiled Path
+    |--------------------------------------------------------------------------
+    |
+    | The directory where Blaze writes compiled component PHP files.
+    | Using a dedicated path avoids development watcher loops triggered
+    | by frequent writes in the default Blade compiled views directory.
+    |
+    */
+
+    'compiled_path' => env('BLAZE_COMPILED_PATH', storage_path('framework/blaze')),
+
 ];

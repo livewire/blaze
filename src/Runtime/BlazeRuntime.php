@@ -21,8 +21,8 @@ class BlazeRuntime
     public readonly Debugger $debugger;
     public readonly Compiler $compiler;
 
-    // Lazily cached from config('view.compiled') on first access via __get.
-    // This ensures parallel-testing per-worker path overrides are respected.
+    // Lazily cached from config('blaze.compiled_path') on first access via __get.
+    // This ensures runtime config overrides are respected.
     protected ?string $compiledPath = null;
 
     protected array $paths = [];
@@ -55,7 +55,48 @@ class BlazeRuntime
             return;
         }
 
-        $this->compiler->compile($path);
+        $cachePath = dirname($compiledPath);
+
+        if (! is_dir($cachePath)) {
+            mkdir($cachePath, 0755, true);
+        }
+
+        if ($this->compiler->getCompiledPath($path) === $compiledPath) {
+            $this->compiler->compile($path);
+
+            return;
+        }
+
+        $this->compileWithCustomCachePath($path, $cachePath);
+    }
+
+    /**
+     * Compile a view while temporarily overriding the compiler cache path.
+     */
+    protected function compileWithCustomCachePath(string $path, string $cachePath): void
+    {
+        $reflection = new \ReflectionObject($this->compiler);
+
+        while ($reflection && ! $reflection->hasProperty('cachePath')) {
+            $reflection = $reflection->getParentClass();
+        }
+
+        if (! $reflection || ! $reflection->hasProperty('cachePath')) {
+            $this->compiler->compile($path);
+
+            return;
+        }
+
+        $property = $reflection->getProperty('cachePath');
+        $original = $property->getValue($this->compiler);
+
+        try {
+            $property->setValue($this->compiler, $cachePath);
+
+            $this->compiler->compile($path);
+        } finally {
+            $property->setValue($this->compiler, $original);
+        }
     }
 
     /**
@@ -203,12 +244,12 @@ class BlazeRuntime
 
     private function getCompiledPath(): string
     {
-        return $this->compiledPath ??= config('view.compiled');
+        return $this->compiledPath ??= rtrim(config('blaze.compiled_path', config('view.compiled')), DIRECTORY_SEPARATOR);
     }
 
     /**
      * Lazy-load properties whose canonical values are set after BlazeRuntime is constructed
-     * ($errors by middleware, compiledPath by parallel testing infrastructure).
+     * ($errors by middleware, compiledPath by runtime config).
      */
     public function __get(string $name): mixed
     {
