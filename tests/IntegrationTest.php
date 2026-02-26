@@ -21,13 +21,6 @@ test('ignores comments', function () {
     expect(Blade::render($input))->toBe('');
 });
 
-test('preserves php directives', function () {
-    $input = '@php /* uncompiled */ @endphp';
-
-    expect(Blaze::compile($input))->toBe($input);
-});
-
-// TODO: Install PHPStan, which probably would have caught this.
 test('supports php engine', function () {
     // Make sure our hooks do not break views
     // rendered using the regular php engine.

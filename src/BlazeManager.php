@@ -148,6 +148,10 @@ class BlazeManager
 
         $output = $this->render($ast);
 
+        // We should not restore raw blocks here. Doing so would preemptively
+        // flush all raw blocks stored in the original template and they
+        // wouldn't be restored in the parent compile() method.
+
         return $output;
     }
 
@@ -187,6 +191,8 @@ class BlazeManager
             $output = $this->instrumenter->profileView($output, $path, $source);
         }
 
+        $output = BladeService::restoreRawBlocks($output);
+
         return $output;
     }
 
@@ -210,6 +216,8 @@ class BlazeManager
         );
 
         $output = $this->render($ast);
+
+        $output = BladeService::restoreRawBlocks($output);
 
         $path = app('blade.compiler')->getPath();
 
