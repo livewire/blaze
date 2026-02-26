@@ -138,8 +138,10 @@ class BlazeServiceProvider extends ServiceProvider
      */
     protected function registerDebuggerMiddleware(): void
     {
-        if (Blaze::isDebugging()) {
-            DebuggerMiddleware::register();
-        }
+        $this->app->booted(function () {
+            if (Blaze::isDebugging()) {
+                DebuggerMiddleware::register();
+            }
+        });
     }
 }

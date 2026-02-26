@@ -3,6 +3,7 @@
 namespace Livewire\Blaze;
 
 use Closure;
+use Illuminate\Contracts\Http\Kernel;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Event;
@@ -25,7 +26,7 @@ class DebuggerMiddleware
             return response($html)->header('Content-Type', 'text/html');
         })->middleware('web');
 
-        app('router')->pushMiddlewareToGroup('web', static::class);
+        app(Kernel::class)->pushMiddleware(static::class);
     }
 
     /**
