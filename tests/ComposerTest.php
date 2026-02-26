@@ -82,3 +82,11 @@ test('composer fires for index-convention component (nav/index.blade.php registe
 
     expect($output)->toContain('Injected Nav');
 });
+
+test('composer fires for same-name convention component (badge/badge.blade.php registered as badge)', function () {
+    View::composer('badge', fn ($view) => $view->with(['label' => 'Injected Badge']));
+
+    $output = Blade::render('<x-badge />');
+
+    expect($output)->toContain('Injected Badge');
+});
