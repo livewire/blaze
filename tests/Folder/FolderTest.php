@@ -237,3 +237,26 @@ test('throws exception for components with problematic patterns', function (stri
     expect(fn () => app(Folder::class)->fold($node))
         ->toThrow(InvalidBlazeFoldUsageException::class);
 })->with(['errors', 'session', 'error', 'csrf', 'auth', 'request', 'old', 'once']);
+
+test('folding exception includes path, detected pattern, and mitigation guidance', function () {
+    $input = '<x-invalid-foldable.csrf />';
+
+    $node = app(Parser::class)->parse($input)[0];
+
+    try {
+        app(Folder::class)->fold($node);
+        $this->fail('Expected InvalidBlazeFoldUsageException to be thrown');
+    } catch (InvalidBlazeFoldUsageException $e) {
+        expect($e->getComponentPath())->toBeString()->not->toBe('');
+        expect($e->getProblematicPattern())->toBe('@csrf');
+        expect($e->getMitigation())->toContain('@unblaze')->toContain('fold');
+
+        // Message should be actionable for end-users.
+        expect($e->getMessage())
+            ->toContain($e->getComponentPath())
+            ->toContain('Detected pattern')
+            ->toContain('@csrf')
+            ->toContain('Mitigation')
+            ->toContain('@unblaze');
+    }
+});

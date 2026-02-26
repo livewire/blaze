@@ -104,6 +104,24 @@ test('merges aware props from parent attributes', function () {
     );
 });
 
+test('uses default aware prop values when not provided by parent attributes', function () {
+    // The underlying component declares:
+    // @aware(['type' => 'text'])
+    // and uses: <input type="{{ $type }}" >
+    //
+    // When folding, if there is no parent attribute for "type", Foldable currently
+    // injects the default into the folded renderable attributes. This test locks in
+    // that behavior.
+    $input = '<x-foldable.input-aware />';
+
+    $node = app(\Livewire\Blaze\Parser\Parser::class)->parse($input)[0];
+    $foldable = new \Livewire\Blaze\Folder\Foldable($node, new \Livewire\Blaze\Support\ComponentSource($node->name));
+
+    expect($foldable->fold())->toEqualCollapsingWhitespace(
+        '<input type="text" >'
+    );
+});
+
 test('merges dynamic aware props from parent attributes', function () {
     $input = '<x-foldable.input-aware />';
 

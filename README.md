@@ -572,6 +572,48 @@ When a component is mostly foldable but contains a dynamic section, use `@unblaz
 
 Variables from the component scope must be passed explicitly using the `scope` parameter.
 
+## Troubleshooting folding failures
+
+When folding is enabled (`@blaze(fold: true)` or via `Blaze::optimize()->in(..., fold: true)`), Blaze may abort folding or throw an exception if a component contains patterns that are inherently request- or state-dependent.
+
+### Common causes
+
+Blaze will refuse folding (and may throw an `InvalidBlazeFoldUsageException`) when it detects common dynamic patterns such as:
+
+- `@csrf` (CSRF token changes per request)
+- `$errors` / `@error(...)` (validation errors are request-specific)
+- `session(...)` / `old(...)` (request/session input)
+- `auth()` / `request()` (request/auth context)
+- `@once` (runtime state)
+
+### What to do
+
+You have two safe options:
+
+1) **Exclude only the dynamic section** using `@unblaze ... @endunblaze`
+
+    This is the preferred approach when most of the component is static and only a small part depends on request state.
+
+2) **Disable folding for that component**
+
+    - Remove `@blaze(fold: true)` from that template, or
+    - Disable folding for its directory/file via configuration:
+
+    ```php
+    Blaze::optimize()->in(resource_path('views/components'), fold: true);
+    Blaze::optimize()->in(resource_path('views/components/problematic'), fold: false);
+    ```
+
+### Tip: keep the error message
+
+If you hit an exception, the message includes:
+
+- the component path
+- the detected pattern
+- a recommended mitigation
+
+This is intentional: you can paste it directly into an issue or PR when reporting fold compatibility problems.
+
 # Debug Mode
 
 Blaze includes a powerful debug mode to help you measure rendering performance, compare Blaze against standard Blade and find performance bottlenecks.
