@@ -74,3 +74,11 @@ test('class-based composer is resolved from the container', function () {
 
     expect($output)->toContain('From Class Composer');
 });
+
+test('composer fires for index-convention component (nav/index.blade.php registered as nav)', function () {
+    View::composer('nav', fn ($view) => $view->with(['label' => 'Injected Nav']));
+
+    $output = Blade::render('<x-nav />');
+
+    expect($output)->toContain('Injected Nav');
+});
