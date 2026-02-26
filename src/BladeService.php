@@ -363,6 +363,37 @@ class BladeService
     }
 
     /**
+     * Resolve a component file path back to its anonymous component name.
+     *
+     * Returns null when the path does not belong to any registered anonymous
+     * component directory (e.g. class-based components or unknown paths).
+     */
+    public static function pathToComponentName(string $path): ?string
+    {
+        $compiler = app('blade.compiler');
+        $reflection = new \ReflectionClass($compiler);
+        $pathsProperty = $reflection->getProperty('anonymousComponentPaths');
+        $paths = $pathsProperty->getValue($compiler) ?? [];
+
+        $normalizedPath = str_replace('\\', '/', $path);
+
+        foreach ($paths as $pathData) {
+            $basePath = rtrim(str_replace('\\', '/', $pathData['path'] ?? $pathData), '/');
+            $prefix = $pathData['prefix'] ?? null;
+
+            if (str_starts_with($normalizedPath, $basePath.'/')) {
+                $relative = substr($normalizedPath, strlen($basePath) + 1);
+                $name = str_replace('/', '.', $relative);
+                $name = preg_replace('/\.blade\.php$/', '', $name);
+
+                return $prefix ? $prefix.'::'.$name : $name;
+            }
+        }
+
+        return null;
+    }
+
+    /**
      * Resolve a component name to its file path using registered anonymous component paths.
      */
     public static function componentNameToPath($name): string

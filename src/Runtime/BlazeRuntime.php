@@ -41,6 +41,20 @@ class BlazeRuntime
     }
 
     /**
+     * Fire view composer events for the given component name and merge any
+     * injected data into $data. Composer data takes precedence, matching
+     * standard Laravel View Composer behaviour.
+     */
+    public function callComposers(string $componentName, array $data): array
+    {
+        $view = new ComponentView($componentName, $data);
+
+        $this->env->callComposer($view);
+
+        return array_merge($data, $view->getData());
+    }
+
+    /**
      * Compile a component if its source is newer than the cached output.
      */
     public function ensureCompiled(string $path, string $compiledPath): void
