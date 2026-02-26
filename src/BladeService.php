@@ -377,14 +377,27 @@ class BladeService
 
         $normalizedPath = str_replace('\\', '/', $path);
 
+        // Sort longest base path first so more specific roots match before broader ones.
+        usort($paths, fn ($a, $b) => strlen($b['path'] ?? $b) - strlen($a['path'] ?? $a));
+
         foreach ($paths as $pathData) {
             $basePath = rtrim(str_replace('\\', '/', $pathData['path'] ?? $pathData), '/');
             $prefix = $pathData['prefix'] ?? null;
 
             if (str_starts_with($normalizedPath, $basePath.'/')) {
                 $relative = substr($normalizedPath, strlen($basePath) + 1);
-                $name = str_replace('/', '.', $relative);
-                $name = preg_replace('/\.blade\.php$/', '', $name);
+                $name = preg_replace('/\.blade\.php$/', '', $relative);
+                $name = str_replace('/', '.', $name);
+
+                // Mirror forward resolution: foo/index.blade.php → foo, foo/foo.blade.php → foo.
+                $segments = explode('.', $name);
+                $last = end($segments);
+                $parent = count($segments) >= 2 ? $segments[count($segments) - 2] : null;
+
+                if ($last === 'index' || ($parent !== null && $last === $parent)) {
+                    array_pop($segments);
+                    $name = implode('.', $segments);
+                }
 
                 return $prefix ? $prefix.'::'.$name : $name;
             }
