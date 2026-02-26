@@ -9,7 +9,11 @@ use Illuminate\View\View;
  *
  * Extends the concrete Illuminate\View\View so that composers type-hinting
  * the concrete class (rather than the contract) receive a compatible instance.
- * Only the properties needed for composer interaction are initialised.
+ * Only the properties needed for composer interaction are initialised ($view,
+ * $data). Members that require full Laravel view infrastructure ($factory,
+ * $engine, $path) are intentionally left unset — instantiating them for every
+ * component render would undermine Blaze's performance goals. Composers that
+ * call getFactory(), getEngine(), or getPath() are not supported.
  */
 class ComponentView extends View
 {
