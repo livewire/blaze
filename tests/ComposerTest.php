@@ -1,8 +1,26 @@
 <?php
 
 use Illuminate\Support\Facades\Blade;
+use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\View;
 use Illuminate\View\View as ConcreteView;
+
+beforeEach(function () {
+    config()->set('blaze.view_composers', true);
+
+    foreach ([
+        fixture_path('components/header.blade.php'),
+        fixture_path('components/header-disabled.blade.php'),
+        fixture_path('components/nav/index.blade.php'),
+        fixture_path('components/badge/badge.blade.php'),
+    ] as $path) {
+        $compiledPath = app('blade.compiler')->getCompiledPath($path);
+
+        if (File::exists($compiledPath)) {
+            File::delete($compiledPath);
+        }
+    }
+});
 
 class TestHeaderComposer
 {
@@ -16,6 +34,17 @@ test('default props are shown when no composer is registered', function () {
     $output = Blade::render('<x-header />');
 
     expect($output)->toContain('Default Title');
+});
+
+test('composers are not fired when composer support is disabled', function () {
+    config()->set('blaze.view_composers', false);
+
+    View::composer('header-disabled', fn ($view) => $view->with(['title' => 'Injected by Composer']));
+
+    $output = Blade::render('<x-header-disabled />');
+
+    expect($output)->toContain('Default Disabled Title')
+        ->and($output)->not->toContain('Injected by Composer');
 });
 
 test('view composer injects data into component when no explicit prop is passed', function () {

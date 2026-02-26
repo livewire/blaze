@@ -57,7 +57,11 @@ class Wrapper
 
         $output .= $this->globalVariables($source, $compiled);
 
-        if (! Blaze::isFolding() && $componentName = \Livewire\Blaze\BladeService::pathToComponentName($path)) {
+        if (
+            config('blaze.view_composers', false)
+            && ! Blaze::isFolding()
+            && ($componentName = \Livewire\Blaze\BladeService::pathToComponentName($path))
+        ) {
             $output .= '$__data = $__blaze->callComposers('.var_export($componentName, true).', $__data);'."\n";
         }
 

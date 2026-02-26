@@ -117,6 +117,7 @@ Blaze supports all essential features and produces HTML output identical to Blad
 - **Class-based components** are not supported
 - **The `$component` variable** is not available
 - **View creators / lifecycle events** (`View::creator()`) do not fire
+- **View composers are opt-in** (`BLAZE_VIEW_COMPOSERS=true`)
 - **View composers on folded components** do not fire at runtime
 
     Folded components are pre-rendered to static HTML at compile time, so runtime composers cannot execute. Do not use `@blaze(fold: true)` on components that rely on composers.

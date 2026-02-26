@@ -15,7 +15,6 @@ test('wraps component templates into function definitions', function () {
     expect($wrapped)->toEqualCollapsingWhitespace(join('', [
         '<?php if (!function_exists(\'_'. $hash .'\')): function _'. $hash .'($__blaze, $__data = [], $__slots = [], $__bound = [], $__this = null) { ',
         '$__env = $__blaze->env; ',
-        '$__data = $__blaze->callComposers(\'input\', $__data); ',
         'if (($__data[\'attributes\'] ?? null) instanceof \Illuminate\View\ComponentAttributeBag) { $__data = $__data + $__data[\'attributes\']->all(); unset($__data[\'attributes\']); } ',
         '$attributes = \Livewire\Blaze\Runtime\BlazeAttributeBag::sanitized($__data, $__bound); ',
         'extract($__slots, EXTR_SKIP); unset($__slots); ',
@@ -41,7 +40,6 @@ test('compiles aware props', function () {
     expect($wrapped)->toEqualCollapsingWhitespace(join('', [
         '<?php if (!function_exists(\'_'. $hash .'\')): function _'. $hash .'($__blaze, $__data = [], $__slots = [], $__bound = [], $__this = null) { ',
         '$__env = $__blaze->env; ',
-        '$__data = $__blaze->callComposers(\'input-aware\', $__data); ',
         'if (($__data[\'attributes\'] ?? null) instanceof \Illuminate\View\ComponentAttributeBag) { $__data = $__data + $__data[\'attributes\']->all(); unset($__data[\'attributes\']); } ',
         '$attributes = \Livewire\Blaze\Runtime\BlazeAttributeBag::sanitized($__data, $__bound); ',
         'extract($__slots, EXTR_SKIP); unset($__slots); ',
@@ -109,4 +107,14 @@ test('preserves php directives', function () {
     $input = '@php something @endphp';
 
     expect(app(Wrapper::class)->wrap($input, ''))->toContain($input);
+});
+
+test('injects composer call when composer support is enabled', function () {
+    config()->set('blaze.view_composers', true);
+
+    $path = fixture_path('components/input.blade.php');
+    $source = file_get_contents($path);
+
+    expect(app(Wrapper::class)->wrap($source, $path, $source))
+        ->toContain('$__data = $__blaze->callComposers(\'input\', $__data);');
 });
