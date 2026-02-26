@@ -30,15 +30,15 @@ return [
 
     /*
     |--------------------------------------------------------------------------
-    | Blaze Compiled Path
+    | Blaze Folded View Cache Path
     |--------------------------------------------------------------------------
     |
-    | The directory where Blaze writes compiled component PHP files.
-    | Using a dedicated path avoids development watcher loops triggered
-    | by frequent writes in the default Blade compiled views directory.
+    | The directory where Blaze writes temporary folded view caches during
+    | isolated rendering. Keeping these files outside the default Blade
+    | compiled views path helps avoid watcher-driven reload loops in dev.
     |
     */
 
-    'compiled_path' => env('BLAZE_COMPILED_PATH', storage_path('framework/blaze')),
+    'folded_view_cache_path' => env('BLAZE_FOLDED_VIEW_CACHE_PATH', storage_path('framework/blaze')),
 
 ];

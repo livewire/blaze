@@ -697,14 +697,14 @@ Blaze::throw();     // Throw exceptions encountered during folding
 ```env
 BLAZE_ENABLED=true
 BLAZE_DEBUG=false
-BLAZE_COMPILED_PATH=/absolute/path/to/storage/framework/blaze
+BLAZE_FOLDED_VIEW_CACHE_PATH=/absolute/path/to/storage/framework/blaze
 ```
 
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `BLAZE_ENABLED` | `true` | Enable or disable Blaze compilation |
 | `BLAZE_DEBUG` | `false` | Enable the debug mode |
-| `BLAZE_COMPILED_PATH` | `storage/framework/blaze` | Directory where Blaze stores compiled component PHP files |
+| `BLAZE_FOLDED_VIEW_CACHE_PATH` | `storage/framework/blaze` | Directory where Blaze stores temporary folded view caches |
 
 ## License
 
