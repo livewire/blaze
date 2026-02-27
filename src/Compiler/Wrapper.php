@@ -60,6 +60,7 @@ class Wrapper
         $output .= '$attributes = \\Livewire\\Blaze\\Runtime\\BlazeAttributeBag::sanitized($__data, $__bound);'."\n";
         $output .= 'extract($__slots, EXTR_SKIP); unset($__slots);'."\n";
         $output .= 'extract($__data, EXTR_SKIP); unset($__data, $__bound);'."\n";
+        $output .= 'extract($__env->getShared(), EXTR_SKIP);' . "\n";
         $output .= 'ob_start();' . "\n";
         $output .= '?>' . "\n";
 
@@ -87,7 +88,6 @@ class Wrapper
         $output = '';
 
         $output .= '$__env = $__blaze->env;' . "\n";
-        $output .= 'extract($__env->getShared(), EXTR_SKIP);' . "\n";
 
         if ($this->hasEchoHandlers() && ($this->hasEchoSyntax($source) || $this->hasEchoSyntax($compiled))) {
             $output .= '$__bladeCompiler = app(\'blade.compiler\');' . "\n";

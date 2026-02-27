@@ -64,13 +64,24 @@ function blade(string $view, array $components = [], array $data = []): string
         File::put($path, $template);
         $paths[] = $path;
 
-        // Replace component name in view (opening and closing tags)
-        $processedView = preg_replace(
-            '/<x-' . preg_quote($name, '/') . '(?=[>\s\/])/',
-            '<x-' . $uniqueName,
-            $processedView
-        );
+        // Replace component name in view and OTHER component templates
+        $pattern = '/<x-' . preg_quote($name, '/') . '(?=[>\s\/])/';
+        $replacement = '<x-' . $uniqueName;
+        
+        $processedView = preg_replace($pattern, $replacement, $processedView);
         $processedView = str_replace("</x-{$name}>", "</x-{$uniqueName}>", $processedView);
+        
+        foreach ($components as $otherName => &$otherTemplate) {
+            $otherTemplate = preg_replace($pattern, $replacement, $otherTemplate);
+            $otherTemplate = str_replace("</x-{$name}>", "</x-{$uniqueName}>", $otherTemplate);
+        }
+        unset($otherTemplate);
+    }
+
+    // Re-write files with processed templates that now have unique names
+    foreach ($paths as $index => $path) {
+        $componentNames = array_keys($components);
+        File::put($path, array_values($components)[$index]);
     }
 
     try {
