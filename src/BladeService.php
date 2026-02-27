@@ -134,13 +134,12 @@ class BladeService
             'rawBlocks' => [],
             'footer' => [],
             'prepareStringsForCompilationUsing' => [
-                function ($input) {
+                function ($input) use ($compiler) {
                     if (Unblaze::hasUnblaze($input)) {
                         $input = Unblaze::processUnblazeDirectives($input);
                     };
 
-
-                    $input = Blaze::compileForFolding($input);
+                    $input = Blaze::compileForFolding($input, $compiler->getPath());
 
                     return $input;
                 },
@@ -199,8 +198,10 @@ class BladeService
     public static function earliestPreCompilationHook(callable $callback): void
     {
         app()->booted(function () use ($callback) {
-            app('blade.compiler')->prepareStringsForCompilationUsing(function ($input) use ($callback) {
-                $output = $callback($input);
+            $compiler = app('blade.compiler');
+
+            $compiler->prepareStringsForCompilationUsing(function ($input) use ($callback, $compiler) {
+                $output = $callback($input, $compiler->getPath());
 
                 return $output;
             });
