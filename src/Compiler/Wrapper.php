@@ -87,6 +87,7 @@ class Wrapper
         $output = '';
 
         $output .= '$__env = $__blaze->env;' . "\n";
+        $output .= 'extract($__env->getShared(), EXTR_SKIP);' . "\n";
 
         if ($this->hasEchoHandlers() && ($this->hasEchoSyntax($source) || $this->hasEchoSyntax($compiled))) {
             $output .= '$__bladeCompiler = app(\'blade.compiler\');' . "\n";
