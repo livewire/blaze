@@ -28,4 +28,17 @@ return [
 
     'debug' => env('BLAZE_DEBUG', false),
 
+    /*
+    |--------------------------------------------------------------------------
+    | Route Prefix
+    |--------------------------------------------------------------------------
+    |
+    | If your application is served from a subdirectory or with a custom
+    | route prefix, specify it here so Blaze's profiler routes are
+    | registered at the correct path.
+    |
+    */
+
+    'route_prefix' => env('BLAZE_ROUTE_PREFIX', ''),
+
 ];
