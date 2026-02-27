@@ -116,7 +116,6 @@ Blaze supports all essential features and produces HTML output identical to Blad
 
 - **Class-based components** are not supported
 - **The `$component` variable** is not available
-- **View composers / creators / lifecycle events** do not fire
 - **Cross boundary `@aware`** between Blade and Blaze
 
     Both parent and child must use Blaze for values to propagate

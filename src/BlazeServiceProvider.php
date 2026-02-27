@@ -112,7 +112,13 @@ class BlazeServiceProvider extends ServiceProvider
             }
 
             return Blaze::collectAndAppendFrontMatter($input, function ($input) {
-                return Blaze::compile($input);
+                $componentName = null;
+
+                if (preg_match('/@blaze\s*\(\s*name\s*:\s*[\'"]([^\'"]+)[\'"]/', $input, $matches)) {
+                    $componentName = $matches[1];
+                }
+
+                return Blaze::compile($input, $componentName);
             });
         });
     }

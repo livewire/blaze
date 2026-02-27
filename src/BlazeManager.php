@@ -49,7 +49,7 @@ class BlazeManager
     /**
      * Compile a Blade template through the full Blaze pipeline.
      */
-    public function compile(string $template): string
+    public function compile(string $template, ?string $componentName = null): string
     {
         $source = $template;
 
@@ -104,7 +104,7 @@ class BlazeManager
         $directives = new Directives($source);
 
         if ($path && ($directives->blaze() || $this->config->shouldCompile($path))) {
-            $output = $this->wrapper->wrap($output, $path, $source);
+            $output = $this->wrapper->wrap($output, $path, $source, $componentName);
         } elseif ($this->isDebugging() && ! $this->isFolding() && $path) {
             $output = $this->instrumenter->profileView($output, $path, $source);
         }

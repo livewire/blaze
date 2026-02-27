@@ -7,7 +7,7 @@ use Illuminate\Support\Facades\Facade;
 /**
  * @method static string collectAndAppendFrontMatter(string $template, callable $callback)
  * @method static bool viewContainsExpiredFrontMatter(\Illuminate\View\View $view)
- * @method static string compile(string $template)
+ * @method static string compile(string $template, ?string $componentName = null)
  * @method static string render(array $nodes)
  * @method static void enable()
  * @method static void disable()

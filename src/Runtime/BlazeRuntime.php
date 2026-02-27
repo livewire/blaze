@@ -32,6 +32,8 @@ class BlazeRuntime
     protected array $dataStack = [];
     protected array $slotsStack = [];
 
+    protected ?array $shared = null;
+
     public function __construct()
     {
         $this->env = app('view');
@@ -199,6 +201,30 @@ class BlazeRuntime
         }
 
         return value($default);
+    }
+
+    public function getShared(): array
+    {
+        return $this->shared ??= $this->env->getShared();
+    }
+
+    /**
+     * Call view composers for the given component name.
+     */
+    public function callComposers(string $name, array $data): array
+    {
+        // We use a fake view object to trigger composers without needing the file to exist.
+        $view = new \Illuminate\View\View(
+            $this->env,
+            $this->env->getEngineResolver()->resolve('blade'),
+            $name,
+            'fake-path',
+            $data
+        );
+
+        $this->env->callComposer($view);
+
+        return $view->getData();
     }
 
     private function getCompiledPath(): string

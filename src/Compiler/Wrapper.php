@@ -25,10 +25,11 @@ class Wrapper
      * @param  string  $path  The component file path
      * @param  string|null  $source  The original source template (for detecting $slot usage)
      */
-    public function wrap(string $compiled, string $path, ?string $source = null): string
+    public function wrap(string $compiled, string $path, ?string $source = null, ?string $componentName = null): string
     {
         $source ??= $compiled;
-        $name = (Blaze::isFolding() ? '__' : '_') . Utils::hash($path);
+        $hash = Utils::hash($path);
+        $name = (Blaze::isFolding() ? '__' : '_') . $hash;
 
         $sourceUsesThis = str_contains($source, '$this') || str_contains($compiled, '@entangle') || str_contains($compiled, '@script');
 
@@ -55,12 +56,12 @@ class Wrapper
             $output .= '$__blazeFn = function () use ($__blaze, $__data, $__slots, $__bound) {'."\n";
         }
 
-        $output .= $this->globalVariables($source, $compiled);
+        $output .= $this->globalVariables($source, $compiled, $componentName);
         $output .= 'if (($__data[\'attributes\'] ?? null) instanceof \Illuminate\View\ComponentAttributeBag) { $__data = $__data + $__data[\'attributes\']->all(); unset($__data[\'attributes\']); }'."\n";
         $output .= '$attributes = \\Livewire\\Blaze\\Runtime\\BlazeAttributeBag::sanitized($__data, $__bound);'."\n";
         $output .= 'extract($__slots, EXTR_SKIP); unset($__slots);'."\n";
         $output .= 'extract($__data, EXTR_SKIP); unset($__data, $__bound);'."\n";
-        $output .= 'extract($__env->getShared(), EXTR_SKIP);' . "\n";
+        $output .= 'if (! empty($__shared = $__blaze->getShared())) { extract($__shared, EXTR_SKIP); unset($__shared); }' . "\n";
         $output .= 'ob_start();' . "\n";
         $output .= '?>' . "\n";
 
@@ -83,11 +84,15 @@ class Wrapper
         return $output;
     }
     
-    protected function globalVariables(string $source, string $compiled): string
+    protected function globalVariables(string $source, string $compiled, ?string $componentName = null): string
     {
         $output = '';
 
         $output .= '$__env = $__blaze->env;' . "\n";
+
+        if ($componentName) {
+            $output .= '$__data = $__blaze->callComposers(\'' . $componentName . '\', $__data);' . "\n";
+        }
 
         if ($this->hasEchoHandlers() && ($this->hasEchoSyntax($source) || $this->hasEchoSyntax($compiled))) {
             $output .= '$__bladeCompiler = app(\'blade.compiler\');' . "\n";
