@@ -15,14 +15,21 @@ class DebuggerMiddleware
     /**
      * Register the debug bar routes and middleware.
      */
-    public static function register(): void
+    public static function register(string $routePrefix = ''): void
     {
-        Route::get('/_blaze/trace', function () {
+        $basePath = $routePrefix ? "/{$routePrefix}/_blaze" : '/_blaze';
+
+        Route::get("{$basePath}/trace", function () {
             return response()->json(Cache::get('blaze_profiler_trace', ['entries' => [], 'url' => null]));
         })->middleware('web');
 
-        Route::get('/_blaze/profiler', function () {
+        Route::get("{$basePath}/profiler", function () use ($routePrefix) {
             $html = file_get_contents(__DIR__.'/Profiler/profiler.html');
+
+            // Inject route prefix as a JS variable that the profiler can use
+            $prefixPath = $routePrefix ? "/{$routePrefix}" : '';
+            $html = str_replace('</head>', "<script>window.__blazeRoutePrefix = '{$prefixPath}';</script></head>", $html);
+
             return response($html)->header('Content-Type', 'text/html');
         })->middleware('web');
 
@@ -36,8 +43,8 @@ class DebuggerMiddleware
     {
         $url = '/' . ltrim($request->path(), '/');
 
-        // Skip internal debug bar routes and Livewire requests.
-        if (str_starts_with($url, '/_blaze/') || $request->hasHeader('X-Livewire')) {
+        // Skip internal debug bar, profiler, and Livewire update routes.
+        if (str_contains($url, '/_blaze/') || str_starts_with($url, '/_debugbar/') || $request->hasHeader('X-Livewire')) {
             return $next($request);
         }
 

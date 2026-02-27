@@ -823,7 +823,8 @@ function buildRenderList() {
 // ─── Data Fetch ─────────────────────────────────────────────────────
 async function fetchTrace() {
     try {
-        const resp = await fetch('/_blaze/trace');
+        const prefix = window.__blazeRoutePrefix || '';
+        const resp = await fetch(prefix + '/_blaze/trace');
         data = await resp.json();
         entries = data.entries || [];
         processData();
