@@ -25,7 +25,7 @@ For even greater performance, Blaze offers two additional strategies. These requ
 You may install Blaze via Composer:
 
 ```bash
-composer require livewire/blaze:^1.0
+composer require livewire/blaze
 ```
 
 > [!TIP]
