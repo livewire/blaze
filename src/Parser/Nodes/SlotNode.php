@@ -21,7 +21,7 @@ class SlotNode extends Node
         public string $prefix = 'x-slot',
         public bool $closeHasName = false,
     ) {
-        $this->attributes = Utils::parseAttributeStringToArray($this->attributeString);
+        $this->attributes = AttributeParser::parseAttributeStringToArray($this->attributeString);
     }
 
     /** {@inheritdoc} */

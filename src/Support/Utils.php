@@ -19,16 +19,6 @@ class Utils
     }
 
     /**
-     * Parse an attribute string into a keyed array of Attribute objects.
-     *
-     * @return array<string, Attribute>
-     */
-    public static function parseAttributeStringToArray(string $attributeString): array
-    {
-        return (new AttributeParser)->parseAttributeStringToArray($attributeString);
-    }
-
-    /**
      * Generate a unique hash for a component path.
      */
     public static function hash(string $componentPath): string

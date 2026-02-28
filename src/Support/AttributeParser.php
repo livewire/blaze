@@ -19,7 +19,7 @@ class AttributeParser
      *
      * @return array<string, Attribute>
      */
-    public function parseAttributeStringToArray(string $attributesString): array
+    public static function parseAttributeStringToArray(string $attributesString): array
     {
         $attributesString = BladeService::preprocessAttributeString($attributesString);
 

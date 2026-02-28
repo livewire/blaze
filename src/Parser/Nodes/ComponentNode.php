@@ -24,7 +24,7 @@ class ComponentNode extends Node
         public array $attributes = [],
     ) {
         if (empty($this->attributes) && ! empty($this->attributeString)) {
-            $this->attributes = Utils::parseAttributeStringToArray($this->attributeString);
+            $this->attributes = AttributeParser::parseAttributeStringToArray($this->attributeString);
         }
     }
 
