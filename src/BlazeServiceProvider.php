@@ -54,7 +54,7 @@ class BlazeServiceProvider extends ServiceProvider
     protected function registerBlazeRuntime(): void
     {
         View::composer('*', function (\Illuminate\View\View $view) {
-            if (Blaze::isDisabled()) {
+            if (Blaze::isDisabled() && ! Blaze::isDebugging()) {
                 return;
             }
 

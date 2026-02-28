@@ -1,7 +1,31 @@
 <?php
 
+use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Blade;
 use Livewire\Blaze\Blaze;
+
+test('renders components', function () {
+    Artisan::call('view:clear');
+    
+    view('inputs')->render();
+})->throwsNoExceptions();
+
+test('renders components with blaze off', function () {
+    Artisan::call('view:clear');
+
+    Blaze::disable();
+    
+    view('inputs')->render();
+})->throwsNoExceptions();
+
+test('renders components with blaze off and debug mode on', function () {
+    Artisan::call('view:clear');
+
+    Blaze::disable();
+    Blaze::debug();
+    
+    view('inputs')->render();
+})->throwsNoExceptions();
 
 test('ignores verbatim blocks', function () {
     $input = '@verbatim<x-input />@endverbatim';
