@@ -109,3 +109,13 @@ test('preserves php directives', function () {
 
     expect(app(Wrapper::class)->wrap($input, ''))->toContain($input);
 });
+
+test('injects composer call when composer support is enabled', function () {
+    config()->set('blaze.view_composers', true);
+
+    $path = fixture_path('components/input.blade.php');
+    $source = file_get_contents($path);
+
+    expect(app(Wrapper::class)->wrap($source, $path, $source))
+        ->toContain('$__data = $__blaze->callComposers(\'input\', $__data);');
+});

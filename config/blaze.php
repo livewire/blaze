@@ -28,4 +28,17 @@ return [
 
     'debug' => env('BLAZE_DEBUG', false),
 
+    /*
+    |--------------------------------------------------------------------------
+    | View Composer Support
+    |--------------------------------------------------------------------------
+    |
+    | When enabled, Blaze will fire Laravel view composers for non-folded
+    | anonymous components. This adds runtime overhead, so it is disabled
+    | by default.
+    |
+    */
+
+    'view_composers' => env('BLAZE_VIEW_COMPOSERS', false),
+
 ];
