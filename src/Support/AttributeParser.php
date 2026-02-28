@@ -79,46 +79,5 @@ class AttributeParser
         return $attributes;
     }
 
-    /**
-     * Convert parsed attributes into a PHP array string for runtime evaluation.
-     *
-     * @param  array<string, Attribute>  $attributes
-     */
-    public function parseAttributesArrayToRuntimeArrayString(array $attributes): string
-    {
-        $arrayParts = [];
 
-        foreach ($attributes as $attributeName => $attr) {
-            if ($attr->dynamic && is_string($attr->value) && (str_contains($attr->value, '{{') || str_contains($attr->value, '{!!'))) {
-                // Blade echo syntax (e.g. {{ $order->avatar }} or {!! $rawHtml !!}) must be compiled
-                // to a PHP expression so the runtime value is used (not the literal template string).
-                // This is critical for memoization keys to be unique per evaluated value.
-                $arrayParts[] = "'".addslashes($attributeName)."' => ".BladeService::compileAttributeEchos($attr->value);
-
-                continue;
-            }
-
-            if ($attr->dynamic) {
-                $arrayParts[] = "'".addslashes($attributeName)."' => ".$attr->value;
-
-                continue;
-            }
-
-            $value = $attr->value;
-
-            if (is_bool($value)) {
-                $valueString = $value ? 'true' : 'false';
-            } elseif (is_string($value)) {
-                $valueString = "'".addslashes($value)."'";
-            } elseif (is_null($value)) {
-                $valueString = 'null';
-            } else {
-                $valueString = (string) $value;
-            }
-
-            $arrayParts[] = "'".addslashes($attributeName)."' => ".$valueString;
-        }
-
-        return '['.implode(', ', $arrayParts).']';
-    }
 }

@@ -2,6 +2,7 @@
 
 namespace Livewire\Blaze\Memoizer;
 
+use Livewire\Blaze\BladeService;
 use Livewire\Blaze\Parser\Nodes\ComponentNode;
 use Livewire\Blaze\Parser\Nodes\TextNode;
 use Livewire\Blaze\Parser\Nodes\Node;
@@ -38,7 +39,16 @@ class Memoizer
         }
 
         $name = $node->name;
-        $attributes = $node->getAttributesAsRuntimeArrayString();
+
+        $parts = [];
+        foreach ($node->attributes as $attr) {
+            if ($attr->bound()) {
+                $parts[] = "'{$attr->propName}' => {$attr->value}";
+            } else {
+                $parts[] = "'{$attr->propName}' => ".BladeService::compileAttributeEchos($attr->value);
+            }
+        }
+        $attributes = '['.implode(', ', $parts).']';
 
         $compiled = $this->compiler->compile($node)->render();
 

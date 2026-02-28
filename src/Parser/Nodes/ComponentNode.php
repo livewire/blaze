@@ -2,7 +2,6 @@
 
 namespace Livewire\Blaze\Parser\Nodes;
 
-use Livewire\Blaze\Support\AttributeParser;
 use Livewire\Blaze\Support\Utils;
 use Livewire\Blaze\Parser\Attribute;
 
@@ -86,18 +85,6 @@ class ComponentNode extends Node
         $output .= "</{$this->prefix}{$name}>";
 
         return $output;
-    }
-
-    /**
-     * Convert attributes to a PHP array string for runtime evaluation.
-     */
-    public function getAttributesAsRuntimeArrayString(): string
-    {
-        $attributeParser = new AttributeParser;
-
-        $attributesArray = $attributeParser->parseAttributeStringToArray($this->attributeString);
-
-        return $attributeParser->parseAttributesArrayToRuntimeArrayString($attributesArray);
     }
 
     /**
