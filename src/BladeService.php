@@ -2,12 +2,12 @@
 
 namespace Livewire\Blaze;
 
-use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Str;
 use Illuminate\View\Compilers\ComponentTagCompiler;
 use ReflectionClass;
+use Livewire\Blaze\Compiler\DirectiveCompiler;
 use Livewire\Blaze\Support\Utils;
 
 class BladeService
@@ -18,75 +18,6 @@ class BladeService
     public static function render(string $template): string
     {
         return static::isolatedRender($template);
-    }
-
-    /**
-     * Compile a single directive within a template using a sandboxed Blade compiler.
-     */
-    public static function compileDirective(string $template, string $directive, callable $callback)
-    {
-        // Protect raw block placeholders so restoreRawContent doesn't resolve them
-        $template = preg_replace('/@__raw_block_(\d+)__@/', '__BLAZE_RAW_BLOCK_$1__', $template);
-
-        $compiler = static::getHackedBladeCompiler();
-
-        $compiler->directive($directive, $callback);
-
-        $result = $compiler->compileStatementsMadePublic($template);
-
-        return preg_replace('/__BLAZE_RAW_BLOCK_(\d+)__/', '@__raw_block_$1__@', $result);
-    }
-
-    /**
-     * Create a BladeCompiler that only processes custom directives, ignoring built-in ones.
-     */
-    public static function getHackedBladeCompiler()
-    {
-        $instance = new class(app('files'), config('view.compiled')) extends \Illuminate\View\Compilers\BladeCompiler
-        {
-            public function compileStatementsMadePublic($template)
-            {
-                $result = '';
-
-                foreach (token_get_all($template) as $token) {
-                    if (! is_array($token)) {
-                        $result .= $token;
-
-                        continue;
-                    }
-    
-                    [$id, $content] = $token;
-
-                    if ($id == T_INLINE_HTML) {
-                        $result .= $this->compileStatements($content);
-                    } else {
-                        $result .= $content;
-                    }
-                }
-
-                return $result;
-            }
-
-            /**
-             * Only process custom directives, skip built-in ones.
-             */
-            protected function compileStatement($match)
-            {
-                if (str_contains($match[1], '@')) {
-                    $match[0] = isset($match[3]) ? $match[1].$match[3] : $match[1];
-                } elseif (isset($this->customDirectives[$match[1]])) {
-                    $match[0] = $this->callCustomDirective($match[1], Arr::get($match, 3));
-                } elseif (method_exists($this, $method = 'compile'.ucfirst($match[1]))) {
-                    return $match[0];
-                } else {
-                    return $match[0];
-                }
-
-                return isset($match[3]) ? $match[0] : $match[0].$match[2];
-            }
-        };
-
-        return $instance;
     }
 
     /**
@@ -323,14 +254,14 @@ class BladeService
 
     public static function compileUseStatements(string $input): string
     {
-        return static::compileDirective($input, 'use', function ($expression) {
+        return DirectiveCompiler::make()->directive('use', function ($expression) {
             $compiler = app('blade.compiler');
 
             $reflection = new \ReflectionClass($compiler);
             $method = $reflection->getMethod('compileUse');
 
             return $method->invoke($compiler, $expression);
-        });
+        })->compile($input);
     }
 
     /**

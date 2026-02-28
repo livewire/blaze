@@ -3,6 +3,7 @@
 namespace Livewire\Blaze\Compiler;
 
 use Livewire\Blaze\BladeService;
+use Livewire\Blaze\Compiler\DirectiveCompiler;
 use Livewire\Blaze\Support\Utils;
 use Livewire\Blaze\Blaze;
 use Illuminate\Support\Arr;
@@ -63,8 +64,8 @@ class Wrapper
         $output .= 'ob_start();' . "\n";
         $output .= '?>' . "\n";
 
-        $compiled = BladeService::compileDirective($compiled, 'props', $this->propsCompiler->compile(...));
-        $compiled = BladeService::compileDirective($compiled, 'aware', $this->awareCompiler->compile(...));
+        $compiled = DirectiveCompiler::make()->directive('props', $this->propsCompiler->compile(...))->compile($compiled);
+        $compiled = DirectiveCompiler::make()->directive('aware', $this->awareCompiler->compile(...))->compile($compiled);
         $compiled = BladeService::restoreRawBlocks($compiled);
 
         $output .= $compiled;

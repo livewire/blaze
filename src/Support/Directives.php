@@ -2,8 +2,8 @@
 
 namespace Livewire\Blaze\Support;
 
-use Livewire\Blaze\BladeService;
 use Livewire\Blaze\Compiler\ArrayParser;
+use Livewire\Blaze\Compiler\DirectiveCompiler;
 
 /**
  * Extracts and queries Blade directives from component source content.
@@ -13,9 +13,9 @@ class Directives
     public function __construct(
         protected string $content,
     ) {
-        $this->content = BladeService::compileComments($this->content);
-        $this->content = preg_replace('/(?<!@)@verbatim(\s*)(.*?)@endverbatim/s', '', $this->content);
-        $this->content = preg_replace('/(?<!@)@php(.*?)@endphp/s', '', $this->content);
+        $this->content = preg_replace(LaravelRegex::BLADE_COMMENT, '', $this->content);
+        $this->content = preg_replace(LaravelRegex::VERBATIM_BLOCK, '', $this->content);
+        $this->content = preg_replace(LaravelRegex::PHP_BLOCK, '', $this->content);
     }
 
     /**
@@ -25,11 +25,11 @@ class Directives
     {
         $result = false;
         
-        BladeService::compileDirective($this->content, $name, function () use (&$result) {
+        DirectiveCompiler::make()->directive($name, function () use (&$result) {
             $result = true;
 
             return '';
-        });
+        })->compile($this->content);
         
         return $result;
     }
@@ -41,11 +41,11 @@ class Directives
     {
         $result = null;
 
-        BladeService::compileDirective($this->content, $name, function ($expression) use (&$result) {
+        DirectiveCompiler::make()->directive($name, function ($expression) use (&$result) {
             $result = $expression;
 
             return '';
-        });
+        })->compile($this->content);
         
         return $result;
     }
