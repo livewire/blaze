@@ -123,8 +123,7 @@ class Compiler
      */
     protected function compileDelegateComponentTag(ComponentNode $node): string
     {
-        $attributesArray = Utils::parseAttributeStringToArray($node->attributeString);
-        $componentName = "'flux::' . " . $attributesArray['component']->value;
+        $componentName = "'flux::' . " . $node->attributes['component']->value;
 
         $output = '<' . '?php $__resolved = $__blaze->resolve(' . $componentName . '); ?>' . "\n";
 
