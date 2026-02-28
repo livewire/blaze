@@ -55,7 +55,7 @@ test('supports php engine', function () {
     view('php-view')->render();
 })->throwsNoExceptions();
 
-test('doesnt resolve blade compiler', function () {
+test('doesnt resolve blade compiler from the container', function () {
     Artisan::call('view:clear');
 
     $compiler = app('blade.compiler');
@@ -70,5 +70,46 @@ test('doesnt resolve blade compiler', function () {
         test()->fail('Blade compiler was resolved from container');
     });
     
+    $compiler->compile(fixture_path('views/blaze.blade.php'));
+})->throwsNoExceptions();
+
+test('doesnt resolve blade compiler from the container when using debug mode', function () {
+    Artisan::call('view:clear');
+
+    Blaze::debug();
+
+    $compiler = app('blade.compiler');
+
+    Blaze::clearResolvedInstance();
+
+    app()->forgetInstance(BlazeManager::class);
+    app()->forgetInstance(BladeService::class);
+    app()->forgetInstance('blade.compiler');
+    
+    app()->resolving('blade.compiler', function () {
+        test()->fail('Blade compiler was resolved from container');
+    });
+
+    $compiler->compile(fixture_path('views/blaze.blade.php'));
+})->throwsNoExceptions();
+
+test('doesnt resolve blade compiler from the container when using debug mode with blaze off', function () {
+    Artisan::call('view:clear');
+
+    Blaze::debug();
+    Blaze::disable();
+    
+    $compiler = app('blade.compiler');
+
+    Blaze::clearResolvedInstance();
+
+    app()->forgetInstance(BlazeManager::class);
+    app()->forgetInstance(BladeService::class);
+    app()->forgetInstance('blade.compiler');
+    
+    app()->resolving('blade.compiler', function () {
+        test()->fail('Blade compiler was resolved from container');
+    });
+
     $compiler->compile(fixture_path('views/blaze.blade.php'));
 })->throwsNoExceptions();
