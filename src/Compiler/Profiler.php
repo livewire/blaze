@@ -2,6 +2,7 @@
 
 namespace Livewire\Blaze\Compiler;
 
+use Livewire\Blaze\BladeService;
 use Livewire\Blaze\Config;
 use Livewire\Blaze\Parser\Nodes\ComponentNode;
 use Livewire\Blaze\Parser\Nodes\Node;
@@ -29,7 +30,7 @@ class Profiler
      */
     public function profile(Node $node, string $componentName, ?string $strategy = null): Node
     {
-        $source = new ComponentSource($componentName);
+        $source = new ComponentSource(BladeService::componentNameToPath($componentName));
 
         if ($strategy === null) {
             $isBlade = $node instanceof ComponentNode;

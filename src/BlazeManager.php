@@ -404,7 +404,7 @@ class BlazeManager
     {
         foreach ($node->children as $child) {
             if ($child instanceof ComponentNode) {
-                $source = new ComponentSource($child->name);
+                $source = new ComponentSource(BladeService::componentNameToPath($child->name));
 
                 if (str_ends_with($child->name, 'delegate-component')) {
                     return true;

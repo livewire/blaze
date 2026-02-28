@@ -4,6 +4,7 @@ namespace Livewire\Blaze\Compiler;
 
 use Illuminate\View\Compilers\ComponentTagCompiler;
 use Livewire\Blaze\Blaze;
+use Livewire\Blaze\BladeService;
 use Livewire\Blaze\Parser\Nodes\ComponentNode;
 use Livewire\Blaze\Parser\Nodes\SlotNode;
 use Livewire\Blaze\Parser\Nodes\TextNode;
@@ -41,7 +42,7 @@ class Compiler
             return new TextNode($this->compileDelegateComponentTag($node));
         }
 
-        $source = new ComponentSource($node->name);
+        $source = new ComponentSource(BladeService::componentNameToPath($node->name));
 
         if (! $source->exists()) {
             return $node;

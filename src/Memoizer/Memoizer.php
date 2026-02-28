@@ -78,7 +78,7 @@ class Memoizer
             return false;
         }
 
-        $source = new ComponentSource($node->name);
+        $source = new ComponentSource(BladeService::componentNameToPath($node->name));
 
         if (! $source->exists()) {
             return false;

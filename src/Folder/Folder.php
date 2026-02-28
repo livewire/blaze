@@ -10,6 +10,7 @@ use Livewire\Blaze\Parser\Nodes\Node;
 use Livewire\Blaze\Parser\Nodes\SlotNode;
 use Livewire\Blaze\Parser\Nodes\TextNode;
 use Livewire\Blaze\Support\ComponentSource;
+use Livewire\Blaze\BladeService;
 use Illuminate\Support\Arr;
 use Livewire\Blaze\Blaze;
 use Livewire\Blaze\Config;
@@ -35,7 +36,7 @@ class Folder
 
         $component = $node;
 
-        $source = new ComponentSource($component->name);
+        $source = new ComponentSource(BladeService::componentNameToPath($component->name));
 
         if (! $source->exists()) {
             return $component;
@@ -57,7 +58,7 @@ class Folder
             $html = $foldable->fold();
 
             Event::dispatch(new ComponentFolded(
-                name: $source->name,
+                name: $component->name,
                 path: $source->path,
                 filemtime: filemtime($source->path),
             ));

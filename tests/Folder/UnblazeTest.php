@@ -1,5 +1,6 @@
 <?php
 
+use Livewire\Blaze\BladeService;
 use Livewire\Blaze\Folder\Foldable;
 use Livewire\Blaze\Support\ComponentSource;
 use Livewire\Blaze\Parser\Parser;
@@ -8,7 +9,7 @@ test('compiles unblaze blocks', function () {
     $input = '<x-foldable.input-unblaze name="address" />';
 
     $node = app(Parser::class)->parse($input)[0];
-    $foldable = new Foldable($node, new ComponentSource($node->name));
+    $foldable = new Foldable($node, new ComponentSource(fixture_path('components/foldable/input-unblaze.blade.php')));
 
     expect($foldable->fold())->toEqualCollapsingWhitespace(
         sprintf('<input %s >', join('', [
@@ -24,7 +25,7 @@ test('compiles nested unblaze blocks', function () {
     $input = '<x-foldable.nested-input-unblaze />';
 
     $node = app(Parser::class)->parse($input)[0];
-    $foldable = new Foldable($node, new ComponentSource($node->name));
+    $foldable = new Foldable($node, new ComponentSource(fixture_path('components/foldable/nested-input-unblaze.blade.php')));
 
     expect($foldable->fold())->toEqualCollapsingWhitespace(
         sprintf('<div> <input %s ></div>', join('', [
@@ -40,7 +41,7 @@ test('folds dynamic attributes used inside unblaze directive', function () {
     $input = '<x-foldable.input-unblaze :name="$field" />';
 
     $node = app(Parser::class)->parse($input)[0];
-    $foldable = new Foldable($node, new ComponentSource($node->name));
+    $foldable = new Foldable($node, new ComponentSource(fixture_path('components/foldable/input-unblaze.blade.php')));
 
     expect($foldable->fold())->toEqualCollapsingWhitespace(
         sprintf('<input %s >', join('', [
