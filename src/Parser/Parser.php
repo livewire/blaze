@@ -2,16 +2,18 @@
 
 namespace Livewire\Blaze\Parser;
 
-use Livewire\Blaze\Parser\Tokens\TagSelfCloseToken;
-use Livewire\Blaze\Parser\Tokens\SlotCloseToken;
-use Livewire\Blaze\Parser\Tokens\TagCloseToken;
-use Livewire\Blaze\Parser\Tokens\SlotOpenToken;
-use Livewire\Blaze\Parser\Tokens\TagOpenToken;
-use Livewire\Blaze\Parser\Tokens\TextToken;
+use Livewire\Blaze\BladeService;
 use Livewire\Blaze\Parser\Nodes\ComponentNode;
-use Livewire\Blaze\Parser\Nodes\TextNode;
 use Livewire\Blaze\Parser\Nodes\SlotNode;
+use Livewire\Blaze\Parser\Nodes\TextNode;
 use Livewire\Blaze\Parser\Tokenizer;
+use Livewire\Blaze\Parser\Tokens\SlotCloseToken;
+use Livewire\Blaze\Parser\Tokens\SlotOpenToken;
+use Livewire\Blaze\Parser\Tokens\TagCloseToken;
+use Livewire\Blaze\Parser\Tokens\TagOpenToken;
+use Livewire\Blaze\Parser\Tokens\TagSelfCloseToken;
+use Livewire\Blaze\Parser\Tokens\TextToken;
+use Livewire\Blaze\Support\AttributeParser;
 
 /**
  * Converts a flat token stream into a nested AST of component, slot, and text nodes.
@@ -52,12 +54,17 @@ class Parser
      */
     protected function handleTagOpen(TagOpenToken $token, ParseStack $stack): void
     {
+        $attributeString = implode(' ', $token->attributes);
+
         $node = new ComponentNode(
             name: $token->namespace . $token->name,
             prefix: $token->prefix,
-            attributeString: implode(' ', $token->attributes),
+            attributeString: $attributeString,
             children: [],
-            selfClosing: false
+            selfClosing: false,
+            attributes: AttributeParser::parseAttributeStringToArray(
+                BladeService::preprocessAttributeString($attributeString)
+            ),
         );
 
         $stack->pushContainer($node);
@@ -68,12 +75,17 @@ class Parser
      */
     protected function handleTagSelfClose(TagSelfCloseToken $token, ParseStack $stack): void
     {
+        $attributeString = implode(' ', $token->attributes);
+
         $node = new ComponentNode(
             name: $token->namespace . $token->name,
             prefix: $token->prefix,
-            attributeString: implode(' ', $token->attributes),
+            attributeString: $attributeString,
             children: [],
-            selfClosing: true
+            selfClosing: true,
+            attributes: AttributeParser::parseAttributeStringToArray(
+                BladeService::preprocessAttributeString($attributeString)
+            ),
         );
 
         $stack->addToRoot($node);
@@ -92,13 +104,18 @@ class Parser
      */
     protected function handleSlotOpen(SlotOpenToken $token, ParseStack $stack): void
     {
+        $attributeString = implode(' ', $token->attributes);
+
         $node = new SlotNode(
             name: $token->name ?? 'slot',
-            attributeString: implode(' ', $token->attributes),
+            attributeString: $attributeString,
             slotStyle: $token->slotStyle,
             children: [],
             prefix: $token->prefix,
             closeHasName: false,
+            attributes: AttributeParser::parseAttributeStringToArray(
+                BladeService::preprocessAttributeString($attributeString)
+            ),
         );
 
         $stack->pushContainer($node);

@@ -4,6 +4,7 @@ use Livewire\Blaze\Parser\Parser;
 use Livewire\Blaze\Parser\Nodes\ComponentNode;
 use Livewire\Blaze\Parser\Nodes\SlotNode;
 use Livewire\Blaze\Parser\Nodes\TextNode;
+use Livewire\Blaze\Support\AttributeParser;
 
 
 test('parses self-closing components', function () {
@@ -15,6 +16,7 @@ test('parses self-closing components', function () {
             prefix: 'x-',
             selfClosing: true,
             attributeString: 'class="my-4"',
+            attributes: AttributeParser::parseAttributeStringToArray('class="my-4"'),
         ),
     ]);
 });
@@ -33,6 +35,7 @@ test('parses named slots', function () {
                     children: [
                         new TextNode('Footer'),
                     ],
+                    attributes: AttributeParser::parseAttributeStringToArray('class="p-2"'),
                 )
             ]
         ),
@@ -54,6 +57,7 @@ test('parses named slots with short syntax', function () {
                     children: [
                         new TextNode('Footer'),
                     ],
+                    attributes: AttributeParser::parseAttributeStringToArray('class="p-2"'),
                 )
             ]
         ),
@@ -76,6 +80,7 @@ test('parses named slots with short syntax and name in close tag', function () {
                     children: [
                         new TextNode('Footer'),
                     ],
+                    attributes: AttributeParser::parseAttributeStringToArray('class="p-2"'),
                 )
             ]
         ),
@@ -96,6 +101,7 @@ test('parses explicit default slot', function () {
                     children: [
                         new TextNode('Body'),
                     ],
+                    attributes: AttributeParser::parseAttributeStringToArray('class="p-2"'),
                 )
             ]
         ),

@@ -2,7 +2,7 @@
 
 namespace Livewire\Blaze\Support;
 
-use Livewire\Blaze\BladeService;
+use Illuminate\Support\Str;
 use Livewire\Blaze\Parser\Attribute;
 
 /**
@@ -21,15 +21,13 @@ class AttributeParser
      */
     public static function parseAttributeStringToArray(string $attributesString): array
     {
-        $attributesString = BladeService::preprocessAttributeString($attributesString);
-
         preg_match_all(LaravelRegex::ATTRIBUTE_PATTERN, $attributesString, $matches, PREG_SET_ORDER);
 
         $attributes = [];
 
         foreach ($matches as $match) {
             $name = $match['attribute'];
-            $value = isset($match['value']) ? BladeService::stripQuotes($match['value']) : null;
+            $value = isset($match['value']) ? static::stripQuotes($match['value']) : null;
             $isDynamic = false;
             $prefix = '';
 
@@ -79,5 +77,15 @@ class AttributeParser
         return $attributes;
     }
 
-
+    /**
+     * Strip any quotes from the given string.
+     * 
+     * @see Illuminate\View\Compilers\ComponentTagCompiler::stripQuotes()
+     */
+    protected static function stripQuotes(string $value)
+    {
+        return Str::startsWith($value, ['"', '\''])
+            ? substr($value, 1, -1)
+            : $value;
+    }
 }

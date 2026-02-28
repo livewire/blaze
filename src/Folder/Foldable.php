@@ -103,6 +103,7 @@ class Foldable
                     children: [new TextNode($placeholder)],
                     prefix: $child->prefix,
                     closeHasName: $child->closeHasName,
+                    attributes: $child->attributes,
                 );
             } else {
                 $looseContent[] = $child;
