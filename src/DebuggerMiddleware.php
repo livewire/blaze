@@ -159,7 +159,8 @@ class DebuggerMiddleware
      */
     protected function injectRenderTimer(\Illuminate\View\View $view): bool
     {
-        $compiler = app('blade.compiler');
+        $bladeService = app(BladeService::class);
+        $compiler = $bladeService->compiler;
         $path = $view->getPath();
 
         // Some views (e.g. Livewire virtual views) may not have a real path.

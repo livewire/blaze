@@ -27,6 +27,7 @@ class Foldable
     public function __construct(
         protected ComponentNode $node,
         protected ComponentSource $source,
+        protected BladeService $bladeService,
     ) {
     }
 
@@ -48,7 +49,7 @@ class Foldable
         $this->setupSlots();
         $this->mergeAwareProps();
 
-        $this->html = BladeService::render($this->renderable->render());
+        $this->html = $this->bladeService->render($this->renderable->render());
         
         $this->processUncompiledAttributes();
         $this->restorePlaceholders();
@@ -224,7 +225,7 @@ class Foldable
             $content = $match[0];
 
             foreach ($this->attributeByPlaceholder as $placeholder => $attribute) {
-                $value = $attribute->bound() ? $attribute->value : BladeService::compileAttributeEchos($attribute->value);
+                $value = $attribute->bound() ? $attribute->value : $this->bladeService->compileAttributeEchos($attribute->value);
 
                 $content = str_replace("'" . $placeholder . "'", $value, $content);
             }
@@ -263,7 +264,7 @@ class Foldable
             if ($attribute->bound()) {
                 $data[] = var_export($attribute->propName, true).' => '.$attribute->value;
             } else {
-                $data[] = var_export($attribute->propName, true).' => '.BladeService::compileAttributeEchos($attribute->value);
+                $data[] = var_export($attribute->propName, true).' => '.$this->bladeService->compileAttributeEchos($attribute->value);
             }
         }
 

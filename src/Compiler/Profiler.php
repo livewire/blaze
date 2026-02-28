@@ -20,9 +20,13 @@ use Livewire\Blaze\Support\ComponentSource;
  */
 class Profiler
 {
+    protected BladeService $bladeService;
+
     public function __construct(
         protected Config $config,
+        BladeService $bladeService,
     ) {
+        $this->bladeService = $bladeService;
     }
 
     /**
@@ -30,7 +34,7 @@ class Profiler
      */
     public function profile(Node $node, string $componentName, ?string $strategy = null): Node
     {
-        $source = new ComponentSource(BladeService::componentNameToPath($componentName));
+        $source = new ComponentSource($this->bladeService->componentNameToPath($componentName));
 
         if ($strategy === null) {
             $isBlade = $node instanceof ComponentNode;
@@ -157,7 +161,7 @@ class Profiler
 
         $dirs = [resource_path('views/components')];
 
-        foreach (app('blade.compiler')->getAnonymousComponentPaths() as $registration) {
+        foreach ($this->bladeService->compiler->getAnonymousComponentPaths() as $registration) {
             $dirs[] = $registration['path'];
         }
 

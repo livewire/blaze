@@ -3,8 +3,8 @@
 namespace Livewire\Blaze\Compiler;
 
 use Illuminate\View\Compilers\ComponentTagCompiler;
-use Livewire\Blaze\Blaze;
 use Livewire\Blaze\BladeService;
+use Livewire\Blaze\BlazeManager;
 use Livewire\Blaze\Parser\Nodes\ComponentNode;
 use Livewire\Blaze\Parser\Nodes\SlotNode;
 use Livewire\Blaze\Parser\Nodes\TextNode;
@@ -18,15 +18,16 @@ use Livewire\Blaze\Support\Utils;
  */
 class Compiler
 {
-    protected Config $config;
     protected ComponentTagCompiler $blade;
     protected SlotCompiler $slotCompiler;
 
-    public function __construct(Config $config)
-    {
-        $this->config = $config;
+    public function __construct(
+        protected Config $config,
+        protected BladeService $bladeService,
+        protected BlazeManager $manager,
+    ) {
         $this->slotCompiler = new SlotCompiler(fn (string $str) => $this->getAttributesAndBoundKeysArrayStrings($str, true)[0]);
-        $this->blade = new ComponentTagCompiler([], [], app('blade.compiler'));
+        $this->blade = new ComponentTagCompiler([], [], $bladeService->compiler);
     }
 
     /**
@@ -42,7 +43,7 @@ class Compiler
             return new TextNode($this->compileDelegateComponentTag($node));
         }
 
-        $source = new ComponentSource(BladeService::componentNameToPath($node->name));
+        $source = new ComponentSource($this->bladeService->componentNameToPath($node->name));
 
         if (! $source->exists()) {
             return $node;
@@ -95,7 +96,7 @@ class Compiler
     protected function compileComponentTag(ComponentNode $node, ComponentSource $source): string
     {
         $hash = Utils::hash($source->path);
-        $functionName = (Blaze::isFolding() ? '__' : '_') . $hash;
+        $functionName = ($this->manager->isFolding() ? '__' : '_') . $hash;
         $slotsVariableName = '$slots' . $hash;
         [$attributesArrayString, $boundKeysArrayString] = $this->getAttributesAndBoundKeysArrayStrings($node->attributeString);
 
@@ -130,7 +131,7 @@ class Compiler
 
         $slotsVariableName = '$slots' . hash('xxh128', $componentName);
 
-        $functionName = '(\'' . (Blaze::isFolding() ? '__' : '_') . '\' . $__resolved)';
+        $functionName = '(\'' . ($this->manager->isFolding() ? '__' : '_') . '\' . $__resolved)';
 
         $output .= '<' . '?php $__blaze->pushData($attributes->all()); ?>';
 

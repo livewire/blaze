@@ -3,9 +3,9 @@
 namespace Livewire\Blaze\Compiler;
 
 use Livewire\Blaze\BladeService;
+use Livewire\Blaze\BlazeManager;
 use Livewire\Blaze\Compiler\DirectiveCompiler;
 use Livewire\Blaze\Support\Utils;
-use Livewire\Blaze\Blaze;
 use Illuminate\Support\Arr;
 
 /**
@@ -13,11 +13,18 @@ use Illuminate\Support\Arr;
  */
 class Wrapper
 {
+    protected PropsCompiler $propsCompiler;
+    protected AwareCompiler $awareCompiler;
+    protected UseExtractor $useExtractor;
+
     public function __construct(
-        protected PropsCompiler $propsCompiler = new PropsCompiler,
-        protected AwareCompiler $awareCompiler = new AwareCompiler,
-        protected UseExtractor $useExtractor = new UseExtractor,
-    ) {}
+        protected BladeService $bladeService,
+        protected BlazeManager $manager,
+    ) {
+        $this->propsCompiler = new PropsCompiler;
+        $this->awareCompiler = new AwareCompiler;
+        $this->useExtractor = new UseExtractor;
+    }
 
     /**
      * Compile a component template into a function definition.
@@ -29,13 +36,13 @@ class Wrapper
     public function wrap(string $compiled, string $path, ?string $source = null): string
     {
         $source ??= $compiled;
-        $name = (Blaze::isFolding() ? '__' : '_') . Utils::hash($path);
+        $name = ($this->manager->isFolding() ? '__' : '_') . Utils::hash($path);
 
         $sourceUsesThis = str_contains($source, '$this') || str_contains($compiled, '@entangle') || str_contains($compiled, '@script') || str_contains($compiled, '@assets');
 
-        $compiled = BladeService::compileUseStatements($compiled);
-        $compiled = BladeService::restoreRawBlocks($compiled);
-        $compiled = BladeService::storeVerbatimBlocks($compiled);
+        $compiled = $this->bladeService->compileUseStatements($compiled);
+        $compiled = $this->bladeService->restoreRawBlocks($compiled);
+        $compiled = $this->bladeService->storeVerbatimBlocks($compiled);
 
         $imports = '';
         
@@ -43,7 +50,7 @@ class Wrapper
             $imports .= $statement . "\n";
         });
 
-        $compiled = BladeService::preStoreUncompiledBlocks($compiled);
+        $compiled = $this->bladeService->preStoreUncompiledBlocks($compiled);
 
         $output = '';
 
@@ -66,7 +73,7 @@ class Wrapper
 
         $compiled = DirectiveCompiler::make()->directive('props', $this->propsCompiler->compile(...))->compile($compiled);
         $compiled = DirectiveCompiler::make()->directive('aware', $this->awareCompiler->compile(...))->compile($compiled);
-        $compiled = BladeService::restoreRawBlocks($compiled);
+        $compiled = $this->bladeService->restoreRawBlocks($compiled);
 
         $output .= $compiled;
 
@@ -119,7 +126,7 @@ class Wrapper
      */
     protected function hasEchoHandlers(): bool
     {
-        $compiler = app('blade.compiler');
+        $compiler = $this->bladeService->compiler;
         $reflection = new \ReflectionProperty($compiler, 'echoHandlers');
 
         return ! empty($reflection->getValue($compiler));

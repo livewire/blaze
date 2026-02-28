@@ -15,6 +15,7 @@ class BlazeServiceProvider extends ServiceProvider
     {
         $this->registerConfig();
 
+        $this->app->singleton(BladeService::class);
         $this->app->singleton(BlazeRuntime::class);
         $this->app->singleton(Config::class);
         $this->app->singleton(Debugger::class);
@@ -53,14 +54,17 @@ class BlazeServiceProvider extends ServiceProvider
      */
     protected function registerBlazeRuntime(): void
     {
-        View::composer('*', function (\Illuminate\View\View $view) {
-            if (Blaze::isDisabled() && ! Blaze::isDebugging()) {
+        $blaze = $this->app->make(BlazeManager::class);
+        $runtime = $this->app->make(BlazeRuntime::class);
+
+        View::composer('*', function (\Illuminate\View\View $view) use ($blaze, $runtime) {
+            if ($blaze->isDisabled() && ! $blaze->isDebugging()) {
                 return;
             }
 
             // Avoid injecting the BlazeRuntime into non-Blade views (like Statamic's Antlers)
             if ($view->getEngine() instanceof CompilerEngine) {
-                $view->with('__blaze', $this->app->make(BlazeRuntime::class));
+                $view->with('__blaze', $runtime);
             }
         });
     }
@@ -108,21 +112,24 @@ class BlazeServiceProvider extends ServiceProvider
      */
     protected function interceptBladeCompilation(): void
     {
-        BladeService::earliestPreCompilationHook(function ($input, $path) {
-            if (BladeService::containsLaravelExceptionView($input)) {
+        $bladeService = $this->app->make(BladeService::class);
+        $blaze = $this->app->make(BlazeManager::class);
+
+        $bladeService->earliestPreCompilationHook(function ($input, $path) use ($bladeService, $blaze) {
+            if ($bladeService->containsLaravelExceptionView($input)) {
                 return $input;
             }
 
-            if (Blaze::isDisabled()) {
-                if (Blaze::isDebugging()) {
-                    return Blaze::compileForDebug($input, $path);
+            if ($blaze->isDisabled()) {
+                if ($blaze->isDebugging()) {
+                    return $blaze->compileForDebug($input, $path);
                 }
 
                 return $input;
             }
 
-            return Blaze::collectAndAppendFrontMatter($input, function ($input) use ($path) {
-                return Blaze::compile($input, $path);
+            return $blaze->collectAndAppendFrontMatter($input, function ($input) use ($path, $blaze) {
+                return $blaze->compile($input, $path);
             });
         });
     }
@@ -132,12 +139,15 @@ class BlazeServiceProvider extends ServiceProvider
      */
     protected function interceptViewCacheInvalidation(): void
     {
-        BladeService::viewCacheInvalidationHook(function ($view, $invalidate) {
-            if (Blaze::isDisabled()) {
+        $bladeService = $this->app->make(BladeService::class);
+        $blaze = $this->app->make(BlazeManager::class);
+
+        $bladeService->viewCacheInvalidationHook(function ($view, $invalidate) use ($blaze) {
+            if ($blaze->isDisabled()) {
                 return;
             }
 
-            if (Blaze::viewContainsExpiredFrontMatter($view)) {
+            if ($blaze->viewContainsExpiredFrontMatter($view)) {
                 $invalidate();
             }
         });

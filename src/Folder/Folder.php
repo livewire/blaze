@@ -11,8 +11,8 @@ use Livewire\Blaze\Parser\Nodes\SlotNode;
 use Livewire\Blaze\Parser\Nodes\TextNode;
 use Livewire\Blaze\Support\ComponentSource;
 use Livewire\Blaze\BladeService;
+use Livewire\Blaze\BlazeManager;
 use Illuminate\Support\Arr;
-use Livewire\Blaze\Blaze;
 use Livewire\Blaze\Config;
 
 /**
@@ -21,7 +21,9 @@ use Livewire\Blaze\Config;
 class Folder
 {
     public function __construct(
-        protected ?Config $config = null,
+        protected Config $config,
+        protected BladeService $bladeService,
+        protected BlazeManager $manager,
     ) {
     }
 
@@ -36,7 +38,7 @@ class Folder
 
         $component = $node;
 
-        $source = new ComponentSource(BladeService::componentNameToPath($component->name));
+        $source = new ComponentSource($this->bladeService->componentNameToPath($component->name));
 
         if (! $source->exists()) {
             return $component;
@@ -53,7 +55,7 @@ class Folder
         $this->checkProblematicPatterns($source);
 
         try {
-            $foldable = new Foldable($node, $source);
+            $foldable = new Foldable($node, $source, $this->bladeService);
 
             $html = $foldable->fold();
 
@@ -65,7 +67,7 @@ class Folder
 
             return new TextNode($html);
         } catch (\Exception $e) {
-            if (Blaze::shouldThrow()) {
+            if ($this->manager->shouldThrow()) {
                 throw $e;
             }
 

@@ -5,6 +5,7 @@ namespace Livewire\Blaze\Runtime;
 use Illuminate\Contracts\View\Factory;
 use Illuminate\Foundation\Application;
 use Illuminate\Support\ViewErrorBag;
+use Illuminate\View\Compilers\BladeCompiler;
 use Livewire\Blaze\BladeService;
 use Livewire\Blaze\Support\Utils;
 use Livewire\Blaze\Debugger;
@@ -32,12 +33,13 @@ class BlazeRuntime
     protected array $dataStack = [];
     protected array $slotsStack = [];
 
-    public function __construct()
-    {
+    public function __construct(
+        BladeCompiler $compiler,
+    ) {
+        $this->compiler = $compiler;
         $this->env = app('view');
         $this->app = app();
         $this->debugger = app('blaze.debugger');
-        $this->compiler = app('blade.compiler');
     }
 
     /**
@@ -70,7 +72,7 @@ class BlazeRuntime
         if (isset($this->paths[$component])) {
             $path = $this->paths[$component];
         } else {
-            $path = $this->paths[$component] = BladeService::componentNameToPath($component);
+            $path = $this->paths[$component] = $this->bladeService->componentNameToPath($component);
         }
 
         if (! $this->isBlazeComponent($path)) {
