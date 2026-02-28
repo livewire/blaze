@@ -93,7 +93,7 @@ class AttributeParser
                 // Blade echo syntax (e.g. {{ $order->avatar }} or {!! $rawHtml !!}) must be compiled
                 // to a PHP expression so the runtime value is used (not the literal template string).
                 // This is critical for memoization keys to be unique per evaluated value.
-                $arrayParts[] = "'".addslashes($attributeName)."' => ".Utils::compileAttributeEchos($attr->value);
+                $arrayParts[] = "'".addslashes($attributeName)."' => ".BladeService::compileAttributeEchos($attr->value);
 
                 continue;
             }

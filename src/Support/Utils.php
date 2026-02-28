@@ -2,7 +2,6 @@
 
 namespace Livewire\Blaze\Support;
 
-use Livewire\Blaze\BladeService;
 use Livewire\Blaze\Directive\BlazeDirective;
 use Livewire\Blaze\Parser\Attribute;
 
@@ -11,22 +10,6 @@ use Livewire\Blaze\Parser\Attribute;
  */
 class Utils
 {
-    /**
-     * Resolve a component name to its file path.
-     */
-    public static function componentNameToPath(string $name): string
-    {
-        return BladeService::componentNameToPath($name);
-    }
-        
-    /**
-     * Compile Blade echo syntax within an attribute value.
-     */
-    public static function compileAttributeEchos(string $value): string
-    {
-        return BladeService::compileAttributeEchos($value);
-    }
-
     /**
      * Parse a @blaze directive expression into its parameters.
      */

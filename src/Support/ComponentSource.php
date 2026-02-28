@@ -2,6 +2,8 @@
 
 namespace Livewire\Blaze\Support;
 
+use Livewire\Blaze\BladeService;
+
 /**
  * Resolves and caches a component's file path, content, and directive metadata.
  */
@@ -15,7 +17,7 @@ class ComponentSource
     public function __construct($name)
     {
         $this->name = $name;
-        $this->path = Utils::componentNameToPath($name);
+        $this->path = BladeService::componentNameToPath($name);
         $this->content = $this->exists() ? file_get_contents($this->path) : '';
         $this->directives = new Directives($this->content);
     }

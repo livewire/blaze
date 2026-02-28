@@ -9,7 +9,6 @@ use Livewire\Blaze\Parser\Nodes\ComponentNode;
 use Livewire\Blaze\Parser\Nodes\SlotNode;
 use Livewire\Blaze\Parser\Nodes\TextNode;
 use Livewire\Blaze\Support\ComponentSource;
-use Livewire\Blaze\Support\Utils;
 
 /**
  * Performs compile-time folding of a component by rendering it with placeholder substitution.
@@ -224,7 +223,7 @@ class Foldable
             $content = $match[0];
 
             foreach ($this->attributeByPlaceholder as $placeholder => $attribute) {
-                $value = $attribute->bound() ? $attribute->value : Utils::compileAttributeEchos($attribute->value);
+                $value = $attribute->bound() ? $attribute->value : BladeService::compileAttributeEchos($attribute->value);
 
                 $content = str_replace("'" . $placeholder . "'", $value, $content);
             }
@@ -263,7 +262,7 @@ class Foldable
             if ($attribute->bound()) {
                 $data[] = var_export($attribute->propName, true).' => '.$attribute->value;
             } else {
-                $data[] = var_export($attribute->propName, true).' => '.Utils::compileAttributeEchos($attribute->value);
+                $data[] = var_export($attribute->propName, true).' => '.BladeService::compileAttributeEchos($attribute->value);
             }
         }
 
