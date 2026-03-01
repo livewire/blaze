@@ -14,19 +14,11 @@ use ReflectionClass;
 class BladeRenderer
 {
     public function __construct(
-        protected BladeCompiler $compiler,
+        protected BladeCompiler $blade,
         protected Factory $factory,
         protected BlazeRuntime $runtime,
         protected BlazeManager $manager,
     ) {}
-
-    /**
-     * Render a Blade template string in an isolated context.
-     */
-    public function render(string $template): string
-    {
-        return $this->isolatedRender($template);
-    }
 
     /**
      * Get the temporary cache directory path used during isolated rendering.
@@ -39,17 +31,13 @@ class BladeRenderer
     /**
      * Render a Blade template string in isolation by freezing and restoring compiler state.
      */
-    public function isolatedRender(string $template): string
+    public function render(string $template): string
     {
-        $compiler = $this->compiler;
-
         $temporaryCachePath = $this->getTemporaryCachePath();
 
         File::ensureDirectoryExists($temporaryCachePath);
 
-        $factory = $this->factory;
-
-        [$factory, $restoreFactory] = $this->freezeObjectProperties($factory, [
+        $restoreFactory = $this->freezeObjectProperties($this->factory, [
             'renderCount' => 0,
             'renderedOnce' => [],
             'sections' => [],
@@ -68,17 +56,17 @@ class BladeRenderer
             'translationReplacements' => [],
         ]);
 
-        [$compiler, $restore] = $this->freezeObjectProperties($compiler, [
+        $restoreCompiler = $this->freezeObjectProperties($this->blade, [
             'cachePath' => $temporaryCachePath,
             'rawBlocks' => [],
             'footer' => [],
             'prepareStringsForCompilationUsing' => [
-                function ($input) use ($compiler) {
+                function ($input) {
                     if (Unblaze::hasUnblaze($input)) {
                         $input = Unblaze::processUnblazeDirectives($input);
                     };
 
-                    $input = $this->manager->compileForFolding($input, $compiler->getPath());
+                    $input = $this->manager->compileForFolding($input, $this->blade->getPath());
 
                     return $input;
                 },
@@ -90,7 +78,7 @@ class BladeRenderer
             'lastFragment' => null,
         ]);
 
-        [$runtime, $restoreRuntime] = $this->freezeObjectProperties($this->runtime, [
+        $restoreRuntime = $this->freezeObjectProperties($this->runtime, [
             'compiled' => [],
             'paths' => [],
             'compiledPath' => $temporaryCachePath,
@@ -101,9 +89,9 @@ class BladeRenderer
         try {
             $this->manager->startFolding();
 
-            $result = $compiler->render($template, deleteCachedView: true);
+            $result = $this->blade->render($template, deleteCachedView: true);
         } finally {
-            $restore();
+            $restoreCompiler();
             $restoreFactory();
             $restoreRuntime();
 
@@ -144,14 +132,11 @@ class BladeRenderer
             }
         }
 
-        return [
-            $object,
-            function () use ($reflection, $object, $frozen) {
-                foreach ($frozen as $name => $value) {
-                    $property = $reflection->getProperty($name);
-                    $property->setValue($object, $value);
-                }
-            },
-        ];
+        return function () use ($reflection, $object, $frozen) {
+            foreach ($frozen as $name => $value) {
+                $property = $reflection->getProperty($name);
+                $property->setValue($object, $value);
+            }
+        };
     }
 }
