@@ -83,7 +83,7 @@ class DirectiveCompiler
             protected function compileStatement($match)
             {
                 if (str_contains($match[1], '@')) {
-                    $match[0] = isset($match[3]) ? $match[1].$match[3] : $match[1];
+                    return $match[0];
                 } elseif (isset($this->customDirectives[$match[1]])) {
                     $match[0] = $this->callCustomDirective($match[1], Arr::get($match, 3));
                 } elseif (method_exists($this, $method = 'compile'.ucfirst($match[1]))) {

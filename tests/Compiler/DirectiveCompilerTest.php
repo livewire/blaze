@@ -13,7 +13,7 @@ test('compiles custom directives while preserving built-in ones', function () {
     expect($result)->toBe('@if($condition) <?php /* custom: $value */ ?> <?php /* endcustom */ ?> @endif');
 });
 
-test('preserves escaped directives', function () {
+test('ignores escaped directives', function () {
     $input = '@@custom($value)';
     
     $result = DirectiveCompiler::make()
@@ -23,7 +23,7 @@ test('preserves escaped directives', function () {
     expect($result)->toBe($input);
 });
 
-test('preserves php blocks', function () {
+test('ignores php blocks', function () {
     $input = '<?php // @custom ?>';
 
     $result = DirectiveCompiler::make()
