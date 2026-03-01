@@ -11,7 +11,7 @@ class BenchmarkCommand extends Command
 {
     protected $signature = 'benchmark
         {--iterations=10000 : Number of component renders per benchmark}
-        {--rounds=25 : Number of timed rounds per benchmark}
+        {--rounds=10 : Number of timed rounds per benchmark}
         {--warmup=2 : Number of untimed warmup rounds}
         {--snapshot : Save results as the baseline snapshot}
         {--ci : Output a markdown table with no progress (for CI)}';
