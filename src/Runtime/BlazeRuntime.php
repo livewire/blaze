@@ -6,11 +6,11 @@ use Illuminate\Contracts\View\Factory;
 use Illuminate\Foundation\Application;
 use Illuminate\Support\ViewErrorBag;
 use Illuminate\View\Compilers\BladeCompiler;
+use Illuminate\View\Compilers\Compiler;
 use Livewire\Blaze\BladeService;
+use Livewire\Blaze\Support\Directives;
 use Livewire\Blaze\Support\Utils;
 use Livewire\Blaze\Debugger;
-use Illuminate\View\Compilers\Compiler;
-use Livewire\Blaze\Support\Directives;
 
 /**
  * Runtime context shared with all Blaze-compiled components via $__blaze.
@@ -20,7 +20,9 @@ class BlazeRuntime
     public readonly Factory $env;
     public readonly Application $app;
     public readonly Debugger $debugger;
-    public readonly Compiler $compiler;
+    public readonly BladeCompiler $compiler;
+
+    protected BladeService $bladeService;
 
     // Lazily cached from config('view.compiled') on first access via __get.
     // This ensures parallel-testing per-worker path overrides are respected.
@@ -35,11 +37,13 @@ class BlazeRuntime
 
     public function __construct(
         BladeCompiler $compiler,
+        BladeService $bladeService,
     ) {
         $this->compiler = $compiler;
         $this->env = app('view');
         $this->app = app();
         $this->debugger = app('blaze.debugger');
+        $this->bladeService = $bladeService;
     }
 
     /**

@@ -39,18 +39,19 @@ class BlazeManager
     protected Memoizer $memoizer;
     protected Wrapper $wrapper;
     protected Profiler $instrumenter;
-    protected BladeService $bladeService;
+    protected BladeRenderer $renderer;
 
     public function __construct(
         protected Config $config,
         protected BladeCompiler $bladeCompiler,
         protected BlazeRuntime $runtime,
+        protected BladeService $bladeService,
     ) {
-        $this->bladeService = new BladeService($bladeCompiler, $this->runtime, $this);
+        $this->renderer = new BladeRenderer($bladeCompiler, app('view'), $this->runtime, $this);
         $this->parser = new Parser(new Tokenizer, $this->bladeService);
         $this->walker = new Walker;
         $this->compiler = new Compiler($config, $this->bladeService, $this);
-        $this->folder = new Folder($config, $this->bladeService, $this);
+        $this->folder = new Folder($config, $this->bladeService, $this->renderer, $this);
         $this->memoizer = new Memoizer($config, $this->compiler, $this->bladeService, $this);
         $this->wrapper = new Wrapper($this->bladeService, $this);
         $this->instrumenter = new Profiler($config, $this->bladeService);
@@ -125,7 +126,7 @@ class BlazeManager
         $output = $this->bladeService->restoreRawBlocks($output);
 
         try {
-            $this->bladeService->deleteTemporaryCacheDirectory();
+            $this->renderer->deleteTemporaryCacheDirectory();
         } catch (\Throwable $e) {
             //
         }

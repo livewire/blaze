@@ -3,6 +3,7 @@
 namespace Livewire\Blaze\Folder;
 
 use Illuminate\Support\Str;
+use Livewire\Blaze\BladeRenderer;
 use Livewire\Blaze\BladeService;
 use Livewire\Blaze\Parser\Attribute;
 use Livewire\Blaze\Parser\Nodes\ComponentNode;
@@ -27,6 +28,7 @@ class Foldable
     public function __construct(
         protected ComponentNode $node,
         protected ComponentSource $source,
+        protected BladeRenderer $renderer,
         protected BladeService $bladeService,
     ) {
     }
@@ -49,7 +51,7 @@ class Foldable
         $this->setupSlots();
         $this->mergeAwareProps();
 
-        $this->html = $this->bladeService->render($this->renderable->render());
+        $this->html = $this->renderer->render($this->renderable->render());
         
         $this->processUncompiledAttributes();
         $this->restorePlaceholders();

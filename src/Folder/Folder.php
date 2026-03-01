@@ -10,6 +10,7 @@ use Livewire\Blaze\Parser\Nodes\Node;
 use Livewire\Blaze\Parser\Nodes\SlotNode;
 use Livewire\Blaze\Parser\Nodes\TextNode;
 use Livewire\Blaze\Support\ComponentSource;
+use Livewire\Blaze\BladeRenderer;
 use Livewire\Blaze\BladeService;
 use Livewire\Blaze\BlazeManager;
 use Illuminate\Support\Arr;
@@ -23,6 +24,7 @@ class Folder
     public function __construct(
         protected Config $config,
         protected BladeService $bladeService,
+        protected BladeRenderer $renderer,
         protected BlazeManager $manager,
     ) {
     }
@@ -55,7 +57,7 @@ class Folder
         $this->checkProblematicPatterns($source);
 
         try {
-            $foldable = new Foldable($node, $source, $this->bladeService);
+            $foldable = new Foldable($node, $source, $this->renderer, $this->bladeService);
 
             $html = $foldable->fold();
 
