@@ -45,8 +45,6 @@ test('ignores comments', function () {
 });
 
 test('supports php engine', function () {
-    // Make sure our hooks do not break views
-    // rendered using the regular php engine.
     view('php-view')->render();
 })->throwsNoExceptions();
 
@@ -54,6 +52,7 @@ test('supports decorated engine', function () {
     $resolver = app('view.engine.resolver');
     $blade = $resolver->resolve('blade');
 
+    // This replicates how Sentry wraps the blade engine...
     $resolver->register('blade', function () use ($blade) {
         return new class($blade) implements Engine {
             public function __construct(private Engine $engine) {}
@@ -68,7 +67,8 @@ test('supports decorated engine', function () {
 })->throwsNoExceptions();
 
 test('does not inject __blaze into non-blade engine views', function () {
-    // We don't want to inject __blaze into Statamic because 
+    // Statamic serializes all view data, we need to make sure
+    // we don't inject BlazeRuntime which is not serializable.
     app('view')->addExtension('antlers.html', 'antlers', function () {
         return new class implements Engine {
             public function get($path, array $data = []): string {
