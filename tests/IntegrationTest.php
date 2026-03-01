@@ -1,5 +1,6 @@
 <?php
 
+use Illuminate\Contracts\View\Engine;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Blade;
 use Livewire\Blaze\Blaze;
@@ -49,4 +50,30 @@ test('supports php engine', function () {
     // Make sure our hooks do not break views
     // rendered using the regular php engine.
     view('php-view')->render();
+})->throwsNoExceptions();
+
+test('injects blaze runtime when blade engine is decorated', function () {
+    Artisan::call('view:clear');
+
+    $resolver = app('view.engine.resolver');
+    $bladeEngine = $resolver->resolve('blade');
+
+    $resolver->register('blade', function () use ($bladeEngine) {
+        return new class ($bladeEngine) implements Engine
+        {
+            public function __construct(protected Engine $engine) {}
+
+            public function get($path, array $data = [])
+            {
+                return $this->engine->get($path, $data);
+            }
+
+            public function getEngine(): Engine
+            {
+                return $this->engine;
+            }
+        };
+    });
+
+    view('inputs')->render();
 })->throwsNoExceptions();

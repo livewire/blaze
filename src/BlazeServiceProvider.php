@@ -8,6 +8,9 @@ use Illuminate\Support\ServiceProvider;
 use Illuminate\Support\Facades\Blade;
 use Illuminate\Support\Facades\View;
 use Illuminate\View\Engines\CompilerEngine;
+use function is_object;
+use function method_exists;
+use function spl_object_id;
 
 class BlazeServiceProvider extends ServiceProvider
 {
@@ -59,10 +62,34 @@ class BlazeServiceProvider extends ServiceProvider
             }
 
             // Avoid injecting the BlazeRuntime into non-Blade views (like Statamic's Antlers)
-            if ($view->getEngine() instanceof CompilerEngine) {
+            if ($this->resolveCompilerEngine($view->getEngine()) instanceof CompilerEngine) {
                 $view->with('__blaze', $this->app->make(BlazeRuntime::class));
             }
         });
+    }
+
+    protected function resolveCompilerEngine($engine): ?CompilerEngine
+    {
+        $seen = [];
+
+        while (true) {
+            if ($engine instanceof CompilerEngine) {
+                return $engine;
+            }
+
+            if (! is_object($engine) || ! method_exists($engine, 'getEngine')) {
+                return null;
+            }
+
+            $objectId = spl_object_id($engine);
+
+            if (isset($seen[$objectId])) {
+                return null;
+            }
+
+            $seen[$objectId] = true;
+            $engine = $engine->getEngine();
+        }
     }
 
     /**
