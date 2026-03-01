@@ -140,8 +140,8 @@ class BenchmarkCommand extends Command
             if ($snapshot && isset($snapshot['benchmarks'][$name])) {
                 $prev = $snapshot['benchmarks'][$name];
 
-                $blade .= ' ' . $this->formatChange($prev['blade_ms'], $result['blade_ms'], $result['blade_times']);
-                $blaze .= ' ' . $this->formatChange($prev['blaze_ms'], $result['blaze_ms'], $result['blaze_times']);
+                $blade .= ' ' . $this->formatChange($prev['blade_ms'], $result['blade_ms'], $result['blade_times'], 10.0);
+                $blaze .= ' ' . $this->formatChange($prev['blaze_ms'], $result['blaze_ms'], $result['blaze_times'], 5.0);
 
                 $perRoundImprovements = array_map(
                     fn ($b, $z) => $b > 0 ? (1 - $z / $b) * 100 : 0,
@@ -153,6 +153,7 @@ class BenchmarkCommand extends Command
                     $prev['improvement'],
                     $this->improvement($result),
                     $perRoundImprovements,
+                    0.5,
                 );
             }
 
@@ -330,7 +331,7 @@ class BenchmarkCommand extends Command
      * Returns "(~)" when the change is not statistically significant, or
      * "(+X%)" / "(-X%)" when it exceeds the margin of error.
      */
-    protected function formatChange(float $old, float $new, array $samples): string
+    protected function formatChange(float $old, float $new, array $samples, float $minThreshold = 5.0): string
     {
         if ($old == 0) {
             return '(~)';
@@ -345,9 +346,7 @@ class BenchmarkCommand extends Command
         $margin = 2 * 1.253 * $cv / sqrt(max($n, 1));
 
         // Suppress changes within statistical noise or below practical significance.
-        // The 5% floor accounts for between-run variance (thermal drift, OS scheduling)
-        // that a single run's within-run CV cannot capture.
-        if (abs($pctChange) < max($margin, 5.0)) {
+        if (abs($pctChange) < max($margin, $minThreshold)) {
             return '(~)';
         }
 
