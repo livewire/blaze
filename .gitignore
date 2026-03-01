@@ -9,5 +9,4 @@ composer.lock
 phpunit.xml.dist
 .env
 .env.testing
-tests/fixtures/compiled/
-tests/fixtures/blaze/
+benchmark-snapshot.json

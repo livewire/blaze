@@ -1,0 +1,61 @@
+name: Benchmark
+
+on:
+  pull_request:
+    branches: [ main ]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  benchmark:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          tools: composer:v2
+          coverage: none
+          extensions: mbstring, dom, curl, json, libxml, xml, xmlwriter, simplexml, tokenizer
+
+      - name: Install dependencies
+        run: composer install --prefer-dist --no-progress --no-interaction
+
+      - name: Run benchmarks
+        run: |
+          echo "## Benchmark Results" > benchmark-comment.md
+          echo "" >> benchmark-comment.md
+
+          echo "### Baseline" >> benchmark-comment.md
+          echo "" >> benchmark-comment.md
+          vendor/bin/testbench benchmark --snapshot --ci | grep -v '^## ' >> benchmark-comment.md
+          echo "" >> benchmark-comment.md
+
+          for i in 1 2 3 4 5; do
+            echo "### Run $i" >> benchmark-comment.md
+            echo "" >> benchmark-comment.md
+            vendor/bin/testbench benchmark --ci | grep -v '^## ' >> benchmark-comment.md
+            echo "" >> benchmark-comment.md
+          done
+
+      - name: Find existing comment
+        uses: peter-evans/find-comment@v3
+        id: find
+        with:
+          issue-number: ${{ github.event.pull_request.number }}
+          comment-author: 'github-actions[bot]'
+          body-includes: '## Benchmark Results'
+
+      - name: Post or update comment
+        uses: peter-evans/create-or-update-comment@v4
+        with:
+          issue-number: ${{ github.event.pull_request.number }}
+          comment-id: ${{ steps.find.outputs.comment-id }}
+          edit-mode: replace
+          body-path: benchmark-comment.md
