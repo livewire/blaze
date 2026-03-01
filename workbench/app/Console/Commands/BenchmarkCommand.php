@@ -115,9 +115,9 @@ class BenchmarkCommand extends Command
             $improvement = $this->improvement($result) . '%';
 
             if ($prev = $snapshot['benchmarks'][$name] ?? null) {
-                $blade .= ' ' . $this->formatChange($prev['blade_ms'], $result['blade_ms']);
-                $blaze .= ' ' . $this->formatChange($prev['blaze_ms'], $result['blaze_ms']);
-                $improvement .= ' ' . $this->formatChange($prev['improvement'], $this->improvement($result));
+                $blade .= ' ' . $this->formatChange($prev['blade_ms'], $result['blade_ms'], 5.0);
+                $blaze .= ' ' . $this->formatChange($prev['blaze_ms'], $result['blaze_ms'], 10.0);
+                $improvement .= ' ' . $this->formatChange($prev['improvement'], $this->improvement($result), 1.0);
             }
 
             return [$name, $blade, $blaze, $improvement];
@@ -227,7 +227,7 @@ class BenchmarkCommand extends Command
             : 0;
     }
 
-    protected function formatChange(float $old, float $new, float $threshold = 5.0): string
+    protected function formatChange(float $old, float $new, float $threshold): string
     {
         if ($old == 0) {
             return '(~)';
