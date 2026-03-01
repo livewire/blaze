@@ -23,7 +23,7 @@ class Folder
 {
     public function __construct(
         protected Config $config,
-        protected BladeService $bladeService,
+        protected BladeService $blade,
         protected BladeRenderer $renderer,
         protected BlazeManager $manager,
     ) {
@@ -40,7 +40,7 @@ class Folder
 
         $component = $node;
 
-        $source = new ComponentSource($this->bladeService->componentNameToPath($component->name));
+        $source = new ComponentSource($this->blade->componentNameToPath($component->name));
 
         if (! $source->exists()) {
             return $component;
@@ -57,7 +57,7 @@ class Folder
         $this->checkProblematicPatterns($source);
 
         try {
-            $foldable = new Foldable($node, $source, $this->renderer, $this->bladeService);
+            $foldable = new Foldable($node, $source, $this->renderer, $this->blade);
 
             $html = $foldable->fold();
 

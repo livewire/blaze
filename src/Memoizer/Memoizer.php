@@ -19,7 +19,7 @@ class Memoizer
     public function __construct(
         protected Config $config,
         protected Compiler $compiler,
-        protected BladeService $bladeService,
+        protected BladeService $blade,
         protected BlazeManager $manager,
     ) {
     }
@@ -48,7 +48,7 @@ class Memoizer
             if ($attr->bound()) {
                 $parts[] = "'{$attr->propName}' => {$attr->value}";
             } else {
-                $parts[] = "'{$attr->propName}' => ".$this->bladeService->compileAttributeEchos($attr->value);
+                $parts[] = "'{$attr->propName}' => ".$this->blade->compileAttributeEchos($attr->value);
             }
         }
         $attributes = '['.implode(', ', $parts).']';
@@ -81,7 +81,7 @@ class Memoizer
             return false;
         }
 
-        $source = new ComponentSource($this->bladeService->componentNameToPath($node->name));
+        $source = new ComponentSource($this->blade->componentNameToPath($node->name));
 
         if (! $source->exists()) {
             return false;

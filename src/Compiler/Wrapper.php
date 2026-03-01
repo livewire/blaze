@@ -18,7 +18,7 @@ class Wrapper
     protected UseExtractor $useExtractor;
 
     public function __construct(
-        protected BladeService $bladeService,
+        protected BladeService $blade,
         protected BlazeManager $manager,
     ) {
         $this->propsCompiler = new PropsCompiler;
@@ -40,9 +40,9 @@ class Wrapper
 
         $sourceUsesThis = str_contains($source, '$this') || str_contains($compiled, '@entangle') || str_contains($compiled, '@script') || str_contains($compiled, '@assets');
 
-        $compiled = $this->bladeService->compileUseStatements($compiled);
-        $compiled = $this->bladeService->restoreRawBlocks($compiled);
-        $compiled = $this->bladeService->storeVerbatimBlocks($compiled);
+        $compiled = $this->blade->compileUseStatements($compiled);
+        $compiled = $this->blade->restoreRawBlocks($compiled);
+        $compiled = $this->blade->storeVerbatimBlocks($compiled);
 
         $imports = '';
         
@@ -50,7 +50,7 @@ class Wrapper
             $imports .= $statement . "\n";
         });
 
-        $compiled = $this->bladeService->preStoreUncompiledBlocks($compiled);
+        $compiled = $this->blade->preStoreUncompiledBlocks($compiled);
 
         $output = '';
 
@@ -73,7 +73,7 @@ class Wrapper
 
         $compiled = DirectiveCompiler::make()->directive('props', $this->propsCompiler->compile(...))->compile($compiled);
         $compiled = DirectiveCompiler::make()->directive('aware', $this->awareCompiler->compile(...))->compile($compiled);
-        $compiled = $this->bladeService->restoreRawBlocks($compiled);
+        $compiled = $this->blade->restoreRawBlocks($compiled);
 
         $output .= $compiled;
 
@@ -126,7 +126,7 @@ class Wrapper
      */
     protected function hasEchoHandlers(): bool
     {
-        $compiler = $this->bladeService->compiler;
+        $compiler = $this->blade->compiler;
         $reflection = new \ReflectionProperty($compiler, 'echoHandlers');
 
         return ! empty($reflection->getValue($compiler));

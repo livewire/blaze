@@ -23,11 +23,11 @@ class Compiler
 
     public function __construct(
         protected Config $config,
-        protected BladeService $bladeService,
+        protected BladeService $blade,
         protected BlazeManager $manager,
     ) {
         $this->slotCompiler = new SlotCompiler(fn (string $str) => $this->getAttributesAndBoundKeysArrayStrings($str, true)[0]);
-        $this->tagCompiler = new ComponentTagCompiler([], [], $bladeService->compiler);
+        $this->tagCompiler = new ComponentTagCompiler([], [], $blade->compiler);
     }
 
     /**
@@ -43,7 +43,7 @@ class Compiler
             return new TextNode($this->compileDelegateComponentTag($node));
         }
 
-        $source = new ComponentSource($this->bladeService->componentNameToPath($node->name));
+        $source = new ComponentSource($this->blade->componentNameToPath($node->name));
 
         if (! $source->exists()) {
             return $node;

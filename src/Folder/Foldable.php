@@ -29,7 +29,7 @@ class Foldable
         protected ComponentNode $node,
         protected ComponentSource $source,
         protected BladeRenderer $renderer,
-        protected BladeService $bladeService,
+        protected BladeService $blade,
     ) {
     }
 
@@ -227,7 +227,7 @@ class Foldable
             $content = $match[0];
 
             foreach ($this->attributeByPlaceholder as $placeholder => $attribute) {
-                $value = $attribute->bound() ? $attribute->value : $this->bladeService->compileAttributeEchos($attribute->value);
+                $value = $attribute->bound() ? $attribute->value : $this->blade->compileAttributeEchos($attribute->value);
 
                 $content = str_replace("'" . $placeholder . "'", $value, $content);
             }
@@ -266,7 +266,7 @@ class Foldable
             if ($attribute->bound()) {
                 $data[] = var_export($attribute->propName, true).' => '.$attribute->value;
             } else {
-                $data[] = var_export($attribute->propName, true).' => '.$this->bladeService->compileAttributeEchos($attribute->value);
+                $data[] = var_export($attribute->propName, true).' => '.$this->blade->compileAttributeEchos($attribute->value);
             }
         }
 
