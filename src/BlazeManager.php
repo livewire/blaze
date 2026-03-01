@@ -45,16 +45,16 @@ class BlazeManager
         protected Config $config,
         protected BladeCompiler $bladeCompiler,
         protected BlazeRuntime $runtime,
-        protected BladeService $bladeService,
+        protected BladeService $blade,
     ) {
         $this->renderer = new BladeRenderer($bladeCompiler, app('view'), $this->runtime, $this);
-        $this->parser = new Parser(new Tokenizer, $this->bladeService);
+        $this->parser = new Parser(new Tokenizer, $this->blade);
         $this->walker = new Walker;
-        $this->compiler = new Compiler($config, $this->bladeService, $this);
-        $this->folder = new Folder($config, $this->bladeService, $this->renderer, $this);
-        $this->memoizer = new Memoizer($config, $this->compiler, $this->bladeService, $this);
-        $this->wrapper = new Wrapper($this->bladeService, $this);
-        $this->instrumenter = new Profiler($config, $this->bladeService);
+        $this->compiler = new Compiler($config, $this->blade, $this);
+        $this->folder = new Folder($config, $this->blade, $this->renderer, $this);
+        $this->memoizer = new Memoizer($config, $this->compiler, $this->blade, $this);
+        $this->wrapper = new Wrapper($this->blade, $this);
+        $this->instrumenter = new Profiler($config, $this->blade);
 
         Event::listen(ComponentFolded::class, function (ComponentFolded $event) {
             $this->foldedEvents[] = $event;
@@ -69,8 +69,8 @@ class BlazeManager
         $source = $template;
 
         $clean = $template;
-        $clean = $this->bladeService->preStoreUncompiledBlocks($clean);
-        $clean = $this->bladeService->compileComments($clean);
+        $clean = $this->blade->preStoreUncompiledBlocks($clean);
+        $clean = $this->blade->compileComments($clean);
 
         $dataStack = [];
 
@@ -123,7 +123,7 @@ class BlazeManager
             $output = $this->instrumenter->profileView($output, $path, $source);
         }
 
-        $output = $this->bladeService->restoreRawBlocks($output);
+        $output = $this->blade->restoreRawBlocks($output);
 
         try {
             $this->renderer->deleteTemporaryCacheDirectory();
@@ -139,8 +139,8 @@ class BlazeManager
      */
     public function compileForUnblaze(string $template): string
     {
-        $template = $this->bladeService->preStoreUncompiledBlocks($template);
-        $template = $this->bladeService->compileComments($template);
+        $template = $this->blade->preStoreUncompiledBlocks($template);
+        $template = $this->blade->compileComments($template);
 
         $ast = $this->walker->walk(
             nodes: $this->parser->parse($template),
@@ -181,8 +181,8 @@ class BlazeManager
         $source = $template;
 
         $clean = $template;
-        $clean = $this->bladeService->preStoreUncompiledBlocks($clean);
-        $clean = $this->bladeService->compileComments($clean);
+        $clean = $this->blade->preStoreUncompiledBlocks($clean);
+        $clean = $this->blade->compileComments($clean);
 
         $ast = $this->walker->walk(
             nodes: $this->parser->parse($clean),
@@ -202,7 +202,7 @@ class BlazeManager
             $output = $this->instrumenter->profileView($output, $path, $source);
         }
 
-        $output = $this->bladeService->restoreRawBlocks($output);
+        $output = $this->blade->restoreRawBlocks($output);
 
         return $output;
     }
@@ -215,8 +215,8 @@ class BlazeManager
     {
         $source = $template;
 
-        $template = $this->bladeService->preStoreUncompiledBlocks($template);
-        $template = $this->bladeService->compileComments($template);
+        $template = $this->blade->preStoreUncompiledBlocks($template);
+        $template = $this->blade->compileComments($template);
 
         $ast = $this->walker->walk(
             nodes: $this->parser->parse($template),
@@ -228,7 +228,7 @@ class BlazeManager
 
         $output = $this->render($ast);
 
-        $output = $this->bladeService->restoreRawBlocks($output);
+        $output = $this->blade->restoreRawBlocks($output);
 
         if (! $path) {
             return $output;
@@ -419,7 +419,7 @@ class BlazeManager
     {
         foreach ($node->children as $child) {
             if ($child instanceof ComponentNode) {
-                $source = new ComponentSource($this->bladeService->componentNameToPath($child->name));
+                $source = new ComponentSource($this->blade->componentNameToPath($child->name));
 
                 if (str_ends_with($child->name, 'delegate-component')) {
                     return true;

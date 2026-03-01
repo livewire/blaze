@@ -7,13 +7,18 @@ use Illuminate\Support\Str;
 use Illuminate\View\Compilers\BladeCompiler;
 use Illuminate\View\Compilers\ComponentTagCompiler;
 use Livewire\Blaze\Compiler\DirectiveCompiler;
+use Livewire\Blaze\Support\LaravelRegex;
 use ReflectionClass;
 
 class BladeService
 {
+    protected ComponentTagCompiler $tagCompiler;
+
     public function __construct(
         public BladeCompiler $compiler,
-    ) {}
+    ) {
+        $this->tagCompiler = new ComponentTagCompiler(blade: $compiler);
+    }
 
     /**
      * Check if template content is a Laravel exception view.
@@ -28,22 +33,9 @@ class BladeService
      */
     public function earliestPreCompilationHook(callable $callback): void
     {
-        $compiler = $this->compiler;
-
-        app()->booted(function () use ($callback, $compiler) {
-            $compiler->prepareStringsForCompilationUsing(function ($input) use ($callback, $compiler) {
-                // We call getPath() on the captured $compiler instance rather than resolving it
-                // via app('blade.compiler')->getPath() inside BlazeManager, this fixes #43.
-
-                // Packages like Sentry force blade resolution during boot using app('view')->getEngineResolver()->resolve('blade').
-                // When Laravel runs `config:cache` as part of `optimize`, it swaps the application instance in the container,
-                // but later in `view:cache` it uses the original app instance from $this->laravel to compile the views.
-                // Because of the early resolution, Laravel doesn't resolve blade compiler again from the new instance
-                // and runs compile() on the stale one. Calling app('blade.compiler') returns a different instance
-                // than the one used to compile the view, therefore $path isn't set and getPath() returns null.
-                $path = $compiler->getPath();
-
-                return $callback($input, $path);
+        app()->booted(function () use ($callback) {
+            $this->compiler->prepareStringsForCompilationUsing(function ($input) use ($callback) {
+                return $callback($input, $this->compiler->getPath());
             });
         });
     }
@@ -53,19 +45,18 @@ class BladeService
      */
     public function preStoreUncompiledBlocks(string $input): string
     {
-        $compiler = $this->compiler;
-        $reflection = new \ReflectionClass($compiler);
+        $reflection = new \ReflectionClass($this->compiler);
         
         $storeRawBlock = $reflection->getMethod('storeRawBlock');
 
         $output = $input;
 
-        $output = preg_replace_callback('/(?<!@)@verbatim(\s*)(.*?)@endverbatim/s', function ($matches) use ($storeRawBlock, $compiler) {
-            return $matches[1].$storeRawBlock->invoke($compiler, "@verbatim{$matches[2]}@endverbatim");
+        $output = preg_replace_callback(LaravelRegex::VERBATIM_BLOCK, function ($matches) use ($storeRawBlock) {
+            return $matches[1].$storeRawBlock->invoke($this->compiler, "@verbatim{$matches[2]}@endverbatim");
         }, $output);
 
-        $output = preg_replace_callback('/(?<!@)@php(.*?)@endphp/s', function ($matches) use ($storeRawBlock, $compiler) {
-            return $storeRawBlock->invoke($compiler, "@php{$matches[1]}@endphp");
+        $output = preg_replace_callback(LaravelRegex::PHP_BLOCK, function ($matches) use ($storeRawBlock) {
+            return $storeRawBlock->invoke($this->compiler, "@php{$matches[1]}@endphp");
         }, $output);
         
         return $output;
@@ -76,12 +67,10 @@ class BladeService
      */
     public function storeVerbatimBlocks(string $input): string
     {
-        $compiler = $this->compiler;
-
-        $reflection = new \ReflectionClass($compiler);
+        $reflection = new \ReflectionClass($this->compiler);
         $method = $reflection->getMethod('storeVerbatimBlocks');
 
-        return $method->invoke($compiler, $input);
+        return $method->invoke($this->compiler, $input);
     }
 
     /**
@@ -89,12 +78,10 @@ class BladeService
      */
     public function restoreRawBlocks(string $input): string
     {
-        $compiler = $this->compiler;
-
-        $reflection = new \ReflectionClass($compiler);
+        $reflection = new \ReflectionClass($this->compiler);
         $method = $reflection->getMethod('restoreRawContent');
 
-        return $method->invoke($compiler, $input);
+        return $method->invoke($this->compiler, $input);
     }
 
     /**
@@ -102,12 +89,10 @@ class BladeService
      */
     public function restorePhpBlocks(string $input): string
     {
-        $compiler = $this->compiler;
-
-        $reflection = new \ReflectionClass($compiler);
+        $reflection = new \ReflectionClass($this->compiler);
         $method = $reflection->getMethod('restorePhpBlocks');
 
-        return $method->invoke($compiler, $input);
+        return $method->invoke($this->compiler, $input);
     }
 
     /**
@@ -115,12 +100,10 @@ class BladeService
      */
     public function compileComments(string $input): string
     {
-        $compiler = $this->compiler;
-
-        $reflection = new \ReflectionClass($compiler);
+        $reflection = new \ReflectionClass($this->compiler);
         $compileComments = $reflection->getMethod('compileComments');
 
-        return $compileComments->invoke($compiler, $input);
+        return $compileComments->invoke($this->compiler, $input);
     }
 
     /**
@@ -135,8 +118,6 @@ class BladeService
      */
     public function preprocessAttributeString(string $attributeString): string
     {
-        $compiler = new ComponentTagCompiler(blade: $this->compiler);
-
         // Laravel expects a space at the start of the attribute string...
         $attributeString = Str::start($attributeString, ' ');
 
@@ -149,18 +130,16 @@ class BladeService
             $str = $this->parseBindAttributes($str);
 
             return $str;
-        })->call($compiler, $attributeString);
+        })->call($this->tagCompiler, $attributeString);
     }
 
     public function compileUseStatements(string $input): string
     {
         return DirectiveCompiler::make()->directive('use', function ($expression) {
-            $compiler = $this->compiler;
-
-            $reflection = new \ReflectionClass($compiler);
+            $reflection = new \ReflectionClass($this->compiler);
             $method = $reflection->getMethod('compileUse');
 
-            return $method->invoke($compiler, $expression);
+            return $method->invoke($this->compiler, $expression);
         })->compile($input);
     }
 
@@ -169,12 +148,10 @@ class BladeService
      */
     public function compileAttributeEchos(string $input): string
     {
-        $compiler = new ComponentTagCompiler(blade: $this->compiler);
-
-        $reflection = new \ReflectionClass($compiler);
+        $reflection = new \ReflectionClass($this->tagCompiler);
         $method = $reflection->getMethod('compileAttributeEchos');
 
-        return Str::unwrap("'".$method->invoke($compiler, $input)."'", "''.", ".''");
+        return Str::unwrap("'".$method->invoke($this->tagCompiler, $input)."'", "''.", ".''");
     }
 
     /**
@@ -182,7 +159,7 @@ class BladeService
      */
     public function stripQuotes(string $input): string
     {
-        return (new ComponentTagCompiler(blade: $this->compiler))->stripQuotes($input);
+        return $this->tagCompiler->stripQuotes($input);
     }
 
     /**
@@ -190,16 +167,14 @@ class BladeService
      */
     public function viewCacheInvalidationHook(callable $callback): void
     {
-        $compiler = $this->compiler;
-
-        Event::listen('composing:*', function ($event, $params) use ($callback, $compiler) {
+        Event::listen('composing:*', function ($event, $params) use ($callback) {
             $view = $params[0];
 
             if (! $view instanceof \Illuminate\View\View) {
                 return;
             }
 
-            $invalidate = fn () => $compiler->compile($view->getPath());
+            $invalidate = fn () => $this->compiler->compile($view->getPath());
 
             $callback($view, $invalidate);
         });
@@ -210,12 +185,11 @@ class BladeService
      */
     public function componentNameToPath($name): string
     {
-        $compiler = $this->compiler;
         $viewFinder = app('view')->getFinder();
 
-        $reflection = new \ReflectionClass($compiler);
+        $reflection = new \ReflectionClass($this->compiler);
         $pathsProperty = $reflection->getProperty('anonymousComponentPaths');
-        $paths = $pathsProperty->getValue($compiler) ?? [];
+        $paths = $pathsProperty->getValue($this->compiler) ?? [];
 
         if (str_contains($name, '::')) {
             [$namespace, $componentName] = explode('::', $name, 2);

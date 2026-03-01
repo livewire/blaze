@@ -17,13 +17,6 @@ use Livewire\Blaze\Debugger;
  */
 class BlazeRuntime
 {
-    public readonly Factory $env;
-    public readonly Application $app;
-    public readonly Debugger $debugger;
-    public readonly BladeCompiler $compiler;
-
-    protected BladeService $bladeService;
-
     // Lazily cached from config('view.compiled') on first access via __get.
     // This ensures parallel-testing per-worker path overrides are respected.
     protected ?string $compiledPath = null;
@@ -36,14 +29,12 @@ class BlazeRuntime
     protected array $slotsStack = [];
 
     public function __construct(
-        BladeCompiler $compiler,
-        BladeService $bladeService,
+        public readonly Factory $env,
+        public readonly Application $app,
+        public readonly Debugger $debugger,
+        public readonly BladeCompiler $compiler,
+        protected BladeService $blade,
     ) {
-        $this->compiler = $compiler;
-        $this->env = app('view');
-        $this->app = app();
-        $this->debugger = app('blaze.debugger');
-        $this->bladeService = $bladeService;
     }
 
     /**
@@ -76,7 +67,7 @@ class BlazeRuntime
         if (isset($this->paths[$component])) {
             $path = $this->paths[$component];
         } else {
-            $path = $this->paths[$component] = $this->bladeService->componentNameToPath($component);
+            $path = $this->paths[$component] = $this->blade->componentNameToPath($component);
         }
 
         if (! $this->isBlazeComponent($path)) {

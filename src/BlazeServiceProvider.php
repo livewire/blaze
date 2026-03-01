@@ -112,11 +112,11 @@ class BlazeServiceProvider extends ServiceProvider
      */
     protected function interceptBladeCompilation(): void
     {
-        $bladeService = $this->app->make(BladeService::class);
+        $blade = $this->app->make(BladeService::class);
         $blaze = $this->app->make(BlazeManager::class);
 
-        $bladeService->earliestPreCompilationHook(function ($input, $path) use ($bladeService, $blaze) {
-            if ($bladeService->containsLaravelExceptionView($input)) {
+        $blade->earliestPreCompilationHook(function ($input, $path) use ($blade, $blaze) {
+            if ($blade->containsLaravelExceptionView($input)) {
                 return $input;
             }
 
@@ -139,10 +139,10 @@ class BlazeServiceProvider extends ServiceProvider
      */
     protected function interceptViewCacheInvalidation(): void
     {
-        $bladeService = $this->app->make(BladeService::class);
+        $blade = $this->app->make(BladeService::class);
         $blaze = $this->app->make(BlazeManager::class);
 
-        $bladeService->viewCacheInvalidationHook(function ($view, $invalidate) use ($blaze) {
+        $blade->viewCacheInvalidationHook(function ($view, $invalidate) use ($blaze) {
             if ($blaze->isDisabled()) {
                 return;
             }

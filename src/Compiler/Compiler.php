@@ -18,7 +18,7 @@ use Livewire\Blaze\Support\Utils;
  */
 class Compiler
 {
-    protected ComponentTagCompiler $blade;
+    protected ComponentTagCompiler $tagCompiler;
     protected SlotCompiler $slotCompiler;
 
     public function __construct(
@@ -27,7 +27,7 @@ class Compiler
         protected BlazeManager $manager,
     ) {
         $this->slotCompiler = new SlotCompiler(fn (string $str) => $this->getAttributesAndBoundKeysArrayStrings($str, true)[0]);
-        $this->blade = new ComponentTagCompiler([], [], $bladeService->compiler);
+        $this->tagCompiler = new ComponentTagCompiler([], [], $bladeService->compiler);
     }
 
     /**
@@ -184,7 +184,7 @@ class Compiler
             $boundKeysString = '[' . implode(', ', array_map(fn ($k) => "'{$k}'", $boundKeys)) . ']';
 
             return [$attributesString, $boundKeysString];
-        })->call($this->blade, $attributeString, $escapeBound);
+        })->call($this->tagCompiler, $attributeString, $escapeBound);
     }
 
 }
