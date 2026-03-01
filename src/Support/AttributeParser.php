@@ -6,20 +6,16 @@ use Illuminate\Support\Str;
 use Livewire\Blaze\Parser\Attribute;
 
 /**
- * Parses component attribute strings into structured arrays, handling all Blade syntaxes.
+ * Parses component attribute strings into structured arrays.
  */
 class AttributeParser
 {
     /**
-     * Parse an attribute string into a keyed array of Attribute objects.
-     *
-     * Uses Laravel's preprocessing pipeline to normalize all attribute syntaxes
-     * (:$var, :attr, {{ $attributes }}, @class, @style) into a uniform format,
-     * then matches with Laravel's single attribute regex.
+     * Parse preprocessed attribute string into a keyed array of Attribute objects.
      *
      * @return array<string, Attribute>
      */
-    public static function parseAttributeStringToArray(string $attributesString): array
+    public static function parse(string $attributesString): array
     {
         preg_match_all(LaravelRegex::ATTRIBUTE_PATTERN, $attributesString, $matches, PREG_SET_ORDER);
 
