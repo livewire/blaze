@@ -37,7 +37,7 @@ jobs:
           vendor/bin/testbench benchmark --snapshot --ci | grep -v '^## ' >> benchmark-comment.md
           echo "" >> benchmark-comment.md
 
-          for i in 1 2 3 4 5; do
+          for i in 1 2 3; do
             echo "### Run $i" >> benchmark-comment.md
             echo "" >> benchmark-comment.md
             vendor/bin/testbench benchmark --ci | grep -v '^## ' >> benchmark-comment.md
