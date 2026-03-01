@@ -71,8 +71,11 @@ class Wrapper
         $output .= 'ob_start();' . "\n";
         $output .= '?>' . "\n";
 
-        $compiled = DirectiveCompiler::make()->directive('props', $this->propsCompiler->compile(...))->compile($compiled);
-        $compiled = DirectiveCompiler::make()->directive('aware', $this->awareCompiler->compile(...))->compile($compiled);
+        $compiled = DirectiveCompiler::make()
+            ->directive('props', $this->propsCompiler->compile(...))
+            ->directive('aware', $this->awareCompiler->compile(...))
+            ->compile($compiled);
+
         $compiled = $this->blade->restoreRawBlocks($compiled);
 
         $output .= $compiled;
