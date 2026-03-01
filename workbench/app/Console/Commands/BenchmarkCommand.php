@@ -13,7 +13,7 @@ class BenchmarkCommand extends Command
 {
     protected $signature = 'benchmark
         {--iterations=10000 : Number of component renders per benchmark}
-        {--rounds=10 : Number of timed rounds per benchmark}
+        {--rounds=5 : Number of timed rounds per benchmark}
         {--warmup=2 : Number of untimed warmup rounds}
         {--snapshot : Save results as the baseline snapshot}
         {--ci : Output a markdown table with no progress (for CI)}';
@@ -115,8 +115,8 @@ class BenchmarkCommand extends Command
             $improvement = $this->improvement($result) . '%';
 
             if ($prev = $snapshot['benchmarks'][$name] ?? null) {
-                $blade .= ' ' . $this->formatChange($prev['blade_ms'], $result['blade_ms'], 5.0);
-                $blaze .= ' ' . $this->formatChange($prev['blaze_ms'], $result['blaze_ms'], 10.0);
+                $blade .= ' ' . $this->formatChange($prev['blade_ms'], $result['blade_ms'], 10.0);
+                $blaze .= ' ' . $this->formatChange($prev['blaze_ms'], $result['blaze_ms'], 5.0);
                 $improvement .= ' ' . $this->formatChange($prev['improvement'], $this->improvement($result), 1.0);
             }
 
@@ -277,7 +277,7 @@ class BenchmarkCommand extends Command
                 'blade' => 'bench.blade.named-slots',
                 'blaze' => 'bench.blaze.named-slots',
             ],
-            '@aware (nested)' => [
+            '`@aware` (nested)' => [
                 'blade' => 'bench.blade.aware',
                 'blaze' => 'bench.blaze.aware',
             ],
