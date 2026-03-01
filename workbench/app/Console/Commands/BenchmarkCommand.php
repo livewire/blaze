@@ -5,7 +5,9 @@ namespace Workbench\App\Console\Commands;
 use Illuminate\Console\Command;
 use Illuminate\Support\Benchmark;
 use Illuminate\Support\Facades\Artisan;
+use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\View;
+use Illuminate\Support\Str;
 
 class BenchmarkCommand extends Command
 {
@@ -34,11 +36,9 @@ class BenchmarkCommand extends Command
 
         $results = $this->runBenchmarks();
 
-        if ($this->option('ci')) {
-            $this->outputMarkdown($results);
-        } else {
-            $this->displayResults($results);
-        }
+        $this->option('ci')
+            ? $this->outputMarkdown($results)
+            : $this->displayResults($results);
 
         if ($this->option('snapshot')) {
             $this->saveSnapshot($results);
@@ -54,73 +54,51 @@ class BenchmarkCommand extends Command
         $names = array_keys($benchmarks);
 
         if ($showProgress) {
-            $this->info("Running benchmarks ({$this->iterations} iterations x {$this->rounds} rounds)...\n");
+            $this->info("Running benchmarks ({$this->iterations} iterations x {$this->rounds} rounds)...");
+            $this->newLine();
         }
 
-        ob_start();
+        $totalSteps = (count($benchmarks) * $this->warmupRounds) + ($this->rounds * count($benchmarks));
+        $bar = $showProgress ? $this->output->createProgressBar($totalSteps) : null;
+        $bar?->setFormat(' %current%/%max% [%bar%] %message%');
+        $bar?->setMessage('Warming up...');
+        $bar?->start();
 
-        // Warmup: compile views and stabilize CPU/opcache.
-        if ($showProgress) {
-            $this->output->write('  Warming up...');
-        }
-
+        // Warmup: compile views and stabilize opcache.
         foreach ($benchmarks as $benchmark) {
             for ($w = 0; $w < $this->warmupRounds; $w++) {
                 $this->measureView($benchmark['blade']);
                 $this->measureView($benchmark['blaze']);
+                $bar?->advance();
             }
         }
 
-        if ($showProgress) {
-            $this->output->writeln(' done');
-        }
-
-        // Initialize per-benchmark storage.
         $bladeTimes = array_fill_keys($names, []);
         $blazeTimes = array_fill_keys($names, []);
 
-        // Timed rounds: interleave all benchmarks within each round and
-        // shuffle the order to distribute thermal drift and system noise
-        // evenly instead of concentrating it on whichever benchmark runs last.
-        if ($showProgress) {
-            $this->output->write('  Benchmarking');
-        }
+        $bar?->setMessage('Benchmarking...');
 
         for ($r = 0; $r < $this->rounds; $r++) {
-            if ($showProgress) {
-                $this->output->write('.');
-            }
-
-            $order = $names;
-            shuffle($order);
-
-            foreach ($order as $name) {
-                gc_collect_cycles();
-                $bladeTimes[$name][] = $this->measureView($benchmarks[$name]['blade']);
-                gc_collect_cycles();
-                $blazeTimes[$name][] = $this->measureView($benchmarks[$name]['blaze']);
+            foreach ($benchmarks as $name => $benchmark) {
+                $bladeTimes[$name][] = $this->measureView($benchmark['blade']);
+                $blazeTimes[$name][] = $this->measureView($benchmark['blaze']);
+                $bar?->advance();
             }
         }
+
+        $bar?->setMessage('Done!');
+        $bar?->finish();
 
         if ($showProgress) {
-            $this->output->writeln(' done');
+            $this->newLine(2);
         }
 
-        ob_end_clean();
-
-        // Build results using the median of each benchmark's rounds.
-        $results = [];
-
-        foreach ($names as $name) {
-            $results[$name] = [
-                'blade_ms' => $this->median($bladeTimes[$name]),
-                'blaze_ms' => $this->median($blazeTimes[$name]),
-                'blade_times' => $bladeTimes[$name],
-                'blaze_times' => $blazeTimes[$name],
-            ];
-        }
-
-        return $results;
+        return collect($names)->mapWithKeys(fn ($name) => [
+            $name => [
+                'blade_ms' => round(collect($bladeTimes[$name])->median(), 2),
+                'blaze_ms' => round(collect($blazeTimes[$name])->median(), 2),
+            ],
+        ])->all();
     }
 
     // region Display
@@ -130,35 +108,20 @@ class BenchmarkCommand extends Command
         $snapshot = $this->option('snapshot') ? null : $this->loadSnapshot();
 
         $headers = ['Benchmark', 'Blade', 'Blaze', 'Improvement'];
-        $rows = [];
 
-        foreach ($results as $name => $result) {
+        $rows = collect($results)->map(function ($result, $name) use ($snapshot) {
             $blade = $this->formatTime($result['blade_ms']);
             $blaze = $this->formatTime($result['blaze_ms']);
             $improvement = $this->improvement($result) . '%';
 
-            if ($snapshot && isset($snapshot['benchmarks'][$name])) {
-                $prev = $snapshot['benchmarks'][$name];
-
-                $blade .= ' ' . $this->formatChange($prev['blade_ms'], $result['blade_ms'], $result['blade_times'], 10.0);
-                $blaze .= ' ' . $this->formatChange($prev['blaze_ms'], $result['blaze_ms'], $result['blaze_times'], 5.0);
-
-                $perRoundImprovements = array_map(
-                    fn ($b, $z) => $b > 0 ? (1 - $z / $b) * 100 : 0,
-                    $result['blade_times'],
-                    $result['blaze_times'],
-                );
-
-                $improvement .= ' ' . $this->formatChange(
-                    $prev['improvement'],
-                    $this->improvement($result),
-                    $perRoundImprovements,
-                    0.5,
-                );
+            if ($prev = $snapshot['benchmarks'][$name] ?? null) {
+                $blade .= ' ' . $this->formatChange($prev['blade_ms'], $result['blade_ms']);
+                $blaze .= ' ' . $this->formatChange($prev['blaze_ms'], $result['blaze_ms']);
+                $improvement .= ' ' . $this->formatChange($prev['improvement'], $this->improvement($result));
             }
 
-            $rows[] = [$name, $blade, $blaze, $improvement];
-        }
+            return [$name, $blade, $blaze, $improvement];
+        })->values()->all();
 
         return [$headers, $rows, $snapshot];
     }
@@ -183,47 +146,28 @@ class BenchmarkCommand extends Command
     {
         [$headers, $rows, $snapshot] = $this->buildTable($results);
 
-        // Calculate the max width for each column.
-        $widths = array_map('mb_strlen', $headers);
+        $allRows = collect([$headers, ...$rows]);
+        $widths = collect($headers)->keys()->map(
+            fn ($i) => $allRows->max(fn ($row) => mb_strlen($row[$i]))
+        );
 
-        foreach ($rows as $row) {
-            foreach ($row as $i => $cell) {
-                $widths[$i] = max($widths[$i], mb_strlen($cell));
-            }
-        }
+        $formatRow = fn ($cells) => '| ' . collect($cells)
+            ->map(fn ($cell, $i) => Str::padRight($cell, $widths[$i]))
+            ->implode(' | ') . ' |';
 
-        $md = "## Benchmark Results\n\n";
+        $separator = '| ' . $widths->map(fn ($w) => str_repeat('-', $w))->implode(' | ') . ' |';
 
-        // Header row.
-        $md .= '|';
-        foreach ($headers as $i => $header) {
-            $md .= ' ' . str_pad($header, $widths[$i]) . ' |';
-        }
-        $md .= "\n";
-
-        // Separator row.
-        $md .= '|';
-        foreach ($widths as $width) {
-            $md .= ' ' . str_repeat('-', $width) . ' |';
-        }
-        $md .= "\n";
-
-        // Data rows.
-        foreach ($rows as $row) {
-            $md .= '|';
-            foreach ($row as $i => $cell) {
-                $md .= ' ' . str_pad($cell, $widths[$i]) . ' |';
-            }
-            $md .= "\n";
-        }
-
-        $md .= "\n<sub>{$this->iterations} iterations x {$this->rounds} rounds per benchmark";
-
-        if ($snapshot) {
-            $md .= " &mdash; compared against committed snapshot";
-        }
-
-        $md .= "</sub>";
+        $md = collect([
+            '## Benchmark Results',
+            '',
+            $formatRow($headers),
+            $separator,
+            ...collect($rows)->map($formatRow),
+            '',
+            '<sub>' . "{$this->iterations} iterations x {$this->rounds} rounds per benchmark"
+                . ($snapshot ? ' &mdash; compared against committed snapshot' : '')
+                . '</sub>',
+        ])->implode("\n");
 
         $this->output->writeln($md);
     }
@@ -237,20 +181,16 @@ class BenchmarkCommand extends Command
         $snapshot = [
             'iterations' => $this->iterations,
             'rounds' => $this->rounds,
-            'benchmarks' => [],
-        ];
-
-        foreach ($results as $name => $result) {
-            $snapshot['benchmarks'][$name] = [
+            'benchmarks' => collect($results)->map(fn ($result) => [
                 'blade_ms' => $result['blade_ms'],
                 'blaze_ms' => $result['blaze_ms'],
                 'improvement' => $this->improvement($result),
-            ];
-        }
+            ])->all(),
+        ];
 
         $path = $this->snapshotPath();
 
-        file_put_contents($path, json_encode($snapshot, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) . "\n");
+        File::put($path, json_encode($snapshot, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) . "\n");
 
         $this->newLine();
         $this->info("Snapshot saved to {$path}");
@@ -260,26 +200,20 @@ class BenchmarkCommand extends Command
     {
         $path = $this->snapshotPath();
 
-        if (! file_exists($path)) {
+        if (! File::exists($path)) {
             return null;
         }
 
-        $data = json_decode(file_get_contents($path), true);
+        $data = File::json($path);
 
-        if (! is_array($data) || ! isset($data['benchmarks'])) {
-            return null;
-        }
-
-        return $data;
+        return is_array($data) && isset($data['benchmarks']) ? $data : null;
     }
 
     protected function snapshotPath(): string
     {
-        $root = dirname(__DIR__, 4);
-
         return $this->option('ci')
-            ? $root . '/.github/benchmark-snapshot.json'
-            : $root . '/benchmark-snapshot.json';
+            ? base_path('.github/benchmark-snapshot.json')
+            : base_path('benchmark-snapshot.json');
     }
 
     // endregion
@@ -293,66 +227,21 @@ class BenchmarkCommand extends Command
             : 0;
     }
 
-    protected function median(array $values): float
-    {
-        sort($values);
-
-        $count = count($values);
-        $mid = intdiv($count, 2);
-
-        return $count % 2 === 0
-            ? round(($values[$mid - 1] + $values[$mid]) / 2, 2)
-            : round($values[$mid], 2);
-    }
-
-    protected function coefficientOfVariation(array $values): float
-    {
-        $count = count($values);
-
-        if ($count < 2) {
-            return 0.0;
-        }
-
-        $mean = array_sum($values) / $count;
-
-        if ($mean == 0) {
-            return 0.0;
-        }
-
-        $variance = array_sum(array_map(fn ($v) => ($v - $mean) ** 2, $values)) / ($count - 1);
-
-        return sqrt($variance) / abs($mean) * 100;
-    }
-
-    /**
-     * Format the percentage change between a snapshot value and the current
-     * median, suppressing changes that fall within the measurement noise.
-     *
-     * Returns "(~)" when the change is not statistically significant, or
-     * "(+X%)" / "(-X%)" when it exceeds the margin of error.
-     */
-    protected function formatChange(float $old, float $new, array $samples, float $minThreshold = 5.0): string
+    protected function formatChange(float $old, float $new, float $threshold = 5.0): string
     {
         if ($old == 0) {
             return '(~)';
         }
 
-        $pctChange = ($new - $old) / abs($old) * 100;
-        $cv = $this->coefficientOfVariation($samples);
-        $n = count($samples);
+        $change = ($new - $old) / abs($old) * 100;
 
-        // Margin of error for the median at ~95% confidence.
-        // SE_median ≈ 1.253 × σ/√n, expressed as a percentage via CV.
-        $margin = 2 * 1.253 * $cv / sqrt(max($n, 1));
-
-        // Suppress changes within statistical noise or below practical significance.
-        if (abs($pctChange) < max($margin, $minThreshold)) {
+        if (abs($change) < $threshold) {
             return '(~)';
         }
 
-        $sign = $pctChange > 0 ? '+' : '';
+        $sign = $change > 0 ? '+' : '';
 
-        return '(' . $sign . round($pctChange, 1) . '%)';
+        return "({$sign}" . round($change, 1) . '%)';
     }
 
     protected function getBenchmarks(): array
