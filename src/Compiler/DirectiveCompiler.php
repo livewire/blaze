@@ -3,6 +3,7 @@
 namespace Livewire\Blaze\Compiler;
 
 use Illuminate\Support\Arr;
+use Illuminate\View\Compilers\BladeCompiler;
 
 /**
  * Compiles individual Blade directives using a sandboxed compiler
@@ -50,7 +51,7 @@ class DirectiveCompiler
      */
     private function createSandboxedCompiler()
     {
-        return new class(app('files'), config('view.compiled')) extends \Illuminate\View\Compilers\BladeCompiler
+        return new class(app('files'), config('view.compiled')) extends BladeCompiler
         {
             public function compileStatementsMadePublic($template)
             {
