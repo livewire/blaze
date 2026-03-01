@@ -2,6 +2,7 @@
 
 namespace Livewire\Blaze\Compiler;
 
+use Illuminate\Filesystem\Filesystem;
 use Illuminate\Support\Arr;
 use Illuminate\View\Compilers\BladeCompiler;
 
@@ -51,7 +52,7 @@ class DirectiveCompiler
      */
     private function createSandboxedCompiler()
     {
-        return new class(app('files'), config('view.compiled')) extends BladeCompiler
+        return new class(new Filesystem, sys_get_temp_dir()) extends BladeCompiler
         {
             public function compileStatementsMadePublic($template)
             {
