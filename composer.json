@@ -30,7 +30,8 @@
     },
     "autoload-dev": {
         "psr-4": {
-            "Livewire\\Blaze\\Tests\\": "tests/"
+            "Livewire\\Blaze\\Tests\\": "tests/",
+            "Workbench\\App\\": "workbench/app/"
         }
     },
     "extra": {
@@ -49,6 +50,8 @@
     "minimum-stability": "dev",
     "prefer-stable": true,
     "scripts": {
-        "test": "vendor/bin/pest"
+        "test": "vendor/bin/pest",
+        "benchmark": "vendor/bin/testbench benchmark",
+        "benchmark:snapshot": "vendor/bin/testbench benchmark --snapshot"
     }
 }
