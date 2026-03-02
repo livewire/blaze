@@ -1,0 +1,45 @@
+name: Benchmark Comment
+
+on:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+
+jobs:
+  comment:
+    if: >
+      github.event.workflow_run.event == 'pull_request' &&
+      github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+
+    steps:
+      - name: Download benchmark result
+        uses: actions/download-artifact@v4
+        with:
+          name: benchmark-result
+          run-id: ${{ github.event.workflow_run.id }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract PR number and comment body
+        id: pr
+        run: |
+          echo "number=$(head -1 benchmark-result.md)" >> $GITHUB_OUTPUT
+          tail -n +2 benchmark-result.md > comment-body.md
+
+      - name: Find existing comment
+        uses: peter-evans/find-comment@v3
+        id: find
+        with:
+          issue-number: ${{ steps.pr.outputs.number }}
+          comment-author: 'github-actions[bot]'
+          body-includes: '## Benchmark Results'
+
+      - name: Post or update comment
+        uses: peter-evans/create-or-update-comment@v4
+        with:
+          issue-number: ${{ steps.pr.outputs.number }}
+          comment-id: ${{ steps.find.outputs.comment-id }}
+          edit-mode: replace
+          body-path: comment-body.md
