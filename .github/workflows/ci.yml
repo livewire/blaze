@@ -62,8 +62,8 @@ jobs:
     steps:
       - name: Checkout base branch
         uses: actions/checkout@v4
-        with:
-          ref: ${{ github.event.pull_request.base.sha }}
+        # with:
+          # ref: ${{ github.event.pull_request.base.sha }}
 
       - name: Setup PHP
         uses: shivammathur/setup-php@v2
@@ -76,26 +76,26 @@ jobs:
       - name: Install base dependencies
         run: composer install --prefer-dist --no-progress --no-interaction
 
-      - name: Generate baseline snapshot
-        run: vendor/bin/testbench benchmark --snapshot --ci --iterations=5000 --rounds=15 --warmup=2
+      # - name: Generate baseline snapshot
+      #   run: vendor/bin/testbench benchmark --snapshot --ci --iterations=5000 --rounds=15 --warmup=2
 
-      - name: Save baseline snapshot
-        run: cp benchmark-snapshot.json ${{ runner.temp }}/benchmark-snapshot.json
+      # - name: Save baseline snapshot
+      #   run: cp benchmark-snapshot.json ${{ runner.temp }}/benchmark-snapshot.json
 
-      - name: Checkout PR
-        uses: actions/checkout@v4
+      # - name: Checkout PR
+      #   uses: actions/checkout@v4
 
-      - name: Install PR dependencies
-        run: composer install --prefer-dist --no-progress --no-interaction
+      # - name: Install PR dependencies
+      #   run: composer install --prefer-dist --no-progress --no-interaction
 
-      - name: Restore baseline snapshot
-        run: cp ${{ runner.temp }}/benchmark-snapshot.json benchmark-snapshot.json
+      # - name: Restore baseline snapshot
+      #   run: cp ${{ runner.temp }}/benchmark-snapshot.json benchmark-snapshot.json
 
       - name: Save PR number
         run: echo "${{ github.event.pull_request.number }}" > benchmark-result.md
 
       - name: Run benchmark
-        run: vendor/bin/testbench benchmark --ci --iterations=5000 --rounds=15 --warmup=2 >> benchmark-result.md
+        run: vendor/bin/testbench benchmark:variance --ci --iterations=2500 --rounds=100 --filter-outliers >> benchmark-result.md
 
       - name: Upload benchmark result
         uses: actions/upload-artifact@v4

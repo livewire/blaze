@@ -27,19 +27,23 @@ class BenchmarkCommand extends Command
 
     protected int $warmupRounds;
 
+    protected int $filteredRounds = 0;
+
     public function handle(): int
     {
         $this->iterations = (int) $this->option('iterations');
         $this->rounds = (int) $this->option('rounds');
         $this->warmupRounds = (int) $this->option('warmup');
+        $commandStart = microtime(true);
 
         Artisan::call('view:clear');
 
         $results = $this->runBenchmarks();
+        $totalDuration = round(microtime(true) - $commandStart, 2);
 
         $this->option('ci')
-            ? $this->outputMarkdown($results)
-            : $this->displayResults($results);
+            ? $this->outputMarkdown($results, $totalDuration)
+            : $this->displayResults($results, $totalDuration);
 
         if ($this->option('snapshot')) {
             $this->saveSnapshot($results);
@@ -94,24 +98,26 @@ class BenchmarkCommand extends Command
             $this->newLine(2);
         }
 
-        $filterOutliers = $this->option('filter-outliers');
+        if ($this->option('filter-outliers')) {
+            $roundTotals = collect(range(0, $this->rounds - 1))->map(
+                fn ($r) => collect($names)->sum(fn ($name) => $bladeTimes[$name][$r] + $blazeTimes[$name][$r])
+            );
 
-        return collect($names)->mapWithKeys(function ($name) use ($bladeTimes, $blazeTimes, $filterOutliers) {
-            $blade = collect($bladeTimes[$name]);
-            $blaze = collect($blazeTimes[$name]);
+            $keptRounds = $this->nonOutlierIndices($roundTotals);
+            $this->filteredRounds = $this->rounds - $keptRounds->count();
 
-            if ($filterOutliers) {
-                $blade = $this->filterOutliers($blade);
-                $blaze = $this->filterOutliers($blaze);
+            foreach ($names as $name) {
+                $bladeTimes[$name] = $keptRounds->map(fn ($r) => $bladeTimes[$name][$r])->all();
+                $blazeTimes[$name] = $keptRounds->map(fn ($r) => $blazeTimes[$name][$r])->all();
             }
+        }
 
-            return [
-                $name => [
-                    'blade_ms' => round($blade->median(), 2),
-                    'blaze_ms' => round($blaze->median(), 2),
-                ],
-            ];
-        })->all();
+        return collect($names)->mapWithKeys(fn ($name) => [
+            $name => [
+                'blade_ms' => round(collect($bladeTimes[$name])->median(), 2),
+                'blaze_ms' => round(collect($blazeTimes[$name])->median(), 2),
+            ],
+        ])->all();
     }
 
     protected function buildTable(array $results): array
@@ -136,7 +142,7 @@ class BenchmarkCommand extends Command
         return [$headers, $rows, $snapshot];
     }
 
-    protected function displayResults(array $results): void
+    protected function displayResults(array $results, float $totalDuration): void
     {
         [$headers, $rows, $snapshot] = $this->buildTable($results);
 
@@ -144,10 +150,10 @@ class BenchmarkCommand extends Command
         $this->table($headers, $rows);
 
         $this->newLine();
-        $this->info("{$this->iterations} iterations x {$this->rounds} rounds per benchmark");
+        $this->info("{$this->iterations} iterations x {$this->rounds} rounds per benchmark, {$totalDuration}s total");
 
         if ($this->option('filter-outliers')) {
-            $this->comment('Outlier rounds excluded (IQR method)');
+            $this->comment("{$this->filteredRounds} outlier rounds excluded (IQR method)");
         }
 
         if ($snapshot) {
@@ -156,7 +162,7 @@ class BenchmarkCommand extends Command
         }
     }
 
-    protected function outputMarkdown(array $results): void
+    protected function outputMarkdown(array $results, float $totalDuration): void
     {
         [$headers, $rows, $snapshot] = $this->buildTable($results);
 
@@ -178,8 +184,8 @@ class BenchmarkCommand extends Command
             $separator,
             ...collect($rows)->map($formatRow),
             '',
-            '<sub>' . "{$this->iterations} iterations x {$this->rounds} rounds per benchmark"
-                . ($this->option('filter-outliers') ? ' &mdash; outliers excluded (IQR)' : '')
+            '<sub>' . "{$this->iterations} iterations x {$this->rounds} rounds per benchmark, {$totalDuration}s total"
+                . ($this->option('filter-outliers') ? " &mdash; {$this->filteredRounds} outlier rounds excluded (IQR)" : '')
                 . ($snapshot ? ' &mdash; compared against baseline snapshot' : '')
                 . '</sub>',
         ])->implode("\n");
@@ -292,14 +298,14 @@ class BenchmarkCommand extends Command
     }
 
     /**
-     * Remove outliers using the Interquartile Range (IQR) method.
+     * Return the indices of non-outlier values using the IQR method.
      *
-     * Values below Q1 - 1.5*IQR or above Q3 + 1.5*IQR are excluded.
+     * Values below Q1 - 1.5*IQR or above Q3 + 1.5*IQR are considered outliers.
      */
-    protected function filterOutliers(\Illuminate\Support\Collection $values): \Illuminate\Support\Collection
+    protected function nonOutlierIndices(\Illuminate\Support\Collection $values): \Illuminate\Support\Collection
     {
         if ($values->count() < 4) {
-            return $values;
+            return $values->keys();
         }
 
         $sorted = $values->sort()->values();
@@ -312,7 +318,7 @@ class BenchmarkCommand extends Command
         $lower = $q1 - 1.5 * $iqr;
         $upper = $q3 + 1.5 * $iqr;
 
-        return $values->filter(fn ($v) => $v >= $lower && $v <= $upper)->values();
+        return $values->keys()->filter(fn ($i) => $values[$i] >= $lower && $values[$i] <= $upper)->values();
     }
 
     protected function renderView(string $view): string
