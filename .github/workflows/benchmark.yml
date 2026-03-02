@@ -2,7 +2,9 @@ name: Benchmark
 
 on:
   pull_request:
-    branches: [main]
+    types: [ready_for_review, synchronize, opened]
+    paths-ignore:
+      - "README.md"
 
 permissions:
   contents: read
