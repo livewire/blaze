@@ -3,6 +3,7 @@
 namespace Livewire\Blaze;
 
 use Illuminate\Support\Arr;
+use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Str;
 use Illuminate\View\Compilers\ComponentTagCompiler;
@@ -351,6 +352,24 @@ class BladeService
     public static function stripQuotes(string $input): string
     {
         return (new ComponentTagCompiler(blade: app('blade.compiler')))->stripQuotes($input);
+    }
+
+    /**
+     * Register a callback to intercept view cache invalidation events.
+     */
+    public static function viewCacheInvalidationHook(callable $callback): void
+    {
+        Event::listen('composing:*', function ($event, $params) use ($callback) {
+            $view = $params[0];
+
+            if (! $view instanceof \Illuminate\View\View) {
+                return;
+            }
+
+            $invalidate = fn () => app('blade.compiler')->compile($view->getPath());
+
+            $callback($view, $invalidate);
+        });
     }
 
     /**
