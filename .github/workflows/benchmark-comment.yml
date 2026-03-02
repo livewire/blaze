@@ -22,24 +22,18 @@ jobs:
           run-id: ${{ github.event.workflow_run.id }}
           github-token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Extract PR number and comment body
-        id: pr
-        run: |
-          echo "number=$(head -1 benchmark-result.md)" >> $GITHUB_OUTPUT
-          tail -n +2 benchmark-result.md > comment-body.md
-
       - name: Find existing comment
         uses: peter-evans/find-comment@v3
         id: find
         with:
-          issue-number: ${{ steps.pr.outputs.number }}
+          issue-number: ${{ github.event.workflow_run.pull_requests[0].number }}
           comment-author: 'github-actions[bot]'
           body-includes: '## Benchmark Results'
 
       - name: Post or update comment
         uses: peter-evans/create-or-update-comment@v4
         with:
-          issue-number: ${{ steps.pr.outputs.number }}
+          issue-number: ${{ github.event.workflow_run.pull_requests[0].number }}
           comment-id: ${{ steps.find.outputs.comment-id }}
           edit-mode: replace
-          body-path: comment-body.md
+          body-path: benchmark-result.md
