@@ -234,11 +234,7 @@ class BenchmarkCommand extends Command
 
     protected function snapshotPath(): string
     {
-        $root = dirname(__DIR__, 4);
-
-        return $this->option('ci')
-            ? $root . '/.github/benchmark-snapshot.json'
-            : $root . '/benchmark-snapshot.json';
+        return dirname(__DIR__, 4) . '/benchmark-snapshot.json';
     }
 
     protected function improvement(array $result): float
