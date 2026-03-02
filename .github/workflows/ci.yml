@@ -58,10 +58,6 @@ jobs:
     needs: pest
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      pull-requests: write
-      issues: write
 
     steps:
       - name: Checkout
@@ -78,24 +74,22 @@ jobs:
       - name: Install dependencies
         run: composer install --prefer-dist --no-progress --no-interaction
 
+      - name: Fetch baseline snapshot from main
+        run: |
+          git fetch origin ${{ github.event.pull_request.base.ref }} --depth=1
+          git checkout origin/${{ github.event.pull_request.base.ref }} -- .github/benchmark-snapshot.json
+
+      - name: Save PR number
+        run: echo "${{ github.event.pull_request.number }}" > benchmark-result.md
+
       - name: Run benchmark
-        run: vendor/bin/testbench benchmark --ci > benchmark-comment.md
+        run: vendor/bin/testbench benchmark --ci >> benchmark-result.md
 
-      - name: Find existing comment
-        uses: peter-evans/find-comment@v3
-        id: find
+      - name: Upload benchmark result
+        uses: actions/upload-artifact@v4
         with:
-          issue-number: ${{ github.event.pull_request.number }}
-          comment-author: 'github-actions[bot]'
-          body-includes: '## Benchmark Results'
-
-      - name: Post or update comment
-        uses: peter-evans/create-or-update-comment@v4
-        with:
-          issue-number: ${{ github.event.pull_request.number }}
-          comment-id: ${{ steps.find.outputs.comment-id }}
-          edit-mode: replace
-          body-path: benchmark-comment.md
+          name: benchmark-result
+          path: benchmark-result.md
 
   snapshot:
     needs: pest
