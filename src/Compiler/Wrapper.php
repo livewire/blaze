@@ -30,7 +30,7 @@ class Wrapper
         $source ??= $compiled;
         $name = (Blaze::isFolding() ? '__' : '_') . Utils::hash($path);
 
-        $sourceUsesThis = str_contains($source, '$this') || str_contains($compiled, '@entangle') || str_contains($compiled, '@script');
+        $sourceUsesThis = str_contains($source, '$this') || str_contains($compiled, '@entangle') || str_contains($compiled, '@script') || str_contains($compiled, '@assets');
 
         $compiled = BladeService::compileUseStatements($compiled);
         $compiled = BladeService::restoreRawBlocks($compiled);

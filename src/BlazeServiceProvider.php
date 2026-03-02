@@ -48,11 +48,19 @@ class BlazeServiceProvider extends ServiceProvider
     }
 
     /**
-     * Share the BlazeRuntime instance with all views.
+     * Make the BlazeRuntime instance available to Blade views.
      */
     protected function registerBlazeRuntime(): void
     {
-        View::share('__blaze', $this->app->make(BlazeRuntime::class));
+        View::composer('*', function (\Illuminate\View\View $view) {
+            if (Blaze::isDisabled() && ! Blaze::isDebugging()) {
+                return;
+            }
+
+            if (str_ends_with($view->getPath(), '.blade.php')) {
+                $view->with('__blaze', $this->app->make(BlazeRuntime::class));
+            }
+        });
     }
 
     /**
@@ -98,21 +106,21 @@ class BlazeServiceProvider extends ServiceProvider
      */
     protected function interceptBladeCompilation(): void
     {
-        BladeService::earliestPreCompilationHook(function ($input) {
+        BladeService::earliestPreCompilationHook(function ($input, $path) {
             if (BladeService::containsLaravelExceptionView($input)) {
                 return $input;
             }
 
             if (Blaze::isDisabled()) {
                 if (Blaze::isDebugging()) {
-                    return Blaze::compileForDebug($input);
+                    return Blaze::compileForDebug($input, $path);
                 }
 
                 return $input;
             }
 
-            return Blaze::collectAndAppendFrontMatter($input, function ($input) {
-                return Blaze::compile($input);
+            return Blaze::collectAndAppendFrontMatter($input, function ($input) use ($path) {
+                return Blaze::compile($input, $path);
             });
         });
     }

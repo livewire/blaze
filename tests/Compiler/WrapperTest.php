@@ -71,6 +71,7 @@ test('wraps in self invoking closure', function ($source) {
     '{{ $this->orders }}',
     '@entangle(\'name\')',
     '@script',
+    '@assets',
 ]);
 
 test('injects variables', function ($source, $expected) {

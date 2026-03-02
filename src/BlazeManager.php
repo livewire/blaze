@@ -49,7 +49,7 @@ class BlazeManager
     /**
      * Compile a Blade template through the full Blaze pipeline.
      */
-    public function compile(string $template): string
+    public function compile(string $template, ?string $path = null): string
     {
         $source = $template;
 
@@ -100,7 +100,6 @@ class BlazeManager
 
         $output = $this->render($ast);
 
-        $path = app('blade.compiler')->getPath();
         $directives = new Directives($source);
 
         if ($path && ($directives->blaze() || $this->config->shouldCompile($path))) {
@@ -162,7 +161,7 @@ class BlazeManager
      * calls, but does NOT fold, memoize, or compile — Blade handles that.
      * Also injects view-level timers for non-wrapped views.
      */
-    public function compileForDebug(string $template): string
+    public function compileForDebug(string $template, ?string $path = null): string
     {
         $source = $template;
 
@@ -184,9 +183,6 @@ class BlazeManager
 
         $output = $this->render($ast);
 
-        // Inject view-level timer for the view file itself.
-        $path = app('blade.compiler')->getPath();
-
         if ($path) {
             $output = $this->instrumenter->profileView($output, $path, $source);
         }
@@ -200,7 +196,7 @@ class BlazeManager
      * Compile for folding context - only tag compiler and component compiler.
      * No folding or memoization to avoid infinite recursion.
      */
-    public function compileForFolding(string $template): string
+    public function compileForFolding(string $template, ?string $path = null): string
     {
         $source = $template;
 
@@ -218,8 +214,6 @@ class BlazeManager
         $output = $this->render($ast);
 
         $output = BladeService::restoreRawBlocks($output);
-
-        $path = app('blade.compiler')->getPath();
 
         if (! $path) {
             return $output;

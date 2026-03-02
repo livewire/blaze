@@ -134,13 +134,12 @@ class BladeService
             'rawBlocks' => [],
             'footer' => [],
             'prepareStringsForCompilationUsing' => [
-                function ($input) {
+                function ($input) use ($compiler) {
                     if (Unblaze::hasUnblaze($input)) {
                         $input = Unblaze::processUnblazeDirectives($input);
                     };
 
-
-                    $input = Blaze::compileForFolding($input);
+                    $input = Blaze::compileForFolding($input, $compiler->getPath());
 
                     return $input;
                 },
@@ -199,10 +198,21 @@ class BladeService
     public static function earliestPreCompilationHook(callable $callback): void
     {
         app()->booted(function () use ($callback) {
-            app('blade.compiler')->prepareStringsForCompilationUsing(function ($input) use ($callback) {
-                $output = $callback($input);
+            $compiler = app('blade.compiler');
 
-                return $output;
+            $compiler->prepareStringsForCompilationUsing(function ($input) use ($callback, $compiler) {
+                // We call getPath() on the captured $compiler instance rather than resolving it
+                // via app('blade.compiler')->getPath() inside BlazeManager, this fixes #43.
+
+                // Packages like Sentry force blade resolution during boot using app('view')->getEngineResolver()->resolve('blade').
+                // When Laravel runs `config:cache` as part of `optimize`, it swaps the application instance in the container,
+                // but later in `view:cache` it uses the original app instance from $this->laravel to compile the views.
+                // Because of the early resolution, Laravel doesn't resolve blade compiler again from the new instance
+                // and runs compile() on the stale one. Calling app('blade.compiler') returns a different instance
+                // than the one used to compile the view, therefore $path isn't set and getPath() returns null.
+                $path = $compiler->getPath();
+
+                return $callback($input, $path);
             });
         });
     }
