@@ -3,49 +3,49 @@
     "rounds": 5,
     "benchmarks": {
         "No attributes": {
-            "blade_ms": 394.94,
-            "blaze_ms": 16.14,
-            "improvement": 95.9
+            "blade_ms": 278.94,
+            "blaze_ms": 14.27,
+            "improvement": 94.9
         },
         "Attributes only": {
-            "blade_ms": 464.95,
-            "blaze_ms": 29.47,
-            "improvement": 93.7
+            "blade_ms": 324.82,
+            "blaze_ms": 26.45,
+            "improvement": 91.9
         },
         "Attributes + merge()": {
-            "blade_ms": 604.67,
-            "blaze_ms": 43.53,
-            "improvement": 92.8
+            "blade_ms": 437.89,
+            "blaze_ms": 38.78,
+            "improvement": 91.1
         },
         "Attributes + class()": {
-            "blade_ms": 608.13,
-            "blaze_ms": 47,
-            "improvement": 92.3
+            "blade_ms": 440.89,
+            "blaze_ms": 41.15,
+            "improvement": 90.7
         },
         "Props + attributes": {
-            "blade_ms": 828.81,
-            "blaze_ms": 39.16,
-            "improvement": 95.3
+            "blade_ms": 601.07,
+            "blaze_ms": 35.02,
+            "improvement": 94.2
         },
         "Default slot": {
-            "blade_ms": 433.42,
-            "blaze_ms": 24.62,
-            "improvement": 94.3
+            "blade_ms": 303.46,
+            "blaze_ms": 22.21,
+            "improvement": 92.7
         },
         "Named slots": {
-            "blade_ms": 607.45,
-            "blaze_ms": 38.07,
-            "improvement": 93.7
+            "blade_ms": 445.12,
+            "blaze_ms": 35.46,
+            "improvement": 92
         },
         "`@aware` (nested)": {
-            "blade_ms": 1922.24,
-            "blaze_ms": 93.17,
-            "improvement": 95.2
+            "blade_ms": 1374.22,
+            "blaze_ms": 82.74,
+            "improvement": 94
         },
         "Attribute forwarding": {
-            "blade_ms": 1702.71,
-            "blaze_ms": 57.1,
-            "improvement": 96.6
+            "blade_ms": 1214.09,
+            "blaze_ms": 49.45,
+            "improvement": 95.9
         }
     }
 }
