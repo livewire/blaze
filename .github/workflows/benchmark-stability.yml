@@ -12,21 +12,17 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          # Low iterations
-          - { iterations: 5000,  rounds: 5,  warmup: 2, label: 5k-r5-w2 }
-          - { iterations: 5000,  rounds: 10, warmup: 3, label: 5k-r10-w3 }
-          # Current default
-          - { iterations: 10000, rounds: 5,  warmup: 2, label: 10k-r5-w2 }
-          # More rounds
+          # Rounds sweep (warmup 2)
+          - { iterations: 10000, rounds: 6,  warmup: 2, label: 10k-r6-w2 }
           - { iterations: 10000, rounds: 7,  warmup: 2, label: 10k-r7-w2 }
-          - { iterations: 10000, rounds: 10, warmup: 2, label: 10k-r10-w2 }
-          # Heavier warmup
-          - { iterations: 10000, rounds: 5,  warmup: 5, label: 10k-r5-w5 }
-          - { iterations: 10000, rounds: 7,  warmup: 5, label: 10k-r7-w5 }
-          # Higher iterations
-          - { iterations: 15000, rounds: 5,  warmup: 2, label: 15k-r5-w2 }
-          - { iterations: 15000, rounds: 5,  warmup: 5, label: 15k-r5-w5 }
-          - { iterations: 15000, rounds: 7,  warmup: 3, label: 15k-r7-w3 }
+          - { iterations: 10000, rounds: 8,  warmup: 2, label: 10k-r8-w2 }
+          - { iterations: 10000, rounds: 9,  warmup: 2, label: 10k-r9-w2 }
+          # Warmup sweep (7 rounds)
+          - { iterations: 10000, rounds: 7,  warmup: 1, label: 10k-r7-w1 }
+          - { iterations: 10000, rounds: 7,  warmup: 3, label: 10k-r7-w3 }
+          # Combo tweaks
+          - { iterations: 10000, rounds: 8,  warmup: 1, label: 10k-r8-w1 }
+          - { iterations: 10000, rounds: 8,  warmup: 3, label: 10k-r8-w3 }
 
     steps:
       - name: Checkout

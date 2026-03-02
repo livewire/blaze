@@ -122,7 +122,6 @@ class BenchmarkCommand extends Command
             if ($prev = $snapshot['benchmarks'][$name] ?? null) {
                 $blade .= ' ' . $this->formatChange($prev['blade_ms'], $result['blade_ms']);
                 $blaze .= ' ' . $this->formatChange($prev['blaze_ms'], $result['blaze_ms']);
-                $improvement .= ' ' . $this->formatChange($prev['improvement'], $this->improvement($result));
             }
 
             return [$name, $blade, $blaze, $improvement];
