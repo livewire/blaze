@@ -27,22 +27,8 @@ jobs:
       - name: Install dependencies
         run: composer install --prefer-dist --no-progress --no-interaction
 
-      - name: Run benchmarks
-        run: |
-          echo "## Benchmark Results" > benchmark-comment.md
-          echo "" >> benchmark-comment.md
-
-          echo "### Baseline" >> benchmark-comment.md
-          echo "" >> benchmark-comment.md
-          vendor/bin/testbench benchmark --snapshot --ci | grep -v '^## ' >> benchmark-comment.md
-          echo "" >> benchmark-comment.md
-
-          for i in 1 2 3; do
-            echo "### Run $i" >> benchmark-comment.md
-            echo "" >> benchmark-comment.md
-            vendor/bin/testbench benchmark --ci | grep -v '^## ' >> benchmark-comment.md
-            echo "" >> benchmark-comment.md
-          done
+      - name: Run benchmark
+        run: vendor/bin/testbench benchmark --ci > benchmark-comment.md
 
       - name: Find existing comment
         uses: peter-evans/find-comment@v3
