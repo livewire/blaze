@@ -77,6 +77,9 @@ jobs:
       - name: Install dependencies
         run: composer install --prefer-dist --no-progress --no-interaction
 
+      - name: Fetch baseline snapshot from main
+        run: git show origin/${{ github.event.pull_request.base.ref }}:.github/benchmark-snapshot.json > .github/benchmark-snapshot.json 2>/dev/null || true
+
       - name: Run benchmark
         run: vendor/bin/testbench benchmark --ci > benchmark-comment.md
 
