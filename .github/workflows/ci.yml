@@ -79,8 +79,11 @@ jobs:
           git fetch origin ${{ github.event.pull_request.base.ref }} --depth=1
           git checkout origin/${{ github.event.pull_request.base.ref }} -- .github/benchmark-snapshot.json
 
+      - name: Save PR number
+        run: echo "${{ github.event.pull_request.number }}" > benchmark-result.md
+
       - name: Run benchmark
-        run: vendor/bin/testbench benchmark --ci > benchmark-result.md
+        run: vendor/bin/testbench benchmark --ci >> benchmark-result.md
 
       - name: Upload benchmark result
         uses: actions/upload-artifact@v4
