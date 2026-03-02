@@ -60,8 +60,10 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout
+      - name: Checkout base branch
         uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.base.sha }}
 
       - name: Setup PHP
         uses: shivammathur/setup-php@v2
@@ -71,13 +73,23 @@ jobs:
           coverage: none
           extensions: mbstring, dom, curl, json, libxml, xml, xmlwriter, simplexml, tokenizer
 
-      - name: Install dependencies
+      - name: Install base dependencies
         run: composer install --prefer-dist --no-progress --no-interaction
 
-      - name: Fetch baseline snapshot from main
-        run: |
-          git fetch origin ${{ github.event.pull_request.base.ref }} --depth=1
-          git checkout origin/${{ github.event.pull_request.base.ref }} -- .github/benchmark-snapshot.json
+      - name: Generate baseline snapshot
+        run: vendor/bin/testbench benchmark --snapshot --ci
+
+      - name: Save baseline snapshot
+        run: cp benchmark-snapshot.json ${{ runner.temp }}/benchmark-snapshot.json
+
+      - name: Checkout PR
+        uses: actions/checkout@v4
+
+      - name: Install PR dependencies
+        run: composer install --prefer-dist --no-progress --no-interaction
+
+      - name: Restore baseline snapshot
+        run: cp ${{ runner.temp }}/benchmark-snapshot.json benchmark-snapshot.json
 
       - name: Save PR number
         run: echo "${{ github.event.pull_request.number }}" > benchmark-result.md
@@ -90,38 +102,3 @@ jobs:
         with:
           name: benchmark-result
           path: benchmark-result.md
-
-  snapshot:
-    needs: pest
-    if: github.event_name == 'push'
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Setup PHP
-        uses: shivammathur/setup-php@v2
-        with:
-          php-version: '8.4'
-          tools: composer:v2
-          coverage: none
-          extensions: mbstring, dom, curl, json, libxml, xml, xmlwriter, simplexml, tokenizer
-
-      - name: Install dependencies
-        run: composer install --prefer-dist --no-progress --no-interaction
-
-      - name: Generate snapshot
-        run: vendor/bin/testbench benchmark --snapshot --ci
-
-      - name: Commit snapshot
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add .github/benchmark-snapshot.json
-          git diff --staged --quiet || git commit -m "Update benchmark snapshot"
-          git push
