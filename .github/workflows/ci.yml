@@ -95,16 +95,10 @@ jobs:
         run: echo "${{ github.event.pull_request.number }}" > benchmark-result.md
 
       - name: Run benchmark
-        run: vendor/bin/testbench benchmark --ci --dump=benchmark-stats.json >> benchmark-result.md
+        run: vendor/bin/testbench benchmark --ci >> benchmark-result.md
 
       - name: Upload benchmark result
         uses: actions/upload-artifact@v4
         with:
           name: benchmark-result
           path: benchmark-result.md
-
-      - name: Upload benchmark stats
-        uses: actions/upload-artifact@v4
-        with:
-          name: benchmark-stats
-          path: benchmark-stats.json

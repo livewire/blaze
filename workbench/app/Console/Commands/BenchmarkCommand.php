@@ -13,11 +13,10 @@ class BenchmarkCommand extends Command
 {
     protected $signature = 'benchmark
         {--iterations=10000 : Number of component renders per benchmark}
-        {--rounds=5 : Number of timed rounds per benchmark}
+        {--rounds=7 : Number of timed rounds per benchmark}
         {--warmup=2 : Number of untimed warmup rounds}
         {--snapshot : Save results as the baseline snapshot}
-        {--ci : Output a markdown table with no progress (for CI)}
-        {--dump= : Dump detailed per-round stats to a JSON file}';
+        {--ci : Output a markdown table with no progress (for CI)}';
 
     protected $description = 'Run Blaze performance benchmarks';
 
@@ -43,10 +42,6 @@ class BenchmarkCommand extends Command
 
         if ($this->option('snapshot')) {
             $this->saveSnapshot($results);
-        }
-
-        if ($dump = $this->option('dump')) {
-            $this->dumpStats($results, $dump);
         }
 
         return Command::SUCCESS;
@@ -102,8 +97,6 @@ class BenchmarkCommand extends Command
             $name => [
                 'blade_ms' => round(collect($bladeTimes[$name])->median(), 2),
                 'blaze_ms' => round(collect($blazeTimes[$name])->median(), 2),
-                'blade_rounds' => $bladeTimes[$name],
-                'blaze_rounds' => $blazeTimes[$name],
             ],
         ])->all();
     }
@@ -196,56 +189,6 @@ class BenchmarkCommand extends Command
         $this->info("Snapshot saved to {$path}");
     }
 
-    protected function dumpStats(array $results, string $path): void
-    {
-        if (! str_starts_with($path, '/')) {
-            $path = dirname(__DIR__, 4) . '/' . $path;
-        }
-
-        $stats = [
-            'config' => [
-                'iterations' => $this->iterations,
-                'rounds' => $this->rounds,
-                'warmup' => $this->warmupRounds,
-                'timestamp' => now()->toIso8601String(),
-            ],
-            'benchmarks' => collect($results)->map(fn ($result, $name) => [
-                'blade' => $this->computeStats($result['blade_rounds']),
-                'blaze' => $this->computeStats($result['blaze_rounds']),
-                'improvement' => $this->improvement($result),
-            ])->all(),
-        ];
-
-        File::put($path, json_encode($stats, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) . "\n");
-    }
-
-    protected function computeStats(array $values): array
-    {
-        $collection = collect($values);
-        $mean = $collection->avg();
-        $median = $collection->median();
-        $min = $collection->min();
-        $max = $collection->max();
-        $count = $collection->count();
-
-        $variance = $collection->reduce(
-            fn ($carry, $val) => $carry + pow($val - $mean, 2), 0
-        ) / max($count - 1, 1);
-
-        $stddev = sqrt($variance);
-        $cv = $mean > 0 ? ($stddev / $mean) * 100 : 0;
-
-        return [
-            'mean' => round($mean, 2),
-            'median' => round($median, 2),
-            'min' => round($min, 2),
-            'max' => round($max, 2),
-            'stddev' => round($stddev, 2),
-            'cv_percent' => round($cv, 1),
-            'rounds' => array_map(fn ($v) => round($v, 2), $values),
-        ];
-    }
-
     protected function loadSnapshot(): ?array
     {
         $path = $this->snapshotPath();
@@ -271,13 +214,18 @@ class BenchmarkCommand extends Command
             : 0;
     }
 
-    protected function formatChange(float $old, float $new): string
+    protected function formatChange(float $old, float $new, float $threshold = 2.0): string
     {
         if ($old == 0) {
             return '(~)';
         }
 
         $change = ($new - $old) / abs($old) * 100;
+
+        if (abs($change) < $threshold) {
+            return '(~)';
+        }
+
         $sign = $change > 0 ? '+' : '';
 
         return "({$sign}" . round($change, 1) . '%)';
