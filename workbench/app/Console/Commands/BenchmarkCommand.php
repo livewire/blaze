@@ -209,7 +209,8 @@ class BenchmarkCommand extends Command
             $prev = $snapshot['benchmarks'][$name];
 
             return $this->exceedsThreshold($prev['blade_ms'], $result['blade_ms'], 10.0)
-                || $this->exceedsThreshold($prev['blaze_ms'], $result['blaze_ms'], 5.0);
+                || $this->exceedsThreshold($prev['blaze_ms'], $result['blaze_ms'], 5.0)
+                || $this->exceedsThreshold($prev['improvement'], $this->improvement($result), 0.5);
         });
     }
 
