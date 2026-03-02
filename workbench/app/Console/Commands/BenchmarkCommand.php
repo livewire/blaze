@@ -12,8 +12,8 @@ use Illuminate\Support\Str;
 class BenchmarkCommand extends Command
 {
     protected $signature = 'benchmark
-        {--iterations=10000 : Number of component renders per benchmark}
-        {--rounds=7 : Number of timed rounds per benchmark}
+        {--iterations=5000 : Number of component renders per benchmark}
+        {--rounds=15 : Number of timed rounds per benchmark}
         {--warmup=2 : Number of untimed warmup rounds}
         {--snapshot : Save results as the baseline snapshot}
         {--ci : Output a markdown table with no progress (for CI)}';
