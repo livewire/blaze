@@ -12,8 +12,8 @@ use Illuminate\Support\Str;
 class BenchmarkCommand extends Command
 {
     protected $signature = 'benchmark
-        {--iterations=5000 : Number of component renders per benchmark}
-        {--rounds=15 : Number of timed rounds per benchmark}
+        {--iterations=2500 : Number of component renders per benchmark}
+        {--rounds=100 : Number of timed rounds per benchmark}
         {--warmup=2 : Number of untimed warmup rounds}
         {--filter-outliers : Exclude outlier rounds using the IQR method}
         {--snapshot : Save results as the baseline snapshot}
@@ -252,42 +252,42 @@ class BenchmarkCommand extends Command
     protected function getBenchmarks(): array
     {
         return [
-            'No attributes' => [
-                'blade' => 'bench.blade.no-attributes',
-                'blaze' => 'bench.blaze.no-attributes',
-            ],
-            'Attributes only' => [
-                'blade' => 'bench.blade.attributes',
-                'blaze' => 'bench.blaze.attributes',
-            ],
-            'Attributes + merge()' => [
-                'blade' => 'bench.blade.merge',
-                'blaze' => 'bench.blaze.merge',
-            ],
-            'Attributes + class()' => [
-                'blade' => 'bench.blade.class',
-                'blaze' => 'bench.blaze.class',
-            ],
+            // 'No attributes' => [
+            //     'blade' => 'bench.blade.no-attributes',
+            //     'blaze' => 'bench.blaze.no-attributes',
+            // ],
+            // 'Attributes only' => [
+            //     'blade' => 'bench.blade.attributes',
+            //     'blaze' => 'bench.blaze.attributes',
+            // ],
+            // 'Attributes + merge()' => [
+            //     'blade' => 'bench.blade.merge',
+            //     'blaze' => 'bench.blaze.merge',
+            // ],
+            // 'Attributes + class()' => [
+            //     'blade' => 'bench.blade.class',
+            //     'blaze' => 'bench.blaze.class',
+            // ],
             'Props + attributes' => [
                 'blade' => 'bench.blade.props',
                 'blaze' => 'bench.blaze.props',
             ],
-            'Default slot' => [
-                'blade' => 'bench.blade.slot',
-                'blaze' => 'bench.blaze.slot',
-            ],
-            'Named slots' => [
-                'blade' => 'bench.blade.named-slots',
-                'blaze' => 'bench.blaze.named-slots',
-            ],
-            '`@aware` (nested)' => [
-                'blade' => 'bench.blade.aware',
-                'blaze' => 'bench.blaze.aware',
-            ],
-            'Attribute forwarding' => [
-                'blade' => 'bench.blade.forwarding',
-                'blaze' => 'bench.blaze.forwarding',
-            ],
+            // 'Default slot' => [
+            //     'blade' => 'bench.blade.slot',
+            //     'blaze' => 'bench.blaze.slot',
+            // ],
+            // 'Named slots' => [
+            //     'blade' => 'bench.blade.named-slots',
+            //     'blaze' => 'bench.blaze.named-slots',
+            // ],
+            // '`@aware` (nested)' => [
+            //     'blade' => 'bench.blade.aware',
+            //     'blaze' => 'bench.blaze.aware',
+            // ],
+            // 'Attribute forwarding' => [
+            //     'blade' => 'bench.blade.forwarding',
+            //     'blaze' => 'bench.blaze.forwarding',
+            // ],
         ];
     }
 
