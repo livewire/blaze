@@ -101,8 +101,6 @@ class BenchmarkCommand extends Command
         ])->all();
     }
 
-    // region Display
-
     protected function buildTable(array $results): array
     {
         $snapshot = $this->option('snapshot') ? null : $this->loadSnapshot();
@@ -172,10 +170,6 @@ class BenchmarkCommand extends Command
         $this->output->writeln($md);
     }
 
-    // endregion
-
-    // region Snapshot
-
     protected function saveSnapshot(array $results): void
     {
         $snapshot = [
@@ -217,10 +211,6 @@ class BenchmarkCommand extends Command
             ? $root . '/.github/benchmark-snapshot.json'
             : $root . '/benchmark-snapshot.json';
     }
-
-    // endregion
-
-    // region Helpers
 
     protected function improvement(array $result): float
     {
@@ -302,6 +292,4 @@ class BenchmarkCommand extends Command
     {
         return number_format($ms, 2) . 'ms';
     }
-
-    // endregion
 }
