@@ -15,6 +15,7 @@ class BenchmarkCommand extends Command
         {--iterations=5000 : Number of component renders per benchmark}
         {--rounds=15 : Number of timed rounds per benchmark}
         {--warmup=2 : Number of untimed warmup rounds}
+        {--filter-outliers : Exclude outlier rounds using the IQR method}
         {--snapshot : Save results as the baseline snapshot}
         {--ci : Output a markdown table with no progress (for CI)}';
 
@@ -93,12 +94,24 @@ class BenchmarkCommand extends Command
             $this->newLine(2);
         }
 
-        return collect($names)->mapWithKeys(fn ($name) => [
-            $name => [
-                'blade_ms' => round(collect($bladeTimes[$name])->median(), 2),
-                'blaze_ms' => round(collect($blazeTimes[$name])->median(), 2),
-            ],
-        ])->all();
+        $filterOutliers = $this->option('filter-outliers');
+
+        return collect($names)->mapWithKeys(function ($name) use ($bladeTimes, $blazeTimes, $filterOutliers) {
+            $blade = collect($bladeTimes[$name]);
+            $blaze = collect($blazeTimes[$name]);
+
+            if ($filterOutliers) {
+                $blade = $this->filterOutliers($blade);
+                $blaze = $this->filterOutliers($blaze);
+            }
+
+            return [
+                $name => [
+                    'blade_ms' => round($blade->median(), 2),
+                    'blaze_ms' => round($blaze->median(), 2),
+                ],
+            ];
+        })->all();
     }
 
     protected function buildTable(array $results): array
@@ -133,9 +146,13 @@ class BenchmarkCommand extends Command
         $this->newLine();
         $this->info("{$this->iterations} iterations x {$this->rounds} rounds per benchmark");
 
+        if ($this->option('filter-outliers')) {
+            $this->comment('Outlier rounds excluded (IQR method)');
+        }
+
         if ($snapshot) {
             $rounds = $snapshot['rounds'] ?? 1;
-            $this->comment("Compared against snapshot ({$snapshot['iterations']} iterations x {$rounds} rounds)");
+            $this->comment("Compared against baseline snapshot ({$snapshot['iterations']} iterations x {$rounds} rounds)");
         }
     }
 
@@ -162,7 +179,8 @@ class BenchmarkCommand extends Command
             ...collect($rows)->map($formatRow),
             '',
             '<sub>' . "{$this->iterations} iterations x {$this->rounds} rounds per benchmark"
-                . ($snapshot ? ' &mdash; compared against committed snapshot' : '')
+                . ($this->option('filter-outliers') ? ' &mdash; outliers excluded (IQR)' : '')
+                . ($snapshot ? ' &mdash; compared against baseline snapshot' : '')
                 . '</sub>',
         ])->implode("\n");
 
@@ -214,7 +232,7 @@ class BenchmarkCommand extends Command
             : 0;
     }
 
-    protected function formatChange(float $old, float $new, float $threshold = 2.0): string
+    protected function formatChange(float $old, float $new, float $threshold = 0.1): string
     {
         if ($old == 0) {
             return '(~)';
@@ -271,6 +289,30 @@ class BenchmarkCommand extends Command
                 'blaze' => 'bench.blaze.forwarding',
             ],
         ];
+    }
+
+    /**
+     * Remove outliers using the Interquartile Range (IQR) method.
+     *
+     * Values below Q1 - 1.5*IQR or above Q3 + 1.5*IQR are excluded.
+     */
+    protected function filterOutliers(\Illuminate\Support\Collection $values): \Illuminate\Support\Collection
+    {
+        if ($values->count() < 4) {
+            return $values;
+        }
+
+        $sorted = $values->sort()->values();
+        $count = $sorted->count();
+
+        $q1 = $sorted[intdiv($count, 4)];
+        $q3 = $sorted[intdiv($count * 3, 4)];
+        $iqr = $q3 - $q1;
+
+        $lower = $q1 - 1.5 * $iqr;
+        $upper = $q3 + 1.5 * $iqr;
+
+        return $values->filter(fn ($v) => $v >= $lower && $v <= $upper)->values();
     }
 
     protected function renderView(string $view): string
