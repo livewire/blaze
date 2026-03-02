@@ -213,7 +213,7 @@ class BlazeRuntime
     public function __get(string $name): mixed
     {
         return match ($name) {
-            'errors' => $this->env->getShared()['errors'] ?? new ViewErrorBag,
+            'errors' => $this->env->shared('errors') ?? new ViewErrorBag,
             'compiledPath' => $this->getCompiledPath(),
             default => throw new \InvalidArgumentException("Property {$name} does not exist"),
         };
