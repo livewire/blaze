@@ -172,6 +172,15 @@ class BenchmarkCommand extends Command
 
     protected function saveSnapshot(array $results): void
     {
+        $existing = $this->loadSnapshot();
+
+        if ($existing && ! $this->hasSignificantChange($results, $existing)) {
+            $this->newLine();
+            $this->comment('Snapshot unchanged (no significant difference).');
+
+            return;
+        }
+
         $snapshot = [
             'iterations' => $this->iterations,
             'rounds' => $this->rounds,
@@ -188,6 +197,25 @@ class BenchmarkCommand extends Command
 
         $this->newLine();
         $this->info("Snapshot saved to {$path}");
+    }
+
+    protected function hasSignificantChange(array $results, array $snapshot): bool
+    {
+        if (array_keys($results) !== array_keys($snapshot['benchmarks'])) {
+            return true;
+        }
+
+        return collect($results)->contains(function ($result, $name) use ($snapshot) {
+            $prev = $snapshot['benchmarks'][$name];
+
+            return $this->exceedsThreshold($prev['blade_ms'], $result['blade_ms'], 10.0)
+                || $this->exceedsThreshold($prev['blaze_ms'], $result['blaze_ms'], 5.0);
+        });
+    }
+
+    protected function exceedsThreshold(float $old, float $new, float $threshold): bool
+    {
+        return $old > 0 && abs(($new - $old) / $old * 100) >= $threshold;
     }
 
     protected function loadSnapshot(): ?array
