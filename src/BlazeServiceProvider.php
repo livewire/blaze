@@ -7,7 +7,6 @@ use Livewire\Blaze\Runtime\BlazeRuntime;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Support\Facades\Blade;
 use Illuminate\Support\Facades\View;
-use Illuminate\View\Engines\CompilerEngine;
 
 class BlazeServiceProvider extends ServiceProvider
 {
@@ -62,9 +61,8 @@ class BlazeServiceProvider extends ServiceProvider
                 return;
             }
 
-            // Avoid injecting the BlazeRuntime into non-Blade views (like Statamic's Antlers)
-            if ($view->getEngine() instanceof CompilerEngine) {
-                $view->with('__blaze', $runtime);
+            if (str_ends_with($view->getPath(), '.blade.php')) {
+                $view->with('__blaze', $this->app->make(BlazeRuntime::class));
             }
         });
     }

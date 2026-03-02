@@ -5,5 +5,7 @@
 .gitignore     export-ignore
 phpunit.xml    export-ignore
 README.md      export-ignore
+testbench.yaml export-ignore
 tests/         export-ignore
 UPGRADING.md   export-ignore
+workbench/     export-ignore
