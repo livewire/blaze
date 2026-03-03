@@ -3,7 +3,7 @@
 namespace Workbench\App\Console\Commands;
 
 use Illuminate\Console\Command;
-use Illuminate\Support\Facades\Artisan;
+use Illuminate\Support\Facades\Process;
 use Illuminate\Support\Str;
 
 class BenchmarkVarianceCommand extends BenchmarkCommand
@@ -35,43 +35,53 @@ class BenchmarkVarianceCommand extends BenchmarkCommand
         $quiet = $this->option('json') || $this->option('ci');
         $commandStart = microtime(true);
 
-        // Always suppress inner progress bars.
-        $this->input->setOption('ci', true);
-
+        $benchmarkNames = array_keys($this->getBenchmarks());
+        $totalSteps = $totalRuns * count($benchmarkNames);
         $runDurations = [];
 
         if (! $quiet) {
-            $bar = $this->output->createProgressBar($totalRuns);
+            $bar = $this->output->createProgressBar($totalSteps);
             $bar->setFormat(' %current%/%max% [%bar%] %message%');
             $bar->setMessage('Snapshot...');
             $bar->start();
         }
 
-        Artisan::call('view:clear');
-
-        // Step 1: Snapshot run
+        // Step 1: Snapshot run (each benchmark in its own process)
         $t = microtime(true);
-        $snapshotResults = $this->runBenchmarks();
-        $runDurations[] = microtime(true) - $t;
-        $this->saveSnapshot($snapshotResults);
+        $snapshotResults = [];
 
-        if (! $quiet) {
-            $bar->advance();
-            $bar->setMessage('Benchmarking...');
-        }
-
-        // Step 2: Benchmark runs
-        $allRuns = [];
-
-        for ($i = 0; $i < $runs; $i++) {
-            Artisan::call('view:clear');
-            $t = microtime(true);
-            $allRuns[] = $this->runBenchmarks();
-            $runDurations[] = microtime(true) - $t;
+        foreach ($benchmarkNames as $name) {
+            $snapshotResults[$name] = $this->runBenchmarkInProcess($name);
 
             if (! $quiet) {
                 $bar->advance();
             }
+        }
+
+        $runDurations[] = microtime(true) - $t;
+        $this->saveSnapshot($snapshotResults);
+
+        if (! $quiet) {
+            $bar->setMessage('Benchmarking...');
+        }
+
+        // Step 2: Benchmark runs (each benchmark in its own process)
+        $allRuns = [];
+
+        for ($i = 0; $i < $runs; $i++) {
+            $t = microtime(true);
+            $runResults = [];
+
+            foreach ($benchmarkNames as $name) {
+                $runResults[$name] = $this->runBenchmarkInProcess($name);
+
+                if (! $quiet) {
+                    $bar->advance();
+                }
+            }
+
+            $allRuns[] = $runResults;
+            $runDurations[] = microtime(true) - $t;
         }
 
         if (! $quiet) {
@@ -93,6 +103,36 @@ class BenchmarkVarianceCommand extends BenchmarkCommand
         }
 
         return Command::SUCCESS;
+    }
+
+    protected function runBenchmarkInProcess(string $name): array
+    {
+        $result = Process::path(base_path())
+            ->timeout(300)
+            ->run([
+                PHP_BINARY, 'artisan', 'benchmark',
+                '--only='.$name,
+                '--json',
+                '--iterations='.$this->iterations,
+                '--rounds='.$this->rounds,
+                '--warmup='.$this->warmupRounds,
+            ]);
+
+        if (! $result->successful()) {
+            throw new \RuntimeException(
+                "Benchmark process failed for '{$name}': ".$result->errorOutput()
+            );
+        }
+
+        $data = json_decode($result->output(), true);
+
+        if (! $data || ! isset($data['benchmarks'][$name])) {
+            throw new \RuntimeException(
+                "Invalid benchmark output for '{$name}': ".$result->output()
+            );
+        }
+
+        return $data['benchmarks'][$name];
     }
 
     protected function displayVarianceResults(array $snapshot, array $allRuns, float $avgRunDuration, float $totalDuration): void
@@ -203,7 +243,7 @@ class BenchmarkVarianceCommand extends BenchmarkCommand
         $separator = '| ' . $widths->map(fn ($w) => str_repeat('-', $w))->implode(' | ') . ' |';
 
         $md = collect([
-            '## Benchmark Variance Results',
+            '## Benchmark Results',
             '',
             $formatRow($headers),
             $separator,

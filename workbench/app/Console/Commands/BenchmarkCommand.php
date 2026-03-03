@@ -16,6 +16,8 @@ class BenchmarkCommand extends Command
         {--rounds=100 : Number of timed rounds per benchmark}
         {--warmup=2 : Number of untimed warmup rounds}
         {--snapshot : Save results as the baseline snapshot}
+        {--json : Output results as JSON}
+        {--only= : Run only the named benchmark}
         {--ci : Output a markdown table with no progress (for CI)}';
 
     protected $description = 'Run Blaze performance benchmarks';
@@ -40,9 +42,13 @@ class BenchmarkCommand extends Command
         $results = $this->runBenchmarks();
         $totalDuration = round(microtime(true) - $commandStart, 2);
 
-        $this->option('ci')
-            ? $this->outputMarkdown($results, $totalDuration)
-            : $this->displayResults($results, $totalDuration);
+        if ($this->option('json')) {
+            $this->outputJsonResults($results, $totalDuration);
+        } elseif ($this->option('ci')) {
+            $this->outputMarkdown($results, $totalDuration);
+        } else {
+            $this->displayResults($results, $totalDuration);
+        }
 
         if ($this->option('snapshot')) {
             $this->saveSnapshot($results);
@@ -53,8 +59,8 @@ class BenchmarkCommand extends Command
 
     protected function runBenchmarks(): array
     {
-        $showProgress = ! $this->option('ci');
-        $benchmarks = $this->getBenchmarks();
+        $showProgress = ! $this->option('ci') && ! $this->option('json');
+        $benchmarks = $this->getFilteredBenchmarks();
         $names = array_keys($benchmarks);
 
         if ($showProgress) {
@@ -261,6 +267,32 @@ class BenchmarkCommand extends Command
         $sign = $delta > 0 ? '+' : '';
 
         return "({$sign}{$delta}%)";
+    }
+
+    protected function getFilteredBenchmarks(): array
+    {
+        $benchmarks = $this->getBenchmarks();
+
+        if ($this->input->hasOption('only') && ($only = $this->option('only'))) {
+            if (! isset($benchmarks[$only])) {
+                throw new \InvalidArgumentException("Unknown benchmark: {$only}");
+            }
+
+            return [$only => $benchmarks[$only]];
+        }
+
+        return $benchmarks;
+    }
+
+    protected function outputJsonResults(array $results, float $totalDuration): void
+    {
+        $this->output->writeln(json_encode([
+            'iterations' => $this->iterations,
+            'rounds' => $this->rounds,
+            'filtered_rounds' => $this->filteredRounds,
+            'total_duration_s' => $totalDuration,
+            'benchmarks' => $results,
+        ], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
     }
 
     protected function getBenchmarks(): array
