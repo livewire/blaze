@@ -240,7 +240,7 @@ class BenchmarkCommand extends Command
     {
         $snapshot = $this->option('snapshot') ? null : $this->loadSnapshot();
 
-        $headers = ['Benchmark', 'Blade', 'Blaze', 'Improvement'];
+        $headers = ['Blade', 'Blaze', 'Improvement'];
 
         $rows = collect($results)->map(function ($result, $name) use ($snapshot) {
             $blade = $this->formatTime($result['blade_ms']);
@@ -253,7 +253,7 @@ class BenchmarkCommand extends Command
                 $improvement .= ' '.$this->formatImprovementChange($prev['improvement'], $this->improvement($result));
             }
 
-            return [$name, $blade, $blaze, $improvement];
+            return [$blade, $blaze, $improvement];
         })->values()->all();
 
         return [$headers, $rows, $snapshot];
@@ -470,7 +470,7 @@ class BenchmarkCommand extends Command
             : 0;
     }
 
-    protected function formatChange(float $old, float $new, float $threshold = 0.1): string
+    protected function formatChange(float $old, float $new, float $threshold = 3): string
     {
         if ($old == 0) {
             return '(~)';
@@ -487,7 +487,7 @@ class BenchmarkCommand extends Command
         return "({$sign}".round($change, 1).'%)';
     }
 
-    protected function formatImprovementChange(float $old, float $new, float $threshold = 0.1): string
+    protected function formatImprovementChange(float $old, float $new, float $threshold = 0.2): string
     {
         $delta = round($new - $old, 1);
 
