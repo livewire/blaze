@@ -69,6 +69,7 @@ class BlazeServiceProvider extends ServiceProvider
 
             $view->with('__blaze', $runtime);
         });
+        
     }
 
     /**
