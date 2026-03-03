@@ -61,7 +61,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        repeat: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+        repeat: ["01", "02", "03", "04", "05", "06", "07", "08", "09", "10"]
 
     steps:
       - name: Checkout
@@ -108,7 +108,7 @@ jobs:
           echo "100 rounds x 5000 iterations, repeated 10 times." >> comment.md
           echo "" >> comment.md
 
-          for repeat in $(seq 1 10); do
+          for repeat in $(seq -w 1 10); do
             dir="benchmark-result-${repeat}"
 
             echo "### Run ${repeat}/10" >> comment.md
@@ -118,18 +118,8 @@ jobs:
             echo "" >> comment.md
           done
 
-      - name: Find existing comment
-        uses: peter-evans/find-comment@v3
-        id: find
-        with:
-          issue-number: ${{ github.event.pull_request.number }}
-          comment-author: 'github-actions[bot]'
-          body-includes: '## Benchmark Variance Results'
-
-      - name: Post or update comment
+      - name: Post comment
         uses: peter-evans/create-or-update-comment@v4
         with:
           issue-number: ${{ github.event.pull_request.number }}
-          comment-id: ${{ steps.find.outputs.comment-id }}
-          edit-mode: replace
           body-path: comment.md
