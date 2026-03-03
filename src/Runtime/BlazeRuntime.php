@@ -45,7 +45,7 @@ class BlazeRuntime
      */
     public function ensureCompiled(string $path, string $compiledPath): void
     {
-        if (isset($this->compiled[$path]) && file_exists($compiledPath)) {
+        if (isset($this->compiled[$path])) {
             return;
         }
 
