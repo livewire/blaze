@@ -58,14 +58,17 @@ jobs:
     needs: pest
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        repeat: ["01", "02", "03", "04", "05", "06", "07", "08", "09", "10"]
 
     steps:
-      - name: Checkout
+      - name: Checkout base branch
         uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.base.sha }}
+
+      - name: Checkout BenchmarkCommand from PR (for testing on this branch)
+        run: |
+          git fetch origin --depth=1 ${{ github.event.pull_request.head.sha }}
+          git checkout ${{ github.event.pull_request.head.sha }} -- workbench/app/Console/Commands/BenchmarkCommand.php
 
       - name: Setup PHP
         uses: shivammathur/setup-php@v2
@@ -75,51 +78,32 @@ jobs:
           coverage: none
           extensions: mbstring, dom, curl, json, libxml, xml, xmlwriter, simplexml, tokenizer
 
-      - name: Install dependencies
+      - name: Install base dependencies
         run: composer install --prefer-dist --no-progress --no-interaction
 
-      - name: Run benchmark (run ${{ matrix.repeat }}/10)
-        run: vendor/bin/testbench benchmark:variance props --ci --runs=10 --iterations=5000 --rounds=10 --attempts=10 > benchmark-result.md
+      - name: Generate baseline snapshot
+        run: vendor/bin/testbench benchmark --ci --iterations=5000 --rounds=100 --snapshot
+
+      - name: Save baseline snapshot
+        run: cp benchmark-snapshot.json ${{ runner.temp }}/benchmark-snapshot.json
+
+      - name: Checkout PR
+        uses: actions/checkout@v4
+
+      - name: Install PR dependencies
+        run: composer install --prefer-dist --no-progress --no-interaction
+
+      - name: Restore baseline snapshot
+        run: cp ${{ runner.temp }}/benchmark-snapshot.json benchmark-snapshot.json
+
+      - name: Save PR number
+        run: echo "${{ github.event.pull_request.number }}" > benchmark-result.md
+
+      - name: Run benchmark
+        run: vendor/bin/testbench benchmark:variance --ci --runs=10 --iterations=5000 --rounds=100 >> benchmark-result.md
 
       - name: Upload benchmark result
         uses: actions/upload-artifact@v4
         with:
-          name: benchmark-result-${{ matrix.repeat }}
+          name: benchmark-result
           path: benchmark-result.md
-
-  benchmark-comment:
-    needs: benchmark
-    if: github.event_name == 'pull_request'
-    runs-on: ubuntu-latest
-    permissions:
-      actions: read
-      pull-requests: write
-
-    steps:
-      - name: Download all benchmark results
-        uses: actions/download-artifact@v4
-        with:
-          pattern: benchmark-result-*
-
-      - name: Assemble comment
-        run: |
-          echo "## Benchmark Variance Results" > comment.md
-          echo "" >> comment.md
-          echo "100 rounds x 5000 iterations, repeated 10 times." >> comment.md
-          echo "" >> comment.md
-
-          for repeat in $(seq -w 1 10); do
-            dir="benchmark-result-${repeat}"
-
-            echo "### Run ${repeat}/10" >> comment.md
-            echo "" >> comment.md
-            # Strip the "## Benchmark Results" heading line from each result
-            sed '/^## Benchmark Results$/d' "$dir/benchmark-result.md" >> comment.md
-            echo "" >> comment.md
-          done
-
-      - name: Post comment
-        uses: peter-evans/create-or-update-comment@v4
-        with:
-          issue-number: ${{ github.event.pull_request.number }}
-          body-path: comment.md
