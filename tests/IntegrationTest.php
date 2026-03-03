@@ -2,9 +2,12 @@
 
 use Illuminate\Container\Container;
 use Illuminate\Contracts\View\Engine;
+use Illuminate\Foundation\Testing\WithConsoleEvents;
 use Illuminate\Support\Facades\Artisan;
 use Livewire\Blaze\Blaze;
 use Livewire\Blaze\BlazeManager;
+
+uses(WithConsoleEvents::class);
 
 beforeEach(fn () => Artisan::call('view:clear'));
 
@@ -14,14 +17,14 @@ test('renders components', function () {
 
 test('renders components with blaze off', function () {
     Blaze::disable();
-    
+
     view('mix')->render();
 })->throwsNoExceptions();
 
 test('renders components with blaze off and debug mode on', function () {
     Blaze::disable();
     Blaze::debug();
-    
+
     view('mix')->render();
 })->throwsNoExceptions();
 
@@ -44,6 +47,12 @@ test('supports decorated engine', function () {
         };
     });
 
+    view('mix')->render();
+})->throwsNoExceptions();
+
+test('clearing views mid-request does not crash re-render', function () {
+    view('mix')->render();
+    Artisan::call('view:clear');
     view('mix')->render();
 })->throwsNoExceptions();
 

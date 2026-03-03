@@ -182,6 +182,17 @@ class BlazeRuntime
     }
 
     /**
+     * Clear the in-memory compilation cache.
+     *
+     * Called when compiled view files are deleted (e.g. via artisan view:clear)
+     * so that subsequent resolve() calls trigger recompilation.
+     */
+    public function clearCompiled(): void
+    {
+        $this->compiled = [];
+    }
+
+    /**
      * Walk the data stack to find a value for @aware, checking slots before data at each level.
      */
     public function getConsumableData(string $key, mixed $default = null): mixed

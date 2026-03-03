@@ -4,9 +4,12 @@ namespace Livewire\Blaze;
 
 use Livewire\Blaze\Compiler\Profiler;
 use Livewire\Blaze\Runtime\BlazeRuntime;
+use Illuminate\Console\Events\CommandFinished;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Support\Facades\Blade;
+use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\View;
+use Illuminate\View\Component;
 
 class BlazeServiceProvider extends ServiceProvider
 {
@@ -45,6 +48,7 @@ class BlazeServiceProvider extends ServiceProvider
         $this->registerBladeMacros();
         $this->interceptBladeCompilation();
         $this->registerDebuggerMiddleware();
+        $this->clearCompiledCacheOnViewClear();
     }
 
     /**
@@ -145,6 +149,19 @@ class BlazeServiceProvider extends ServiceProvider
         $this->app->booted(function () {
             if (Blaze::isDebugging()) {
                 DebuggerMiddleware::register();
+            }
+        });
+    }
+
+    /**
+     * Reset BlazeRuntime's in-memory cache when compiled views are deleted.
+     */
+    protected function clearCompiledCacheOnViewClear(): void
+    {
+        Event::listen(CommandFinished::class, function (CommandFinished $event) {
+            if ($event->command === 'view:clear') {
+                $this->app->make(BlazeRuntime::class)->clearCompiled();
+                Component::flushCache();
             }
         });
     }
