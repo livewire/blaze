@@ -61,8 +61,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        config: ["50-10000", "200-2500", "1000-500"]
-        repeat: [1, 2, 3]
+        repeat: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
 
     steps:
       - name: Checkout
@@ -79,18 +78,13 @@ jobs:
       - name: Install dependencies
         run: composer install --prefer-dist --no-progress --no-interaction
 
-      - name: Run benchmark (${{ matrix.config }}, run ${{ matrix.repeat }}/3)
-        run: |
-          config="${{ matrix.config }}"
-          rounds="${config%%-*}"
-          iterations="${config##*-}"
-
-          vendor/bin/testbench benchmark:variance --ci --runs=25 --iterations="$iterations" --rounds="$rounds" > benchmark-result.md
+      - name: Run benchmark (run ${{ matrix.repeat }}/10)
+        run: vendor/bin/testbench benchmark:variance --ci --runs=25 --iterations=5000 --rounds=100 > benchmark-result.md
 
       - name: Upload benchmark result
         uses: actions/upload-artifact@v4
         with:
-          name: benchmark-result-${{ matrix.config }}-${{ matrix.repeat }}
+          name: benchmark-result-${{ matrix.repeat }}
           path: benchmark-result.md
 
   benchmark-comment:
@@ -111,25 +105,17 @@ jobs:
         run: |
           echo "## Benchmark Variance Results" > comment.md
           echo "" >> comment.md
-          echo "Each configuration is executed 3 times." >> comment.md
+          echo "100 rounds x 5000 iterations, repeated 10 times." >> comment.md
           echo "" >> comment.md
 
-          for config in "50-10000" "200-2500" "1000-500"; do
-            rounds="${config%%-*}"
-            iterations="${config##*-}"
+          for repeat in $(seq 1 10); do
+            dir="benchmark-result-${repeat}"
 
-            echo "### ${rounds} rounds x ${iterations} iterations" >> comment.md
+            echo "### Run ${repeat}/10" >> comment.md
             echo "" >> comment.md
-
-            for repeat in 1 2 3; do
-              dir="benchmark-result-${config}-${repeat}"
-
-              echo "#### Run ${repeat}/3" >> comment.md
-              echo "" >> comment.md
-              # Strip the "## Benchmark Results" heading line from each result
-              sed '/^## Benchmark Results$/d' "$dir/benchmark-result.md" >> comment.md
-              echo "" >> comment.md
-            done
+            # Strip the "## Benchmark Results" heading line from each result
+            sed '/^## Benchmark Results$/d' "$dir/benchmark-result.md" >> comment.md
+            echo "" >> comment.md
           done
 
       - name: Find existing comment
