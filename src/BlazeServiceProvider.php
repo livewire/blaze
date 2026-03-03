@@ -40,9 +40,8 @@ class BlazeServiceProvider extends ServiceProvider
     public function boot(): void
     {
         $this->registerBlazeDirectives();
-        $this->registerBlazeRuntime();
+        $this->registerViewComposer();
         $this->registerBladeMacros();
-        $this->interceptViewCacheInvalidation();
         $this->interceptBladeCompilation();
         $this->registerDebuggerMiddleware();
     }
@@ -50,16 +49,25 @@ class BlazeServiceProvider extends ServiceProvider
     /**
      * Make the BlazeRuntime instance available to Blade views.
      */
-    protected function registerBlazeRuntime(): void
+    protected function registerViewComposer(): void
     {
-        View::composer('*', function (\Illuminate\View\View $view) {
-            if (Blaze::isDisabled() && ! Blaze::isDebugging()) {
+        $blaze = $this->app->make(BlazeManager::class);
+        $runtime = $this->app->make(BlazeRuntime::class);
+
+        View::composer('*', function (\Illuminate\View\View $view) use ($blaze, $runtime) {
+            if ($blaze->isDisabled() && ! $blaze->isDebugging()) {
                 return;
             }
 
-            if (str_ends_with($view->getPath(), '.blade.php')) {
-                $view->with('__blaze', $this->app->make(BlazeRuntime::class));
+            if (! str_ends_with($view->getPath(), '.blade.php')) {
+                return;
             }
+
+            if ($blaze->viewContainsExpiredFrontMatter($view)) {
+                $view->getEngine()->getCompiler()->compile($view->getPath());
+            }
+
+            $view->with('__blaze', $runtime);
         });
     }
 
@@ -122,22 +130,6 @@ class BlazeServiceProvider extends ServiceProvider
             return Blaze::collectAndAppendFrontMatter($input, function ($input) use ($path) {
                 return Blaze::compile($input, $path);
             });
-        });
-    }
-
-    /**
-     * Recompile views when folded component dependencies have changed.
-     */
-    protected function interceptViewCacheInvalidation(): void
-    {
-        BladeService::viewCacheInvalidationHook(function ($view, $invalidate) {
-            if (Blaze::isDisabled()) {
-                return;
-            }
-
-            if (Blaze::viewContainsExpiredFrontMatter($view)) {
-                $invalidate();
-            }
         });
     }
 
