@@ -1,0 +1,7 @@
+laravel: '@testbench'
+
+workbench:
+  install: true
+  discovers:
+    commands: true
+    views: true
