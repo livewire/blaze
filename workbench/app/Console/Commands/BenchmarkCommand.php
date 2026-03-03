@@ -365,8 +365,49 @@ class BenchmarkCommand extends Command
     {
         $attempts = count($allAttempts);
         $filteredAttempts = $attempts - $keptIndices->count();
+        $benchmarkName = array_key_first($results);
+        $medianResult = $results[$benchmarkName];
+        $snapshot = $this->option('snapshot') ? null : $this->loadSnapshot();
+        $snapshotData = $snapshot['benchmarks'][$benchmarkName] ?? null;
 
-        [$headers, $rows, $snapshot] = $this->buildTable($results);
+        $headers = ['Attempt', 'Blade', 'Blaze', 'Improvement'];
+
+        $rows = [];
+
+        // Individual attempt rows.
+        foreach ($allAttempts as $i => $attempt) {
+            $isOutlier = ! $keptIndices->contains($i);
+
+            $rows[] = [
+                '#'.($i + 1).($isOutlier ? ' \*' : ''),
+                $this->formatTime($attempt['blade_ms']),
+                $this->formatTime($attempt['blaze_ms']),
+                $this->improvement($attempt).'%',
+            ];
+        }
+
+        // Snapshot row.
+        if ($snapshotData) {
+            $rows[] = [
+                'Snapshot',
+                $this->formatTime($snapshotData['blade_ms']),
+                $this->formatTime($snapshotData['blaze_ms']),
+                $snapshotData['improvement'].'%',
+            ];
+        }
+
+        // Result row (median with comparison deltas when snapshot exists).
+        $blade = $this->formatTime($medianResult['blade_ms']);
+        $blaze = $this->formatTime($medianResult['blaze_ms']);
+        $improvement = $this->improvement($medianResult).'%';
+
+        if ($snapshotData) {
+            $blade .= ' '.$this->formatChange($snapshotData['blade_ms'], $medianResult['blade_ms'], 1);
+            $blaze .= ' '.$this->formatChange($snapshotData['blaze_ms'], $medianResult['blaze_ms'], 1);
+            $improvement .= ' '.$this->formatImprovementChange($snapshotData['improvement'], $this->improvement($medianResult));
+        }
+
+        $rows[] = ['**Result**', "**{$blade}**", "**{$blaze}**", "**{$improvement}**"];
 
         $allRows = collect([$headers, ...$rows]);
         $widths = collect($headers)->keys()->map(
@@ -388,9 +429,8 @@ class BenchmarkCommand extends Command
             '',
             '<sub>'
                 ."Median of {$attempts} attempts"
-                .($filteredAttempts ? " ({$filteredAttempts} outlier(s) excluded)" : '')
+                .($filteredAttempts ? ' (\* = outlier, excluded from result)' : '')
                 .", {$this->iterations} iterations x {$this->rounds} rounds, {$totalDuration}s total"
-                .($snapshot ? ' &mdash; compared against baseline snapshot' : '')
                 .'</sub>',
         ])->implode("\n");
 
