@@ -7,8 +7,9 @@ use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Str;
 use Illuminate\View\Compilers\ComponentTagCompiler;
-use ReflectionClass;
+use Livewire\Blaze\Support\LaravelRegex;
 use Livewire\Blaze\Support\Utils;
+use ReflectionClass;
 
 class BladeService
 {
@@ -222,20 +223,10 @@ class BladeService
      */
     public static function preStoreUncompiledBlocks(string $input): string
     {
-        $compiler = app('blade.compiler');
-        $reflection = new \ReflectionClass($compiler);
-        
-        $storeRawBlock = $reflection->getMethod('storeRawBlock');
-
         $output = $input;
 
-        $output = preg_replace_callback('/(?<!@)@verbatim(\s*)(.*?)@endverbatim/s', function ($matches) use ($storeRawBlock, $compiler) {
-            return $matches[1].$storeRawBlock->invoke($compiler, "@verbatim{$matches[2]}@endverbatim");
-        }, $output);
-
-        $output = preg_replace_callback('/(?<!@)@php(.*?)@endphp/s', function ($matches) use ($storeRawBlock, $compiler) {
-            return $storeRawBlock->invoke($compiler, "@php{$matches[1]}@endphp");
-        }, $output);
+        $output = static::storeVerbatimBlocks($output);
+        $output = static::storePhpBlocks($output);
         
         return $output;
     }
@@ -245,12 +236,28 @@ class BladeService
      */
     public static function storeVerbatimBlocks(string $input): string
     {
+        return static::storeRawBlock(LaravelRegex::VERBATIM_BLOCK, $input);
+    }
+
+    /**
+     * Store only @verbatim blocks as raw block placeholders.
+     */
+    public static function storePhpBlocks(string $input): string
+    {
+        return static::storeRawBlock(LaravelRegex::PHP_BLOCK, $input);
+    }
+
+    /**
+     * Store a raw block placeholder via the Blade compiler.
+     */
+    protected static function storeRawBlock(string $pattern, string $content): string
+    {
         $compiler = app('blade.compiler');
-
         $reflection = new \ReflectionClass($compiler);
-        $method = $reflection->getMethod('storeVerbatimBlocks');
 
-        return $method->invoke($compiler, $input);
+        return preg_replace_callback($pattern, function ($matches) use ($compiler, $reflection) {
+            return $reflection->getMethod('storeRawBlock')->invoke($compiler, $matches[0]);
+        }, $content);
     }
 
     /**

@@ -105,7 +105,13 @@ test('hoists use statements to top of output', function ($statement) {
 ]);
 
 test('preserves php directives', function () {
-    $input = '@php something @endphp';
+    $input = '@php /* uncompiled */ @endphp';
+
+    expect(app(Wrapper::class)->wrap($input, ''))->toContain($input);
+});
+
+test('preserves verbatim directives', function () {
+    $input = '@verbatim /* uncompiled */ @endverbatim';
 
     expect(app(Wrapper::class)->wrap($input, ''))->toContain($input);
 });

@@ -50,4 +50,18 @@ class LaravelRegex
             )
         )?
     /x';
+
+    /**
+     * Pattern for matching @verbatim...@endverbatim blocks.
+     *
+     * @see BladeCompiler::storeVerbatimBlocks() — /(?<!@)@verbatim(\s*)(.*?)@endverbatim/s
+     */
+    const VERBATIM_BLOCK = '/(?<!@)@verbatim(\s*)(.*?)@endverbatim/s';
+
+    /**
+     * Pattern for matching @php...@endphp blocks.
+     *
+     * @see BladeCompiler::storePhpBlocks() — /(?<!@)@php(.*?)@endphp/s
+     */
+    const PHP_BLOCK = '/(?<!@)@php(.*?)@endphp/s';
 }
