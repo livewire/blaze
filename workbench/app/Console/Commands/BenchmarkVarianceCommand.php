@@ -6,6 +6,10 @@ use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Process;
 use Illuminate\Support\Str;
 
+/**
+ * Used for measuring the reliability of the benchmark
+ * in the CI and its variance from the snapshot.
+ */
 class BenchmarkVarianceCommand extends BenchmarkCommand
 {
     protected $signature = 'benchmark:variance
@@ -14,7 +18,7 @@ class BenchmarkVarianceCommand extends BenchmarkCommand
         {--iterations=5000 : Number of component renders per benchmark}
         {--rounds=100 : Number of timed rounds per benchmark}
         {--warmup=2 : Number of untimed warmup rounds}
-        {--attempts=1 : Number of attempts per run (forwarded to benchmark command)}
+        {--attempts=5 : Number of attempts per run (forwarded to benchmark command)}
         {--json : Output results as JSON}
         {--ci : Output a markdown table with no progress (for CI)}';
 

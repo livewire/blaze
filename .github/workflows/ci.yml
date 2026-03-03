@@ -65,11 +65,6 @@ jobs:
         with:
           ref: ${{ github.event.pull_request.base.sha }}
 
-      - name: Checkout BenchmarkCommand from PR (for testing on this branch)
-        run: |
-          git fetch origin --depth=1 ${{ github.event.pull_request.head.sha }}
-          git checkout ${{ github.event.pull_request.head.sha }} -- workbench/app/Console/Commands/BenchmarkCommand.php
-
       - name: Setup PHP
         uses: shivammathur/setup-php@v2
         with:

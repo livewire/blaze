@@ -89,7 +89,7 @@ class BenchmarkCommand extends Command
 
         $totalSteps = $this->warmupRounds + $this->rounds;
         $bar = $showProgress ? $this->output->createProgressBar($totalSteps) : null;
-        $bar?->setFormat(' %current%/%max% [%bar%] %message%');
+        $bar?->setFormat('[%bar%] %message%');
         $bar?->setMessage('Warming up...');
         $bar?->start();
 
@@ -232,10 +232,6 @@ class BenchmarkCommand extends Command
         return Command::SUCCESS;
     }
 
-    // ──────────────────────────────────────────────────────────────
-    //  Display — single attempt
-    // ──────────────────────────────────────────────────────────────
-
     protected function buildTable(array $results): array
     {
         $snapshot = $this->option('snapshot') ? null : $this->loadSnapshot();
@@ -317,10 +313,6 @@ class BenchmarkCommand extends Command
             'benchmarks' => $results,
         ], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
     }
-
-    // ──────────────────────────────────────────────────────────────
-    //  Display — multiple attempts
-    // ──────────────────────────────────────────────────────────────
 
     protected function displayAttemptsResults(array $allAttempts, array $results, Collection $keptIndices, float $totalDuration): void
     {
@@ -457,10 +449,6 @@ class BenchmarkCommand extends Command
         ], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
     }
 
-    // ──────────────────────────────────────────────────────────────
-    //  Snapshot
-    // ──────────────────────────────────────────────────────────────
-
     protected function saveSnapshot(array $results): void
     {
         $snapshot = [
@@ -498,10 +486,6 @@ class BenchmarkCommand extends Command
     {
         return dirname(__DIR__, 4).'/benchmark-snapshot.json';
     }
-
-    // ──────────────────────────────────────────────────────────────
-    //  Helpers
-    // ──────────────────────────────────────────────────────────────
 
     protected function improvement(array $result): float
     {
