@@ -41,9 +41,8 @@ class BlazeServiceProvider extends ServiceProvider
     public function boot(): void
     {
         $this->registerBlazeDirectives();
-        $this->registerBlazeRuntime();
+        $this->registerViewComposer();
         $this->registerBladeMacros();
-        $this->interceptViewCacheInvalidation();
         $this->interceptBladeCompilation();
         $this->registerDebuggerMiddleware();
     }
@@ -51,7 +50,7 @@ class BlazeServiceProvider extends ServiceProvider
     /**
      * Make the BlazeRuntime instance available to Blade views.
      */
-    protected function registerBlazeRuntime(): void
+    protected function registerViewComposer(): void
     {
         $blaze = $this->app->make(BlazeManager::class);
         $runtime = $this->app->make(BlazeRuntime::class);
@@ -61,9 +60,15 @@ class BlazeServiceProvider extends ServiceProvider
                 return;
             }
 
-            if (str_ends_with($view->getPath(), '.blade.php')) {
-                $view->with('__blaze', $this->app->make(BlazeRuntime::class));
+            if (! str_ends_with($view->getPath(), '.blade.php')) {
+                return;
             }
+
+            if ($blaze->viewContainsExpiredFrontMatter($view)) {
+                $view->getEngine()->getCompiler()->compile($view->getPath());
+            }
+
+            $view->with('__blaze', $runtime);
         });
     }
 
@@ -129,25 +134,6 @@ class BlazeServiceProvider extends ServiceProvider
             return $blaze->collectAndAppendFrontMatter($input, function ($input) use ($path, $blaze) {
                 return $blaze->compile($input, $path);
             });
-        });
-    }
-
-    /**
-     * Recompile views when folded component dependencies have changed.
-     */
-    protected function interceptViewCacheInvalidation(): void
-    {
-        $blade = $this->app->make(BladeService::class);
-        $blaze = $this->app->make(BlazeManager::class);
-
-        $blade->viewCacheInvalidationHook(function ($view, $invalidate) use ($blaze) {
-            if ($blaze->isDisabled()) {
-                return;
-            }
-
-            if ($blaze->viewContainsExpiredFrontMatter($view)) {
-                $invalidate();
-            }
         });
     }
 
