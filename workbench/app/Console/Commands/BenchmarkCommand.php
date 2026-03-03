@@ -5,6 +5,7 @@ namespace Workbench\App\Console\Commands;
 use Illuminate\Console\Command;
 use Illuminate\Support\Benchmark;
 use Illuminate\Support\Facades\Artisan;
+use Illuminate\Support\Facades\Concurrency;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\View;
 use Illuminate\Support\Str;
@@ -18,6 +19,7 @@ class BenchmarkCommand extends Command
         {--snapshot : Save results as the baseline snapshot}
         {--json : Output results as JSON}
         {--only= : Run only the named benchmark}
+        {--processes= : Number of parallel processes (auto-detected if omitted)}
         {--ci : Output a markdown table with no progress (for CI)}';
 
     protected $description = 'Run Blaze performance benchmarks';
@@ -30,11 +32,14 @@ class BenchmarkCommand extends Command
 
     protected int $filteredRounds = 0;
 
+    protected int $processes = 1;
+
     public function handle(): int
     {
         $this->iterations = (int) $this->option('iterations');
         $this->rounds = (int) $this->option('rounds');
         $this->warmupRounds = (int) $this->option('warmup');
+        $this->processes = $this->detectProcessCount();
         $commandStart = microtime(true);
 
         Artisan::call('view:clear');
@@ -64,12 +69,14 @@ class BenchmarkCommand extends Command
         $names = array_keys($benchmarks);
 
         if ($showProgress) {
-            $this->info("Running benchmarks ({$this->iterations} iterations x {$this->rounds} rounds)...");
+            $parallel = $this->processes > 1 ? " across {$this->processes} processes" : '';
+            $this->info("Running benchmarks ({$this->iterations} iterations x {$this->rounds} rounds{$parallel})...");
             $this->newLine();
         }
 
-        $totalSteps = (count($benchmarks) * $this->warmupRounds) + ($this->rounds * count($benchmarks));
-        $bar = $showProgress ? $this->output->createProgressBar($totalSteps) : null;
+        $warmupSteps = count($benchmarks) * $this->warmupRounds;
+        $benchmarkSteps = $this->processes > 1 ? 0 : ($this->rounds * count($benchmarks));
+        $bar = $showProgress ? $this->output->createProgressBar($warmupSteps + $benchmarkSteps) : null;
         $bar?->setFormat(' %current%/%max% [%bar%] %message%');
         $bar?->setMessage('Warming up...');
         $bar?->start();
@@ -83,24 +90,40 @@ class BenchmarkCommand extends Command
             }
         }
 
-        $bladeTimes = array_fill_keys($names, []);
-        $blazeTimes = array_fill_keys($names, []);
+        if ($this->processes > 1) {
+            $bar?->setMessage('Done!');
+            $bar?->finish();
 
-        $bar?->setMessage('Benchmarking...');
-
-        for ($r = 0; $r < $this->rounds; $r++) {
-            foreach ($benchmarks as $name => $benchmark) {
-                $bladeTimes[$name][] = $this->measureView($benchmark['blade']);
-                $blazeTimes[$name][] = $this->measureView($benchmark['blaze']);
-                $bar?->advance();
+            if ($showProgress) {
+                $this->newLine(2);
+                $this->comment("Forking {$this->processes} worker processes...");
             }
-        }
 
-        $bar?->setMessage('Done!');
-        $bar?->finish();
+            [$bladeTimes, $blazeTimes] = $this->runRoundsParallel($benchmarks, $names);
 
-        if ($showProgress) {
-            $this->newLine(2);
+            if ($showProgress) {
+                $this->newLine();
+            }
+        } else {
+            $bladeTimes = array_fill_keys($names, []);
+            $blazeTimes = array_fill_keys($names, []);
+
+            $bar?->setMessage('Benchmarking...');
+
+            for ($r = 0; $r < $this->rounds; $r++) {
+                foreach ($benchmarks as $name => $benchmark) {
+                    $bladeTimes[$name][] = $this->measureView($benchmark['blade']);
+                    $blazeTimes[$name][] = $this->measureView($benchmark['blaze']);
+                    $bar?->advance();
+                }
+            }
+
+            $bar?->setMessage('Done!');
+            $bar?->finish();
+
+            if ($showProgress) {
+                $this->newLine(2);
+            }
         }
 
         $roundTotals = collect(range(0, $this->rounds - 1))->map(
@@ -121,6 +144,75 @@ class BenchmarkCommand extends Command
                 'blaze_ms' => round(collect($blazeTimes[$name])->median(), 2),
             ],
         ])->all();
+    }
+
+    protected function runRoundsParallel(array $benchmarks, array $names): array
+    {
+        $roundsPerProcess = intdiv($this->rounds, $this->processes);
+        $remainder = $this->rounds % $this->processes;
+        $iterations = $this->iterations;
+
+        $tasks = [];
+
+        for ($p = 0; $p < $this->processes; $p++) {
+            $workerRounds = $roundsPerProcess + ($p < $remainder ? 1 : 0);
+
+            if ($workerRounds === 0) {
+                continue;
+            }
+
+            $tasks[] = function () use ($benchmarks, $names, $workerRounds, $iterations) {
+                $bladeTimes = array_fill_keys($names, []);
+                $blazeTimes = array_fill_keys($names, []);
+
+                for ($r = 0; $r < $workerRounds; $r++) {
+                    foreach ($benchmarks as $name => $benchmark) {
+                        $bladeTimes[$name][] = Benchmark::measure(
+                            fn () => View::make($benchmark['blade'], ['iterations' => $iterations])->render()
+                        );
+                        $blazeTimes[$name][] = Benchmark::measure(
+                            fn () => View::make($benchmark['blaze'], ['iterations' => $iterations])->render()
+                        );
+                    }
+                }
+
+                return compact('bladeTimes', 'blazeTimes');
+            };
+        }
+
+        $workerResults = Concurrency::driver('fork')->run($tasks);
+
+        // Merge timing data from all workers.
+        $bladeTimes = array_fill_keys($names, []);
+        $blazeTimes = array_fill_keys($names, []);
+
+        foreach ($workerResults as $result) {
+            foreach ($names as $name) {
+                array_push($bladeTimes[$name], ...$result['bladeTimes'][$name]);
+                array_push($blazeTimes[$name], ...$result['blazeTimes'][$name]);
+            }
+        }
+
+        return [$bladeTimes, $blazeTimes];
+    }
+
+    protected function detectProcessCount(): int
+    {
+        if ($this->option('processes')) {
+            return max(1, (int) $this->option('processes'));
+        }
+
+        if (! function_exists('pcntl_fork')) {
+            return 1;
+        }
+
+        $cores = match (PHP_OS_FAMILY) {
+            'Darwin' => (int) trim((string) shell_exec('sysctl -n hw.ncpu')),
+            'Linux' => (int) trim((string) shell_exec('nproc')),
+            default => 1,
+        };
+
+        return max(1, min($cores, $this->rounds));
     }
 
     protected function buildTable(array $results): array
@@ -154,7 +246,8 @@ class BenchmarkCommand extends Command
         $this->table($headers, $rows);
 
         $this->newLine();
-        $this->info("{$this->iterations} iterations x {$this->rounds} rounds per benchmark, {$totalDuration}s total");
+        $parallel = $this->processes > 1 ? " across {$this->processes} processes" : '';
+        $this->info("{$this->iterations} iterations x {$this->rounds} rounds per benchmark{$parallel}, {$totalDuration}s total");
         $this->comment("{$this->filteredRounds} outlier rounds excluded (IQR method)");
 
         if ($snapshot) {
@@ -185,7 +278,9 @@ class BenchmarkCommand extends Command
             $separator,
             ...collect($rows)->map($formatRow),
             '',
-            '<sub>' . "{$this->iterations} iterations x {$this->rounds} rounds per benchmark, {$totalDuration}s total"
+            '<sub>' . "{$this->iterations} iterations x {$this->rounds} rounds per benchmark"
+                . ($this->processes > 1 ? " across {$this->processes} processes" : '')
+                . ", {$totalDuration}s total"
                 . " &mdash; {$this->filteredRounds} outlier rounds excluded (IQR)"
                 . ($snapshot ? ' &mdash; compared against baseline snapshot' : '')
                 . '</sub>',
@@ -289,6 +384,7 @@ class BenchmarkCommand extends Command
         $this->output->writeln(json_encode([
             'iterations' => $this->iterations,
             'rounds' => $this->rounds,
+            'processes' => $this->processes,
             'filtered_rounds' => $this->filteredRounds,
             'total_duration_s' => $totalDuration,
             'benchmarks' => $results,
