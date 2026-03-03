@@ -58,17 +58,20 @@ jobs:
     needs: pest
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - rounds: 50
+            iterations: 10000
+          - rounds: 200
+            iterations: 2500
+          - rounds: 1000
+            iterations: 500
 
     steps:
-      - name: Checkout base branch
+      - name: Checkout
         uses: actions/checkout@v4
-        # with:
-          # ref: ${{ github.event.pull_request.base.sha }}
-
-      # - name: Checkout BenchmarkCommand from PR (for testing on this branch)
-      #   run: |
-      #     git fetch origin --depth=1 ${{ github.event.pull_request.head.sha }}
-      #     git checkout ${{ github.event.pull_request.head.sha }} -- workbench/app/Console/Commands/BenchmarkCommand.php
 
       - name: Setup PHP
         uses: shivammathur/setup-php@v2
@@ -78,32 +81,61 @@ jobs:
           coverage: none
           extensions: mbstring, dom, curl, json, libxml, xml, xmlwriter, simplexml, tokenizer
 
-      - name: Install base dependencies
+      - name: Install dependencies
         run: composer install --prefer-dist --no-progress --no-interaction
 
-      # - name: Generate baseline snapshot
-      #   run: vendor/bin/testbench benchmark --ci --iterations=5000 --rounds=100 --snapshot
-
-      # - name: Save baseline snapshot
-      #   run: cp benchmark-snapshot.json ${{ runner.temp }}/benchmark-snapshot.json
-
-      # - name: Checkout PR
-      #   uses: actions/checkout@v4
-
-      # - name: Install PR dependencies
-      #   run: composer install --prefer-dist --no-progress --no-interaction
-
-      # - name: Restore baseline snapshot
-      #   run: cp ${{ runner.temp }}/benchmark-snapshot.json benchmark-snapshot.json
-
-      - name: Save PR number
-        run: echo "${{ github.event.pull_request.number }}" > benchmark-result.md
-
-      - name: Run benchmark
-        run: vendor/bin/testbench benchmark:variance --ci --runs=25 --iterations=2500 --rounds=200 >> benchmark-result.md
+      - name: Run benchmark (${{ matrix.rounds }} rounds x ${{ matrix.iterations }} iterations)
+        run: vendor/bin/testbench benchmark:variance --ci --runs=25 --iterations=${{ matrix.iterations }} --rounds=${{ matrix.rounds }} > benchmark-result.md
 
       - name: Upload benchmark result
         uses: actions/upload-artifact@v4
         with:
-          name: benchmark-result
+          name: benchmark-result-${{ matrix.rounds }}-${{ matrix.iterations }}
           path: benchmark-result.md
+
+  benchmark-comment:
+    needs: benchmark
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      pull-requests: write
+
+    steps:
+      - name: Download all benchmark results
+        uses: actions/download-artifact@v4
+        with:
+          pattern: benchmark-result-*
+
+      - name: Assemble comment
+        run: |
+          echo "## Benchmark Variance Results" > comment.md
+          echo "" >> comment.md
+
+          for config in "50-10000" "200-2500" "1000-500"; do
+            rounds="${config%%-*}"
+            iterations="${config##*-}"
+            dir="benchmark-result-${config}"
+
+            echo "### ${rounds} rounds x ${iterations} iterations" >> comment.md
+            echo "" >> comment.md
+            # Strip the "## Benchmark Results" heading line from each result
+            sed '/^## Benchmark Results$/d' "$dir/benchmark-result.md" >> comment.md
+            echo "" >> comment.md
+          done
+
+      - name: Find existing comment
+        uses: peter-evans/find-comment@v3
+        id: find
+        with:
+          issue-number: ${{ github.event.pull_request.number }}
+          comment-author: 'github-actions[bot]'
+          body-includes: '## Benchmark Variance Results'
+
+      - name: Post or update comment
+        uses: peter-evans/create-or-update-comment@v4
+        with:
+          issue-number: ${{ github.event.pull_request.number }}
+          comment-id: ${{ steps.find.outputs.comment-id }}
+          edit-mode: replace
+          body-path: comment.md
