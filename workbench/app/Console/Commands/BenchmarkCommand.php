@@ -244,8 +244,8 @@ class BenchmarkCommand extends Command
             $improvement = $this->improvement($result).'%';
 
             if ($prev = $snapshot['benchmarks'][$name] ?? null) {
-                $blade .= ' '.$this->formatChange($prev['blade_ms'], $result['blade_ms'], 1);
-                $blaze .= ' '.$this->formatChange($prev['blaze_ms'], $result['blaze_ms'], 1);
+                $blade .= ' '.$this->formatChange($prev['blade_ms'], $result['blade_ms']);
+                $blaze .= ' '.$this->formatChange($prev['blaze_ms'], $result['blaze_ms']);
                 $improvement .= ' '.$this->formatImprovementChange($prev['improvement'], $this->improvement($result));
             }
 
@@ -394,8 +394,8 @@ class BenchmarkCommand extends Command
         $improvement = $this->improvement($medianResult).'%';
 
         if ($snapshotData) {
-            $blade .= ' '.$this->formatChange($snapshotData['blade_ms'], $medianResult['blade_ms'], 1);
-            $blaze .= ' '.$this->formatChange($snapshotData['blaze_ms'], $medianResult['blaze_ms'], 1);
+            $blade .= ' '.$this->formatChange($snapshotData['blade_ms'], $medianResult['blade_ms']);
+            $blaze .= ' '.$this->formatChange($snapshotData['blaze_ms'], $medianResult['blaze_ms']);
             $improvement .= ' '.$this->formatImprovementChange($snapshotData['improvement'], $this->improvement($medianResult));
         }
 
@@ -494,7 +494,7 @@ class BenchmarkCommand extends Command
             : 0;
     }
 
-    protected function formatChange(float $old, float $new, float $threshold = 3): string
+    protected function formatChange(float $old, float $new, float $threshold = 2): string
     {
         if ($old == 0) {
             return '(~)';
