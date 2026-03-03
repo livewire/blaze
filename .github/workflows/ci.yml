@@ -79,6 +79,11 @@ jobs:
       - name: Generate baseline snapshot
         run: vendor/bin/testbench benchmark --ci --iterations=5000 --rounds=100 --snapshot
 
+      - name: Checkout BenchmarkCommand from PR
+        run: |
+          git fetch origin --depth=1 ${{ github.event.pull_request.head.sha }}
+          git checkout ${{ github.event.pull_request.head.sha }} -- workbench/app/Console/Commands/BenchmarkCommand.php
+
       - name: Save baseline snapshot
         run: cp benchmark-snapshot.json ${{ runner.temp }}/benchmark-snapshot.json
 
