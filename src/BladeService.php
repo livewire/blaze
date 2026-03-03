@@ -219,19 +219,6 @@ class BladeService
     }
 
     /**
-     * Store a raw block placeholder via the Blade compiler.
-     */
-    public static function storeRawBlock(string $pattern, string $content): string
-    {
-        $compiler = app('blade.compiler');
-        $reflection = new \ReflectionClass($compiler);
-
-        return preg_replace_callback($pattern, function ($matches) use ($compiler, $reflection) {
-            return $reflection->getMethod('storeRawBlock')->invoke($compiler, $matches[0]);
-        }, $content);
-    }
-
-    /**
      * Invoke the Blade compiler's storeUncompiledBlocks via reflection.
      */
     public static function preStoreUncompiledBlocks(string $input): string
@@ -258,6 +245,19 @@ class BladeService
     public static function storePhpBlocks(string $input): string
     {
         return static::storeRawBlock(LaravelRegex::PHP_BLOCK, $input);
+    }
+
+    /**
+     * Store a raw block placeholder via the Blade compiler.
+     */
+    protected static function storeRawBlock(string $pattern, string $content): string
+    {
+        $compiler = app('blade.compiler');
+        $reflection = new \ReflectionClass($compiler);
+
+        return preg_replace_callback($pattern, function ($matches) use ($compiler, $reflection) {
+            return $reflection->getMethod('storeRawBlock')->invoke($compiler, $matches[0]);
+        }, $content);
     }
 
     /**
