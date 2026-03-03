@@ -12,10 +12,9 @@ use Illuminate\Support\Str;
 class BenchmarkCommand extends Command
 {
     protected $signature = 'benchmark
-        {--iterations=2500 : Number of component renders per benchmark}
+        {--iterations=5000 : Number of component renders per benchmark}
         {--rounds=100 : Number of timed rounds per benchmark}
         {--warmup=2 : Number of untimed warmup rounds}
-        {--filter-outliers : Exclude outlier rounds using the IQR method}
         {--snapshot : Save results as the baseline snapshot}
         {--ci : Output a markdown table with no progress (for CI)}';
 
@@ -98,18 +97,16 @@ class BenchmarkCommand extends Command
             $this->newLine(2);
         }
 
-        if ($this->option('filter-outliers')) {
-            $roundTotals = collect(range(0, $this->rounds - 1))->map(
-                fn ($r) => collect($names)->sum(fn ($name) => $bladeTimes[$name][$r] + $blazeTimes[$name][$r])
-            );
+        $roundTotals = collect(range(0, $this->rounds - 1))->map(
+            fn ($r) => collect($names)->sum(fn ($name) => $bladeTimes[$name][$r] + $blazeTimes[$name][$r])
+        );
 
-            $keptRounds = $this->nonOutlierIndices($roundTotals);
-            $this->filteredRounds = $this->rounds - $keptRounds->count();
+        $keptRounds = $this->nonOutlierIndices($roundTotals);
+        $this->filteredRounds = $this->rounds - $keptRounds->count();
 
-            foreach ($names as $name) {
-                $bladeTimes[$name] = $keptRounds->map(fn ($r) => $bladeTimes[$name][$r])->all();
-                $blazeTimes[$name] = $keptRounds->map(fn ($r) => $blazeTimes[$name][$r])->all();
-            }
+        foreach ($names as $name) {
+            $bladeTimes[$name] = $keptRounds->map(fn ($r) => $bladeTimes[$name][$r])->all();
+            $blazeTimes[$name] = $keptRounds->map(fn ($r) => $blazeTimes[$name][$r])->all();
         }
 
         return collect($names)->mapWithKeys(fn ($name) => [
@@ -132,8 +129,9 @@ class BenchmarkCommand extends Command
             $improvement = $this->improvement($result) . '%';
 
             if ($prev = $snapshot['benchmarks'][$name] ?? null) {
-                $blade .= ' ' . $this->formatChange($prev['blade_ms'], $result['blade_ms']);
-                $blaze .= ' ' . $this->formatChange($prev['blaze_ms'], $result['blaze_ms']);
+                $blade .= ' ' . $this->formatChange($prev['blade_ms'], $result['blade_ms'], 1);
+                $blaze .= ' ' . $this->formatChange($prev['blaze_ms'], $result['blaze_ms'], 1);
+                $improvement .= ' ' . $this->formatImprovementChange($prev['improvement'], $this->improvement($result));
             }
 
             return [$name, $blade, $blaze, $improvement];
@@ -151,10 +149,7 @@ class BenchmarkCommand extends Command
 
         $this->newLine();
         $this->info("{$this->iterations} iterations x {$this->rounds} rounds per benchmark, {$totalDuration}s total");
-
-        if ($this->option('filter-outliers')) {
-            $this->comment("{$this->filteredRounds} outlier rounds excluded (IQR method)");
-        }
+        $this->comment("{$this->filteredRounds} outlier rounds excluded (IQR method)");
 
         if ($snapshot) {
             $rounds = $snapshot['rounds'] ?? 1;
@@ -185,7 +180,7 @@ class BenchmarkCommand extends Command
             ...collect($rows)->map($formatRow),
             '',
             '<sub>' . "{$this->iterations} iterations x {$this->rounds} rounds per benchmark, {$totalDuration}s total"
-                . ($this->option('filter-outliers') ? " &mdash; {$this->filteredRounds} outlier rounds excluded (IQR)" : '')
+                . " &mdash; {$this->filteredRounds} outlier rounds excluded (IQR)"
                 . ($snapshot ? ' &mdash; compared against baseline snapshot' : '')
                 . '</sub>',
         ])->implode("\n");
@@ -253,6 +248,19 @@ class BenchmarkCommand extends Command
         $sign = $change > 0 ? '+' : '';
 
         return "({$sign}" . round($change, 1) . '%)';
+    }
+
+    protected function formatImprovementChange(float $old, float $new, float $threshold = 0.1): string
+    {
+        $delta = round($new - $old, 1);
+
+        if (abs($delta) < $threshold) {
+            return '(~)';
+        }
+
+        $sign = $delta > 0 ? '+' : '';
+
+        return "({$sign}{$delta}%)";
     }
 
     protected function getBenchmarks(): array

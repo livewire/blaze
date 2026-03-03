@@ -10,10 +10,9 @@ class BenchmarkVarianceCommand extends BenchmarkCommand
 {
     protected $signature = 'benchmark:variance
         {--runs=5 : Number of benchmark runs after the initial snapshot run}
-        {--iterations=2500 : Number of component renders per benchmark}
+        {--iterations=5000 : Number of component renders per benchmark}
         {--rounds=100 : Number of timed rounds per benchmark}
         {--warmup=2 : Number of untimed warmup rounds}
-        {--filter-outliers : Exclude outlier rounds using the IQR method}
         {--json : Output results as JSON}
         {--ci : Output a markdown table with no progress (for CI)}';
 
@@ -145,7 +144,6 @@ class BenchmarkVarianceCommand extends BenchmarkCommand
         $this->newLine();
         $this->comment(
             count($allRuns)." runs x {$this->rounds} rounds x {$this->iterations} iterations"
-            .($this->option('filter-outliers') ? ' (outliers excluded)' : '')
             .", ~{$avgRunDuration}s/run, {$totalDuration}s total"
         );
     }
@@ -212,7 +210,6 @@ class BenchmarkVarianceCommand extends BenchmarkCommand
             ...collect($rows)->map($formatRow),
             '',
             '<sub>' . count($allRuns) . " runs x {$this->rounds} rounds x {$this->iterations} iterations"
-                . ($this->option('filter-outliers') ? " &mdash; outliers excluded" : '')
                 . ", ~{$avgRunDuration}s/run, {$totalDuration}s total"
                 . '</sub>',
         ])->implode("\n");
@@ -277,7 +274,7 @@ class BenchmarkVarianceCommand extends BenchmarkCommand
             'runs' => count($allRuns),
             'avg_run_duration_s' => $avgRunDuration,
             'total_duration_s' => $totalDuration,
-            'filter_outliers' => (bool) $this->option('filter-outliers'),
+            'filter_outliers' => true,
             'benchmarks' => $benchmarks,
         ], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
     }
