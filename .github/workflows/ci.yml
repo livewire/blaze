@@ -82,7 +82,7 @@ jobs:
         run: composer install --prefer-dist --no-progress --no-interaction
 
       - name: Generate baseline snapshot
-        run: vendor/bin/testbench benchmark --ci --iterations=5000 --rounds=100 --snapshot
+        run: vendor/bin/testbench benchmark props --ci --iterations=5000 --rounds=10 --attempts=10 --snapshot
 
       - name: Save baseline snapshot
         run: cp benchmark-snapshot.json ${{ runner.temp }}/benchmark-snapshot.json
@@ -100,7 +100,7 @@ jobs:
         run: echo "${{ github.event.pull_request.number }}" > benchmark-result.md
 
       - name: Run benchmark
-        run: vendor/bin/testbench benchmark:variance --ci --runs=10 --iterations=5000 --rounds=100 >> benchmark-result.md
+        run: vendor/bin/testbench benchmark props --ci --iterations=5000 --rounds=10 --attempts=10 >> benchmark-result.md
 
       - name: Upload benchmark result
         uses: actions/upload-artifact@v4
