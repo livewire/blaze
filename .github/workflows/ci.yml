@@ -79,7 +79,7 @@ jobs:
         run: composer install --prefer-dist --no-progress --no-interaction
 
       - name: Run benchmark (run ${{ matrix.repeat }}/10)
-        run: vendor/bin/testbench benchmark:variance props --ci --runs=10 --iterations=5000 --rounds=50 --attempts=10 > benchmark-result.md
+        run: vendor/bin/testbench benchmark:variance props --ci --runs=10 --iterations=5000 --rounds=10 --attempts=10 > benchmark-result.md
 
       - name: Upload benchmark result
         uses: actions/upload-artifact@v4
