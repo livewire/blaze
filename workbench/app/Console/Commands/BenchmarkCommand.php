@@ -478,7 +478,7 @@ class BenchmarkCommand extends Command
 
         $change = ($new - $old) / abs($old) * 100;
 
-        if (abs($change) < $threshold) {
+        if (abs($change) <= $threshold) {
             return '(~)';
         }
 
@@ -491,7 +491,7 @@ class BenchmarkCommand extends Command
     {
         $delta = round($new - $old, 1);
 
-        if (abs($delta) < $threshold) {
+        if (abs($delta) <= $threshold) {
             return '(~)';
         }
 
