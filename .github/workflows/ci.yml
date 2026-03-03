@@ -96,11 +96,11 @@ jobs:
       # - name: Restore baseline snapshot
       #   run: cp ${{ runner.temp }}/benchmark-snapshot.json benchmark-snapshot.json
 
-      # - name: Save PR number
-      #   run: echo "${{ github.event.pull_request.number }}" > benchmark-result.md
+      - name: Save PR number
+        run: echo "${{ github.event.pull_request.number }}" > benchmark-result.md
 
       - name: Run benchmark
-        run: vendor/bin/testbench benchmark:variance --ci --runs=10 --iterations=5000 --rounds=100 >> benchmark-result.md
+        run: vendor/bin/testbench benchmark:variance --ci --runs=25 --iterations=2500 --rounds=200 >> benchmark-result.md
 
       - name: Upload benchmark result
         uses: actions/upload-artifact@v4
