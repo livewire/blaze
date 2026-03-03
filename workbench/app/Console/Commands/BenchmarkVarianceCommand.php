@@ -161,7 +161,7 @@ class BenchmarkVarianceCommand extends BenchmarkCommand
 
         $this->newLine();
         $this->comment(
-            count($allRuns)." runs x {$this->rounds} rounds x {$this->iterations} iterations"
+            count($allRuns)." runs, {$this->iterations} iterations x {$this->rounds} rounds x {$this->option('attempts')} attempts"
             .", ~{$avgRunDuration}s/run, {$totalDuration}s total"
         );
     }
@@ -214,7 +214,7 @@ class BenchmarkVarianceCommand extends BenchmarkCommand
             $separator,
             ...collect($rows)->map($formatRow),
             '',
-            '<sub>'.count($allRuns)." runs x {$this->rounds} rounds x {$this->iterations} iterations"
+            '<sub>'.count($allRuns)." runs, {$this->iterations} iterations x {$this->rounds} rounds x {$this->option('attempts')} attempts"
                 .", ~{$avgRunDuration}s/run, {$totalDuration}s total"
                 .'</sub>',
         ])->implode("\n");
@@ -251,6 +251,7 @@ class BenchmarkVarianceCommand extends BenchmarkCommand
         $this->output->writeln(json_encode([
             'iterations' => $this->iterations,
             'rounds' => $this->rounds,
+            'attempts' => (int) $this->option('attempts'),
             'runs' => count($allRuns),
             'avg_run_duration_s' => $avgRunDuration,
             'total_duration_s' => $totalDuration,
