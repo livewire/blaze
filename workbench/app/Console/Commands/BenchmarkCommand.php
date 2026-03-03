@@ -379,7 +379,7 @@ class BenchmarkCommand extends Command
             $isOutlier = ! $keptIndices->contains($i);
 
             $rows[] = [
-                '#'.($i + 1).($isOutlier ? ' \*' : ''),
+                '`#'.($i + 1).'`'.($isOutlier ? ' \*' : ''),
                 $this->formatTime($attempt['blade_ms']),
                 $this->formatTime($attempt['blaze_ms']),
                 $this->improvement($attempt).'%',
