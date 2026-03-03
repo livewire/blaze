@@ -9,14 +9,16 @@ use Illuminate\Support\Str;
 class BenchmarkVarianceCommand extends BenchmarkCommand
 {
     protected $signature = 'benchmark:variance
+        {benchmark : Name of the benchmark to run}
         {--runs=5 : Number of benchmark runs after the initial snapshot run}
         {--iterations=5000 : Number of component renders per benchmark}
         {--rounds=100 : Number of timed rounds per benchmark}
         {--warmup=2 : Number of untimed warmup rounds}
+        {--attempts=1 : Number of attempts per run (forwarded to benchmark command)}
         {--json : Output results as JSON}
         {--ci : Output a markdown table with no progress (for CI)}';
 
-    protected $description = 'Run benchmarks multiple times and report variance (min/max/avg) with change deltas';
+    protected $description = 'Run a benchmark multiple times and report variance (min/max/avg) with change deltas';
 
     public function handle(): int
     {
@@ -31,57 +33,42 @@ class BenchmarkVarianceCommand extends BenchmarkCommand
             return Command::FAILURE;
         }
 
+        $benchmarkName = $this->argument('benchmark');
         $totalRuns = $runs + 1;
         $quiet = $this->option('json') || $this->option('ci');
         $commandStart = microtime(true);
-
-        $benchmarkNames = array_keys($this->getBenchmarks());
-        $totalSteps = $totalRuns * count($benchmarkNames);
         $runDurations = [];
 
         if (! $quiet) {
-            $bar = $this->output->createProgressBar($totalSteps);
+            $bar = $this->output->createProgressBar($totalRuns);
             $bar->setFormat(' %current%/%max% [%bar%] %message%');
             $bar->setMessage('Snapshot...');
             $bar->start();
         }
 
-        // Step 1: Snapshot run (each benchmark in its own process)
+        // Step 1: Snapshot run.
         $t = microtime(true);
-        $snapshotResults = [];
-
-        foreach ($benchmarkNames as $name) {
-            $snapshotResults[$name] = $this->runBenchmarkInProcess($name);
-
-            if (! $quiet) {
-                $bar->advance();
-            }
-        }
-
+        $snapshotResult = $this->runBenchmarkInProcess($benchmarkName);
         $runDurations[] = microtime(true) - $t;
-        $this->saveSnapshot($snapshotResults);
+
+        $this->saveSnapshot([$benchmarkName => $snapshotResult]);
 
         if (! $quiet) {
+            $bar->advance();
             $bar->setMessage('Benchmarking...');
         }
 
-        // Step 2: Benchmark runs (each benchmark in its own process)
+        // Step 2: Benchmark runs.
         $allRuns = [];
 
         for ($i = 0; $i < $runs; $i++) {
             $t = microtime(true);
-            $runResults = [];
-
-            foreach ($benchmarkNames as $name) {
-                $runResults[$name] = $this->runBenchmarkInProcess($name);
-
-                if (! $quiet) {
-                    $bar->advance();
-                }
-            }
-
-            $allRuns[] = $runResults;
+            $allRuns[] = $this->runBenchmarkInProcess($benchmarkName);
             $runDurations[] = microtime(true) - $t;
+
+            if (! $quiet) {
+                $bar->advance();
+            }
         }
 
         if (! $quiet) {
@@ -93,13 +80,13 @@ class BenchmarkVarianceCommand extends BenchmarkCommand
         $avgRunDuration = round(array_sum($runDurations) / count($runDurations), 2);
         $totalDuration = round(microtime(true) - $commandStart, 2);
 
-        // Step 3: Display variance report
+        // Step 3: Display variance report.
         if ($this->option('json')) {
-            $this->outputJson($snapshotResults, $allRuns, $avgRunDuration, $totalDuration);
+            $this->outputJson($snapshotResult, $allRuns, $avgRunDuration, $totalDuration);
         } elseif ($this->option('ci')) {
-            $this->outputVarianceMarkdown($snapshotResults, $allRuns, $avgRunDuration, $totalDuration);
+            $this->outputVarianceMarkdown($snapshotResult, $allRuns, $avgRunDuration, $totalDuration);
         } else {
-            $this->displayVarianceResults($snapshotResults, $allRuns, $avgRunDuration, $totalDuration);
+            $this->displayVarianceResults($snapshotResult, $allRuns, $avgRunDuration, $totalDuration);
         }
 
         return Command::SUCCESS;
@@ -110,12 +97,12 @@ class BenchmarkVarianceCommand extends BenchmarkCommand
         $result = Process::path(base_path())
             ->timeout(300)
             ->run([
-                PHP_BINARY, 'artisan', 'benchmark',
-                '--only='.$name,
+                PHP_BINARY, 'artisan', 'benchmark', $name,
                 '--json',
                 '--iterations='.$this->iterations,
                 '--rounds='.$this->rounds,
                 '--warmup='.$this->warmupRounds,
+                '--attempts='.$this->option('attempts'),
             ]);
 
         if (! $result->successful()) {
@@ -137,46 +124,33 @@ class BenchmarkVarianceCommand extends BenchmarkCommand
 
     protected function displayVarianceResults(array $snapshot, array $allRuns, float $avgRunDuration, float $totalDuration): void
     {
-        $stddev = function ($values) {
-            $count = $values->count();
-            if ($count < 2) return 0.0;
-            $mean = $values->avg();
-            $sumSquares = $values->reduce(fn ($carry, $v) => $carry + ($v - $mean) ** 2, 0);
-            return round(sqrt($sumSquares / ($count - 1)), 2);
-        };
+        $snapshotImprovement = $this->improvement($snapshot);
 
-        $benchmarkNames = array_keys($snapshot);
+        $bladeChanges = collect($allRuns)->map(fn ($run) => $this->percentChange($snapshot['blade_ms'], $run['blade_ms']));
+        $blazeChanges = collect($allRuns)->map(fn ($run) => $this->percentChange($snapshot['blaze_ms'], $run['blaze_ms']));
+        $improvementChanges = collect($allRuns)->map(fn ($run) => round($this->improvement($run) - $snapshotImprovement, 1));
+
         $headers = ['', 'Blade', 'Blaze', 'Improvement'];
-        $rows = [];
-
-        foreach ($benchmarkNames as $name) {
-            $snapshotImprovement = $this->improvement($snapshot[$name]);
-
-            $bladeChanges = collect($allRuns)->map(fn ($run) => $this->percentChange($snapshot[$name]['blade_ms'], $run[$name]['blade_ms']));
-            $blazeChanges = collect($allRuns)->map(fn ($run) => $this->percentChange($snapshot[$name]['blaze_ms'], $run[$name]['blaze_ms']));
-            $improvementChanges = collect($allRuns)->map(fn ($run) => round($this->improvement($run[$name]) - $snapshotImprovement, 1));
-
-            $rows[] = [
+        $rows = [
+            [
                 'Snapshot',
-                $this->formatTime($snapshot[$name]['blade_ms']),
-                $this->formatTime($snapshot[$name]['blaze_ms']),
+                $this->formatTime($snapshot['blade_ms']),
+                $this->formatTime($snapshot['blaze_ms']),
                 $snapshotImprovement.'%',
-            ];
-
-            $rows[] = [
+            ],
+            [
                 'Variance',
                 $this->formatVarianceRange($bladeChanges->min(), $bladeChanges->max()),
                 $this->formatVarianceRange($blazeChanges->min(), $blazeChanges->max()),
                 $this->formatVarianceRange($improvementChanges->min(), $improvementChanges->max()),
-            ];
-
-            $rows[] = [
+            ],
+            [
                 'Std Dev',
-                '±'.$stddev($bladeChanges).'%',
-                '±'.$stddev($blazeChanges).'%',
-                '±'.$stddev($improvementChanges).'%',
-            ];
-        }
+                '±'.$this->stddev($bladeChanges).'%',
+                '±'.$this->stddev($blazeChanges).'%',
+                '±'.$this->stddev($improvementChanges).'%',
+            ],
+        ];
 
         $this->newLine(2);
         $this->table($headers, $rows);
@@ -190,57 +164,44 @@ class BenchmarkVarianceCommand extends BenchmarkCommand
 
     protected function outputVarianceMarkdown(array $snapshot, array $allRuns, float $avgRunDuration, float $totalDuration): void
     {
-        $stddev = function ($values) {
-            $count = $values->count();
-            if ($count < 2) return 0.0;
-            $mean = $values->avg();
-            $sumSquares = $values->reduce(fn ($carry, $v) => $carry + ($v - $mean) ** 2, 0);
-            return round(sqrt($sumSquares / ($count - 1)), 2);
-        };
+        $snapshotImprovement = $this->improvement($snapshot);
 
-        $benchmarkNames = array_keys($snapshot);
+        $bladeChanges = collect($allRuns)->map(fn ($run) => $this->percentChange($snapshot['blade_ms'], $run['blade_ms']));
+        $blazeChanges = collect($allRuns)->map(fn ($run) => $this->percentChange($snapshot['blaze_ms'], $run['blaze_ms']));
+        $improvementChanges = collect($allRuns)->map(fn ($run) => round($this->improvement($run) - $snapshotImprovement, 1));
+
         $headers = ['', 'Blade', 'Blaze', 'Improvement'];
-        $rows = [];
-
-        foreach ($benchmarkNames as $name) {
-            $snapshotImprovement = $this->improvement($snapshot[$name]);
-
-            $bladeChanges = collect($allRuns)->map(fn ($run) => $this->percentChange($snapshot[$name]['blade_ms'], $run[$name]['blade_ms']));
-            $blazeChanges = collect($allRuns)->map(fn ($run) => $this->percentChange($snapshot[$name]['blaze_ms'], $run[$name]['blaze_ms']));
-            $improvementChanges = collect($allRuns)->map(fn ($run) => round($this->improvement($run[$name]) - $snapshotImprovement, 1));
-
-            $rows[] = [
+        $rows = [
+            [
                 'Snapshot',
-                $this->formatTime($snapshot[$name]['blade_ms']),
-                $this->formatTime($snapshot[$name]['blaze_ms']),
-                $snapshotImprovement . '%',
-            ];
-
-            $rows[] = [
+                $this->formatTime($snapshot['blade_ms']),
+                $this->formatTime($snapshot['blaze_ms']),
+                $snapshotImprovement.'%',
+            ],
+            [
                 'Variance',
                 $this->formatVarianceRange($bladeChanges->min(), $bladeChanges->max()),
                 $this->formatVarianceRange($blazeChanges->min(), $blazeChanges->max()),
                 $this->formatVarianceRange($improvementChanges->min(), $improvementChanges->max()),
-            ];
-
-            $rows[] = [
+            ],
+            [
                 'Std Dev',
-                '±' . $stddev($bladeChanges) . '%',
-                '±' . $stddev($blazeChanges) . '%',
-                '±' . $stddev($improvementChanges) . '%',
-            ];
-        }
+                '±'.$this->stddev($bladeChanges).'%',
+                '±'.$this->stddev($blazeChanges).'%',
+                '±'.$this->stddev($improvementChanges).'%',
+            ],
+        ];
 
         $allRows = collect([$headers, ...$rows]);
         $widths = collect($headers)->keys()->map(
             fn ($i) => $allRows->max(fn ($row) => mb_strlen($row[$i]))
         );
 
-        $formatRow = fn ($cells) => '| ' . collect($cells)
+        $formatRow = fn ($cells) => '| '.collect($cells)
             ->map(fn ($cell, $i) => Str::padRight($cell, $widths[$i]))
-            ->implode(' | ') . ' |';
+            ->implode(' | ').' |';
 
-        $separator = '| ' . $widths->map(fn ($w) => str_repeat('-', $w))->implode(' | ') . ' |';
+        $separator = '| '.$widths->map(fn ($w) => str_repeat('-', $w))->implode(' | ').' |';
 
         $md = collect([
             '## Benchmark Results',
@@ -249,9 +210,9 @@ class BenchmarkVarianceCommand extends BenchmarkCommand
             $separator,
             ...collect($rows)->map($formatRow),
             '',
-            '<sub>' . count($allRuns) . " runs x {$this->rounds} rounds x {$this->iterations} iterations"
-                . ", ~{$avgRunDuration}s/run, {$totalDuration}s total"
-                . '</sub>',
+            '<sub>'.count($allRuns)." runs x {$this->rounds} rounds x {$this->iterations} iterations"
+                .", ~{$avgRunDuration}s/run, {$totalDuration}s total"
+                .'</sub>',
         ])->implode("\n");
 
         $this->output->writeln($md);
@@ -277,36 +238,11 @@ class BenchmarkVarianceCommand extends BenchmarkCommand
 
     protected function outputJson(array $snapshot, array $allRuns, float $avgRunDuration, float $totalDuration): void
     {
-        $benchmarks = [];
+        $snapshotImprovement = $this->improvement($snapshot);
 
-        foreach (array_keys($snapshot) as $name) {
-            $snapshotImprovement = $this->improvement($snapshot[$name]);
-
-            $bladeChanges = collect($allRuns)->map(fn ($run) => $this->percentChange($snapshot[$name]['blade_ms'], $run[$name]['blade_ms']));
-            $blazeChanges = collect($allRuns)->map(fn ($run) => $this->percentChange($snapshot[$name]['blaze_ms'], $run[$name]['blaze_ms']));
-            $improvementChanges = collect($allRuns)->map(fn ($run) => round($this->improvement($run[$name]) - $snapshotImprovement, 1));
-
-            $stddev = function ($values) {
-                $count = $values->count();
-                if ($count < 2) return 0.0;
-                $mean = $values->avg();
-                $sumSquares = $values->reduce(fn ($carry, $v) => $carry + ($v - $mean) ** 2, 0);
-                return round(sqrt($sumSquares / ($count - 1)), 2);
-            };
-
-            $benchmarks[$name] = [
-                'snapshot' => [
-                    'blade_ms' => $snapshot[$name]['blade_ms'],
-                    'blaze_ms' => $snapshot[$name]['blaze_ms'],
-                    'improvement' => $snapshotImprovement,
-                ],
-                'variance' => [
-                    'blade' => ['min' => $bladeChanges->min(), 'max' => $bladeChanges->max(), 'stddev' => $stddev($bladeChanges)],
-                    'blaze' => ['min' => $blazeChanges->min(), 'max' => $blazeChanges->max(), 'stddev' => $stddev($blazeChanges)],
-                    'improvement' => ['min' => $improvementChanges->min(), 'max' => $improvementChanges->max(), 'stddev' => $stddev($improvementChanges)],
-                ],
-            ];
-        }
+        $bladeChanges = collect($allRuns)->map(fn ($run) => $this->percentChange($snapshot['blade_ms'], $run['blade_ms']));
+        $blazeChanges = collect($allRuns)->map(fn ($run) => $this->percentChange($snapshot['blaze_ms'], $run['blaze_ms']));
+        $improvementChanges = collect($allRuns)->map(fn ($run) => round($this->improvement($run) - $snapshotImprovement, 1));
 
         $this->output->writeln(json_encode([
             'iterations' => $this->iterations,
@@ -314,18 +250,42 @@ class BenchmarkVarianceCommand extends BenchmarkCommand
             'runs' => count($allRuns),
             'avg_run_duration_s' => $avgRunDuration,
             'total_duration_s' => $totalDuration,
-            'filter_outliers' => true,
-            'benchmarks' => $benchmarks,
+            'snapshot' => [
+                'blade_ms' => $snapshot['blade_ms'],
+                'blaze_ms' => $snapshot['blaze_ms'],
+                'improvement' => $snapshotImprovement,
+            ],
+            'variance' => [
+                'blade' => ['min' => $bladeChanges->min(), 'max' => $bladeChanges->max(), 'stddev' => $this->stddev($bladeChanges)],
+                'blaze' => ['min' => $blazeChanges->min(), 'max' => $blazeChanges->max(), 'stddev' => $this->stddev($blazeChanges)],
+                'improvement' => ['min' => $improvementChanges->min(), 'max' => $improvementChanges->max(), 'stddev' => $this->stddev($improvementChanges)],
+            ],
         ], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
+    }
+
+    protected function stddev(\Illuminate\Support\Collection $values): float
+    {
+        $count = $values->count();
+
+        if ($count < 2) {
+            return 0.0;
+        }
+
+        $mean = $values->avg();
+        $sumSquares = $values->reduce(fn ($carry, $v) => $carry + ($v - $mean) ** 2, 0);
+
+        return round(sqrt($sumSquares / ($count - 1)), 2);
     }
 
     protected function formatVarianceRange(float $min, float $max): string
     {
         $fmt = function (float $v): string {
             $rounded = round($v, 1);
+
             if ($rounded == 0) {
                 return '0%';
             }
+
             $sign = $rounded > 0 ? '+' : '';
 
             return $sign.$rounded.'%';
