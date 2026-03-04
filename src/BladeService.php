@@ -6,6 +6,7 @@ use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Str;
 use Illuminate\View\Compilers\BladeCompiler;
 use Illuminate\View\Compilers\ComponentTagCompiler;
+use Illuminate\View\Factory;
 use Livewire\Blaze\Compiler\DirectiveCompiler;
 use Livewire\Blaze\Support\LaravelRegex;
 use ReflectionClass;
@@ -194,87 +195,30 @@ class BladeService
      */
     public function componentNameToPath($name): string
     {
-        $viewFinder = app('view')->getFinder();
+        $viewFactory = app('view');
+        $viewFinder = $viewFactory->getFinder();
 
-        $reflection = new \ReflectionClass($this->compiler);
-        $pathsProperty = $reflection->getProperty('anonymousComponentPaths');
-        $paths = $pathsProperty->getValue($this->compiler) ?? [];
-
-        if (str_contains($name, '::')) {
-            [$namespace, $componentName] = explode('::', $name, 2);
-            $componentPath = str_replace('.', '/', $componentName);
-
-            foreach ($paths as $pathData) {
-                if (isset($pathData['prefix']) && $pathData['prefix'] === $namespace) {
-                    $basePath = rtrim($pathData['path'], '/');
-
-                    $fullPath = $basePath.'/'.$componentPath.'.blade.php';
-                    if (file_exists($fullPath)) {
-                        return $fullPath;
-                    }
-
-                    $indexPath = $basePath.'/'.$componentPath.'/index.blade.php';
-                    if (file_exists($indexPath)) {
-                        return $indexPath;
-                    }
-
-                    $lastSegment = basename($componentPath);
-                    $sameNamePath = $basePath.'/'.$componentPath.'/'.$lastSegment.'.blade.php';
-                    if (file_exists($sameNamePath)) {
-                        return $sameNamePath;
-                    }
-                }
-            }
-
-            try {
-                $viewName = str_replace('::', '::components.', $name);
-                return $viewFinder->find($viewName);
-            } catch (\Exception $e) {
-                try {
-                    return $viewFinder->find(str_replace('::', '::components.', $name).'.index');
-                } catch (\Exception $e2) {
-                    return '';
-                }
-            }
+        if (! is_null($guess = $this->guessAnonymousComponentUsingNamespaces($viewFactory, $name)) ||
+            ! is_null($guess = $this->guessAnonymousComponentUsingPaths($viewFactory, $name))) {
+            return $viewFinder->find($guess);
         }
 
-        $componentPath = str_replace('.', '/', $name);
-
-        foreach ($paths as $pathData) {
-            if (! isset($pathData['prefix']) || $pathData['prefix'] === null) {
-                $registeredPath = $pathData['path'] ?? $pathData;
-
-                if (is_string($registeredPath)) {
-                    $basePath = rtrim($registeredPath, '/');
-
-                    $fullPath = $basePath.'/'.$componentPath.'.blade.php';
-                    if (file_exists($fullPath)) {
-                        return $fullPath;
-                    }
-
-                    $indexPath = $basePath.'/'.$componentPath.'/index.blade.php';
-                    if (file_exists($indexPath)) {
-                        return $indexPath;
-                    }
-
-                    $lastSegment = basename($componentPath);
-                    $sameNamePath = $basePath.'/'.$componentPath.'/'.$lastSegment.'.blade.php';
-                    if (file_exists($sameNamePath)) {
-                        return $sameNamePath;
-                    }
-                }
-            }
-        }
-
-        try {
-            return $viewFinder->find("components.{$name}");
-        } catch (\Exception $e) {
-            try {
-                return $viewFinder->find("components.{$name}.index");
-            } catch (\Exception $e2) {
-                return '';
-            }
-        }
+        return '';
     }
 
+    protected function guessAnonymousComponentUsingNamespaces(Factory $viewFactory, string $component): string|null
+    {
+        $reflection = new \ReflectionClass($this->tagCompiler);
+        $method = $reflection->getMethod('guessAnonymousComponentUsingNamespaces');
+
+        return $method->invoke($this->tagCompiler, $viewFactory, $component);
+    }
+
+    protected function guessAnonymousComponentUsingPaths(Factory $viewFactory, string $component): string|null
+    {
+        $reflection = new \ReflectionClass($this->tagCompiler);
+        $method = $reflection->getMethod('guessAnonymousComponentUsingPaths');
+
+        return $method->invoke($this->tagCompiler, $viewFactory, $component);
+    }
 }
