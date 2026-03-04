@@ -6,9 +6,14 @@ use Illuminate\Support\Facades\App;
 use Illuminate\Support\Facades\Artisan;
 use Livewire\LivewireServiceProvider;
 
+beforeEach(function () {
+    if (class_exists(FluxProServiceProvider::class)) {
+        App::register(FluxProServiceProvider::class);
+    }
+})->skip(! class_exists(FluxProServiceProvider::class));
+
 beforeEach(fn () => App::register(LivewireServiceProvider::class));
 beforeEach(fn () => App::register(FluxServiceProvider::class));
-beforeEach(fn () => App::register(FluxProServiceProvider::class));
 beforeEach(fn () => Artisan::call('view:clear'));
 
 test('avatar', fn () => compare(<<<'BLADE'
