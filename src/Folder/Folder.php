@@ -62,7 +62,7 @@ class Folder
                 filemtime: filemtime($source->path),
             ));
 
-            return new TextNode($html);
+            return new TextNode('<?php ob_start(); ?>' . $html . '<?php echo ltrim(ob_get_clean()); ?>');
         } catch (\Exception $e) {
             if (Blaze::shouldThrow()) {
                 throw $e;

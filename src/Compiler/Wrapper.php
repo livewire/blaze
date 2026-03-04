@@ -71,7 +71,9 @@ class Wrapper
 
         $output .= '<?php' . "\n";
 
-        $output .= 'echo ltrim(ob_get_clean());' . "\n";
+        $contentHandler = Blaze::isFolding() ? '$__blaze->processPassthroughContent(\'ltrim\', ltrim(ob_get_clean()))' : 'ltrim(ob_get_clean())';
+
+        $output .= 'echo ' . $contentHandler . ';' . "\n";
 
         if ($sourceUsesThis) {
             $output .= '}; if ($__this !== null) { $__blazeFn->call($__this); } else { $__blazeFn(); }'."\n";

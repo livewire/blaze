@@ -201,6 +201,41 @@ class BlazeRuntime
         return value($default);
     }
 
+    /**
+     * Process uncompiled unblaze tags passed through slots or components to handle whitespace.
+     */
+    public function processPassthroughContent(string $method, string $content): string
+    {
+        if (! in_array($method, ['ltrim', 'rtrim', 'trim'])) {
+            return $content;
+        }
+
+        $pattern = '\[STARTCOMPILEDUNBLAZE:([0-9a-zA-Z]+)\].*?\[ENDCOMPILEDUNBLAZE:\1\]';
+
+        // Starts and ends with unblaze, adds :trim
+        $content = preg_replace_callback(
+            '/^\s*'. $pattern .'\s*$/',
+            fn ($m) => str_replace('COMPILEDUNBLAZE:'.$m[1], 'COMPILEDUNBLAZE:'.$m[1].':'.$method, $m[0]),
+            $content,
+        );
+
+        // Starts with unblaze, adds :ltrim
+        $content = preg_replace_callback(
+            '/^\s*'. $pattern .'/',
+            fn ($m) => $method !== 'rtrim' ? str_replace('COMPILEDUNBLAZE:'.$m[1], 'COMPILEDUNBLAZE:'.$m[1].':ltrim', $m[0]) : $m[0],
+            $content,
+        );
+
+        // Ends with unblaze, adds :rtrim
+        $content = preg_replace_callback(
+            '/'. $pattern .'\s*$/',
+            fn ($m) => $method !== 'ltrim' ? str_replace('COMPILEDUNBLAZE:'.$m[1], 'COMPILEDUNBLAZE:'.$m[1].':rtrim', $m[0]) : $m[0],
+            $content,
+        );
+        
+        return $content;
+    }
+
     private function getCompiledPath(): string
     {
         return $this->compiledPath ??= config('view.compiled');
