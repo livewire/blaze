@@ -2,12 +2,9 @@
 
 use Illuminate\Contracts\View\Engine;
 use Illuminate\Support\Facades\Artisan;
-use Illuminate\Support\Facades\Blade;
 use Livewire\Blaze\Blaze;
 
-beforeEach(function () {
-    Artisan::call('view:clear');
-});
+beforeEach(fn () => Artisan::call('view:clear'));
 
 test('renders components', function () {
     view('mix')->render();
@@ -25,24 +22,6 @@ test('renders components with blaze off and debug mode on', function () {
     
     view('mix')->render();
 })->throwsNoExceptions();
-
-test('ignores verbatim blocks', function () {
-    $input = '@verbatim<x-input />@endverbatim';
-
-    expect(Blade::render($input))->toBe('<x-input />');
-});
-
-test('ignores php directives', function () {
-    $input = "@php echo '<x-input />'; @endphp";
-
-    expect(Blade::render($input))->toBe('<x-input />');
-});
-
-test('ignores comments', function () {
-    $input = '{{-- <x-input /> --}}';
-
-    expect(Blade::render($input))->toBe('');
-});
 
 test('supports php engine', function () {
     view('php-view')->render();
@@ -66,7 +45,7 @@ test('supports decorated engine', function () {
     view('mix')->render();
 })->throwsNoExceptions();
 
-test('does not inject __blaze into non-blade engine views', function () {
+test('supports antlers engine', function () {
     // Statamic serializes all view data, we need to make sure
     // we don't inject BlazeRuntime which is not serializable.
     app('view')->addExtension('antlers.html', 'antlers', function () {

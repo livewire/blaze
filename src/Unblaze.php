@@ -3,6 +3,7 @@
 namespace Livewire\Blaze;
 
 use Illuminate\Support\Arr;
+use Illuminate\Support\Str;
 
 /**
  * Handles @unblaze directives by extracting their content from the Blaze pipeline
@@ -62,7 +63,7 @@ class Unblaze
             return ''
                 . '[STARTCOMPILEDUNBLAZE:'.$token.']'
                 . '<'.'?php \Livewire\Blaze\Unblaze::storeScope("'.$token.'", '.$expression.') ?>'
-                . '[ENDCOMPILEDUNBLAZE]';
+                . '[ENDCOMPILEDUNBLAZE:'.$token.']';
         }, $result);
 
         return $result;
@@ -74,8 +75,16 @@ class Unblaze
     public static function replaceUnblazePrecompiledDirectives(string $template)
     {
         if (str_contains($template, '[STARTCOMPILEDUNBLAZE')) {
-            $template = preg_replace_callback('/(\[STARTCOMPILEDUNBLAZE:([0-9a-zA-Z]+)\])(.*?)(\[ENDCOMPILEDUNBLAZE\])/s', function ($matches) use (&$expressionsByToken) {
+            $template = preg_replace_callback('/(\[STARTCOMPILEDUNBLAZE:([0-9a-zA-Z:]+)?\])(.*?)(\[ENDCOMPILEDUNBLAZE:\2\])(\r?\n)?/s', function ($matches) use (&$expressionsByToken) {
                 $token = $matches[2];
+
+                // Because unblaze content is not available at render-time during folding,
+                // its content wasn't trimmed when passsing through slots and components.
+                // To compensate for this, we've added a :trim suffix during rendering
+                // based on the surrounding content and now we'll reapply it here.
+                if ($trim = Str::match('/:(ltrim|rtrim|trim)$/', $token)) {
+                    $token = substr($token, 0, -(strlen($trim) + 1));
+                }
 
                 $innerContent = Blaze::compileForUnblaze(
                     static::$unblazeReplacements[$token]
@@ -85,11 +94,22 @@ class Unblaze
 
                 $runtimeScopeString = var_export($scope, true);
 
-                return ''
+                $whitespace = $matches[5] ?? '';
+
+                // If the unblaze block was passed through a slot, we need to compensate
+                // for the the php blocks eating the next new line.
+                if ($trim === 'trim') {
+                    $whitespace = $whitespace . $whitespace;
+                }
+
+                $result = ''
                     . '<'.'?php if (isset($scope)) $__scope = $scope; ?>'
                     . '<'.'?php $scope = '.$runtimeScopeString.'; ?>'
-                    . $innerContent
-                    . '<'.'?php if (isset($__scope)) { $scope = $__scope; unset($__scope); } ?>';
+                    . ($trim ? $trim($innerContent) : $innerContent)
+                    . '<'.'?php if (isset($__scope)) { $scope = $__scope; unset($__scope); } ?>'
+                    . $whitespace;
+
+                return $result;
             }, $template);
         }
 
