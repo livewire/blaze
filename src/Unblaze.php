@@ -96,9 +96,9 @@ class Unblaze
 
                 $whitespace = $matches[5] ?? '';
 
-                if ($trim === 'trim' || $trim === 'rtrim') {
-                    // If the unblaze block was passed through a slot, we need to compensate
-                    // for the the php blocks eating the next new line.
+                // If the unblaze block was passed through a slot, we need to compensate
+                // for the the php blocks eating the next new line.
+                if ($trim === 'trim') {
                     $whitespace = $whitespace . $whitespace;
                 }
 
