@@ -1,4 +1,4 @@
-@blaze
+@aware(['type' => 'text'])
 
 @props(['type' => 'text', 'disabled' => false])
 

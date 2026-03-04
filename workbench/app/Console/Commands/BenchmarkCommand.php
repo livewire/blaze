@@ -3,7 +3,6 @@
 namespace Workbench\App\Console\Commands;
 
 use Illuminate\Console\Command;
-use Illuminate\Support\Benchmark;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\File;
@@ -37,7 +36,7 @@ class BenchmarkCommand extends Command
     {
         $this->iterations = (int) $this->option('iterations');
         $this->rounds = (int) $this->option('rounds');
-        $this->warmupRounds = (int) $this->option('warmup');
+        $this->warmupRounds = max(1, (int) $this->option('warmup'));
         $attempts = (int) $this->option('attempts');
 
         if ($attempts < 1) {
@@ -95,8 +94,13 @@ class BenchmarkCommand extends Command
 
         // Warmup: compile views and stabilize opcache.
         for ($w = 0; $w < $this->warmupRounds; $w++) {
-            $this->measureView($bladeView);
-            $this->measureView($blazeView);
+            if ($w % 2 === 0) {
+                $this->measureView($bladeView);
+                $this->measureView($blazeView);
+            } else {
+                $this->measureView($blazeView);
+                $this->measureView($bladeView);
+            }
             $bar?->advance();
         }
 
@@ -105,9 +109,15 @@ class BenchmarkCommand extends Command
 
         $bar?->setMessage('Benchmarking...');
 
+        // Alternate execution order to eliminate systematic ordering bias.
         for ($r = 0; $r < $this->rounds; $r++) {
-            $bladeTimes[] = $this->measureView($bladeView);
-            $blazeTimes[] = $this->measureView($blazeView);
+            if ($r % 2 === 0) {
+                $bladeTimes[] = $this->measureView($bladeView);
+                $blazeTimes[] = $this->measureView($blazeView);
+            } else {
+                $blazeTimes[] = $this->measureView($blazeView);
+                $bladeTimes[] = $this->measureView($bladeView);
+            }
             $bar?->advance();
         }
 
@@ -118,11 +128,11 @@ class BenchmarkCommand extends Command
             $this->newLine(2);
         }
 
-        $roundTotals = collect(range(0, $this->rounds - 1))->map(
-            fn ($r) => $bladeTimes[$r] + $blazeTimes[$r]
-        );
-
-        $keptRounds = $this->nonOutlierIndices($roundTotals);
+        // Filter outlier rounds per-engine, then intersect — a round is kept only
+        // if neither its blade nor blaze time is an outlier.
+        $keptRounds = $this->nonOutlierIndices(collect($bladeTimes))
+            ->intersect($this->nonOutlierIndices(collect($blazeTimes)))
+            ->values();
         $this->filteredRounds = $this->rounds - $keptRounds->count();
 
         $bladeTimes = $keptRounds->map(fn ($r) => $bladeTimes[$r])->all();
@@ -244,8 +254,8 @@ class BenchmarkCommand extends Command
             $improvement = $this->improvement($result).'%';
 
             if ($prev = $snapshot['benchmarks'][$name] ?? null) {
-                $blade .= ' '.$this->formatChange($prev['blade_ms'], $result['blade_ms'], 1);
-                $blaze .= ' '.$this->formatChange($prev['blaze_ms'], $result['blaze_ms'], 1);
+                $blade .= ' '.$this->formatChange($prev['blade_ms'], $result['blade_ms']);
+                $blaze .= ' '.$this->formatChange($prev['blaze_ms'], $result['blaze_ms']);
                 $improvement .= ' '.$this->formatImprovementChange($prev['improvement'], $this->improvement($result));
             }
 
@@ -394,8 +404,8 @@ class BenchmarkCommand extends Command
         $improvement = $this->improvement($medianResult).'%';
 
         if ($snapshotData) {
-            $blade .= ' '.$this->formatChange($snapshotData['blade_ms'], $medianResult['blade_ms'], 1);
-            $blaze .= ' '.$this->formatChange($snapshotData['blaze_ms'], $medianResult['blaze_ms'], 1);
+            $blade .= ' '.$this->formatChange($snapshotData['blade_ms'], $medianResult['blade_ms']);
+            $blaze .= ' '.$this->formatChange($snapshotData['blaze_ms'], $medianResult['blaze_ms']);
             $improvement .= ' '.$this->formatImprovementChange($snapshotData['improvement'], $this->improvement($medianResult));
         }
 
@@ -494,7 +504,7 @@ class BenchmarkCommand extends Command
             : 0;
     }
 
-    protected function formatChange(float $old, float $new, float $threshold = 3): string
+    protected function formatChange(float $old, float $new, float $threshold = 2): string
     {
         if ($old == 0) {
             return '(~)';
@@ -555,7 +565,12 @@ class BenchmarkCommand extends Command
 
     protected function measureView(string $view): float
     {
-        return Benchmark::measure(fn () => $this->renderView($view));
+        gc_collect_cycles();
+
+        $start = hrtime(true);
+        $this->renderView($view);
+
+        return (hrtime(true) - $start) / 1_000_000;
     }
 
     protected function formatTime(float $ms): string

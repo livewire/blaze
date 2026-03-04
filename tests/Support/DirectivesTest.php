@@ -2,13 +2,10 @@
 
 use Livewire\Blaze\Support\Directives;
 
-test('ignores directives in php blocks', function ($input) {
+test('ignores directives in php blocks and comments', function ($input) {
     expect((new Directives($input))->has('aware'))->toBeFalse();
 })->with([
     ['@php // @aware @endphp'],
     ['<?php // @aware ?>'],
+    ['{{-- @aware --}}'],
 ]);
-
-test('ignores directives in comments', function () {
-    expect((new Directives('{{-- @aware --}}'))->has('aware'))->toBeFalse();
-});

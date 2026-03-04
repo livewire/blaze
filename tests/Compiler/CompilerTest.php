@@ -73,6 +73,6 @@ test('compiles delegate components', function () {
         '<flux:delegate-component component="card" /> ',
         '<?php endif; ?> ',
         '<?php $__blaze->popData(); ?> ',
-        '<?php unset($__resolved) ?> ',
+        '<?php unset($__resolved) ?>',
     ]));
 });

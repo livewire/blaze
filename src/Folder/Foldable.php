@@ -201,7 +201,7 @@ class Foldable
      */
     protected function processUncompiledAttributes(): void
     {
-        $this->html = preg_replace_callback('/\[BLAZE_ATTR:(BLAZE_PLACEHOLDER_[A-Z0-9]+)\]/', function ($matches) {
+        $this->html = preg_replace_callback('/\[BLAZE_ATTR:(BLAZE_PLACEHOLDER_[A-Z0-9]+)\](\r?\n)?/', function ($matches) {
             $attribute = $this->attributeByPlaceholder[$matches[1]];
 
             if ($attribute->bound()) {
@@ -210,7 +210,7 @@ class Foldable
 
                 return '<'.'?php if (($__blazeAttr = '.$attribute->value.') !== false && !is_null($__blazeAttr)): ?'.'>'
                 . $attribute->name.'="<'.'?php echo e($__blazeAttr === true ? '.$booleanValue.' : $__blazeAttr); ?'.'>"'
-                .'<'.'?php endif; unset($__blazeAttr); ?'.'>';
+                .'<'.'?php endif; unset($__blazeAttr); ?'.'>' . (isset($matches[2]) ? $matches[2] . $matches[2] : '');
             } else {
                 return $attribute->name.'="'.$attribute->value.'"';
             }
@@ -243,7 +243,13 @@ class Foldable
         }
 
         foreach ($this->slotByPlaceholder as $placeholder => $slot) {
-            $this->html = str_replace($placeholder, trim($slot->content()), $this->html);
+            // In Blade slots are rendered using output buffer and echo syntax,
+            // we need to replicate both here to handle whitespace correctly.
+            $this->html = preg_replace_callback('/' . $placeholder . '(\r?\n)?/', function ($match) use ($slot) {
+                $whitespace = $match[1] ?? '';
+
+                return '<?php ob_start(); ?>' . $slot->content() . '<?php echo trim(ob_get_clean()); ?>' . $whitespace . $whitespace;
+            }, $this->html);
         }
     }
 

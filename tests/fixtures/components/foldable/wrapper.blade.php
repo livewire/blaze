@@ -2,4 +2,4 @@
 
 <div>
     {{ $slot }}
-</div>
+</div>{{-- This file must NOT end with new line --}}

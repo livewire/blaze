@@ -151,7 +151,7 @@ class Compiler
         $output .= "\n" . '<' . '?php endif; ?>';
 
         $output .= "\n" . '<' . '?php $__blaze->popData(); ?>';
-        $output .= "\n" . '<' . '?php unset($__resolved) ?>' . "\n";
+        $output .= "\n" . '<' . '?php unset($__resolved) ?>';
 
         return $output;
     }

@@ -45,19 +45,10 @@ class BladeService
      */
     public function preStoreUncompiledBlocks(string $input): string
     {
-        $reflection = new \ReflectionClass($this->compiler);
-        
-        $storeRawBlock = $reflection->getMethod('storeRawBlock');
-
         $output = $input;
 
-        $output = preg_replace_callback(LaravelRegex::VERBATIM_BLOCK, function ($matches) use ($storeRawBlock) {
-            return $matches[1].$storeRawBlock->invoke($this->compiler, "@verbatim{$matches[2]}@endverbatim");
-        }, $output);
-
-        $output = preg_replace_callback(LaravelRegex::PHP_BLOCK, function ($matches) use ($storeRawBlock) {
-            return $storeRawBlock->invoke($this->compiler, "@php{$matches[1]}@endphp");
-        }, $output);
+        $output = $this->storeVerbatimBlocks($output);
+        $output = $this->storePhpBlocks($output);
         
         return $output;
     }
@@ -67,10 +58,28 @@ class BladeService
      */
     public function storeVerbatimBlocks(string $input): string
     {
-        $reflection = new \ReflectionClass($this->compiler);
-        $method = $reflection->getMethod('storeVerbatimBlocks');
+        return $this->storeRawBlock(LaravelRegex::VERBATIM_BLOCK, $input);
+    }
 
-        return $method->invoke($this->compiler, $input);
+    /**
+     * Store only @verbatim blocks as raw block placeholders.
+     */
+    public function storePhpBlocks(string $input): string
+    {
+        return $this->storeRawBlock(LaravelRegex::PHP_BLOCK, $input);
+    }
+
+    /**
+     * Store a raw block placeholder via the Blade compiler.
+     */
+    protected function storeRawBlock(string $pattern, string $content): string
+    {
+        $reflection = new \ReflectionClass($this->compiler);
+        $method = $reflection->getMethod('storeRawBlock');
+
+        return preg_replace_callback($pattern, function ($matches) use ($method) {
+            return $method->invoke($this->compiler, $matches[0]);
+        }, $content);
     }
 
     /**
