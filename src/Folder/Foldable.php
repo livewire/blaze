@@ -3,13 +3,13 @@
 namespace Livewire\Blaze\Folder;
 
 use Illuminate\Support\Str;
+use Livewire\Blaze\BladeRenderer;
 use Livewire\Blaze\BladeService;
 use Livewire\Blaze\Parser\Attribute;
 use Livewire\Blaze\Parser\Nodes\ComponentNode;
 use Livewire\Blaze\Parser\Nodes\SlotNode;
 use Livewire\Blaze\Parser\Nodes\TextNode;
 use Livewire\Blaze\Support\ComponentSource;
-use Livewire\Blaze\Support\Utils;
 
 /**
  * Performs compile-time folding of a component by rendering it with placeholder substitution.
@@ -28,6 +28,8 @@ class Foldable
     public function __construct(
         protected ComponentNode $node,
         protected ComponentSource $source,
+        protected BladeRenderer $renderer,
+        protected BladeService $blade,
     ) {
     }
 
@@ -49,7 +51,7 @@ class Foldable
         $this->setupSlots();
         $this->mergeAwareProps();
 
-        $this->html = BladeService::render($this->renderable->render());
+        $this->html = $this->renderer->render($this->renderable->render());
         
         $this->processUncompiledAttributes();
         $this->restorePlaceholders();
@@ -104,6 +106,7 @@ class Foldable
                     children: [new TextNode($placeholder)],
                     prefix: $child->prefix,
                     closeHasName: $child->closeHasName,
+                    attributes: $child->attributes,
                 );
             } else {
                 $looseContent[] = $child;
@@ -224,7 +227,7 @@ class Foldable
             $content = $match[0];
 
             foreach ($this->attributeByPlaceholder as $placeholder => $attribute) {
-                $value = $attribute->bound() ? $attribute->value : Utils::compileAttributeEchos($attribute->value);
+                $value = $attribute->bound() ? $attribute->value : $this->blade->compileAttributeEchos($attribute->value);
 
                 $content = str_replace("'" . $placeholder . "'", $value, $content);
             }
@@ -269,7 +272,7 @@ class Foldable
             if ($attribute->bound()) {
                 $data[] = var_export($attribute->propName, true).' => '.$attribute->value;
             } else {
-                $data[] = var_export($attribute->propName, true).' => '.Utils::compileAttributeEchos($attribute->value);
+                $data[] = var_export($attribute->propName, true).' => '.$this->blade->compileAttributeEchos($attribute->value);
             }
         }
 

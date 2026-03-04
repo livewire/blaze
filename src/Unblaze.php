@@ -2,7 +2,7 @@
 
 namespace Livewire\Blaze;
 
-use Illuminate\Support\Arr;
+use Livewire\Blaze\Compiler\DirectiveCompiler;
 use Illuminate\Support\Str;
 
 /**
@@ -35,23 +35,20 @@ class Unblaze
      */
     public static function processUnblazeDirectives(string $template)
     {
-        $compiler = BladeService::getHackedBladeCompiler();
-
         $expressionsByToken = [];
 
-        $compiler->directive('unblaze', function ($expression) use (&$expressionsByToken) {
-            $token = str()->random(10);
+        $result = DirectiveCompiler::make()
+            ->directive('unblaze', function ($expression) use (&$expressionsByToken) {
+                $token = str()->random(10);
 
-            $expressionsByToken[$token] = $expression;
+                $expressionsByToken[$token] = $expression;
 
-            return '[STARTUNBLAZE:'.$token.']';
-        });
-
-        $compiler->directive('endunblaze', function () {
-            return '[ENDUNBLAZE]';
-        });
-
-        $result = $compiler->compileStatementsMadePublic($template);
+                return '[STARTUNBLAZE:'.$token.']';
+            })
+            ->directive('endunblaze', function () {
+                return '[ENDUNBLAZE]';
+            })
+            ->compile($template);
 
         $result = preg_replace_callback('/(\[STARTUNBLAZE:([0-9a-zA-Z]+)\])(.*?)(\[ENDUNBLAZE\])/s', function ($matches) use (&$expressionsByToken) {
             $token = $matches[2];

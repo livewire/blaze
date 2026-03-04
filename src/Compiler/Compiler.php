@@ -3,7 +3,8 @@
 namespace Livewire\Blaze\Compiler;
 
 use Illuminate\View\Compilers\ComponentTagCompiler;
-use Livewire\Blaze\Blaze;
+use Livewire\Blaze\BladeService;
+use Livewire\Blaze\BlazeManager;
 use Livewire\Blaze\Parser\Nodes\ComponentNode;
 use Livewire\Blaze\Parser\Nodes\SlotNode;
 use Livewire\Blaze\Parser\Nodes\TextNode;
@@ -17,15 +18,16 @@ use Livewire\Blaze\Support\Utils;
  */
 class Compiler
 {
-    protected Config $config;
-    protected ComponentTagCompiler $blade;
+    protected ComponentTagCompiler $tagCompiler;
     protected SlotCompiler $slotCompiler;
 
-    public function __construct(Config $config)
-    {
-        $this->config = $config;
-        $this->slotCompiler = new SlotCompiler(fn (string $str) => $this->getAttributesAndBoundKeysArrayStrings($str, true)[0]);
-        $this->blade = new ComponentTagCompiler([], [], app('blade.compiler'));
+    public function __construct(
+        protected Config $config,
+        protected BladeService $blade,
+        protected BlazeManager $manager,
+    ) {
+        $this->slotCompiler = new SlotCompiler($manager, fn (string $str) => $this->getAttributesAndBoundKeysArrayStrings($str, true)[0]);
+        $this->tagCompiler = new ComponentTagCompiler([], [], $blade->compiler);
     }
 
     /**
@@ -41,7 +43,7 @@ class Compiler
             return new TextNode($this->compileDelegateComponentTag($node));
         }
 
-        $source = new ComponentSource($node->name);
+        $source = new ComponentSource($this->blade->componentNameToPath($node->name));
 
         if (! $source->exists()) {
             return $node;
@@ -94,7 +96,7 @@ class Compiler
     protected function compileComponentTag(ComponentNode $node, ComponentSource $source): string
     {
         $hash = Utils::hash($source->path);
-        $functionName = (Blaze::isFolding() ? '__' : '_') . $hash;
+        $functionName = ($this->manager->isFolding() ? '__' : '_') . $hash;
         $slotsVariableName = '$slots' . $hash;
         [$attributesArrayString, $boundKeysArrayString] = $this->getAttributesAndBoundKeysArrayStrings($node->attributeString);
 
@@ -123,14 +125,13 @@ class Compiler
      */
     protected function compileDelegateComponentTag(ComponentNode $node): string
     {
-        $attributesArray = Utils::parseAttributeStringToArray($node->attributeString);
-        $componentName = "'flux::' . " . $attributesArray['component']->value;
+        $componentName = "'flux::' . " . $node->attributes['component']->value;
 
         $output = '<' . '?php $__resolved = $__blaze->resolve(' . $componentName . '); ?>' . "\n";
 
         $slotsVariableName = '$slots' . hash('xxh128', $componentName);
 
-        $functionName = '(\'' . (Blaze::isFolding() ? '__' : '_') . '\' . $__resolved)';
+        $functionName = '(\'' . ($this->manager->isFolding() ? '__' : '_') . '\' . $__resolved)';
 
         $output .= '<' . '?php $__blaze->pushData($attributes->all()); ?>';
 
@@ -183,7 +184,7 @@ class Compiler
             $boundKeysString = '[' . implode(', ', array_map(fn ($k) => "'{$k}'", $boundKeys)) . ']';
 
             return [$attributesString, $boundKeysString];
-        })->call($this->blade, $attributeString, $escapeBound);
+        })->call($this->tagCompiler, $attributeString, $escapeBound);
     }
 
 }

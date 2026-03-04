@@ -2,6 +2,8 @@
 
 namespace Livewire\Blaze\Memoizer;
 
+use Livewire\Blaze\BladeService;
+use Livewire\Blaze\BlazeManager;
 use Livewire\Blaze\Parser\Nodes\ComponentNode;
 use Livewire\Blaze\Parser\Nodes\TextNode;
 use Livewire\Blaze\Parser\Nodes\Node;
@@ -17,6 +19,8 @@ class Memoizer
     public function __construct(
         protected Config $config,
         protected Compiler $compiler,
+        protected BladeService $blade,
+        protected BlazeManager $manager,
     ) {
     }
 
@@ -38,11 +42,20 @@ class Memoizer
         }
 
         $name = $node->name;
-        $attributes = $node->getAttributesAsRuntimeArrayString();
+
+        $parts = [];
+        foreach ($node->attributes as $attr) {
+            if ($attr->bound()) {
+                $parts[] = "'{$attr->propName}' => {$attr->value}";
+            } else {
+                $parts[] = "'{$attr->propName}' => ".$this->blade->compileAttributeEchos($attr->value);
+            }
+        }
+        $attributes = '['.implode(', ', $parts).']';
 
         $compiled = $this->compiler->compile($node)->render();
 
-        $isDebugging = app('blaze')->isDebugging() && ! app('blaze')->isFolding();
+        $isDebugging = $this->manager->isDebugging() && ! $this->manager->isFolding();
 
         $output = '<' . '?php $blaze_memoized_key = \Livewire\Blaze\Memoizer\Memo::key("' . $name . '", ' . $attributes . '); ?>';
         $output .= '<' . '?php if ($blaze_memoized_key !== null && \Livewire\Blaze\Memoizer\Memo::has($blaze_memoized_key)) : ?>';
@@ -68,7 +81,7 @@ class Memoizer
             return false;
         }
 
-        $source = new ComponentSource($node->name);
+        $source = new ComponentSource($this->blade->componentNameToPath($node->name));
 
         if (! $source->exists()) {
             return false;

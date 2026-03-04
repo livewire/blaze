@@ -2,34 +2,28 @@
 
 namespace Livewire\Blaze\Support;
 
-use Livewire\Blaze\BladeService;
+use Illuminate\Support\Str;
 use Livewire\Blaze\Parser\Attribute;
 
 /**
- * Parses component attribute strings into structured arrays, handling all Blade syntaxes.
+ * Parses component attribute strings into structured arrays.
  */
 class AttributeParser
 {
     /**
-     * Parse an attribute string into a keyed array of Attribute objects.
-     *
-     * Uses Laravel's preprocessing pipeline to normalize all attribute syntaxes
-     * (:$var, :attr, {{ $attributes }}, @class, @style) into a uniform format,
-     * then matches with Laravel's single attribute regex.
+     * Parse preprocessed attribute string into a keyed array of Attribute objects.
      *
      * @return array<string, Attribute>
      */
-    public function parseAttributeStringToArray(string $attributesString): array
+    public static function parse(string $attributesString): array
     {
-        $attributesString = BladeService::preprocessAttributeString($attributesString);
-
         preg_match_all(LaravelRegex::ATTRIBUTE_PATTERN, $attributesString, $matches, PREG_SET_ORDER);
 
         $attributes = [];
 
         foreach ($matches as $match) {
             $name = $match['attribute'];
-            $value = isset($match['value']) ? BladeService::stripQuotes($match['value']) : null;
+            $value = isset($match['value']) ? static::stripQuotes($match['value']) : null;
             $isDynamic = false;
             $prefix = '';
 
@@ -80,45 +74,14 @@ class AttributeParser
     }
 
     /**
-     * Convert parsed attributes into a PHP array string for runtime evaluation.
-     *
-     * @param  array<string, Attribute>  $attributes
+     * Strip any quotes from the given string.
+     * 
+     * @see Illuminate\View\Compilers\ComponentTagCompiler::stripQuotes()
      */
-    public function parseAttributesArrayToRuntimeArrayString(array $attributes): string
+    protected static function stripQuotes(string $value)
     {
-        $arrayParts = [];
-
-        foreach ($attributes as $attributeName => $attr) {
-            if ($attr->dynamic && is_string($attr->value) && (str_contains($attr->value, '{{') || str_contains($attr->value, '{!!'))) {
-                // Blade echo syntax (e.g. {{ $order->avatar }} or {!! $rawHtml !!}) must be compiled
-                // to a PHP expression so the runtime value is used (not the literal template string).
-                // This is critical for memoization keys to be unique per evaluated value.
-                $arrayParts[] = "'".addslashes($attributeName)."' => ".Utils::compileAttributeEchos($attr->value);
-
-                continue;
-            }
-
-            if ($attr->dynamic) {
-                $arrayParts[] = "'".addslashes($attributeName)."' => ".$attr->value;
-
-                continue;
-            }
-
-            $value = $attr->value;
-
-            if (is_bool($value)) {
-                $valueString = $value ? 'true' : 'false';
-            } elseif (is_string($value)) {
-                $valueString = "'".addslashes($value)."'";
-            } elseif (is_null($value)) {
-                $valueString = 'null';
-            } else {
-                $valueString = (string) $value;
-            }
-
-            $arrayParts[] = "'".addslashes($attributeName)."' => ".$valueString;
-        }
-
-        return '['.implode(', ', $arrayParts).']';
+        return Str::startsWith($value, ['"', '\''])
+            ? substr($value, 1, -1)
+            : $value;
     }
 }

@@ -14,6 +14,7 @@ class BlazeServiceProvider extends ServiceProvider
     {
         $this->registerConfig();
 
+        $this->app->singleton(BladeService::class);
         $this->app->singleton(BlazeRuntime::class);
         $this->app->singleton(Config::class);
         $this->app->singleton(Debugger::class);
@@ -114,21 +115,24 @@ class BlazeServiceProvider extends ServiceProvider
      */
     protected function interceptBladeCompilation(): void
     {
-        BladeService::earliestPreCompilationHook(function ($input, $path) {
-            if (BladeService::containsLaravelExceptionView($input)) {
+        $blade = $this->app->make(BladeService::class);
+        $blaze = $this->app->make(BlazeManager::class);
+
+        $blade->earliestPreCompilationHook(function ($input, $path) use ($blade, $blaze) {
+            if ($blade->containsLaravelExceptionView($input)) {
                 return $input;
             }
 
-            if (Blaze::isDisabled()) {
-                if (Blaze::isDebugging()) {
-                    return Blaze::compileForDebug($input, $path);
+            if ($blaze->isDisabled()) {
+                if ($blaze->isDebugging()) {
+                    return $blaze->compileForDebug($input, $path);
                 }
 
                 return $input;
             }
 
-            return Blaze::collectAndAppendFrontMatter($input, function ($input) use ($path) {
-                return Blaze::compile($input, $path);
+            return $blaze->collectAndAppendFrontMatter($input, function ($input) use ($path, $blaze) {
+                return $blaze->compile($input, $path);
             });
         });
     }

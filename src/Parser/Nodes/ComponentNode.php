@@ -2,10 +2,6 @@
 
 namespace Livewire\Blaze\Parser\Nodes;
 
-use Livewire\Blaze\Support\AttributeParser;
-use Livewire\Blaze\Support\Utils;
-use Livewire\Blaze\Parser\Attribute;
-
 /**
  * Represents an <x-component> or <flux:component> tag in the AST.
  */
@@ -24,9 +20,6 @@ class ComponentNode extends Node
         /** @var Attribute[] */
         public array $attributes = [],
     ) {
-        if (empty($this->attributes) && ! empty($this->attributeString)) {
-            $this->attributes = Utils::parseAttributeStringToArray($this->attributeString);
-        }
     }
 
     /**
@@ -86,18 +79,6 @@ class ComponentNode extends Node
         $output .= "</{$this->prefix}{$name}>";
 
         return $output;
-    }
-
-    /**
-     * Convert attributes to a PHP array string for runtime evaluation.
-     */
-    public function getAttributesAsRuntimeArrayString(): string
-    {
-        $attributeParser = new AttributeParser;
-
-        $attributesArray = $attributeParser->parseAttributeStringToArray($this->attributeString);
-
-        return $attributeParser->parseAttributesArrayToRuntimeArrayString($attributesArray);
     }
 
     /**

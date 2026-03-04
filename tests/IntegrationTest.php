@@ -1,8 +1,10 @@
 <?php
 
+use Illuminate\Container\Container;
 use Illuminate\Contracts\View\Engine;
 use Illuminate\Support\Facades\Artisan;
 use Livewire\Blaze\Blaze;
+use Livewire\Blaze\BlazeManager;
 
 beforeEach(fn () => Artisan::call('view:clear'));
 

@@ -10,8 +10,10 @@ use Livewire\Blaze\Parser\Nodes\Node;
 use Livewire\Blaze\Parser\Nodes\SlotNode;
 use Livewire\Blaze\Parser\Nodes\TextNode;
 use Livewire\Blaze\Support\ComponentSource;
+use Livewire\Blaze\BladeRenderer;
+use Livewire\Blaze\BladeService;
+use Livewire\Blaze\BlazeManager;
 use Illuminate\Support\Arr;
-use Livewire\Blaze\Blaze;
 use Livewire\Blaze\Config;
 
 /**
@@ -20,7 +22,10 @@ use Livewire\Blaze\Config;
 class Folder
 {
     public function __construct(
-        protected ?Config $config = null,
+        protected Config $config,
+        protected BladeService $blade,
+        protected BladeRenderer $renderer,
+        protected BlazeManager $manager,
     ) {
     }
 
@@ -35,7 +40,7 @@ class Folder
 
         $component = $node;
 
-        $source = new ComponentSource($component->name);
+        $source = new ComponentSource($this->blade->componentNameToPath($component->name));
 
         if (! $source->exists()) {
             return $component;
@@ -52,19 +57,19 @@ class Folder
         $this->checkProblematicPatterns($source);
 
         try {
-            $foldable = new Foldable($node, $source);
+            $foldable = new Foldable($node, $source, $this->renderer, $this->blade);
 
             $html = $foldable->fold();
 
             Event::dispatch(new ComponentFolded(
-                name: $source->name,
+                name: $component->name,
                 path: $source->path,
                 filemtime: filemtime($source->path),
             ));
 
             return new TextNode('<?php ob_start(); ?>' . $html . '<?php echo ltrim(ob_get_clean()); ?>');
         } catch (\Exception $e) {
-            if (Blaze::shouldThrow()) {
+            if ($this->manager->shouldThrow()) {
                 throw $e;
             }
 

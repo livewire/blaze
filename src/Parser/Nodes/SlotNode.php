@@ -2,7 +2,6 @@
 
 namespace Livewire\Blaze\Parser\Nodes;
 
-use Livewire\Blaze\Support\Utils;
 use Livewire\Blaze\Parser\Attribute;
 
 /**
@@ -10,9 +9,6 @@ use Livewire\Blaze\Parser\Attribute;
  */
 class SlotNode extends Node
 {
-    /** @var Attribute[] */
-    public array $attributes = [];
-
     public function __construct(
         public string $name,
         public string $attributeString = '',
@@ -20,8 +16,9 @@ class SlotNode extends Node
         public array $children = [],
         public string $prefix = 'x-slot',
         public bool $closeHasName = false,
+        /** @var Attribute[] */
+        public array $attributes = [],
     ) {
-        $this->attributes = Utils::parseAttributeStringToArray($this->attributeString);
     }
 
     /** {@inheritdoc} */
