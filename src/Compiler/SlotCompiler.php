@@ -2,10 +2,11 @@
 
 namespace Livewire\Blaze\Compiler;
 
-use Illuminate\Support\Str;
-use Livewire\Blaze\Parser\Nodes\SlotNode;
 use Closure;
+use Illuminate\Support\Str;
 use Livewire\Blaze\Blaze;
+use Livewire\Blaze\BlazeManager;
+use Livewire\Blaze\Parser\Nodes\SlotNode;
 
 /**
  * Compiles slot nodes into output buffering PHP code.
@@ -13,6 +14,7 @@ use Livewire\Blaze\Blaze;
 class SlotCompiler
 {
     public function __construct(
+        protected BlazeManager $manager,
         protected Closure $getAttributesArrayString
     ) {
     }
@@ -99,7 +101,7 @@ class SlotCompiler
      */
     protected function compileSlot(string $name, string $content, string $attributes, string $slotsVariableName): string
     {
-        $contentHandler = Blaze::isFolding() ? '$__blaze->processPassthroughContent(\'trim\', trim(ob_get_clean()))' : 'trim(ob_get_clean())';
+        $contentHandler = $this->manager->isFolding() ? '$__blaze->processPassthroughContent(\'trim\', trim(ob_get_clean()))' : 'trim(ob_get_clean())';
         
         return '<' . '?php ob_start(); ?>'
             . $content

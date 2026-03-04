@@ -26,7 +26,7 @@ class Compiler
         protected BladeService $blade,
         protected BlazeManager $manager,
     ) {
-        $this->slotCompiler = new SlotCompiler(fn (string $str) => $this->getAttributesAndBoundKeysArrayStrings($str, true)[0]);
+        $this->slotCompiler = new SlotCompiler($manager, fn (string $str) => $this->getAttributesAndBoundKeysArrayStrings($str, true)[0]);
         $this->tagCompiler = new ComponentTagCompiler([], [], $blade->compiler);
     }
 

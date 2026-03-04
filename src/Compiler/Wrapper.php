@@ -82,7 +82,7 @@ class Wrapper
 
         $output .= '<?php' . "\n";
 
-        $contentHandler = Blaze::isFolding() ? '$__blaze->processPassthroughContent(\'ltrim\', ltrim(ob_get_clean()))' : 'ltrim(ob_get_clean())';
+        $contentHandler = $this->manager->isFolding() ? '$__blaze->processPassthroughContent(\'ltrim\', ltrim(ob_get_clean()))' : 'ltrim(ob_get_clean())';
 
         $output .= 'echo ' . $contentHandler . ';' . "\n";
 
