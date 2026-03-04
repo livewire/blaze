@@ -3,13 +3,13 @@
 namespace Livewire\Blaze\Folder;
 
 use Illuminate\Support\Str;
+use Livewire\Blaze\BladeRenderer;
 use Livewire\Blaze\BladeService;
 use Livewire\Blaze\Parser\Attribute;
 use Livewire\Blaze\Parser\Nodes\ComponentNode;
 use Livewire\Blaze\Parser\Nodes\SlotNode;
 use Livewire\Blaze\Parser\Nodes\TextNode;
 use Livewire\Blaze\Support\ComponentSource;
-use Livewire\Blaze\Support\Utils;
 
 /**
  * Performs compile-time folding of a component by rendering it with placeholder substitution.
@@ -28,6 +28,8 @@ class Foldable
     public function __construct(
         protected ComponentNode $node,
         protected ComponentSource $source,
+        protected BladeRenderer $renderer,
+        protected BladeService $blade,
     ) {
     }
 
@@ -49,7 +51,7 @@ class Foldable
         $this->setupSlots();
         $this->mergeAwareProps();
 
-        $this->html = BladeService::render($this->renderable->render());
+        $this->html = $this->renderer->render($this->renderable->render());
         
         $this->processUncompiledAttributes();
         $this->restorePlaceholders();
@@ -104,6 +106,7 @@ class Foldable
                     children: [new TextNode($placeholder)],
                     prefix: $child->prefix,
                     closeHasName: $child->closeHasName,
+                    attributes: $child->attributes,
                 );
             } else {
                 $looseContent[] = $child;
@@ -198,7 +201,7 @@ class Foldable
      */
     protected function processUncompiledAttributes(): void
     {
-        $this->html = preg_replace_callback('/\[BLAZE_ATTR:(BLAZE_PLACEHOLDER_[A-Z0-9]+)\]/', function ($matches) {
+        $this->html = preg_replace_callback('/\[BLAZE_ATTR:(BLAZE_PLACEHOLDER_[A-Z0-9]+)\](\r?\n)?/', function ($matches) {
             $attribute = $this->attributeByPlaceholder[$matches[1]];
 
             if ($attribute->bound()) {
@@ -207,7 +210,7 @@ class Foldable
 
                 return '<'.'?php if (($__blazeAttr = '.$attribute->value.') !== false && !is_null($__blazeAttr)): ?'.'>'
                 . $attribute->name.'="<'.'?php echo e($__blazeAttr === true ? '.$booleanValue.' : $__blazeAttr); ?'.'>"'
-                .'<'.'?php endif; unset($__blazeAttr); ?'.'>';
+                .'<'.'?php endif; unset($__blazeAttr); ?'.'>' . (isset($matches[2]) ? $matches[2] . $matches[2] : '');
             } else {
                 return $attribute->name.'="'.$attribute->value.'"';
             }
@@ -224,7 +227,7 @@ class Foldable
             $content = $match[0];
 
             foreach ($this->attributeByPlaceholder as $placeholder => $attribute) {
-                $value = $attribute->bound() ? $attribute->value : Utils::compileAttributeEchos($attribute->value);
+                $value = $attribute->bound() ? $attribute->value : $this->blade->compileAttributeEchos($attribute->value);
 
                 $content = str_replace("'" . $placeholder . "'", $value, $content);
             }
@@ -240,7 +243,13 @@ class Foldable
         }
 
         foreach ($this->slotByPlaceholder as $placeholder => $slot) {
-            $this->html = str_replace($placeholder, trim($slot->content()), $this->html);
+            // In Blade slots are rendered using output buffer and echo syntax,
+            // we need to replicate both here to handle whitespace correctly.
+            $this->html = preg_replace_callback('/' . $placeholder . '(\r?\n)?/', function ($match) use ($slot) {
+                $whitespace = $match[1] ?? '';
+
+                return '<?php ob_start(); ?>' . $slot->content() . '<?php echo trim(ob_get_clean()); ?>' . $whitespace . $whitespace;
+            }, $this->html);
         }
     }
 
@@ -263,7 +272,7 @@ class Foldable
             if ($attribute->bound()) {
                 $data[] = var_export($attribute->propName, true).' => '.$attribute->value;
             } else {
-                $data[] = var_export($attribute->propName, true).' => '.Utils::compileAttributeEchos($attribute->value);
+                $data[] = var_export($attribute->propName, true).' => '.$this->blade->compileAttributeEchos($attribute->value);
             }
         }
 

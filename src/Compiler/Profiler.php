@@ -2,6 +2,7 @@
 
 namespace Livewire\Blaze\Compiler;
 
+use Livewire\Blaze\BladeService;
 use Livewire\Blaze\Config;
 use Livewire\Blaze\Parser\Nodes\ComponentNode;
 use Livewire\Blaze\Parser\Nodes\Node;
@@ -21,6 +22,7 @@ class Profiler
 {
     public function __construct(
         protected Config $config,
+        protected BladeService $blade,
     ) {
     }
 
@@ -29,7 +31,7 @@ class Profiler
      */
     public function profile(Node $node, string $componentName, ?string $strategy = null): Node
     {
-        $source = new ComponentSource($componentName);
+        $source = new ComponentSource($this->blade->componentNameToPath($componentName));
 
         if ($strategy === null) {
             $isBlade = $node instanceof ComponentNode;
@@ -156,7 +158,7 @@ class Profiler
 
         $dirs = [resource_path('views/components')];
 
-        foreach (app('blade.compiler')->getAnonymousComponentPaths() as $registration) {
+        foreach ($this->blade->compiler->getAnonymousComponentPaths() as $registration) {
             $dirs[] = $registration['path'];
         }
 

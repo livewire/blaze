@@ -7,7 +7,6 @@ use Livewire\Blaze\Runtime\BlazeRuntime;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Support\Facades\Blade;
 use Illuminate\Support\Facades\View;
-use Illuminate\View\Engines\CompilerEngine;
 
 class BlazeServiceProvider extends ServiceProvider
 {
@@ -15,6 +14,7 @@ class BlazeServiceProvider extends ServiceProvider
     {
         $this->registerConfig();
 
+        $this->app->singleton(BladeService::class);
         $this->app->singleton(BlazeRuntime::class);
         $this->app->singleton(Config::class);
         $this->app->singleton(Debugger::class);
@@ -41,9 +41,8 @@ class BlazeServiceProvider extends ServiceProvider
     public function boot(): void
     {
         $this->registerBlazeDirectives();
-        $this->registerBlazeRuntime();
+        $this->registerViewComposer();
         $this->registerBladeMacros();
-        $this->interceptViewCacheInvalidation();
         $this->interceptBladeCompilation();
         $this->registerDebuggerMiddleware();
     }
@@ -51,17 +50,25 @@ class BlazeServiceProvider extends ServiceProvider
     /**
      * Make the BlazeRuntime instance available to Blade views.
      */
-    protected function registerBlazeRuntime(): void
+    protected function registerViewComposer(): void
     {
-        View::composer('*', function (\Illuminate\View\View $view) {
-            if (Blaze::isDisabled() && ! Blaze::isDebugging()) {
+        $blaze = $this->app->make(BlazeManager::class);
+        $runtime = $this->app->make(BlazeRuntime::class);
+
+        View::composer('*', function (\Illuminate\View\View $view) use ($blaze, $runtime) {
+            if ($blaze->isDisabled() && ! $blaze->isDebugging()) {
                 return;
             }
 
-            // Avoid injecting the BlazeRuntime into non-Blade views (like Statamic's Antlers)
-            if ($view->getEngine() instanceof CompilerEngine) {
-                $view->with('__blaze', $this->app->make(BlazeRuntime::class));
+            if (! str_ends_with($view->getPath(), '.blade.php')) {
+                return;
             }
+
+            if ($blaze->viewContainsExpiredFrontMatter($view)) {
+                $view->getEngine()->getCompiler()->compile($view->getPath());
+            }
+
+            $view->with('__blaze', $runtime);
         });
     }
 
@@ -108,38 +115,25 @@ class BlazeServiceProvider extends ServiceProvider
      */
     protected function interceptBladeCompilation(): void
     {
-        BladeService::earliestPreCompilationHook(function ($input, $path) {
-            if (BladeService::containsLaravelExceptionView($input)) {
+        $blade = $this->app->make(BladeService::class);
+        $blaze = $this->app->make(BlazeManager::class);
+
+        $blade->earliestPreCompilationHook(function ($input, $path) use ($blade, $blaze) {
+            if ($blade->containsLaravelExceptionView($input)) {
                 return $input;
             }
 
-            if (Blaze::isDisabled()) {
-                if (Blaze::isDebugging()) {
-                    return Blaze::compileForDebug($input, $path);
+            if ($blaze->isDisabled()) {
+                if ($blaze->isDebugging()) {
+                    return $blaze->compileForDebug($input, $path);
                 }
 
                 return $input;
             }
 
-            return Blaze::collectAndAppendFrontMatter($input, function ($input) use ($path) {
-                return Blaze::compile($input, $path);
+            return $blaze->collectAndAppendFrontMatter($input, function ($input) use ($path, $blaze) {
+                return $blaze->compile($input, $path);
             });
-        });
-    }
-
-    /**
-     * Recompile views when folded component dependencies have changed.
-     */
-    protected function interceptViewCacheInvalidation(): void
-    {
-        BladeService::viewCacheInvalidationHook(function ($view, $invalidate) {
-            if (Blaze::isDisabled()) {
-                return;
-            }
-
-            if (Blaze::viewContainsExpiredFrontMatter($view)) {
-                $invalidate();
-            }
         });
     }
 

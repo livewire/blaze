@@ -3,7 +3,7 @@
 namespace Livewire\Blaze\Support;
 
 /**
- * Regex patterns sourced from Laravel's ComponentTagCompiler.
+ * Regex patterns sourced from Laravel's view compiler (ComponentTagCompiler, BladeCompiler).
  *
  * Every constant in this class MUST match the corresponding regex
  * in Laravel's source exactly. Do not modify these without first
@@ -11,6 +11,8 @@ namespace Livewire\Blaze\Support;
  * constant's docblock.
  *
  * @see vendor/laravel/framework/src/Illuminate/View/Compilers/ComponentTagCompiler.php
+ * @see vendor/laravel/framework/src/Illuminate/View/Compilers/BladeCompiler.php
+ * @see vendor/laravel/framework/src/Illuminate/View/Compilers/Concerns/CompilesComments.php
  */
 class LaravelRegex
 {
@@ -26,14 +28,14 @@ class LaravelRegex
     /**
      * Pattern for matching a slot inline name (e.g., <x-slot:header>).
      *
-     * @see ComponentTagCompiler::compileSlots() — (\w+(?:-\w+)*)
+     * @see ComponentTagCompiler::compileSlots() — line 522, (?:\:(?<inlineName>\w+(?:-\w+)*))?
      */
     const SLOT_INLINE_NAME = '/^\w+(?:-\w+)*/';
 
     /**
-     * Full pattern for matching individual attributes after preprocessing.
+     * Pattern for matching individual attributes after preprocessing.
      *
-     * @see ComponentTagCompiler::getAttributesFromAttributeString() — line 605
+     * @see ComponentTagCompiler::getAttributesFromAttributeString() — lines 605-619
      */
     const ATTRIBUTE_PATTERN = '/
         (?<attribute>[\w\-:.@%]+)
@@ -50,4 +52,25 @@ class LaravelRegex
             )
         )?
     /x';
+
+    /**
+     * Pattern for matching Blade comments ({{-- ... --}}).
+     *
+     * @see CompilesComments::compileComments() — sprintf('/%s--(.*?)--%s/s', contentTags)
+     */
+    const BLADE_COMMENT = '/\{\{--(.*?)--\}\}/s';
+
+    /**
+     * Pattern for matching @verbatim...@endverbatim blocks.
+     *
+     * @see BladeCompiler::storeVerbatimBlocks() — /(?<!@)@verbatim(\s*)(.*?)@endverbatim/s
+     */
+    const VERBATIM_BLOCK = '/(?<!@)@verbatim(\s*)(.*?)@endverbatim/s';
+
+    /**
+     * Pattern for matching @php...@endphp blocks.
+     *
+     * @see BladeCompiler::storePhpBlocks() — /(?<!@)@php(.*?)@endphp/s
+     */
+    const PHP_BLOCK = '/(?<!@)@php(.*?)@endphp/s';
 }

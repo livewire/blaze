@@ -95,7 +95,7 @@ test('injects echo handler', function () {
 
 test('hoists use statements to top of output', function ($statement) {
     // Replace raw @php blocks for placeholders. This normally happens in BlazeManager before the template gets to the Wrapper
-    $source = BladeService::preStoreUncompiledBlocks($statement);
+    $source = app(BladeService::class)->preStoreUncompiledBlocks($statement);
 
     expect(app(Wrapper::class)->wrap($source, '', $source))->toStartWith("<?php\nuse \App\Models\User");
 })->with([
@@ -105,7 +105,13 @@ test('hoists use statements to top of output', function ($statement) {
 ]);
 
 test('preserves php directives', function () {
-    $input = '@php something @endphp';
+    $input = '@php /* uncompiled */ @endphp';
+
+    expect(app(Wrapper::class)->wrap($input, ''))->toContain($input);
+});
+
+test('preserves verbatim directives', function () {
+    $input = '@verbatim /* uncompiled */ @endverbatim';
 
     expect(app(Wrapper::class)->wrap($input, ''))->toContain($input);
 });

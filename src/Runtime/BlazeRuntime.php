@@ -5,22 +5,18 @@ namespace Livewire\Blaze\Runtime;
 use Illuminate\Contracts\View\Factory;
 use Illuminate\Foundation\Application;
 use Illuminate\Support\ViewErrorBag;
+use Illuminate\View\Compilers\BladeCompiler;
+use Illuminate\View\Compilers\Compiler;
 use Livewire\Blaze\BladeService;
+use Livewire\Blaze\Support\Directives;
 use Livewire\Blaze\Support\Utils;
 use Livewire\Blaze\Debugger;
-use Illuminate\View\Compilers\Compiler;
-use Livewire\Blaze\Support\Directives;
 
 /**
  * Runtime context shared with all Blaze-compiled components via $__blaze.
  */
 class BlazeRuntime
 {
-    public readonly Factory $env;
-    public readonly Application $app;
-    public readonly Debugger $debugger;
-    public readonly Compiler $compiler;
-
     // Lazily cached from config('view.compiled') on first access via __get.
     // This ensures parallel-testing per-worker path overrides are respected.
     protected ?string $compiledPath = null;
@@ -32,12 +28,13 @@ class BlazeRuntime
     protected array $dataStack = [];
     protected array $slotsStack = [];
 
-    public function __construct()
-    {
-        $this->env = app('view');
-        $this->app = app();
-        $this->debugger = app('blaze.debugger');
-        $this->compiler = app('blade.compiler');
+    public function __construct(
+        public readonly Factory $env,
+        public readonly Application $app,
+        public readonly Debugger $debugger,
+        public readonly BladeCompiler $compiler,
+        protected BladeService $blade,
+    ) {
     }
 
     /**
@@ -70,7 +67,7 @@ class BlazeRuntime
         if (isset($this->paths[$component])) {
             $path = $this->paths[$component];
         } else {
-            $path = $this->paths[$component] = BladeService::componentNameToPath($component);
+            $path = $this->paths[$component] = $this->blade->componentNameToPath($component);
         }
 
         if (! $this->isBlazeComponent($path)) {
@@ -199,6 +196,41 @@ class BlazeRuntime
         }
 
         return value($default);
+    }
+
+    /**
+     * Process uncompiled unblaze tags passed through slots or components to handle whitespace.
+     */
+    public function processPassthroughContent(string $method, string $content): string
+    {
+        if (! in_array($method, ['ltrim', 'rtrim', 'trim'])) {
+            return $content;
+        }
+
+        $pattern = '\[STARTCOMPILEDUNBLAZE:([0-9a-zA-Z]+)\].*?\[ENDCOMPILEDUNBLAZE:\1\]';
+
+        // Starts and ends with unblaze, adds :trim
+        $content = preg_replace_callback(
+            '/^\s*'. $pattern .'\s*$/',
+            fn ($m) => str_replace('COMPILEDUNBLAZE:'.$m[1], 'COMPILEDUNBLAZE:'.$m[1].':'.$method, $m[0]),
+            $content,
+        );
+
+        // Starts with unblaze, adds :ltrim
+        $content = preg_replace_callback(
+            '/^\s*'. $pattern .'/',
+            fn ($m) => $method !== 'rtrim' ? str_replace('COMPILEDUNBLAZE:'.$m[1], 'COMPILEDUNBLAZE:'.$m[1].':ltrim', $m[0]) : $m[0],
+            $content,
+        );
+
+        // Ends with unblaze, adds :rtrim
+        $content = preg_replace_callback(
+            '/'. $pattern .'\s*$/',
+            fn ($m) => $method !== 'ltrim' ? str_replace('COMPILEDUNBLAZE:'.$m[1], 'COMPILEDUNBLAZE:'.$m[1].':rtrim', $m[0]) : $m[0],
+            $content,
+        );
+        
+        return $content;
     }
 
     private function getCompiledPath(): string
