@@ -22,7 +22,7 @@ class BlazeRuntime
     protected ?string $compiledPath = null;
 
     protected array $paths = [];
-    protected array $compiled = [];
+    protected array $required = [];
     protected array $blazed = [];
 
     protected array $dataStack = [];
@@ -40,19 +40,19 @@ class BlazeRuntime
     /**
      * Compile a component if its source is newer than the cached output.
      */
-    public function ensureCompiled(string $path, string $compiledPath): void
+    public function ensureRequired(string $path, string $compiledPath): void
     {
-        if (isset($this->compiled[$path])) {
+        if (isset($this->required[$path])) {
             return;
         }
 
-        $this->compiled[$path] = true;
-
-        if (file_exists($compiledPath) && filemtime($path) <= filemtime($compiledPath)) {
-            return;
+        if (! file_exists($compiledPath) || filemtime($path) > filemtime($compiledPath)) {
+            $this->compiler->compile($path);
         }
 
-        $this->compiler->compile($path);
+        require_once $compiledPath;
+
+        $this->required[$path] = true;
     }
 
     /**
@@ -77,9 +77,11 @@ class BlazeRuntime
         $hash = Utils::hash($path);
         $compiled = $this->getCompiledPath().'/'.$hash.'.php';
 
-        if (! isset($this->compiled[$path])) {
-            $this->ensureCompiled($path, $compiled);
+        if (! isset($this->required[$path])) {
+            $this->ensureRequired($path, $compiled);
         }
+
+        require_once $compiled;
 
         return $hash;
     }
@@ -251,9 +253,6 @@ class BlazeRuntime
      */
     public function flushState(): void
     {
-        $this->paths = [];
-        $this->compiled = [];
-        $this->blazed = [];
         $this->dataStack = [];
         $this->slotsStack = [];
     }
