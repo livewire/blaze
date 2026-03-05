@@ -296,6 +296,24 @@ class Debugger
             'timerView' => $this->timerView,
         ];
     }
+    
+    public function flushState(): void
+    {
+        $this->renderStart = null;
+        $this->renderTime = 0.0;
+        $this->timerView = null;
+        $this->components = [];
+        $this->bladeComponentCount = 0;
+        $this->bladeComponents = [];
+        $this->blazeEnabled = false;
+        $this->comparison = null;
+        $this->isColdRender = false;
+        $this->traceStack = [];
+        $this->traceEntries = [];
+        $this->traceOrigin = null;
+        $this->memoHits = 0;
+        $this->memoHitNames = [];
+    }
 
     protected function formatMs(float $value): string
     {

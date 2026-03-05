@@ -112,4 +112,13 @@ class Unblaze
 
         return $template;
     }
+
+    /**
+     * Clear all unblaze state.
+     */
+    public static function flushState()
+    {
+        static::$unblazeScopes = [];
+        static::$unblazeReplacements = [];
+    }
 }

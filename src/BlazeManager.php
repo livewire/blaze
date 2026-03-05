@@ -8,6 +8,8 @@ use Illuminate\View\Engines\CompilerEngine;
 use Livewire\Blaze\Compiler\Wrapper;
 use Livewire\Blaze\Compiler\Compiler;
 use Livewire\Blaze\Compiler\Profiler;
+use Livewire\Blaze\Memoizer\Memo;
+use Livewire\Blaze\Runtime\BlazeRuntime;
 use Livewire\Blaze\Directive\BlazeDirective;
 use Livewire\Blaze\Events\ComponentFolded;
 use Livewire\Blaze\Folder\Folder;
@@ -19,7 +21,6 @@ use Livewire\Blaze\Parser\Walker;
 use Livewire\Blaze\Support\Directives;
 use Livewire\Blaze\Support\ComponentSource;
 use Livewire\Blaze\Parser\Nodes\SlotNode;
-use Livewire\Blaze\Runtime\BlazeRuntime;
 
 class BlazeManager
 {
@@ -440,5 +441,14 @@ class BlazeManager
         }
 
         return false;
+    }
+
+    /**
+     * Reset all per-request mutable state.
+     */
+    public function flushState(): void
+    {
+        $this->foldedEvents = [];
+        $this->expiredMemo = [];
     }
 }

@@ -10,14 +10,6 @@ class Memo
     protected static $memo = [];
 
     /**
-     * Clear all memoized entries.
-     */
-    public static function clear(): void
-    {
-        self::$memo = [];
-    }
-
-    /**
      * Generate a cache key from a component name and its parameters.
      *
      * Returns null when params contain non-serializable values (objects,
@@ -66,5 +58,13 @@ class Memo
     public static function forget(string $key): void
     {
         unset(self::$memo[$key]);
+    }
+
+    /**
+     * Clear all memoized entries.
+     */
+    public static function flushState()
+    {
+        self::$memo = [];
     }
 }
