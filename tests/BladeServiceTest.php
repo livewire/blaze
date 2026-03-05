@@ -12,7 +12,7 @@ test('componentNameToPath', function ($callback, $prefix, $name, $path) {
     'default path' => [fn () => null, 'dummy.'],
     'custom path' => [fn () => Blade::anonymousComponentPath(fixture_path('views/components/dummy')), ''],
     'custom path with prefix' => [fn () => Blade::anonymousComponentPath(fixture_path('views/components/dummy'), 'dummy'), 'dummy::'],
-    // 'custom namespace' => [fn () => Blade::anonymousComponentNamespace('dummy'), 'dummy::'],
+    'custom namespace' => [fn () => Blade::anonymousComponentNamespace('components.dummy'), 'dummy::'],
 ])
 ->with([
     'exact file' => ['foo', fixture_path('views/components/dummy/foo.blade.php')],
