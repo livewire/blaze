@@ -30,7 +30,7 @@ class TestCase extends Orchestra
         ]);
 
         $app['blade.compiler']->anonymousComponentPath(
-            __DIR__.'/fixtures/components',
+            __DIR__.'/fixtures/views/components',
         );
 
         // Isolate compiled view paths for parallel testing to prevent

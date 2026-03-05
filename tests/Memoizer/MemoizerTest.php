@@ -13,7 +13,7 @@ test('memoizes self-closing components', function () {
     $node = app(Parser::class)->parse($input)[0];
     $memoized = app(Memoizer::class)->memoize($node);
 
-    $path = fixture_path('components/memoizable/avatar.blade.php');
+    $path = fixture_path('views/components/memoizable/avatar.blade.php');
     $hash = Utils::hash($path);
 
     expect($memoized->render())->toEqualCollapsingWhitespace(join('', [
@@ -59,7 +59,7 @@ test('does not memoize non-self-closing components', function () {
 test('memoizes components without blaze directive if enabled in config', function () {
     $input = '<x-memoizable.avatar-no-blaze />';
 
-    app(Config::class)->add(fixture_path('components/memoizable'), memo: true);
+    app(Config::class)->add(fixture_path('views/components/memoizable'), memo: true);
 
     $node = app(Parser::class)->parse($input)[0];
     $memoized = app(Memoizer::class)->memoize($node);

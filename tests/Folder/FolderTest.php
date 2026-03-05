@@ -210,7 +210,7 @@ test('does not fold components with no blaze directive', function () {
 test('folds components with no blaze directive if enabled in config', function () {
     $input = '<x-foldable.input-no-blaze />';
 
-    app(Config::class)->add(fixture_path('components/foldable'), fold: true);
+    app(Config::class)->add(fixture_path('views/components/foldable'), fold: true);
     
     $node = app(Parser::class)->parse($input)[0];
     $folded = app(Folder::class)->fold($node);
@@ -221,7 +221,7 @@ test('folds components with no blaze directive if enabled in config', function (
 test('folds components with blaze directive even if disabled in config', function () {
     $input = '<x-foldable.input />';
 
-    app(Config::class)->add(fixture_path('components/foldable'), fold: false);
+    app(Config::class)->add(fixture_path('views/components/foldable'), fold: false);
     
     $node = app(Parser::class)->parse($input)[0];
     $folded = app(Folder::class)->fold($node);

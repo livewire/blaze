@@ -10,7 +10,7 @@ test('compiles self-closing components', function () {
     $node = app(Parser::class)->parse($input)[0];
     $compiled = app(Compiler::class)->compile($node);
 
-    $path = fixture_path('components/input.blade.php');
+    $path = fixture_path('views/components/input.blade.php');
     $hash = Utils::hash($path);
 
     expect($compiled->render())->toEqualCollapsingWhitespace(join('', [
@@ -39,7 +39,7 @@ test('compiles slots', function () {
     $node = app(Parser::class)->parse($input)[0];
     $compiled = app(Compiler::class)->compile($node);
 
-    $path = fixture_path('components/card.blade.php');
+    $path = fixture_path('views/components/card.blade.php');
     $hash = Utils::hash($path);
 
     expect($compiled->render())->toEqualCollapsingWhitespace(join('', [

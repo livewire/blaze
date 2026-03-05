@@ -6,7 +6,7 @@ use Illuminate\Support\Facades\Blade;
 use Livewire\Blaze\BladeService;
 
 test('wraps component templates into function definitions', function () {
-    $path = fixture_path('components/input.blade.php');
+    $path = fixture_path('views/components/input.blade.php');
     $source = file_get_contents($path);
     $hash = Utils::hash($path);
 
@@ -31,7 +31,7 @@ test('wraps component templates into function definitions', function () {
 });
 
 test('compiles aware props', function () {
-    $path = fixture_path('components/input-aware.blade.php');
+    $path = fixture_path('views/components/input-aware.blade.php');
     $source = file_get_contents($path);
     $hash = Utils::hash($path);
 
