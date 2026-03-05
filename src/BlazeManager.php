@@ -370,7 +370,7 @@ class BlazeManager
      */
     public function isEnabled()
     {
-        return $this->enabled ?? config('blaze.enabled', true);
+        return $this->enabled ??= config('blaze.enabled', true);
     }
 
     /**
@@ -394,7 +394,7 @@ class BlazeManager
      */
     public function isDebugging()
     {
-        return $this->debug ?? config('blaze.debug', false);
+        return $this->debug ??= config('blaze.debug', false);
     }
 
     /**
