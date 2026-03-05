@@ -29,10 +29,10 @@ class BlazeRuntime
     protected array $slotsStack = [];
 
     public function __construct(
-        public readonly Factory $env,
-        public readonly Application $app,
-        public readonly Debugger $debugger,
-        public readonly BladeCompiler $compiler,
+        public Factory $env,
+        public Application $app,
+        public Debugger $debugger,
+        protected BladeCompiler $compiler,
         protected BladeService $blade,
     ) {
     }
@@ -247,6 +247,26 @@ class BlazeRuntime
     private function getCompiledPath(): string
     {
         return $this->compiledPath ??= config('view.compiled');
+    }
+
+    /**
+     * Set the application instance (used by Octane to swap in the sandbox).
+     */
+    public function setApplication(Application $app): void
+    {
+        $this->app = $app;
+    }
+
+    /**
+     * Clear the component data and slots stacks.
+     */
+    public function flushState(): void
+    {
+        $this->paths = [];
+        $this->compiled = [];
+        $this->blazed = [];
+        $this->dataStack = [];
+        $this->slotsStack = [];
     }
 
     /**
