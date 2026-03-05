@@ -35,7 +35,7 @@ class Profiler
 
         if ($strategy === null) {
             $isBlade = $node instanceof ComponentNode;
-            $strategy = $isBlade ? 'blade' : $this->resolveStrategy($source);
+            $strategy = $isBlade ? 'blade' : 'compiled';
         }
 
         $file = $source->exists() ? $this->relativePath($source->path) : null;

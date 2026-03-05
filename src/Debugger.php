@@ -2,6 +2,8 @@
 
 namespace Livewire\Blaze;
 
+use Illuminate\Support\Facades\File;
+
 class Debugger
 {
     protected ?int $renderStart = null;
@@ -22,12 +24,19 @@ class Debugger
 
     protected bool $isColdRender = false;
 
+    protected bool $timerInjected = false;
+
     // ── Profiler trace ───────────────────────────
     protected array $traceStack = [];
     protected array $traceEntries = [];
     protected ?float $traceOrigin = null;
     protected int $memoHits = 0;
     protected array $memoHitNames = [];
+
+    public function __construct(
+        protected BladeService $blade,
+    ) {  
+    }
 
     /**
      * Extract a human-readable component name from its file path.
@@ -188,6 +197,80 @@ class Debugger
         $this->timerView = $name;
     }
 
+    /**
+     * Inject start/stop timer calls into the compiled file of the first
+     * view being rendered. This ensures we measure only view rendering
+     * time, not the full request lifecycle.
+     *
+     * Called from the view composer on each composing view; only the
+     * first successful injection per request takes effect.
+     */
+    public function injectRenderTimer(\Illuminate\View\View $view): void
+    {
+        if ($this->timerInjected) {
+            return;
+        }
+
+        $path = $view->getPath();
+
+        // Some views (e.g. Livewire virtual views) may not have a real path.
+        if (! $path || ! file_exists($path)) {
+            return;
+        }
+
+        // Ensure the view is compiled.
+        if ($this->blade->compiler->isExpired($path)) {
+            $this->blade->compiler->compile($path);
+        }
+
+        $compiledPath = $this->blade->compiler->getCompiledPath($path);
+
+        if (! file_exists($compiledPath)) {
+            return;
+        }
+
+        $compiled = file_get_contents($compiledPath);
+
+        // Record which view was wrapped with the render timer.
+        $this->setTimerView($this->resolveTimerViewName($view));
+
+        $this->timerInjected = true;
+
+        // Already injected (persisted from a previous request).
+        if (str_contains($compiled, '__blaze_timer')) {
+            return;
+        }
+
+        $start = '<?php $__blaze->debugger->startRenderTimer(); /* __blaze_timer */ ?>';
+        $stop = '<?php $__blaze->debugger->stopRenderTimer(); ?>';
+
+        File::replace($compiledPath, $start . $compiled . $stop);
+    }
+
+    /**
+     * Resolve a human-readable name for the view being timed.
+     *
+     * For Livewire SFCs the view path points to an extracted blade file
+     * (e.g. storage/.../livewire/views/6ea59dbe.blade.php) which isn't
+     * meaningful. In that case we pull the component name from Livewire's
+     * shared view data instead.
+     */
+    protected function resolveTimerViewName(\Illuminate\View\View $view): string
+    {
+        $path = $view->getPath();
+
+        // Livewire SFC extracted views live inside a "livewire/views" cache directory.
+        if ($path && str_contains($path, '/livewire/views/')) {
+            $livewire = app('view')->shared('__livewire');
+
+            if ($livewire && method_exists($livewire, 'getName')) {
+                return $livewire->getName();
+            }
+        }
+
+        return $view->name();
+    }
+
     public function startRenderTimer(): void
     {
         $this->renderStart = hrtime(true);
@@ -308,6 +391,7 @@ class Debugger
         $this->blazeEnabled = false;
         $this->comparison = null;
         $this->isColdRender = false;
+        $this->timerInjected = false;
         $this->traceStack = [];
         $this->traceEntries = [];
         $this->traceOrigin = null;
