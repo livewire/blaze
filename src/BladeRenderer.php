@@ -92,7 +92,7 @@ class BladeRenderer
         try {
             $this->manager->startFolding();
 
-            $result = $this->blade->render($template, deleteCachedView: true);
+            $result = $this->blade->render($template);
         } finally {
             $restoreCompiler();
             $restoreFactory();
