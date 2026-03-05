@@ -22,17 +22,17 @@ class BlazeRuntime
     protected ?string $compiledPath = null;
 
     protected array $paths = [];
-    protected array $compiled = [];
+    protected array $required = [];
     protected array $blazed = [];
 
     protected array $dataStack = [];
     protected array $slotsStack = [];
 
     public function __construct(
-        public readonly Factory $env,
-        public readonly Application $app,
-        public readonly Debugger $debugger,
-        public readonly BladeCompiler $compiler,
+        public Factory $env,
+        public Application $app,
+        public Debugger $debugger,
+        protected BladeCompiler $compiler,
         protected BladeService $blade,
     ) {
     }
@@ -40,19 +40,19 @@ class BlazeRuntime
     /**
      * Compile a component if its source is newer than the cached output.
      */
-    public function ensureCompiled(string $path, string $compiledPath): void
+    public function ensureRequired(string $path, string $compiledPath): void
     {
-        if (isset($this->compiled[$path])) {
+        if (isset($this->required[$path])) {
             return;
         }
 
-        $this->compiled[$path] = true;
-
-        if (file_exists($compiledPath) && filemtime($path) <= filemtime($compiledPath)) {
-            return;
+        if (! file_exists($compiledPath) || filemtime($path) > filemtime($compiledPath)) {
+            $this->compiler->compile($path);
         }
 
-        $this->compiler->compile($path);
+        require_once $compiledPath;
+
+        $this->required[$path] = true;
     }
 
     /**
@@ -77,8 +77,8 @@ class BlazeRuntime
         $hash = Utils::hash($path);
         $compiled = $this->getCompiledPath().'/'.$hash.'.php';
 
-        if (! isset($this->compiled[$path])) {
-            $this->ensureCompiled($path, $compiled);
+        if (! isset($this->required[$path])) {
+            $this->ensureRequired($path, $compiled);
         }
 
         return $hash;
@@ -236,6 +236,23 @@ class BlazeRuntime
     private function getCompiledPath(): string
     {
         return $this->compiledPath ??= config('view.compiled');
+    }
+
+    /**
+     * Set the application instance (used by Octane to swap in the sandbox).
+     */
+    public function setApplication(Application $app): void
+    {
+        $this->app = $app;
+    }
+
+    /**
+     * Clear the component data and slots stacks.
+     */
+    public function flushState(): void
+    {
+        $this->dataStack = [];
+        $this->slotsStack = [];
     }
 
     /**

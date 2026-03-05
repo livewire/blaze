@@ -14,9 +14,9 @@ use Livewire\Blaze\Support\ComponentSource;
  *
  * This runs as the final step in the AST pipeline, AFTER folder, memoizer,
  * and compiler. It wraps the call site — not the function body — so the
- * timer captures initialization, require_once, pushData, the render itself,
- * and popData. This gives us unified timing for both Blaze-compiled and
- * standard Blade components.
+ * timer captures initialization, pushData, the render itself, and
+ * popData. This gives us unified timing for both Blaze-compiled
+ * and standard Blade components.
  */
 class Profiler
 {
@@ -35,7 +35,7 @@ class Profiler
 
         if ($strategy === null) {
             $isBlade = $node instanceof ComponentNode;
-            $strategy = $isBlade ? 'blade' : $this->resolveStrategy($source);
+            $strategy = $isBlade ? 'blade' : 'compiled';
         }
 
         $file = $source->exists() ? $this->relativePath($source->path) : null;

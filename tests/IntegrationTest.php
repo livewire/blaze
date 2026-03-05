@@ -3,8 +3,10 @@
 use Illuminate\Container\Container;
 use Illuminate\Contracts\View\Engine;
 use Illuminate\Support\Facades\Artisan;
+use Illuminate\View\Component;
 use Livewire\Blaze\Blaze;
 use Livewire\Blaze\BlazeManager;
+use Livewire\Blaze\Runtime\BlazeRuntime;
 
 beforeEach(fn () => Artisan::call('view:clear'));
 
@@ -22,6 +24,14 @@ test('renders components with blaze off and debug mode on', function () {
     Blaze::disable();
     Blaze::debug();
     
+    view('mix')->render();
+})->throwsNoExceptions();
+
+test('renders components after clearing compiled views in the same process', function () {
+    view('mix')->render();
+
+    Artisan::call('view:clear');
+
     view('mix')->render();
 })->throwsNoExceptions();
 

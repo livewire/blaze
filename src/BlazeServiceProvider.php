@@ -6,7 +6,9 @@ use Livewire\Blaze\Compiler\Profiler;
 use Livewire\Blaze\Runtime\BlazeRuntime;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Support\Facades\Blade;
+use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\View;
+use Livewire\Blaze\Memoizer\Memo;
 
 class BlazeServiceProvider extends ServiceProvider
 {
@@ -45,6 +47,7 @@ class BlazeServiceProvider extends ServiceProvider
         $this->registerBladeMacros();
         $this->interceptBladeCompilation();
         $this->registerDebuggerMiddleware();
+        $this->registerOctaneListener();
     }
 
     /**
@@ -54,8 +57,9 @@ class BlazeServiceProvider extends ServiceProvider
     {
         $blaze = $this->app->make(BlazeManager::class);
         $runtime = $this->app->make(BlazeRuntime::class);
+        $debugger = $this->app->make(Debugger::class);
 
-        View::composer('*', function (\Illuminate\View\View $view) use ($blaze, $runtime) {
+        View::composer('*', function (\Illuminate\View\View $view) use ($blaze, $runtime, $debugger) {
             if ($blaze->isDisabled() && ! $blaze->isDebugging()) {
                 return;
             }
@@ -66,6 +70,20 @@ class BlazeServiceProvider extends ServiceProvider
 
             if ($blaze->viewContainsExpiredFrontMatter($view)) {
                 $view->getEngine()->getCompiler()->compile($view->getPath());
+            }
+
+            if ($blaze->isDebugging()) {
+                $debugger->injectRenderTimer($view);
+
+                if ($blaze->isDisabled()) {
+                    $name = $view->name();
+
+                    if (str_contains($name, '::')) {
+                        $name = substr($name, strpos($name, '::') + 2);
+                    }
+
+                    $debugger->incrementBladeComponents($name);
+                }
             }
 
             $view->with('__blaze', $runtime);
@@ -146,6 +164,29 @@ class BlazeServiceProvider extends ServiceProvider
             if (Blaze::isDebugging()) {
                 DebuggerMiddleware::register();
             }
+        });
+    }
+
+    /**
+     * Reset Blaze state between Octane requests.
+     */
+    protected function registerOctaneListener(): void
+    {
+        Event::listen(\Laravel\Octane\Events\RequestReceived::class, function ($event) {
+            $app = $event->sandbox;
+            
+            $runtime = $app->make(BlazeRuntime::class);
+            $manager = $app->make(BlazeManager::class);
+            $debugger = $app->make(Debugger::class);
+
+            $runtime->setApplication($app);
+
+            $runtime->flushState();
+            $manager->flushState();
+            $debugger->flushState();
+
+            Unblaze::flushState();
+            Memo::flushState();
         });
     }
 }

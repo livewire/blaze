@@ -6,7 +6,6 @@ use Closure;
 use Illuminate\Contracts\Http\Kernel;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
-use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Route;
 use Symfony\Component\HttpFoundation\Response;
 
@@ -43,30 +42,8 @@ class DebuggerMiddleware
 
         $isBlaze = app('blaze')->isEnabled();
 
-        $debugger = app('blaze.runtime')->debugger;
+        $debugger = app('blaze.debugger');
         $debugger->setBlazeEnabled($isBlaze);
-
-        // Inject render timer into the first view's compiled file so we
-        // measure only actual view rendering, not the full request pipeline.
-        // The composing event fires before the compiled file is included,
-        // so modifying it here is safe.
-        $timerInjected = false;
-
-        Event::listen('composing:*', function (string $event, array $data) use ($debugger, $isBlaze, &$timerInjected) {
-            if (! $timerInjected) {
-                $timerInjected = $this->injectRenderTimer($data[0]);
-            }
-
-            if (! $isBlaze) {
-                $name = str_replace('composing: ', '', $event);
-
-                if (str_contains($name, '::')) {
-                    $name = substr($name, strpos($name, '::') + 2);
-                }
-
-                $debugger->incrementBladeComponents($name);
-            }
-        });
 
         $response = $next($request);
 
@@ -150,75 +127,6 @@ class DebuggerMiddleware
             'memoHitNames' => $trace['memoHitNames'],
             'debugBar'   => $debugger->getDebugBarData(),
         ], 300); // 5 minutes
-    }
-
-    /**
-     * Inject start/stop timer calls into the compiled file of the first
-     * view being rendered. This ensures we measure only view rendering
-     * time, not the full request lifecycle.
-     */
-    protected function injectRenderTimer(\Illuminate\View\View $view): bool
-    {
-        $bladeService = app(BladeService::class);
-        $compiler = $bladeService->compiler;
-        $path = $view->getPath();
-
-        // Some views (e.g. Livewire virtual views) may not have a real path.
-        if (! $path || ! file_exists($path)) {
-            return false;
-        }
-
-        // Ensure the view is compiled.
-        if ($compiler->isExpired($path)) {
-            $compiler->compile($path);
-        }
-
-        $compiledPath = $compiler->getCompiledPath($path);
-
-        if (! file_exists($compiledPath)) {
-            return false;
-        }
-
-        $compiled = file_get_contents($compiledPath);
-
-        // Record which view was wrapped with the render timer.
-        app('blaze.runtime')->debugger->setTimerView($this->resolveViewName($view));
-
-        // Already injected (persisted from a previous request).
-        if (str_contains($compiled, '__blaze_timer')) {
-            return true;
-        }
-
-        $start = '<?php ($__blaze ?? app(\'blaze.runtime\'))->debugger->startRenderTimer(); /* __blaze_timer */ ?>';
-        $stop = '<?php ($__blaze ?? app(\'blaze.runtime\'))->debugger->stopRenderTimer(); ?>';
-
-        file_put_contents($compiledPath, $start . $compiled . $stop);
-
-        return true;
-    }
-
-    /**
-     * Resolve a human-readable name for the view being timed.
-     *
-     * For Livewire SFCs the view path points to an extracted blade file
-     * (e.g. storage/.../livewire/views/6ea59dbe.blade.php) which isn't
-     * meaningful. In that case we pull the component name from Livewire's
-     * shared view data instead.
-     */
-    protected function resolveViewName(\Illuminate\View\View $view): string
-    {
-        $path = $view->getPath();
-
-        // Livewire SFC extracted views live inside a "livewire/views" cache directory.
-        if ($path && str_contains($path, '/livewire/views/')) {
-            $livewire = app('view')->shared('__livewire');
-
-            if ($livewire && method_exists($livewire, 'getName')) {
-                return $livewire->getName();
-            }
-        }
-
-        return $view->name();
     }
 
     /**

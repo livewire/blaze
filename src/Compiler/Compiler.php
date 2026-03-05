@@ -14,7 +14,7 @@ use Livewire\Blaze\Support\ComponentSource;
 use Livewire\Blaze\Support\Utils;
 
 /**
- * Compiles component nodes into PHP require_once + function call output.
+ * Compiles component nodes into PHP function call output.
  */
 class Compiler
 {
@@ -31,7 +31,7 @@ class Compiler
     }
 
     /**
-     * Compile a component node into ensureCompiled + require_once + function call.
+     * Compile a component node into ensureRequired + function call.
      */
     public function compile(Node $node): Node
     {
@@ -91,7 +91,7 @@ class Compiler
     }
 
     /**
-     * Compile a standard component tag into ensureCompiled + require_once + function call.
+     * Compile a standard component tag into ensureRequired + function call.
      */
     protected function compileComponentTag(ComponentNode $node, ComponentSource $source): string
     {
@@ -100,22 +100,21 @@ class Compiler
         $slotsVariableName = '$slots' . $hash;
         [$attributesArrayString, $boundKeysArrayString] = $this->getAttributesAndBoundKeysArrayStrings($node->attributeString);
 
-        $output = '<' . '?php $__blaze->ensureCompiled(\'' . $source->path . '\', $__blaze->compiledPath.\'/'. $hash . '.php\'); ?>' . "\n";
-        $output .= '<' . '?php require_once $__blaze->compiledPath.\'/'. $hash . '.php\'; ?>';
+        $output = '<' . '?php $__blaze->ensureRequired(\'' . $source->path . '\', $__blaze->compiledPath.\'/'. $hash . '.php\'); ?>' . "\n";
 
         if ($node->selfClosing) {
-            $output .= "\n" . '<' . '?php $__blaze->pushData(' . $attributesArrayString . '); ?>';
-            $output .= "\n" . '<' . '?php ' . $functionName . '($__blaze, ' . $attributesArrayString . ', [], ' . $boundKeysArrayString . ', isset($this) ? $this : null); ?>';
+            $output .= '<' . '?php $__blaze->pushData(' . $attributesArrayString . '); ?>' . "\n";
+            $output .= '<' . '?php ' . $functionName . '($__blaze, ' . $attributesArrayString . ', [], ' . $boundKeysArrayString . ', isset($this) ? $this : null); ?>' . "\n";
         } else {
             $attributesVariableName = '$__attrs' . $hash;
-            $output .= "\n" . '<' . '?php ' . $attributesVariableName . ' = ' . $attributesArrayString . '; ?>';
-            $output .= "\n" . '<' . '?php $__blaze->pushData(' . $attributesVariableName . '); ?>';
-            $output .= "\n" . $this->slotCompiler->compile($slotsVariableName, $node->children);
-            $output .= "\n" . '<' . '?php $__blaze->pushSlots(' . $slotsVariableName . '); ?>';
-            $output .= "\n" . '<' . '?php ' . $functionName . '($__blaze, ' . $attributesVariableName . ', ' . $slotsVariableName . ', ' . $boundKeysArrayString . ', isset($this) ? $this : null); ?>';
+            $output .= '<' . '?php ' . $attributesVariableName . ' = ' . $attributesArrayString . '; ?>' . "\n";
+            $output .= '<' . '?php $__blaze->pushData(' . $attributesVariableName . '); ?>' . "\n";
+            $output .= $this->slotCompiler->compile($slotsVariableName, $node->children) . "\n";
+            $output .= '<' . '?php $__blaze->pushSlots(' . $slotsVariableName . '); ?>' . "\n";
+            $output .= '<' . '?php ' . $functionName . '($__blaze, ' . $attributesVariableName . ', ' . $slotsVariableName . ', ' . $boundKeysArrayString . ', isset($this) ? $this : null); ?>' . "\n";
         }
 
-        $output .= "\n" . '<' . '?php $__blaze->popData(); ?>';
+        $output .= '<' . '?php $__blaze->popData(); ?>';
 
         return $output;
     }
@@ -133,25 +132,24 @@ class Compiler
 
         $functionName = '(\'' . ($this->manager->isFolding() ? '__' : '_') . '\' . $__resolved)';
 
-        $output .= '<' . '?php $__blaze->pushData($attributes->all()); ?>';
+        $output .= '<' . '?php $__blaze->pushData($attributes->all()); ?>' . "\n";
 
-        $output .= "\n" . '<' . '?php if ($__resolved !== false): ?>';
-        $output .= "\n" . '<' . '?php require_once $__blaze->compiledPath . \'/\' . $__resolved . \'.php\'; ?>';
+        $output .= '<' . '?php if ($__resolved !== false): ?>' . "\n";
 
         if ($node->selfClosing) {
-            $output .= "\n" . '<' . '?php ' . $functionName . '($__blaze, $attributes->all(), $__blaze->mergedComponentSlots(), [], isset($this) ? $this : null); ?>';
+            $output .= '<' . '?php ' . $functionName . '($__blaze, $attributes->all(), $__blaze->mergedComponentSlots(), [], isset($this) ? $this : null); ?>' . "\n";
         } else {
             $output .= $this->slotCompiler->compile($slotsVariableName, $node->children);
-            $output .= "\n" . '<' . '?php ' . $slotsVariableName . ' = array_merge($__blaze->mergedComponentSlots(), ' . $slotsVariableName . '); ?>';
-            $output .= "\n" . '<' . '?php ' . $functionName . '($__blaze, $attributes->all(), ' . $slotsVariableName . ', [], isset($this) ? $this : null); ?>';
+            $output .= '<' . '?php ' . $slotsVariableName . ' = array_merge($__blaze->mergedComponentSlots(), ' . $slotsVariableName . '); ?>' . "\n";
+            $output .= '<' . '?php ' . $functionName . '($__blaze, $attributes->all(), ' . $slotsVariableName . ', [], isset($this) ? $this : null); ?>' . "\n";
         }
 
-        $output .= "\n" . '<' . '?php else: ?>';
-        $output .= "\n" . $node->render();
-        $output .= "\n" . '<' . '?php endif; ?>';
+        $output .= '<' . '?php else: ?>' . "\n";
+        $output .= $node->render() . "\n";
+        $output .= '<' . '?php endif; ?>' . "\n";
 
-        $output .= "\n" . '<' . '?php $__blaze->popData(); ?>';
-        $output .= "\n" . '<' . '?php unset($__resolved) ?>';
+        $output .= '<' . '?php $__blaze->popData(); ?>' . "\n";
+        $output .= '<' . '?php unset($__resolved) ?>';
 
         return $output;
     }

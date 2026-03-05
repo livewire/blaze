@@ -5,6 +5,7 @@ namespace Livewire\Blaze;
 use Illuminate\Contracts\View\Factory;
 use Illuminate\Support\Facades\File;
 use Illuminate\View\Compilers\BladeCompiler;
+use Illuminate\View\Component;
 use Livewire\Blaze\Runtime\BlazeRuntime;
 use ReflectionClass;
 
@@ -79,11 +80,13 @@ class BladeRenderer
         ]);
 
         $restoreRuntime = $this->freezeObjectProperties($this->runtime, [
-            'compiled' => [],
-            'paths' => [],
             'compiledPath' => $temporaryCachePath,
             'dataStack' => [],
             'slotsStack' => [],
+        ]);
+
+        $restoreComponent = $this->freezeObjectProperties(Component::class, [
+            'bladeViewCache' => [],
         ]);
 
         try {
@@ -94,6 +97,7 @@ class BladeRenderer
             $restoreCompiler();
             $restoreFactory();
             $restoreRuntime();
+            $restoreComponent();
 
             $this->manager->stopFolding();
         }
@@ -114,7 +118,7 @@ class BladeRenderer
     /**
      * Snapshot object properties and return a restore closure to revert them.
      */
-    protected function freezeObjectProperties(object $object, array $properties)
+    protected function freezeObjectProperties(object|string $object, array $properties)
     {
         $reflection = new ReflectionClass($object);
 
@@ -125,7 +129,7 @@ class BladeRenderer
 
             $property = $reflection->getProperty($name);
 
-            $frozen[$name] = $property->getValue($object);
+            $frozen[$name] = $property->getValue(is_object($object) ? $object : null);
 
             if (! is_numeric($key)) {
                 $property->setValue($object, $value);
