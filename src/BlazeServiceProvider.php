@@ -49,7 +49,7 @@ class BlazeServiceProvider extends ServiceProvider
         $this->registerBladeMacros();
         $this->interceptBladeCompilation();
         $this->registerDebuggerMiddleware();
-        $this->clearCompiledCacheOnViewClear();
+        $this->registerViewClearListener();
         $this->registerOctaneListener();
     }
 
@@ -171,13 +171,14 @@ class BlazeServiceProvider extends ServiceProvider
     }
 
     /**
-     * Reset BlazeRuntime's in-memory cache when compiled views are deleted.
+     * Register a listener for the view:clear command to flush the compiled cache.
      */
-    protected function clearCompiledCacheOnViewClear(): void
+    protected function registerViewClearListener(): void
     {
         Event::listen(CommandFinished::class, function (CommandFinished $event) {
             if ($event->command === 'view:clear') {
-                $this->app->make(BlazeRuntime::class)->clearCompiled();
+                $this->app->make(BlazeRuntime::class)->flushCompiled();
+
                 Component::flushCache();
             }
         });

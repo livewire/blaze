@@ -28,6 +28,14 @@ test('renders components with blaze off and debug mode on', function () {
     view('mix')->render();
 })->throwsNoExceptions();
 
+test('renders components after clearing views', function () {
+    view('mix')->render();
+
+    Artisan::call('view:clear');
+    
+    view('mix')->render();
+})->throwsNoExceptions();
+
 test('supports php engine', function () {
     view('php-view')->render();
 })->throwsNoExceptions();
@@ -47,12 +55,6 @@ test('supports decorated engine', function () {
         };
     });
 
-    view('mix')->render();
-})->throwsNoExceptions();
-
-test('clearing views mid-request does not crash re-render', function () {
-    view('mix')->render();
-    Artisan::call('view:clear');
     view('mix')->render();
 })->throwsNoExceptions();
 

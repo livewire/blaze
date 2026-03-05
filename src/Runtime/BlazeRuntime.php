@@ -182,17 +182,6 @@ class BlazeRuntime
     }
 
     /**
-     * Clear the in-memory compilation cache.
-     *
-     * Called when compiled view files are deleted (e.g. via artisan view:clear)
-     * so that subsequent resolve() calls trigger recompilation.
-     */
-    public function clearCompiled(): void
-    {
-        $this->compiled = [];
-    }
-
-    /**
      * Walk the data stack to find a value for @aware, checking slots before data at each level.
      */
     public function getConsumableData(string $key, mixed $default = null): mixed
@@ -244,11 +233,6 @@ class BlazeRuntime
         return $content;
     }
 
-    private function getCompiledPath(): string
-    {
-        return $this->compiledPath ??= config('view.compiled');
-    }
-
     /**
      * Set the application instance (used by Octane to swap in the sandbox).
      */
@@ -270,6 +254,14 @@ class BlazeRuntime
     }
 
     /**
+     * Clear the in-memory compilation cache.
+     */
+    public function flushCompiled(): void
+    {
+        $this->compiled = [];
+    }
+
+    /**
      * Lazy-load properties whose canonical values are set after BlazeRuntime is constructed
      * ($errors by middleware, compiledPath by parallel testing infrastructure).
      */
@@ -280,5 +272,13 @@ class BlazeRuntime
             'compiledPath' => $this->getCompiledPath(),
             default => throw new \InvalidArgumentException("Property {$name} does not exist"),
         };
+    }
+
+    /**
+     * Get the compiled path.
+     */
+    private function getCompiledPath(): string
+    {
+        return $this->compiledPath ??= config('view.compiled');
     }
 }
