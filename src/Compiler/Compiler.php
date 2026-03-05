@@ -14,7 +14,7 @@ use Livewire\Blaze\Support\ComponentSource;
 use Livewire\Blaze\Support\Utils;
 
 /**
- * Compiles component nodes into PHP require_once + function call output.
+ * Compiles component nodes into PHP function call output.
  */
 class Compiler
 {
@@ -31,7 +31,7 @@ class Compiler
     }
 
     /**
-     * Compile a component node into ensureCompiled + require_once + function call.
+     * Compile a component node into ensureRequired + function call.
      */
     public function compile(Node $node): Node
     {
@@ -91,7 +91,7 @@ class Compiler
     }
 
     /**
-     * Compile a standard component tag into ensureCompiled + require_once + function call.
+     * Compile a standard component tag into ensureRequired + function call.
      */
     protected function compileComponentTag(ComponentNode $node, ComponentSource $source): string
     {
@@ -100,8 +100,7 @@ class Compiler
         $slotsVariableName = '$slots' . $hash;
         [$attributesArrayString, $boundKeysArrayString] = $this->getAttributesAndBoundKeysArrayStrings($node->attributeString);
 
-        $output = '<' . '?php $__blaze->ensureCompiled(\'' . $source->path . '\', $__blaze->compiledPath.\'/'. $hash . '.php\'); ?>' . "\n";
-        $output .= '<' . '?php require_once $__blaze->compiledPath.\'/'. $hash . '.php\'; ?>' . "\n";
+        $output = '<' . '?php $__blaze->ensureRequired(\'' . $source->path . '\', $__blaze->compiledPath.\'/'. $hash . '.php\'); ?>' . "\n";
 
         if ($node->selfClosing) {
             $output .= '<' . '?php $__blaze->pushData(' . $attributesArrayString . '); ?>' . "\n";
@@ -136,7 +135,6 @@ class Compiler
         $output .= '<' . '?php $__blaze->pushData($attributes->all()); ?>' . "\n";
 
         $output .= '<' . '?php if ($__resolved !== false): ?>' . "\n";
-        $output .= '<' . '?php require_once $__blaze->compiledPath . \'/\' . $__resolved . \'.php\'; ?>' . "\n";
 
         if ($node->selfClosing) {
             $output .= '<' . '?php ' . $functionName . '($__blaze, $attributes->all(), $__blaze->mergedComponentSlots(), [], isset($this) ? $this : null); ?>' . "\n";

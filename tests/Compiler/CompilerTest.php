@@ -14,8 +14,7 @@ test('compiles self-closing components', function () {
     $hash = Utils::hash($path);
 
     expect($compiled->render())->toEqualCollapsingWhitespace(join('', [
-        '<?php $__blaze->ensureCompiled(\''. $path .'\', $__blaze->compiledPath.\'/'. $hash .'.php\'); ?> ',
-        '<?php require_once $__blaze->compiledPath.\'/'. $hash .'.php\'; ?> ',
+        '<?php $__blaze->ensureRequired(\''. $path .'\', $__blaze->compiledPath.\'/'. $hash .'.php\'); ?> ',
         '<?php $__blaze->pushData([\'type\' => \'text\',\'disabled\' => $disabled]); ?> ',
         '<?php _'. $hash .'($__blaze, [\'type\' => \'text\',\'disabled\' => $disabled], [], [\'disabled\'], isset($this) ? $this : null); ?> ',
         '<?php $__blaze->popData(); ?>',
@@ -43,8 +42,7 @@ test('compiles slots', function () {
     $hash = Utils::hash($path);
 
     expect($compiled->render())->toEqualCollapsingWhitespace(join('', [
-        '<?php $__blaze->ensureCompiled(\''. $path .'\', $__blaze->compiledPath.\'/'. $hash .'.php\'); ?> ',
-        '<?php require_once $__blaze->compiledPath.\'/'. $hash .'.php\'; ?> ',
+        '<?php $__blaze->ensureRequired(\''. $path .'\', $__blaze->compiledPath.\'/'. $hash .'.php\'); ?> ',
         '<?php $__attrs'. $hash .' = []; ?> ',
         '<?php $__blaze->pushData($__attrs'. $hash .'); ?> ',
         '<?php $slots'. $hash .' = []; ?> ',
@@ -67,7 +65,6 @@ test('compiles delegate components', function () {
         '<?php $__resolved = $__blaze->resolve(\'flux::\' . card); ?> ',
         '<?php $__blaze->pushData($attributes->all()); ?> ',
         '<?php if ($__resolved !== false): ?> ',
-        '<?php require_once $__blaze->compiledPath . \'/\' . $__resolved . \'.php\'; ?> ',
         '<?php (\'_\' . $__resolved)($__blaze, $attributes->all(), $__blaze->mergedComponentSlots(), [], isset($this) ? $this : null); ?> ',
         '<?php else: ?> ',
         '<flux:delegate-component component="card" /> ',
