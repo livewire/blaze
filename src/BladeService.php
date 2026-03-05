@@ -17,6 +17,7 @@ class BladeService
 
     public function __construct(
         public BladeCompiler $compiler,
+        protected Factory $view,
     ) {
         $this->tagCompiler = new ComponentTagCompiler(blade: $compiler);
     }
@@ -195,12 +196,11 @@ class BladeService
      */
     public function componentNameToPath($name): string
     {
-        $viewFactory = app('view');
-        $viewFinder = $viewFactory->getFinder();
+        $finder = $this->view->getFinder();
 
-        if (! is_null($guess = $this->guessAnonymousComponentUsingNamespaces($viewFactory, $name)) ||
-            ! is_null($guess = $this->guessAnonymousComponentUsingPaths($viewFactory, $name))) {
-            return $viewFinder->find($guess);
+        if (! is_null($guess = $this->guessAnonymousComponentUsingNamespaces($this->view, $name)) ||
+            ! is_null($guess = $this->guessAnonymousComponentUsingPaths($this->view, $name))) {
+            return $finder->find($guess);
         }
 
         return '';
