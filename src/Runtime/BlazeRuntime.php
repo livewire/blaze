@@ -81,8 +81,6 @@ class BlazeRuntime
             $this->ensureRequired($path, $compiled);
         }
 
-        require_once $compiled;
-
         return $hash;
     }
 
