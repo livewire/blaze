@@ -2,12 +2,14 @@
 
 namespace Livewire\Blaze;
 
+use Illuminate\Foundation\Console\ViewCacheCommand;
 use Livewire\Blaze\Compiler\Profiler;
 use Livewire\Blaze\Runtime\BlazeRuntime;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Support\Facades\Blade;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\View;
+use Livewire\Blaze\Commands\ViewCacheParallelCommand;
 use Livewire\Blaze\Memoizer\Memo;
 
 class BlazeServiceProvider extends ServiceProvider
@@ -29,15 +31,10 @@ class BlazeServiceProvider extends ServiceProvider
         $this->app->alias(BlazeRuntime::class, 'blaze.runtime');
         $this->app->alias(Config::class, 'blaze.config');
         $this->app->alias(Debugger::class, 'blaze.debugger');
-    }
 
-    protected function registerConfig(): void
-    {
-        $config = __DIR__.'/../config/blaze.php';
-
-        $this->publishes([$config => base_path('config/blaze.php')], ['blaze', 'blaze:config']);
-
-        $this->mergeConfigFrom($config, 'blaze');
+        $this->app->extend(ViewCacheCommand::class, function () {
+            return new ViewCacheParallelCommand;
+        });
     }
 
     public function boot(): void
@@ -48,6 +45,15 @@ class BlazeServiceProvider extends ServiceProvider
         $this->interceptBladeCompilation();
         $this->registerDebuggerMiddleware();
         $this->registerOctaneListener();
+    }
+
+    protected function registerConfig(): void
+    {
+        $config = __DIR__.'/../config/blaze.php';
+
+        $this->publishes([$config => base_path('config/blaze.php')], ['blaze', 'blaze:config']);
+
+        $this->mergeConfigFrom($config, 'blaze');
     }
 
     /**
