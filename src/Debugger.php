@@ -211,12 +211,24 @@ class Debugger
             return;
         }
 
+        if (request()->hasHeader('X-Livewire') || str_starts_with($view->getName(), 'errors::')) {
+            // Prevent timer being injected into Livewire views,
+            // error pages and prevent any further checks...
+            $this->timerInjected = true;
+
+            return;
+        }
+
         $path = $view->getPath();
 
         // Some views (e.g. Livewire virtual views) may not have a real path.
         if (! $path || ! file_exists($path)) {
             return;
         }
+
+        // Claim the flag early to prevent re-entrant calls (the
+        // compile() below can trigger nested view compositions).
+        $this->timerInjected = true;
 
         // Ensure the view is compiled.
         if ($this->blade->compiler->isExpired($path)) {
@@ -233,8 +245,6 @@ class Debugger
 
         // Record which view was wrapped with the render timer.
         $this->setTimerView($this->resolveTimerViewName($view));
-
-        $this->timerInjected = true;
 
         // Already injected (persisted from a previous request).
         if (str_contains($compiled, '__blaze_timer')) {

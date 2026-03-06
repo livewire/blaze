@@ -47,9 +47,11 @@ class DebuggerMiddleware
 
         $response = $next($request);
 
-        $this->recordAndCompare($url, $debugger, $isBlaze);
-        $this->storeProfilerTrace($url, $debugger, $isBlaze);
-        $this->injectDebugger($response, $debugger);
+        if ($response->status() === 200) {
+            $this->recordAndCompare($url, $debugger, $isBlaze);
+            $this->storeProfilerTrace($url, $debugger, $isBlaze);
+            $this->injectDebugger($response, $debugger);
+        }
 
         return $response;
     }
