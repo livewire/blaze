@@ -117,6 +117,10 @@ class DebuggerMiddleware
     {
         $trace = $debugger->getTraceData();
 
+        if (empty($trace['entries'])) {
+            return;
+        }
+
         Cache::put('blaze_profiler_trace', [
             'url'        => $url,
             'mode'       => $isBlaze ? 'blaze' : 'blade',
