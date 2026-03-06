@@ -50,7 +50,7 @@ class BlazeRuntime
             $this->compiler->compile($path);
         }
 
-        require_once $compiledPath;
+        require $compiledPath;
 
         $this->required[$compiledPath] = true;
     }
