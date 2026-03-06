@@ -20,10 +20,6 @@ class Debugger
 
     protected bool $blazeEnabled = false;
 
-    protected ?array $comparison = null;
-
-    protected bool $isColdRender = false;
-
     protected bool $timerInjected = false;
 
     // ── Profiler trace ───────────────────────────
@@ -33,9 +29,12 @@ class Debugger
     protected int $memoHits = 0;
     protected array $memoHitNames = [];
 
+    public readonly DebuggerStore $store;
+
     public function __construct(
         protected BladeService $blade,
-    ) {  
+    ) {
+        $this->store = new DebuggerStore;
     }
 
     /**
@@ -185,8 +184,8 @@ class Debugger
         usort($entries, fn ($a, $b) => $a['start'] <=> $b['start']);
 
         return [
-            'entries'      => $entries,
-            'totalTime'    => $this->renderTime,
+            'entries'       => $entries,
+            'totalTime'     => $this->renderTime,
             'memoHits'     => $this->memoHits,
             'memoHitNames' => $this->memoHitNames,
         ];
@@ -293,24 +292,9 @@ class Debugger
         }
     }
 
-    public function getPageRenderTime(): float
-    {
-        return $this->renderTime;
-    }
-
     public function setBlazeEnabled(bool $enabled): void
     {
         $this->blazeEnabled = $enabled;
-    }
-
-    public function setComparison(?array $comparison): void
-    {
-        $this->comparison = $comparison;
-    }
-
-    public function setIsColdRender(bool $cold): void
-    {
-        $this->isColdRender = $cold;
     }
 
     public function incrementBladeComponents(string $name = 'unknown'): void
@@ -375,8 +359,6 @@ class Debugger
 
         return [
             'blazeEnabled' => $this->blazeEnabled,
-            'isColdRender' => $this->isColdRender,
-            'comparison' => $this->comparison,
             'totalTime' => round($this->renderTime, 2),
             'totalComponents' => array_sum(array_column($components, 'count')),
             'bladeComponentCount' => $this->bladeComponentCount,
@@ -399,8 +381,6 @@ class Debugger
         $this->bladeComponentCount = 0;
         $this->bladeComponents = [];
         $this->blazeEnabled = false;
-        $this->comparison = null;
-        $this->isColdRender = false;
         $this->timerInjected = false;
         $this->traceStack = [];
         $this->traceEntries = [];
@@ -420,21 +400,6 @@ class Debugger
         }
 
         return round($value, 2) . 'ms';
-    }
-
-    protected function formatMsWithSeparator(float $value): string
-    {
-        $abs = abs($value);
-
-        if ($abs >= 1000) {
-            return number_format($abs / 1000, 2) . 's';
-        }
-
-        if ($abs < 0.01 && $abs > 0) {
-            return number_format($abs * 1000, 2) . 'μs';
-        }
-
-        return number_format($abs, 2) . 'ms';
     }
 
     // ──────────────────────────────────────────
@@ -498,11 +463,6 @@ class Debugger
                 to { opacity: 1; transform: translateY(0); }
             }
 
-            @keyframes blaze-savings-in {
-                0% { opacity: 0; transform: translateY(4px); }
-                100% { opacity: 1; transform: translateY(0); }
-            }
-
         </style>
         HTML;
     }
@@ -529,8 +489,6 @@ class Debugger
             $timerViewHtml = '<div style="color: rgba(255,255,255,0.3); font-size: 10px; margin-top: 4px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">' . $viewName . '</div>';
         }
 
-        $savingsHtml = $this->renderSavingsBlock($data);
-
         return <<<HTML
         <div id="blaze-card">
             <div style="display: flex; align-items: center; gap: 7px; margin-bottom: 4px;">
@@ -546,119 +504,11 @@ class Debugger
 
             {$timerViewHtml}
 
-            {$savingsHtml}
-
             <a href="/_blaze/profiler" target="_blank" id="blaze-profiler-link" style="display: flex; align-items: center; gap: 6px; margin-top: 10px; padding: 7px 10px; border-radius: 4px; background: rgba(255,134,2,0.08); border: 1px solid rgba(255,134,2,0.15); color: #FF8602; font-size: 11px; font-weight: 600; text-decoration: none; transition: all 0.15s ease; cursor: pointer;" onmouseover="this.style.background='rgba(255,134,2,0.12)';this.style.borderColor='rgba(255,134,2,0.25)'" onmouseout="this.style.background='rgba(255,134,2,0.08)';this.style.borderColor='rgba(255,134,2,0.15)'">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M7 16l4-8 4 4 4-8"/></svg>
                 <span>Open Profiler</span>
                 <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="margin-left: auto; opacity: 0.5;"><path d="M7 17L17 7"/><path d="M7 7h10v10"/></svg>
             </a>
-        </div>
-        HTML;
-    }
-
-    protected function renderSavingsBlock(array $data): string
-    {
-        $isBlaze = $data['blazeEnabled'];
-        $isCold = $data['isColdRender'];
-        $comparison = $data['comparison'];
-
-        if (! $isBlaze) {
-            $message = $isCold ? 'First load time recorded' : 'Baseline time recorded';
-            return <<<HTML
-            <div style="color: rgba(255,255,255,0.3); font-size: 11px; margin-top: 10px; line-height: 1.5; max-width: 220px;">
-                {$message}. Enable Blaze and reload the page to see comparison data.
-            </div>
-            HTML;
-        }
-
-        if (! $comparison) {
-            return <<<HTML
-            <div style="color: rgba(255,255,255,0.3); font-size: 11px; margin-top: 10px; line-height: 1.5; max-width: 220px;">
-                Disable Blaze and reload the page to record baseline times and display comparison data.
-            </div>
-            HTML;
-        }
-
-        $warm = $comparison['warm'];
-        $cold = $comparison['cold'];
-
-        // Primary = the comparison matching the current render temperature.
-        $primary = $isCold ? $cold : $warm;
-        $secondary = $isCold ? $warm : $cold;
-        $primaryType = $isCold ? 'first load' : 'most recent';
-        $secondaryType = $isCold ? 'most recent' : 'first load';
-
-        if (! $primary) {
-            $primary = $secondary;
-            $primaryType = $secondaryType;
-            $secondary = null;
-        }
-
-        if (! $primary) {
-            return '';
-        }
-
-        // Use live page time for primary so the number matches the big time above.
-        $primaryHtml = $this->renderSavingsRow($data['totalTime'], $primary['otherTime'], $primaryType, true);
-
-        $secondaryHtml = '';
-        if ($secondary) {
-            $secondaryHtml = $this->renderSavingsRow($secondary['currentTime'], $secondary['otherTime'], $secondaryType, false);
-        }
-
-        return <<<HTML
-        <div style="margin-top: 12px; display: flex; flex-direction: column; gap: 8px; animation: blaze-savings-in 0.3s ease-out 0.1s both;">
-            {$primaryHtml}
-            {$secondaryHtml}
-        </div>
-        HTML;
-    }
-
-    protected function renderSavingsRow(float $currentTime, float $otherTime, string $type, bool $isPrimary): string
-    {
-        if ($otherTime <= 0 || $currentTime <= 0) {
-            return '';
-        }
-
-        $isFaster = $currentTime < $otherTime;
-        $diff = $currentTime - $otherTime;
-        $sign = $diff < 0 ? '-' : '+';
-        $multiplier = $isFaster ? ($otherTime / $currentTime) : ($currentTime / $otherTime);
-        $multiplierFormatted = round($multiplier, 1) . 'x';
-
-        $color = $isFaster ? '#22c55e' : '#ef4444';
-        $rgb = $isFaster ? '34, 197, 94' : '239, 68, 68';
-        $word = $isFaster ? 'faster' : 'slower';
-        $diffFormatted = $sign . $this->formatMsWithSeparator($diff);
-        $otherFormatted = $this->formatMs($otherTime);
-        $currentFormatted = $this->formatMs($currentTime);
-
-        if ($isPrimary) {
-            return <<<HTML
-            <div style="background: rgba({$rgb}, 0.06); border: 1px solid rgba({$rgb}, 0.12); border-radius: 4px; padding: 10px 12px;">
-                <div style="display: flex; align-items: baseline; gap: 6px;">
-                    <span style="color: {$color}; font-weight: 800; font-size: 18px; letter-spacing: -0.5px; line-height: 1;">{$diffFormatted}</span>
-                    <span style="color: rgba(255,255,255,0.3); font-size: 10px; margin-left: auto; align-self: start;">{$type}</span>
-                </div>
-                <div style="display: flex; align-items: baseline; gap: 6px; margin-top: 5px;">
-                    <span style="color: rgba(255,255,255,0.3); font-size: 11px;">{$multiplierFormatted} {$word}</span>
-                    <span style="color: rgba(255,255,255,0.3); font-size: 10px; margin-left: auto;">{$otherFormatted} &#8594; {$currentFormatted}</span>
-                </div>
-            </div>
-            HTML;
-        }
-
-        return <<<HTML
-        <div style="background: rgba({$rgb}, 0.04); border: 1px solid rgba({$rgb}, 0.08); border-radius: 4px; padding: 8px 12px;">
-            <div style="display: flex; align-items: baseline; gap: 6px;">
-                <span style="color: {$color}; font-weight: 700; font-size: 13px;">{$diffFormatted}</span>
-                    <span style="color: rgba(255,255,255,0.3); font-size: 9px; margin-left: auto; align-self: start;">{$type}</span>
-            </div>
-            <div style="display: flex; align-items: baseline; gap: 6px; margin-top: 2px;">
-                <span style="color: rgba(255,255,255,0.3); font-size: 10px;">{$multiplierFormatted} {$word}</span>
-                <span style="color: rgba(255,255,255,0.3); font-size: 9px; margin-left: auto;">{$otherFormatted} &#8594; {$currentFormatted}</span>
-            </div>
         </div>
         HTML;
     }
