@@ -60,12 +60,62 @@ test('whitespace', function () {
     ;
 
     $blaze = Blade::render($input);
-    
+
     Blaze::disable();
     Artisan::call('view:clear');
     Component::flushCache();
 
     $blade = Blade::render($input);
+
+    expect($blaze)->toBe($blade);
+});
+
+test('conditional slot - condition true', function () {
+    $input = <<<'BLADE'
+        <x-parity.card>
+            @if (true)
+                <x-slot name="header">
+                    Header
+                </x-slot>
+            @endif
+            Body
+        </x-parity.card>
+        BLADE
+    ;
+    $data = [];
+
+    $blaze = Blade::render($input, $data, true);
+
+    Blaze::disable();
+    Artisan::call('view:clear');
+    Component::flushCache();
+
+    $blade = Blade::render($input, $data, true);
+
+    expect($blaze)->toBe($blade);
+});
+
+test('conditional slot - condition false', function () {
+    $input = <<<'BLADE'
+        <x-parity.card>
+            @if (false)
+                <x-slot name="header">
+                    Header
+                </x-slot>
+            @endif
+            Body
+        </x-parity.card>
+        BLADE
+    ;
+    $data = [];
+
+    $blaze = Blade::render($input, $data, true);
+
+    Blaze::disable();
+    Artisan::call('view:clear');
+    Component::flushCache();
+
+    $blade = Blade::render($input, $data, true);
 
     expect($blaze)->toBe($blade);
 });
