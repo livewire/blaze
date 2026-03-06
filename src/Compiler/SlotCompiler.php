@@ -152,11 +152,11 @@ class SlotCompiler
                 $rendered = $child->render();
 
                 if ($index > 0 && isset($children[$index - 1]) && $children[$index - 1] instanceof SlotNode) {
-                    $rendered = preg_replace('/@(?:if|foreach|forelse|unless|while|for|switch)\s*\([^)]*\)\s*$/', '', $rendered);
+                    $rendered = preg_replace('/^\s*@(?:endif|endforeach|endforelse|endunless|endwhile|endfor|endswitch)\s*/', '', $rendered);
                 }
 
-                if ($index > 0 && isset($children[$index - 1]) && $children[$index - 1] instanceof SlotNode) {
-                    $rendered = preg_replace('/^\s*@(?:endif|endforeach|endforelse|endunless|endwhile|endfor|endswitch)\s*/', '', $rendered);
+                if ($index < count($children) - 1 && isset($children[$index + 1]) && $children[$index + 1] instanceof SlotNode) {
+                    $rendered = preg_replace('/@(?:if|foreach|forelse|unless|while|for|switch)\s*\([^)]*\)\s*$/', '', $rendered);
                 }
             } else {
                 $rendered = $child->render();
@@ -250,7 +250,7 @@ class SlotCompiler
                 $openingDirective = null;
                 $closingDirective = null;
 
-                // Check if previous child is a text node that ENDS with an opening directive
+                // Check if previous child is a text node that ends with an opening directive
                 if ($index > 0) {
                     $prevChild = $children[$index - 1];
                     if ($prevChild instanceof TextNode) {
@@ -259,7 +259,7 @@ class SlotCompiler
                     }
                 }
 
-                // Check if next child is a text node that STARTS with a closing directive
+                // Check if next child is a text node that starts with a closing directive
                 if ($index < count($children) - 1) {
                     $nextChild = $children[$index + 1];
                     if ($nextChild instanceof TextNode) {
