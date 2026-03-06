@@ -2,7 +2,6 @@
 
 namespace Livewire\Blaze;
 
-use Illuminate\Foundation\Console\ViewCacheCommand;
 use Livewire\Blaze\Compiler\Profiler;
 use Livewire\Blaze\Runtime\BlazeRuntime;
 use Illuminate\Support\ServiceProvider;
@@ -199,7 +198,9 @@ class BlazeServiceProvider extends ServiceProvider
     protected function registerParallelViewCacheCommand(): void
     {
         if (config('blaze.parallel_view_cache', false)) {
-            $this->app->extend(ViewCacheCommand::class, fn () => new ViewCacheParallelCommand);
+            $this->app->extend(\Illuminate\Foundation\Console\ViewCacheCommand::class, function ($instance) {
+                return Blaze::isEnabled() ? $this->app->make(ViewCacheParallelCommand::class) : $instance;
+            });
         }
     }
 }

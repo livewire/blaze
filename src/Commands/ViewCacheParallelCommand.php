@@ -5,26 +5,25 @@ namespace Livewire\Blaze\Commands;
 use Illuminate\Console\Application;
 use Illuminate\Console\Command;
 use Illuminate\Foundation\Console\ViewCacheCommand as BaseCommand;
+use Illuminate\Support\Facades\File;
 use Illuminate\Process\Pool;
 use Illuminate\Support\Collection;
-use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Finder\SplFileInfo;
 use Illuminate\Process\Factory as ProcessFactory;
 
-#[AsCommand(name: 'view:cache')]
 class ViewCacheParallelCommand extends BaseCommand
 {
-    protected $signature = 'view:cache';
+    protected $signature = 'view:cache {--processes : The number of processes to use for parallel compilation}';
 
     public function handle()
     {
-        if (isset($_SERVER['VIEW_CACHE_SHARD'])) {
-            $files = json_decode(base64_decode($_SERVER['VIEW_CACHE_SHARD']), true);
+        if (isset($_SERVER['VIEW_CACHE_FILES'])) {
+            $views = File::lines($_SERVER['VIEW_CACHE_FILES']);
 
-            $compiler = $this->laravel['view']->getEngineResolver()->resolve('blade')->getCompiler();
+            $compiler = $this->laravel->make('view')->getEngineResolver()->resolve('blade')->getCompiler();
 
-            foreach ($files as $file) {
-                $compiler->compile($file);
+            foreach ($views as $view) {
+                $compiler->compile($view);
             }
 
             return Command::SUCCESS;
@@ -32,30 +31,54 @@ class ViewCacheParallelCommand extends BaseCommand
 
         $this->callSilent('view:clear');
 
-        $files = $this->paths()
+        $views = $this->paths()
             ->flatMap(fn ($path) => $this->bladeFilesIn([$path]))
             ->map(fn (SplFileInfo $file) => $file->getRealPath())
             ->values();
 
-        if ($files->isEmpty()) {
+        if ($views->isEmpty()) {
             $this->components->info('No Blade templates found.');
-            return;
+
+            return Command::SUCCESS;
         }
 
-        $shards = $files->split(min($this->detectCpuCores(), $files->count()));
+        $processes = (int) $this->option('processes') ?: $this->detectCpuCores();
+        $shardedViews = $views->split(min($processes, $views->count()));
 
-        $this->laravel[ProcessFactory::class]->concurrently(function (Pool $pool) use ($shards) {
-            $shards->each(fn (Collection $files, int $i) => $pool->as($i)
+        $compiledPath = $this->laravel->make('config')->get('view.compiled');
+        $shardDirectory = $compiledPath . '/blaze';
+
+        File::ensureDirectoryExists($shardDirectory);
+
+        $shards = $shardedViews->map(function (Collection $files, $i) use ($shardDirectory) {
+            File::put($path = $shardDirectory . '/_views_' . $i, $files->join("\n"));
+
+            return $path;
+        });
+
+        $results = $this->laravel->make(ProcessFactory::class)->concurrently(function (Pool $pool) use ($shards) {
+            $shards->each(fn (string $path, int $i) => $pool
+                ->as($i)
                 ->path(base_path())
-                ->env(['VIEW_CACHE_SHARD' => base64_encode($files->toJson())])
+                ->env(['VIEW_CACHE_FILES' => $path])
                 ->forever()
-                ->command(Application::formatCommandString('view:cache'))
+                ->command(Application::formatCommandString('view:cache --ansi'))
             );
         });
 
-        $this->newLine();
+        $shards->each(fn (string $path) => File::delete($path));
+
+        if ($results->failed()) {
+            $results->collect()
+                ->filter(fn ($result) => $result->failed())
+                ->each(fn ($result) => $this->output->write($result->output()));
+
+            return Command::FAILURE;
+        }
 
         $this->components->info('Blade templates cached successfully.');
+
+        return Command::SUCCESS;
     }
 
     protected function detectCpuCores(): int
