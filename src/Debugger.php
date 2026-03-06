@@ -218,6 +218,10 @@ class Debugger
             return;
         }
 
+        // Claim the flag early to prevent re-entrant calls (the
+        // compile() below can trigger nested view compositions).
+        $this->timerInjected = true;
+
         // Ensure the view is compiled.
         if ($this->blade->compiler->isExpired($path)) {
             $this->blade->compiler->compile($path);
@@ -233,8 +237,6 @@ class Debugger
 
         // Record which view was wrapped with the render timer.
         $this->setTimerView($this->resolveTimerViewName($view));
-
-        $this->timerInjected = true;
 
         // Already injected (persisted from a previous request).
         if (str_contains($compiled, '__blaze_timer')) {
