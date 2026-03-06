@@ -14,14 +14,10 @@ use Illuminate\Process\Factory as ProcessFactory;
 #[AsCommand(name: 'view:cache')]
 class ViewCacheParallelCommand extends BaseCommand
 {
-    protected $signature = 'view:cache {--parallel} {--processes}';
+    protected $signature = 'view:cache';
 
     public function handle()
     {
-        if (! $this->option('parallel')) {
-            return parent::handle();
-        }
-
         if (isset($_SERVER['VIEW_CACHE_SHARD'])) {
             $files = json_decode(base64_decode($_SERVER['VIEW_CACHE_SHARD']), true);
 
@@ -46,15 +42,14 @@ class ViewCacheParallelCommand extends BaseCommand
             return;
         }
 
-        $cores = (int) ($this->option('processes') ?: $this->detectCpuCores());
-        $shards = $files->split(min($cores, $files->count()));
+        $shards = $files->split(min($this->detectCpuCores(), $files->count()));
 
         $this->laravel[ProcessFactory::class]->concurrently(function (Pool $pool) use ($shards) {
             $shards->each(fn (Collection $files, int $i) => $pool->as($i)
                 ->path(base_path())
                 ->env(['VIEW_CACHE_SHARD' => base64_encode($files->toJson())])
                 ->forever()
-                ->command(Application::formatCommandString('view:cache --parallel'))
+                ->command(Application::formatCommandString('view:cache'))
             );
         });
 

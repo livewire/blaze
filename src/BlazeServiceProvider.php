@@ -31,10 +31,6 @@ class BlazeServiceProvider extends ServiceProvider
         $this->app->alias(BlazeRuntime::class, 'blaze.runtime');
         $this->app->alias(Config::class, 'blaze.config');
         $this->app->alias(Debugger::class, 'blaze.debugger');
-
-        $this->app->extend(ViewCacheCommand::class, function () {
-            return new ViewCacheParallelCommand;
-        });
     }
 
     public function boot(): void
@@ -45,6 +41,7 @@ class BlazeServiceProvider extends ServiceProvider
         $this->interceptBladeCompilation();
         $this->registerDebuggerMiddleware();
         $this->registerOctaneListener();
+        $this->registerParallelViewCacheCommand();
     }
 
     protected function registerConfig(): void
@@ -194,5 +191,15 @@ class BlazeServiceProvider extends ServiceProvider
             Unblaze::flushState();
             Memo::flushState();
         });
+    }
+
+    /**
+     * Replace the default view:cache command with our parallelized version.
+     */
+    protected function registerParallelViewCacheCommand(): void
+    {
+        if (config('blaze.parallel_view_cache', false)) {
+            $this->app->extend(ViewCacheCommand::class, fn () => new ViewCacheParallelCommand);
+        }
     }
 }
