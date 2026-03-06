@@ -32,6 +32,15 @@ class BlazeServiceProvider extends ServiceProvider
         $this->app->alias(Debugger::class, 'blaze.debugger');
     }
 
+    protected function registerConfig(): void
+    {
+        $config = __DIR__.'/../config/blaze.php';
+
+        $this->publishes([$config => base_path('config/blaze.php')], ['blaze', 'blaze:config']);
+
+        $this->mergeConfigFrom($config, 'blaze');
+    }
+
     public function boot(): void
     {
         $this->registerBlazeDirectives();
@@ -41,15 +50,6 @@ class BlazeServiceProvider extends ServiceProvider
         $this->registerDebuggerMiddleware();
         $this->registerOctaneListener();
         $this->registerParallelViewCacheCommand();
-    }
-
-    protected function registerConfig(): void
-    {
-        $config = __DIR__.'/../config/blaze.php';
-
-        $this->publishes([$config => base_path('config/blaze.php')], ['blaze', 'blaze:config']);
-
-        $this->mergeConfigFrom($config, 'blaze');
     }
 
     /**
