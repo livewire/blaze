@@ -211,6 +211,14 @@ class Debugger
             return;
         }
 
+        if (request()->hasHeader('X-Livewire') || str_starts_with($view->getName(), 'errors::')) {
+            // Prevent timer being injected into Livewire views,
+            // error pages and prevent any further checks...
+            $this->timerInjected = true;
+
+            return;
+        }
+
         $path = $view->getPath();
 
         // Some views (e.g. Livewire virtual views) may not have a real path.
