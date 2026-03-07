@@ -42,21 +42,21 @@ class ViewCacheParallelCommand extends BaseCommand
             return Command::SUCCESS;
         }
 
+        File::ensureDirectoryExists(
+            $blazeDirectory = $this->laravel->make('config')->get('view.compiled') . '/blaze'
+        );
+
+        $shards = $views
+            ->split(min($this->option('processes') ?: $this->detectCpuCores(), $views->count()))
+            ->map(function (Collection $files, $i) use ($blazeDirectory) {
+                File::put($path = $blazeDirectory . '/_views_' . $i, $files->join("\n"));
+
+                return $path;
+            });
+
+        $this->trap([SIGINT, SIGTERM], fn () => $this->cleanup($shards));
+
         try {
-            File::ensureDirectoryExists(
-                $blazeDirectory = $this->laravel->make('config')->get('view.compiled') . '/blaze'
-            );
-
-            $shards = $views
-                ->split(min($this->processes(), $views->count()))
-                ->map(function (Collection $files, $i) use ($blazeDirectory) {
-                    File::put($path = $blazeDirectory . '/_views_' . $i, $files->join("\n"));
-
-                    return $path;
-                });
-
-            $this->trap([SIGINT, SIGTERM], fn () => $this->cleanup($shards));
-
             $results = $this->laravel->make(ProcessFactory::class)->concurrently(function (Pool $pool) use ($shards) {
                 $shards->each(fn (string $path, int $i) => $pool
                     ->as($i)
@@ -92,12 +92,8 @@ class ViewCacheParallelCommand extends BaseCommand
         $shards->each(fn (string $path) => File::delete($path));
     }
 
-    protected function processes(): int
+    protected function detectCpuCores(): int
     {
-        if ($this->hasOption('processes')) {
-            return (int) $this->option('processes');
-        }
-
         if (class_exists(\Fidry\CpuCoreCounter\CpuCoreCounter::class)) {
             return (new \Fidry\CpuCoreCounter\CpuCoreCounter)->getCountWithFallback(2);
         }
@@ -117,7 +113,6 @@ class ViewCacheParallelCommand extends BaseCommand
                 $cores = substr_count($cpuInfo, 'processor');
             }
         }
-
 
         return $cores > 0 ? $cores : 2;
     }
