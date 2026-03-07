@@ -28,4 +28,16 @@ return [
 
     'debug' => env('BLAZE_DEBUG', false),
 
+    /*
+    |--------------------------------------------------------------------------
+    | Parallel view:cache
+    |--------------------------------------------------------------------------
+    |
+    | When enabled, the view:cache command will utilize multiple processes
+    | to compile views. This is useful for applications with views that
+    | fold a lot of components, which can make the compilation slow.
+    |
+    */
+    
+    'parallel_view_cache' => false,
 ];

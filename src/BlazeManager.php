@@ -126,12 +126,6 @@ class BlazeManager
 
         $output = $this->blade->restoreRawBlocks($output);
 
-        try {
-            $this->renderer->deleteTemporaryCacheDirectory();
-        } catch (\Throwable $e) {
-            //
-        }
-
         return $output;
     }
 
