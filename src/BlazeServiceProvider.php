@@ -197,7 +197,7 @@ class BlazeServiceProvider extends ServiceProvider
      */
     protected function registerParallelViewCacheCommand(): void
     {
-        if (config('blaze.parallel_view_cache', false)) {
+        if ($this->app->runningInConsole() && config('blaze.parallel_view_cache', false)) {
             $this->app->extend(\Illuminate\Foundation\Console\ViewCacheCommand::class, function ($instance) {
                 return Blaze::isEnabled() ? $this->app->make(ViewCacheParallelCommand::class) : $instance;
             });

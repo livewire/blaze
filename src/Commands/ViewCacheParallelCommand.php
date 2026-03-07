@@ -42,31 +42,37 @@ class ViewCacheParallelCommand extends BaseCommand
             return Command::SUCCESS;
         }
 
-        $processes = (int) $this->option('processes') ?: $this->detectCpuCores();
-        $shardedViews = $views->split(min($processes, $views->count()));
-
-        $compiledPath = $this->laravel->make('config')->get('view.compiled');
-        $shardDirectory = $compiledPath . '/blaze';
-
-        File::ensureDirectoryExists($shardDirectory);
-
-        $shards = $shardedViews->map(function (Collection $files, $i) use ($shardDirectory) {
-            File::put($path = $shardDirectory . '/_views_' . $i, $files->join("\n"));
-
-            return $path;
-        });
-
-        $results = $this->laravel->make(ProcessFactory::class)->concurrently(function (Pool $pool) use ($shards) {
-            $shards->each(fn (string $path, int $i) => $pool
-                ->as($i)
-                ->path(base_path())
-                ->env(['VIEW_CACHE_FILES' => $path])
-                ->forever()
-                ->command(Application::formatCommandString('view:cache --ansi'))
+        try {
+            File::ensureDirectoryExists(
+                $blazeDirectory = $this->laravel->make('config')->get('view.compiled') . '/blaze'
             );
-        });
 
-        $shards->each(fn (string $path) => File::delete($path));
+            $shards = $views
+                ->split(min($this->processes(), $views->count()))
+                ->map(function (Collection $files, $i) use ($blazeDirectory) {
+                    File::put($path = $blazeDirectory . '/_views_' . $i, $files->join("\n"));
+
+                    return $path;
+                });
+
+            $this->trap([SIGINT, SIGTERM], fn () => $this->cleanup($shards));
+
+            $results = $this->laravel->make(ProcessFactory::class)->concurrently(function (Pool $pool) use ($shards) {
+                $shards->each(fn (string $path, int $i) => $pool
+                    ->as($i)
+                    ->path(base_path())
+                    ->env(['VIEW_CACHE_FILES' => $path])
+                    ->forever()
+                    ->command(Application::formatCommandString('view:cache --ansi'))
+                );
+            });
+        } catch (\Throwable) {
+            $this->cleanup($shards);
+
+            return parent::handle();
+        }
+
+        $this->cleanup($shards);
 
         if ($results->failed()) {
             $results->collect()
@@ -81,17 +87,37 @@ class ViewCacheParallelCommand extends BaseCommand
         return Command::SUCCESS;
     }
 
-    protected function detectCpuCores(): int
+    protected function cleanup(Collection $shards): void
     {
+        $shards->each(fn (string $path) => File::delete($path));
+    }
+
+    protected function processes(): int
+    {
+        if ($this->hasOption('processes')) {
+            return (int) $this->option('processes');
+        }
+
         if (class_exists(\Fidry\CpuCoreCounter\CpuCoreCounter::class)) {
             return (new \Fidry\CpuCoreCounter\CpuCoreCounter)->getCountWithFallback(2);
         }
 
         $cores = match (PHP_OS_FAMILY) {
-            'Linux' => (int) @shell_exec('nproc'),
-            'Darwin' => (int) @shell_exec('sysctl -n hw.ncpu'),
+            'Linux' => (int) @shell_exec('nproc')
+                ?: (int) @shell_exec('getconf _NPROCESSORS_ONLN'),
+            'Darwin' => (int) @shell_exec('sysctl -n hw.logicalcpu')
+                ?: (int) @shell_exec('sysctl -n hw.ncpu'),
+            'BSD' => (int) @shell_exec('getconf NPROCESSORS_ONLN'),
             default => 0,
         };
+
+        if ($cores <= 0 && @is_file('/proc/cpuinfo')) {
+            $cpuInfo = @file_get_contents('/proc/cpuinfo');
+            if ($cpuInfo !== false) {
+                $cores = substr_count($cpuInfo, 'processor');
+            }
+        }
+
 
         return $cores > 0 ? $cores : 2;
     }
