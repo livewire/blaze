@@ -42,7 +42,7 @@ class BlazeRuntime
      */
     public function ensureRequired(string $path, string $compiledPath): void
     {
-        if (isset($this->required[$path])) {
+        if (isset($this->required[$compiledPath])) {
             return;
         }
 
@@ -50,9 +50,9 @@ class BlazeRuntime
             $this->compiler->compile($path);
         }
 
-        require_once $compiledPath;
+        require $compiledPath;
 
-        $this->required[$path] = true;
+        $this->required[$compiledPath] = true;
     }
 
     /**

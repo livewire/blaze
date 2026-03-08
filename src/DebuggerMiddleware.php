@@ -47,9 +47,11 @@ class DebuggerMiddleware
 
         $response = $next($request);
 
-        $this->recordAndCompare($url, $debugger, $isBlaze);
-        $this->storeProfilerTrace($url, $debugger, $isBlaze);
-        $this->injectDebugger($response, $debugger);
+        if ($response->status() === 200) {
+            $this->recordAndCompare($url, $debugger, $isBlaze);
+            $this->storeProfilerTrace($url, $debugger, $isBlaze);
+            $this->injectDebugger($response, $debugger);
+        }
 
         return $response;
     }
@@ -116,6 +118,10 @@ class DebuggerMiddleware
     protected function storeProfilerTrace(string $url, Debugger $debugger, bool $isBlaze): void
     {
         $trace = $debugger->getTraceData();
+
+        if (empty($trace['entries'])) {
+            return;
+        }
 
         Cache::put('blaze_profiler_trace', [
             'url'        => $url,

@@ -3,6 +3,7 @@
 use Illuminate\Container\Container;
 use Illuminate\Contracts\View\Engine;
 use Illuminate\Support\Facades\Artisan;
+use Illuminate\Support\Facades\Blade;
 use Illuminate\View\Component;
 use Livewire\Blaze\Blaze;
 use Livewire\Blaze\BlazeManager;
@@ -70,3 +71,12 @@ test('supports antlers engine', function () {
 
     expect(view('antlers-view')->render())->toBe('NO_BLAZE');
 });
+
+test('folds and compiles the same component', function () {
+    Blade::render(<<<'BLADE'
+        <x-foldable.input required /> {{-- Folded --}}
+        <x-foldable.input :required="$required" /> {{-- Compiled (fallback) --}}
+        BLADE,
+        ['required' => true]
+    );
+})->throwsNoExceptions();
