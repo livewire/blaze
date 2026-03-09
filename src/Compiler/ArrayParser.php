@@ -22,8 +22,6 @@ use PhpParser\ParserFactory;
  */
 class ArrayParser
 {
-    protected static Parser $parser;
-
     /**
      * Parse a PHP array expression into a native PHP array.
      *
@@ -67,10 +65,8 @@ class ArrayParser
      */
     protected static function parseToArrayNode(string $expression): Array_
     {
-        static::$parser ??= (new ParserFactory)->createForNewestSupportedVersion();
-
         try {
-            $ast = static::$parser->parse('<?php ' . $expression . ';');
+            $ast = app(Parser::class)->parse('<?php ' . $expression . ';');
         } catch (\Throwable $e) {
             throw new ArrayParserException($expression, $e->getMessage());
         }
