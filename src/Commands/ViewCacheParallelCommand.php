@@ -13,7 +13,7 @@ use Illuminate\Process\Factory as ProcessFactory;
 
 class ViewCacheParallelCommand extends BaseCommand
 {
-    protected $signature = 'view:cache {--processes : The number of processes to use for parallel compilation}';
+    protected $signature = 'view:cache {--processes= : The number of processes to use for parallel compilation}';
 
     public function handle()
     {
