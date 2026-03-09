@@ -27,4 +27,5 @@ return [
     */
 
     'debug' => env('BLAZE_DEBUG', false),
+    
 ];
