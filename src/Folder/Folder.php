@@ -15,6 +15,7 @@ use Livewire\Blaze\BladeService;
 use Livewire\Blaze\BlazeManager;
 use Illuminate\Support\Arr;
 use Livewire\Blaze\Config;
+use Throwable;
 
 /**
  * Determines whether a component should be folded and orchestrates the folding process.
@@ -68,9 +69,9 @@ class Folder
             ));
 
             return new TextNode('<?php ob_start(); ?>' . $html . '<?php echo ltrim(ob_get_clean()); ?>');
-        } catch (\Exception $e) {
+        } catch (Throwable $th) {
             if ($this->manager->shouldThrow()) {
-                throw $e;
+                throw $th;
             }
 
             return $node;

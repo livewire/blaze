@@ -52,7 +52,7 @@ class Foldable
         $this->setupSlots();
         $this->mergeAwareProps();
 
-        $this->html = $this->renderer->render($this->renderable->render());
+        $this->html = $this->renderer->render($this->renderable, $this->source);
         
         $this->processUncompiledAttributes();
         $this->restorePlaceholders();

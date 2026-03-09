@@ -8,7 +8,6 @@ use Illuminate\Support\ServiceProvider;
 use Illuminate\Support\Facades\Blade;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\View;
-use Livewire\Blaze\Commands\ViewCacheParallelCommand;
 use Livewire\Blaze\Memoizer\Memo;
 
 class BlazeServiceProvider extends ServiceProvider
@@ -49,7 +48,6 @@ class BlazeServiceProvider extends ServiceProvider
         $this->interceptBladeCompilation();
         $this->registerDebuggerMiddleware();
         $this->registerOctaneListener();
-        $this->registerParallelViewCacheCommand();
     }
 
     /**
@@ -190,17 +188,5 @@ class BlazeServiceProvider extends ServiceProvider
             Unblaze::flushState();
             Memo::flushState();
         });
-    }
-
-    /**
-     * Replace the default view:cache command with our parallelized version.
-     */
-    protected function registerParallelViewCacheCommand(): void
-    {
-        if ($this->app->runningInConsole() && config('blaze.parallel_view_cache', false)) {
-            $this->app->extend(\Illuminate\Foundation\Console\ViewCacheCommand::class, function ($instance) {
-                return Blaze::isEnabled() ? $this->app->make(ViewCacheParallelCommand::class) : $instance;
-            });
-        }
     }
 }

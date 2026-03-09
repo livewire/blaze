@@ -3,10 +3,17 @@
 namespace Livewire\Blaze;
 
 use Illuminate\Contracts\View\Factory;
+use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\File;
 use Illuminate\View\Compilers\BladeCompiler;
 use Illuminate\View\Component;
+use Illuminate\View\ComponentSlot;
+use Livewire\Blaze\Parser\Attribute;
+use Livewire\Blaze\Parser\Nodes\ComponentNode;
+use Livewire\Blaze\Parser\Nodes\SlotNode;
 use Livewire\Blaze\Runtime\BlazeRuntime;
+use Livewire\Blaze\Support\ComponentSource;
+use Livewire\Blaze\Support\Utils;
 use ReflectionClass;
 
 /**
@@ -32,7 +39,7 @@ class BladeRenderer
     /**
      * Render a Blade template string in isolation by freezing and restoring compiler state.
      */
-    public function render(string $template): string
+    public function render(ComponentNode $component, ComponentSource $source): string
     {
         $temporaryCachePath = $this->getTemporaryCachePath();
 
@@ -85,21 +92,52 @@ class BladeRenderer
             'slotsStack' => [],
         ]);
 
-        $restoreComponent = $this->freezeObjectProperties(Component::class, [
-            'bladeViewCache' => [],
-        ]);
-
         try {
             $this->manager->startFolding();
 
-            $result = $this->blade->render($template);
+            $hash = Utils::hash($source->path);
+            $path = $temporaryCachePath . '/' . $hash . '.php';
+            $fn = '__' . $hash;
+
+            if (! file_exists($path)) {
+                $this->blade->compile($source->path);
+            }
+
+            $attributes = Arr::mapWithKeys($component->attributes, function (Attribute $attribute) {
+                if ($attribute->bound()) {
+                    return [$attribute->name => match ($attribute->value) {
+                        'true' => true,
+                        'false' => false,
+                        'null' => null,
+                    }];
+                }
+
+                return [$attribute->name => $attribute->value];
+            });
+
+            $slots = Arr::mapWithKeys($component->children, fn (SlotNode $slot) => [$slot->name => new ComponentSlot($slot->content())]);
+
+            require_once $path;
+
+            $this->runtime->pushData($attributes);
+            $this->runtime->pushSlots($slots);
+
+            ob_start();
+
+            $fn(
+                __blaze: $this->runtime,
+                __data: $attributes,
+                __slots: $slots,
+            );
+
+            $result = ltrim(ob_get_clean());
         } finally {
+            $this->runtime->popData();
+            $this->manager->stopFolding();
+
             $restoreCompiler();
             $restoreFactory();
             $restoreRuntime();
-            $restoreComponent();
-
-            $this->manager->stopFolding();
         }
 
         $result = Unblaze::replaceUnblazePrecompiledDirectives($result);
