@@ -11,6 +11,7 @@ use PhpParser\Node\Scalar\Float_;
 use PhpParser\Node\Scalar\Int_;
 use PhpParser\Node\Scalar\String_;
 use PhpParser\Node\Stmt\Expression;
+use PhpParser\Parser;
 use PhpParser\ParserFactory;
 
 /**
@@ -21,6 +22,8 @@ use PhpParser\ParserFactory;
  */
 class ArrayParser
 {
+    protected static Parser $parser;
+
     /**
      * Parse a PHP array expression into a native PHP array.
      *
@@ -64,10 +67,10 @@ class ArrayParser
      */
     protected static function parseToArrayNode(string $expression): Array_
     {
-        $parser = (new ParserFactory)->createForNewestSupportedVersion();
+        static::$parser ??= (new ParserFactory)->createForNewestSupportedVersion();
 
         try {
-            $ast = $parser->parse('<?php ' . $expression . ';');
+            $ast = static::$parser->parse('<?php ' . $expression . ';');
         } catch (\Throwable $e) {
             throw new ArrayParserException($expression, $e->getMessage());
         }
