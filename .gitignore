@@ -9,4 +9,3 @@ composer.lock
 phpunit.xml.dist
 .env
 .env.testing
-/benchmark-snapshot.json
