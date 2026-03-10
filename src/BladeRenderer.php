@@ -92,32 +92,25 @@ class BladeRenderer
             'slotsStack' => [],
         ]);
 
+        $obLevel = ob_get_level();
+        $hash = Utils::hash($source->path);
+        $path = $temporaryCachePath . '/' . $hash . '.php';
+        $fn = '__' . $hash;
+
+        $this->manager->startFolding();
+
         try {
-            $obLevel = ob_get_level();
-
-            $this->manager->startFolding();
-
-            $hash = Utils::hash($source->path);
-            $path = $temporaryCachePath . '/' . $hash . '.php';
-            $fn = '__' . $hash;
-
             if (! file_exists($path)) {
                 $this->blade->compile($source->path);
             }
 
             $attributes = Arr::mapWithKeys($component->attributes, function (Attribute $attribute) {
-                if ($attribute->bound()) {
-                    return [$attribute->name => match ($attribute->value) {
-                        'true' => true,
-                        'false' => false,
-                        'null' => null,
-                    }];
-                }
-
-                return [$attribute->name => $attribute->value];
+                return [$attribute->name => $attribute->getStaticValue()];
             });
-
-            $slots = Arr::mapWithKeys($component->children, fn (SlotNode $slot) => [$slot->name => new ComponentSlot($slot->content())]);
+            
+            $slots = Arr::mapWithKeys($component->children, function (SlotNode $slot) {
+                return [$slot->name => new ComponentSlot($slot->content())];
+            });
 
             $this->runtime->pushData($attributes);
             $this->runtime->pushSlots($slots);

@@ -32,4 +32,18 @@ class Attribute
     {
         return $this->dynamic === false || in_array($this->value, ['true', 'false', 'null'], true);
     }
+
+    public function getStaticValue(): mixed
+    {
+        if (! $this->isStaticValue()) {
+            throw new \LogicException("Cannot get static value of dynamic attribute '{$this->name}'.");
+        }
+
+        return match ($this->value) {
+            'true' => true,
+            'false' => false,
+            'null' => null,
+            default => $this->value,
+        };
+    }
 }
