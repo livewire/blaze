@@ -43,7 +43,7 @@ class Compiler
             return new TextNode($this->compileDelegateComponentTag($node));
         }
 
-        $source = new ComponentSource($this->blade->componentNameToPath($node->name));
+        $source = ComponentSource::for($this->blade->componentNameToPath($node->name));
 
         if (! $source->exists()) {
             return $node;
