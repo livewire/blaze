@@ -93,6 +93,8 @@ class BladeRenderer
         ]);
 
         try {
+            $obLevel = ob_get_level();
+
             $this->manager->startFolding();
 
             $hash = Utils::hash($source->path);
@@ -117,12 +119,12 @@ class BladeRenderer
 
             $slots = Arr::mapWithKeys($component->children, fn (SlotNode $slot) => [$slot->name => new ComponentSlot($slot->content())]);
 
-            require_once $path;
-
             $this->runtime->pushData($attributes);
             $this->runtime->pushSlots($slots);
 
             ob_start();
+
+            require_once $path;
 
             $fn(
                 __blaze: $this->runtime,
@@ -132,6 +134,10 @@ class BladeRenderer
 
             $result = ltrim(ob_get_clean());
         } finally {
+            while (ob_get_level() > $obLevel) {
+                ob_end_clean();
+            }
+
             $this->runtime->popData();
             $this->manager->stopFolding();
 
