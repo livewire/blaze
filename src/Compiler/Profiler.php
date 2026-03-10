@@ -31,7 +31,7 @@ class Profiler
      */
     public function profile(Node $node, string $componentName, ?string $strategy = null): Node
     {
-        $source = new ComponentSource($this->blade->componentNameToPath($componentName));
+        $source = ComponentSource::for($this->blade->componentNameToPath($componentName));
 
         if ($strategy === null) {
             $isBlade = $node instanceof ComponentNode;

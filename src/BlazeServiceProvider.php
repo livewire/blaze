@@ -23,6 +23,10 @@ class BlazeServiceProvider extends ServiceProvider
         $this->app->singleton(Profiler::class);
         $this->app->singleton(BlazeManager::class);
 
+        $this->app->singleton(\PhpParser\Parser::class, function () {
+            return (new \PhpParser\ParserFactory)->createForNewestSupportedVersion();
+        });
+
         $this->app->alias(BlazeManager::class, Blaze::class);
 
         $this->app->alias(BlazeManager::class, 'blaze');
