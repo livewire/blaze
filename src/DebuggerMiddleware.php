@@ -15,10 +15,18 @@ class DebuggerMiddleware
      */
     public static function register(): void
     {
-        Route::get('/_blaze/trace', function () {
-            $trace = app('blaze.debugger')->store->getLatestTrace();
+        Route::get('/_blaze/trace', function (Request $request) {
+            $store = app('blaze.debugger')->store;
+
+            $trace = $request->query('id')
+                ? $store->getTrace($request->query('id'))
+                : $store->getLatestTrace();
 
             return response()->json($trace ?? ['entries' => [], 'url' => null]);
+        })->middleware('web');
+
+        Route::get('/_blaze/traces', function () {
+            return response()->json(app('blaze.debugger')->store->listTraces());
         })->middleware('web');
 
         Route::get('/_blaze/profiler', function () {

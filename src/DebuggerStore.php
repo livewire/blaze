@@ -58,6 +58,62 @@ class DebuggerStore
     }
 
     /**
+     * Get a specific trace by its ID (ULID filename without extension).
+     */
+    public function getTrace(string $id): ?array
+    {
+        $file = $this->path.'/'.$id.'.json';
+
+        if (! File::exists($file)) {
+            return null;
+        }
+
+        return json_decode(File::get($file), true);
+    }
+
+    /**
+     * List recent traces with summary metadata.
+     *
+     * Returns newest-first, up to $max entries.
+     */
+    public function listTraces(int $max = 20): array
+    {
+        if (! File::isDirectory($this->path)) {
+            return [];
+        }
+
+        $files = File::glob($this->path.'/*.json');
+
+        if (empty($files)) {
+            return [];
+        }
+
+        // ULID filenames sort chronologically — take the most recent $max.
+        sort($files);
+        $files = array_reverse(array_slice($files, -$max));
+
+        $traces = [];
+
+        foreach ($files as $file) {
+            $contents = json_decode(File::get($file), true);
+
+            if ($contents === null) {
+                continue;
+            }
+
+            $traces[] = [
+                'id' => pathinfo($file, PATHINFO_FILENAME),
+                'url' => $contents['url'] ?? null,
+                'mode' => $contents['mode'] ?? null,
+                'timestamp' => $contents['timestamp'] ?? null,
+                'renderTime' => $contents['renderTime'] ?? null,
+            ];
+        }
+
+        return $traces;
+    }
+
+    /**
      * Delete trace files older than the given number of hours.
      */
     public function prune(int $hours = 24): void

@@ -68,18 +68,39 @@ body {
 
 .logo svg { width: 18px; height: 18px; color: var(--orange); }
 
-.header-url {
+.header-select {
     font-family: inherit;
     font-size: 12px;
-    color: var(--text-muted);
+    color: var(--text-dim);
     background: rgba(255, 255, 255, 0.03);
-    padding: 5px 12px;
+    padding: 5px 28px 5px 12px;
     border-radius: 4px;
     border: 1px solid var(--border);
-    max-width: 300px;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
+    max-width: 420px;
+    outline: none;
+    cursor: pointer;
+    transition: border-color 0.15s, background 0.15s;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg width='10' height='6' viewBox='0 0 10 6' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 1l4 4 4-4' stroke='rgba(255,255,255,0.3)' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 10px center;
+}
+
+.header-select:hover {
+    border-color: rgba(255, 255, 255, 0.15);
+    background-color: rgba(255, 255, 255, 0.05);
+}
+
+.header-select:focus {
+    border-color: rgba(255, 134, 2, 0.3);
+    background-color: rgba(255, 255, 255, 0.05);
+}
+
+.header-select option {
+    background: #0b0809;
+    color: var(--text-dim);
 }
 
 .header-mode {
@@ -665,7 +686,7 @@ body {
         &#x1f525;
         Profiler
     </div>
-    <div class="header-url" id="hdr-url">Loading...</div>
+    <select class="header-select" id="hdr-select"><option value="">Loading...</option></select>
     <div class="header-mode blaze" id="hdr-mode">BLAZE</div>
 </div>
 
@@ -780,6 +801,7 @@ let searchMatches = new Set(); // indices of entries matching the search
 let minimapDrag = null;   // { startX, startViewStart } when dragging minimap viewport
 let minimapResize = null; // { edge: 'left'|'right', startX, startViewStart, startViewEnd, rect } when resizing edges
 let treeHoverIdx = null;  // entry index hovered in the component tree
+let tracesList = [];      // list of recent traces from /_blaze/traces
 
 
 // ─── DOM refs ───────────────────────────────────────────────────────
@@ -918,9 +940,47 @@ function sizeSidebarToFit() {
 }
 
 // ─── Data Fetch ─────────────────────────────────────────────────────
-async function fetchTrace() {
+async function fetchTracesList() {
     try {
-        const resp = await fetch('/_blaze/trace');
+        const resp = await fetch('/_blaze/traces');
+        tracesList = await resp.json();
+        populateSelect();
+
+        if (tracesList.length) {
+            await loadTrace(tracesList[0].id);
+        }
+    } catch (e) {
+        console.error('Failed to fetch traces list:', e);
+    }
+}
+
+function populateSelect() {
+    const $select = document.getElementById('hdr-select');
+    $select.innerHTML = '';
+
+    if (!tracesList.length) {
+        $select.innerHTML = '<option value="">No traces</option>';
+        return;
+    }
+
+    for (const t of tracesList) {
+        const opt = document.createElement('option');
+        opt.value = t.id;
+
+        const time = t.timestamp ? new Date(t.timestamp).toLocaleTimeString() : '';
+        const render = t.renderTime != null ? fmtMs(t.renderTime) : '';
+        const mode = (t.mode || '').toUpperCase();
+        const url = t.url || '/';
+
+        opt.textContent = url + '  \u2014  ' + render + '  \u2014  ' + time;
+        $select.appendChild(opt);
+    }
+}
+
+async function loadTrace(id) {
+    try {
+        const url = id ? '/_blaze/trace?id=' + encodeURIComponent(id) : '/_blaze/trace';
+        const resp = await fetch(url);
         data = await resp.json();
         entries = data.entries || [];
         processData();
@@ -930,6 +990,10 @@ async function fetchTrace() {
         console.error('Failed to fetch trace:', e);
     }
 }
+
+document.getElementById('hdr-select').addEventListener('change', function() {
+    if (this.value) loadTrace(this.value);
+});
 
 function processData() {
     if (!entries.length) return;
@@ -1106,8 +1170,6 @@ document.getElementById('search-input').addEventListener('input', function(ev) {
 
 // ─── Header ─────────────────────────────────────────────────────────
 function updateHeader() {
-    document.getElementById('hdr-url').textContent = data.url || '—';
-
     const modeEl = document.getElementById('hdr-mode');
     modeEl.textContent = (data.mode || 'blaze').toUpperCase();
     modeEl.className = 'header-mode ' + (data.mode || 'blaze');
@@ -2435,7 +2497,7 @@ window.addEventListener('keydown', function(ev) {
     // R: refresh
     if (ev.key === 'r' && !ev.ctrlKey && !ev.metaKey) {
         ev.preventDefault();
-        fetchTrace();
+        fetchTracesList();
         return;
     }
 });
@@ -2448,7 +2510,7 @@ window.addEventListener('resize', function() {
 });
 
 // ─── Init ───────────────────────────────────────────────────────────
-fetchTrace();
+fetchTracesList();
 </script>
 </body>
 </html>
