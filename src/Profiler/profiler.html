@@ -444,6 +444,80 @@ body {
     font-family: inherit;
 }
 
+/* ── Component Tree ──────────────────────────────── */
+.component-tree {
+    margin-top: 14px;
+    padding-top: 14px;
+    border-top: 1px solid var(--border);
+    user-select: none;
+}
+
+.tree-title {
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--text-muted);
+    margin-bottom: 8px;
+}
+
+.tree-node {
+    display: flex;
+    align-items: center;
+    padding: 3px 6px;
+    font-size: 11px;
+    font-family: inherit;
+    cursor: pointer;
+    border-radius: 3px;
+    white-space: nowrap;
+    min-height: 22px;
+}
+
+.tree-node:hover {
+    background: rgba(255, 255, 255, 0.04);
+}
+
+.tree-node.is-selected {
+    background: rgba(255, 134, 2, 0.1);
+}
+
+.tree-prefix {
+    color: #2a2a2a;
+    flex-shrink: 0;
+    user-select: none;
+    white-space: pre;
+    font-size: 11px;
+}
+
+.tree-dot {
+    display: inline-block;
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    margin-right: 6px;
+    flex-shrink: 0;
+}
+
+.tree-label {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    color: var(--text-dim);
+    min-width: 0;
+}
+
+.tree-node.is-selected .tree-label {
+    color: var(--orange);
+    font-weight: 600;
+}
+
+.tree-time {
+    margin-left: auto;
+    padding-left: 8px;
+    color: var(--text-muted);
+    font-size: 10px;
+    flex-shrink: 0;
+}
+
 /* ── Tooltip ─────────────────────────────────────── */
 .tooltip {
     position: fixed;
@@ -655,6 +729,7 @@ body {
             <div class="detail-grid" id="detail-grid">
                 <div style="color:var(--text-muted);font-size:11px;grid-column:1/-1;">Hover a component to see details</div>
             </div>
+            <div id="component-tree" class="component-tree"></div>
         </div>
     </div>
 </div>
@@ -698,11 +773,13 @@ let $dragSel = null;    // the drag selection overlay element
 let resizeState = null; // { startY, startH } when resizing sidebar
 let childIndex = null;  // Map<entryIndex, number[]> — indices of direct children
 let selfTimeCache = new Map(); // Map<entryIndex, number> — precomputed self-times
+let parentIndex = new Map();   // Map<entryIndex, entryIndex|null> — parent of each entry
 let pendingRender = null; // requestAnimationFrame handle for batched renders
 let searchQuery = '';     // current component search filter
 let searchMatches = new Set(); // indices of entries matching the search
 let minimapDrag = null;   // { startX, startViewStart } when dragging minimap viewport
 let minimapResize = null; // { edge: 'left'|'right', startX, startViewStart, startViewEnd, rect } when resizing edges
+let treeHoverIdx = null;  // entry index hovered in the component tree
 
 
 // ─── DOM refs ───────────────────────────────────────────────────────
@@ -741,7 +818,7 @@ function sizeCanvas(canvas, w, h) {
 }
 
 // ─── Clustering ─────────────────────────────────────────────────────
-const CLUSTER_PX = 8; // entries narrower than this (px) get clustered
+const CLUSTER_PX = 2; // entries narrower than this (px) get clustered
 
 function fmtCount(n) {
     if (n >= 1000) return (n / 1000).toFixed(1) + 'k';
@@ -787,7 +864,7 @@ function buildRenderList() {
                 // Too small — add to cluster
                 if (cluster) {
                     const gapPx = ((e.start - cluster.end) / viewDuration) * w;
-                    if (gapPx > CLUSTER_PX * 3) {
+                    if (gapPx > CLUSTER_PX) {
                         list.push(cluster);
                         cluster = null;
                     }
@@ -803,6 +880,7 @@ function buildRenderList() {
                         totalDuration: 0,
                         strategies: {},
                         names: {},
+                        indices: new Set(),
                     };
                 }
 
@@ -811,6 +889,7 @@ function buildRenderList() {
                 cluster.totalDuration += e.duration;
                 cluster.strategies[e.strategy] = (cluster.strategies[e.strategy] || 0) + 1;
                 cluster.names[e.name] = (cluster.names[e.name] || 0) + 1;
+                if (e._idx !== undefined) cluster.indices.add(e._idx);
             }
         }
 
@@ -820,6 +899,24 @@ function buildRenderList() {
     return list;
 }
 
+// ─── Initial Sidebar Sizing ─────────────────────────────────────────
+// Size the bottom panel to fill remaining space after the flame chart
+// content, so shallow traces get a tall sidebar and deep traces still
+// leave enough room for the timeline.
+function sizeSidebarToFit() {
+    const mainEl = document.getElementById('main-area');
+    const mainH = mainEl.clientHeight;
+    if (mainH <= 0) return;
+
+    const flameContentH = (maxDepth + 1) * ROW_FULL + 20;
+    const flameFixed = 36 + 24 + 5; // minimap + time axis + resize handle
+    const flamePadding = 32;
+
+    const flameNeeded = flameFixed + flameContentH + flamePadding;
+    const sidebarH = Math.max(200, mainH - flameNeeded);
+    $sidebar.style.height = sidebarH + 'px';
+}
+
 // ─── Data Fetch ─────────────────────────────────────────────────────
 async function fetchTrace() {
     try {
@@ -827,6 +924,7 @@ async function fetchTrace() {
         data = await resp.json();
         entries = data.entries || [];
         processData();
+        sizeSidebarToFit();
         render();
     } catch (e) {
         console.error('Failed to fetch trace:', e);
@@ -965,6 +1063,17 @@ function buildChildIndex() {
         }
         selfTimeCache.set(i, e.duration - childTime);
     }
+
+    // Build parentIndex (reverse of childIndex).
+    parentIndex = new Map();
+    for (let i = 0; i < entries.length; i++) {
+        parentIndex.set(i, null);
+    }
+    for (const [pIdx, children] of childIndex) {
+        for (const cIdx of children) {
+            parentIndex.set(cIdx, pIdx);
+        }
+    }
 }
 
 function getSelfTime(entry) {
@@ -1058,10 +1167,14 @@ function updateSidebar() {
     // Compute self-time using precomputed index (O(1) per entry).
     const selfTimes = {};
     for (const e of entries) {
-        selfTimes[e.name] = selfTimes[e.name] || { selfTime: 0, totalTime: 0, count: 0, strategy: e.strategy };
+        if (!selfTimes[e.name]) {
+            selfTimes[e.name] = { selfTime: 0, totalTime: 0, count: 0, strategies: {} };
+        }
+        const st = getSelfTime(e);
         selfTimes[e.name].totalTime += e.duration;
         selfTimes[e.name].count++;
-        selfTimes[e.name].selfTime += getSelfTime(e);
+        selfTimes[e.name].selfTime += st;
+        selfTimes[e.name].strategies[e.strategy] = (selfTimes[e.name].strategies[e.strategy] || 0) + st;
     }
 
     const maxSelfTime = Math.max(...Object.values(selfTimes).map(s => s.selfTime), 0.001);
@@ -1082,13 +1195,24 @@ function updateSidebar() {
 
         for (let i = 0; i < slice.length; i++) {
             const [name, info] = slice[i];
-            const c = colorFor(info.strategy);
+            // Dominant strategy = highest self-time contribution
+            const stratSorted = Object.entries(info.strategies).sort((a, b) => b[1] - a[1]);
+            const domColor = colorFor(stratSorted[0][0]);
             const selfPct = (info.selfTime / maxSelfTime) * 100;
+
+            // Build multi-segment breakdown bar
+            let barSegments = '';
+            for (const [s, time] of stratSorted) {
+                const sc = colorFor(s);
+                const segPct = (time / info.selfTime) * 100;
+                barSegments += '<div style="background:' + sc.bg + ';width:' + segPct + '%;height:100%;"></div>';
+            }
+
             const tr = document.createElement('tr');
             tr.innerHTML = `
                 <td style="color:var(--text-muted);font-size:9px;padding-right:6px;width:16px;">${rank + i + 1}</td>
-                <td class="comp-name" title="${name}"><span class="comp-strat-dot" style="background:${c.bg}"></span>${name}<span style="color:var(--text-muted);font-size:9px;margin-left:4px;">${info.count}x</span></td>
-                <td class="comp-time">${fmtMs(info.selfTime)}<div class="heat-bar" style="background:${c.bg};width:${selfPct}%;opacity:0.5;margin-left:auto;"></div></td>
+                <td class="comp-name" title="${name}"><span class="comp-strat-dot" style="background:${domColor.bg}"></span>${name}<span style="color:var(--text-muted);font-size:9px;margin-left:4px;">${info.count}x</span></td>
+                <td class="comp-time">${fmtMs(info.selfTime)}<div class="heat-bar" style="width:${selfPct}%;display:flex;overflow:hidden;opacity:0.5;margin-left:auto;">${barSegments}</div></td>
             `;
             tr.style.cursor = 'pointer';
             tr.addEventListener('mouseenter', () => updateSearch(name));
@@ -1106,6 +1230,221 @@ function updateSidebar() {
 function clearDetail() {
     document.getElementById('detail-grid').innerHTML =
         '<div style="color:var(--text-muted);font-size:11px;grid-column:1/-1;">Hover a component to see details</div>';
+    clearComponentTree();
+}
+
+// ─── Component Tree ─────────────────────────────────────────────────
+function getAncestorChain(entryIdx) {
+    const chain = [];
+    let idx = parentIndex.get(entryIdx);
+    while (idx !== null && idx !== undefined) {
+        chain.unshift(idx);
+        idx = parentIndex.get(idx);
+    }
+    return chain;
+}
+
+function renderComponentTree(entry) {
+    const container = document.getElementById('component-tree');
+    if (!container || entry._idx === undefined) {
+        if (container) container.innerHTML = '';
+        return;
+    }
+
+    const ancestors = getAncestorChain(entry._idx);
+    const children = childIndex.get(entry._idx) || [];
+
+    let html = '<div class="tree-title">Component Tree</div>';
+
+    // Render ancestor chain (root > ... > parent)
+    for (let i = 0; i < ancestors.length; i++) {
+        const e = entries[ancestors[i]];
+        const c = colorFor(e.strategy);
+        const prefix = i === 0 ? '' : '   '.repeat(i - 1) + '\u2514\u2500 ';
+
+        html += '<div class="tree-node" data-idx="' + e._idx + '">' +
+            '<span class="tree-prefix">' + prefix + '</span>' +
+            '<span class="tree-dot" style="background:' + c.bg + '"></span>' +
+            '<span class="tree-label" title="' + e.name + '">' + e.name + '</span>' +
+            '<span class="tree-time">' + fmtMs(e.duration) + '</span>' +
+            '</div>';
+    }
+
+    // Render selected entry (highlighted)
+    {
+        const c = colorFor(entry.strategy);
+        const depth = ancestors.length;
+        const prefix = depth === 0 ? '' : '   '.repeat(depth - 1) + '\u2514\u2500 ';
+
+        html += '<div class="tree-node is-selected" data-idx="' + entry._idx + '">' +
+            '<span class="tree-prefix">' + prefix + '</span>' +
+            '<span class="tree-dot" style="background:' + c.bg + '"></span>' +
+            '<span class="tree-label" title="' + entry.name + '">' + entry.name + '</span>' +
+            '<span class="tree-time">' + fmtMs(entry.duration) + '</span>' +
+            '</div>';
+    }
+
+    // Render direct children
+    const maxShow = 15;
+    const shown = children.slice(0, maxShow);
+    const baseIndent = '   '.repeat(ancestors.length);
+
+    for (let i = 0; i < shown.length; i++) {
+        const e = entries[shown[i]];
+        const c = colorFor(e.strategy);
+        const isLast = i === shown.length - 1 && children.length <= maxShow;
+        const connector = isLast ? '\u2514\u2500 ' : '\u251C\u2500 ';
+
+        html += '<div class="tree-node" data-idx="' + e._idx + '">' +
+            '<span class="tree-prefix">' + baseIndent + connector + '</span>' +
+            '<span class="tree-dot" style="background:' + c.bg + '"></span>' +
+            '<span class="tree-label" title="' + e.name + '">' + e.name + '</span>' +
+            '<span class="tree-time">' + fmtMs(e.duration) + '</span>' +
+            '</div>';
+    }
+
+    if (children.length > maxShow) {
+        html += '<div style="padding:3px 6px;white-space:nowrap;">' +
+            '<span class="tree-prefix">' + baseIndent + '\u2514\u2500 </span>' +
+            '<span style="color:var(--text-muted);font-size:10px;">+' + (children.length - maxShow) + ' more</span>' +
+            '</div>';
+    }
+
+    container.innerHTML = html;
+
+    // Hover handlers — dim other components in the flame chart
+    container.addEventListener('mouseleave', function() {
+        if (treeHoverIdx !== null) {
+            treeHoverIdx = null;
+            renderFlameChart();
+        }
+    });
+
+    // Click + hover + double-click handlers for tree navigation
+    container.querySelectorAll('.tree-node[data-idx]').forEach(function(node) {
+        node.addEventListener('mouseenter', function() {
+            var idx = parseInt(this.dataset.idx);
+            if (treeHoverIdx !== idx) {
+                treeHoverIdx = idx;
+                renderFlameChart();
+            }
+        });
+        node.addEventListener('click', function() {
+            var targetIdx = parseInt(this.dataset.idx);
+            var targetEntry = entries[targetIdx];
+            if (targetEntry) {
+                active = { type: 'entry', entry: targetEntry };
+                showDetail(targetEntry);
+                renderFlameChart();
+            }
+        });
+        node.addEventListener('dblclick', function() {
+            var targetIdx = parseInt(this.dataset.idx);
+            var targetEntry = entries[targetIdx];
+            if (targetEntry) {
+                var padding = targetEntry.duration * 0.15;
+                viewStart = Math.max(0, targetEntry.start - padding);
+                viewEnd = Math.min(totalDuration, targetEntry.end + padding);
+                render();
+            }
+        });
+    });
+}
+
+function renderClusterTree(cluster) {
+    const container = document.getElementById('component-tree');
+    if (!container || !cluster.indices || cluster.indices.size === 0) {
+        if (container) container.innerHTML = '';
+        return;
+    }
+
+    // Use the first entry in the cluster to determine ancestry
+    const sampleIdx = cluster.indices.values().next().value;
+    const ancestors = getAncestorChain(sampleIdx);
+
+    let html = '<div class="tree-title">Component Tree</div>';
+
+    // Render ancestor chain
+    for (let i = 0; i < ancestors.length; i++) {
+        const e = entries[ancestors[i]];
+        const c = colorFor(e.strategy);
+        const prefix = i === 0 ? '' : '   '.repeat(i - 1) + '\u2514\u2500 ';
+
+        html += '<div class="tree-node" data-idx="' + e._idx + '">' +
+            '<span class="tree-prefix">' + prefix + '</span>' +
+            '<span class="tree-dot" style="background:' + c.bg + '"></span>' +
+            '<span class="tree-label" title="' + e.name + '">' + e.name + '</span>' +
+            '<span class="tree-time">' + fmtMs(e.duration) + '</span>' +
+            '</div>';
+    }
+
+    // Render cluster as the selected node
+    {
+        const dom = clusterDominantStrategy(cluster.strategies);
+        const c = colorFor(dom);
+        const depth = ancestors.length;
+        const prefix = depth === 0 ? '' : '   '.repeat(depth - 1) + '\u2514\u2500 ';
+        const uniqueNames = Object.keys(cluster.names).length;
+        const label = uniqueNames === 1
+            ? Object.keys(cluster.names)[0] + ' \u00d7' + cluster.count
+            : cluster.count + ' components';
+
+        html += '<div class="tree-node is-selected">' +
+            '<span class="tree-prefix">' + prefix + '</span>' +
+            '<span class="tree-dot" style="background:' + c.bg + '"></span>' +
+            '<span class="tree-label">' + label + '</span>' +
+            '<span class="tree-time">' + fmtMs(cluster.totalDuration) + '</span>' +
+            '</div>';
+    }
+
+    container.innerHTML = html;
+
+    // Hover handler — clear when leaving tree
+    container.addEventListener('mouseleave', function() {
+        if (treeHoverIdx !== null) {
+            treeHoverIdx = null;
+            renderFlameChart();
+        }
+    });
+
+    // Click + hover + double-click handlers for ancestor nodes
+    container.querySelectorAll('.tree-node[data-idx]').forEach(function(node) {
+        node.addEventListener('mouseenter', function() {
+            var idx = parseInt(this.dataset.idx);
+            if (treeHoverIdx !== idx) {
+                treeHoverIdx = idx;
+                renderFlameChart();
+            }
+        });
+        node.addEventListener('click', function() {
+            var targetIdx = parseInt(this.dataset.idx);
+            var targetEntry = entries[targetIdx];
+            if (targetEntry) {
+                active = { type: 'entry', entry: targetEntry };
+                showDetail(targetEntry);
+                renderFlameChart();
+            }
+        });
+        node.addEventListener('dblclick', function() {
+            var targetIdx = parseInt(this.dataset.idx);
+            var targetEntry = entries[targetIdx];
+            if (targetEntry) {
+                var padding = targetEntry.duration * 0.15;
+                viewStart = Math.max(0, targetEntry.start - padding);
+                viewEnd = Math.min(totalDuration, targetEntry.end + padding);
+                render();
+            }
+        });
+    });
+}
+
+function clearComponentTree() {
+    const container = document.getElementById('component-tree');
+    if (container) container.innerHTML = '';
+    if (treeHoverIdx !== null) {
+        treeHoverIdx = null;
+        renderFlameChart();
+    }
 }
 
 function showDetail(entry) {
@@ -1122,23 +1461,15 @@ function showDetail(entry) {
 
     grid.innerHTML = `
         <div class="detail-label">Name</div>
-        <div class="detail-value">${entry.name}</div>
-        <div class="detail-label">Strategy</div>
-        <div class="detail-value"><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${c.bg};margin-right:6px;vertical-align:middle;"></span>${stratLabel}</div>
+        <div class="detail-value"><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${c.bg};margin-right:6px;vertical-align:middle;"></span>${entry.name}</div>
         ${fileRow}
         <div class="detail-label">Total time</div>
         <div class="detail-value">${fmtMs(entry.duration)}</div>
         <div class="detail-label">Self time</div>
-        <div class="detail-value" style="color:var(--orange)">${fmtMs(selfTime)}</div>
-        <div class="detail-label">Start offset</div>
-        <div class="detail-value">${fmtMs(entry.start)}</div>
-        <div class="detail-label">Depth</div>
-        <div class="detail-value">${entry.depth}</div>
-        <div class="detail-label">Children</div>
-        <div class="detail-value">${entry.children}</div>
-        <div class="detail-label">% of render</div>
-        <div class="detail-value">${((entry.duration / totalDuration) * 100).toFixed(1)}%</div>
+        <div class="detail-value">${fmtMs(selfTime)}</div>
     `;
+
+    renderComponentTree(entry);
 }
 
 function showClusterDetail(cluster) {
@@ -1158,7 +1489,7 @@ function showClusterDetail(cluster) {
     let namesHtml = '';
     const sortedNames = Object.entries(cluster.names).sort((a, b) => b[1] - a[1]).slice(0, 5);
     for (const [name, count] of sortedNames) {
-        namesHtml += `<span style="color:var(--text-dim)">${name}</span> <span style="color:var(--text)">${count}\u00d7</span><br>`;
+        namesHtml += `<span style="color:var(--text)">${name}</span> <span style="color:var(--text-dim)">${count}\u00d7</span><br>`;
     }
     if (uniqueNames.length > 5) {
         namesHtml += `<span style="color:var(--text-muted)">+${uniqueNames.length - 5} more</span>`;
@@ -1167,23 +1498,17 @@ function showClusterDetail(cluster) {
     grid.innerHTML = `
         <div class="detail-label">Type</div>
         <div class="detail-value" style="color:var(--orange)">Cluster</div>
-        <div class="detail-label">Components</div>
-        <div class="detail-value">${cluster.count}</div>
-        <div class="detail-label">Unique</div>
-        <div class="detail-value">${uniqueNames.length}</div>
         <div class="detail-label">Total time</div>
         <div class="detail-value">${fmtMs(cluster.totalDuration)}</div>
-        <div class="detail-label">Avg time</div>
-        <div class="detail-value" style="color:var(--orange)">${fmtMs(avgDuration)}</div>
         <div class="detail-label">Span</div>
         <div class="detail-value">${fmtMs(clusterSpan)}</div>
-        <div class="detail-label">Depth</div>
-        <div class="detail-value">${cluster.depth}</div>
-        <div class="detail-label">Strategies</div>
-        <div class="detail-value">${stratHtml}</div>
         <div class="detail-label">Top names</div>
         <div class="detail-value">${namesHtml}</div>
+        <div class="detail-label">Strategies</div>
+        <div class="detail-value">${stratHtml}</div>
     `;
+
+    renderClusterTree(cluster);
 }
 
 // ─── Rendering ──────────────────────────────────────────────────────
@@ -1412,7 +1737,8 @@ function drawEntry(ctx, e, w, viewDuration, nextStart) {
     const isHovered = hovered && hovered.type === 'entry' && hovered.entry === e;
     const isActive = active && active.type === 'entry' && active.entry === e;
     const isSearchMatch = searchQuery && e._idx !== undefined && searchMatches.has(e._idx);
-    const isDimmed = searchQuery && !isSearchMatch;
+    const isTreeTarget = treeHoverIdx !== null && e._idx === treeHoverIdx;
+    const isDimmed = (searchQuery && !isSearchMatch) || (treeHoverIdx !== null && !isTreeTarget);
 
     // Clip to rounded rect — fill + border drawn inside so nothing bleeds out
     ctx.save();
@@ -1421,20 +1747,20 @@ function drawEntry(ctx, e, w, viewDuration, nextStart) {
 
     // Solid background fill
     ctx.fillStyle = c.bg;
-    ctx.globalAlpha = isDimmed ? 0.12 : (isActive ? 0.35 : (isHovered ? 0.65 : 0.5));
+    ctx.globalAlpha = isDimmed ? 0.12 : (isHovered ? 0.65 : 0.5);
     ctx.fillRect(x, y, bw, ROW_H);
 
     // Border (inside clip, lineWidth doubled so inner half = 1px visible)
     ctx.strokeStyle = c.bg;
     ctx.lineWidth = 2;
-    ctx.globalAlpha = isDimmed ? 0.2 : (isActive ? 0.45 : (isHovered ? 0.85 : 0.6));
+    ctx.globalAlpha = isDimmed ? 0.2 : (isHovered ? 0.85 : 0.6);
     roundRect(ctx, x, y, bw, ROW_H, 4);
     ctx.stroke();
 
     ctx.restore();
 
-    // Search match highlight ring
-    if (isSearchMatch) {
+    // Search match / active selection / tree hover highlight ring
+    if (isSearchMatch || isActive || isTreeTarget) {
         ctx.strokeStyle = '#FF8602';
         ctx.lineWidth = 2;
         ctx.globalAlpha = 0.9;
@@ -1454,7 +1780,7 @@ function drawEntry(ctx, e, w, viewDuration, nextStart) {
     ctx.globalAlpha = 1;
 
     // Text label
-    if (bw > 40) {
+    if (bw > 48) {
         ctx.fillStyle = c.text;
         ctx.font = '600 11px "Roboto Mono", ui-monospace, monospace';
         ctx.textBaseline = 'middle';
@@ -1489,11 +1815,12 @@ function drawCluster(ctx, item, w, viewDuration, nextStart) {
     let bw = Math.max(x2 - x, 2);
     const y = 8 + item.depth * ROW_FULL;
     const isHovered = hovered === item;
-    const isActive = active === item;
+    const isActive = active === item || (active && active.type === 'entry' && active.entry._idx !== undefined && item.indices && item.indices.has(active.entry._idx));
 
     // Check if any name in the cluster matches the search
     const hasSearchMatch = searchQuery && Object.keys(item.names).some(n => n.toLowerCase().includes(searchQuery));
-    const isDimmed = searchQuery && !hasSearchMatch;
+    const isTreeTarget = treeHoverIdx !== null && item.indices && item.indices.has(treeHoverIdx);
+    const isDimmed = (searchQuery && !hasSearchMatch) || (treeHoverIdx !== null && !isTreeTarget);
 
     const dom = clusterDominantStrategy(item.strategies);
     const c = colorFor(dom);
@@ -1505,20 +1832,20 @@ function drawCluster(ctx, item, w, viewDuration, nextStart) {
 
     // Solid background fill
     ctx.fillStyle = c.bg;
-    ctx.globalAlpha = isDimmed ? 0.12 : (isActive ? 0.35 : (isHovered ? 0.65 : 0.5));
+    ctx.globalAlpha = isDimmed ? 0.12 : (isHovered ? 0.65 : 0.5);
     ctx.fillRect(x, y, bw, ROW_H);
 
     // Border (inside clip, lineWidth doubled so inner half = 1px visible)
     ctx.strokeStyle = c.bg;
     ctx.lineWidth = 2;
-    ctx.globalAlpha = isDimmed ? 0.2 : (isActive ? 0.45 : (isHovered ? 0.85 : 0.6));
+    ctx.globalAlpha = isDimmed ? 0.2 : (isHovered ? 0.85 : 0.6);
     roundRect(ctx, x, y, bw, ROW_H, 4);
     ctx.stroke();
 
     ctx.restore();
 
-    // Search match highlight ring
-    if (hasSearchMatch) {
+    // Search match / active selection / tree hover highlight ring
+    if (hasSearchMatch || isActive || isTreeTarget) {
         ctx.strokeStyle = '#FF8602';
         ctx.lineWidth = 2;
         ctx.globalAlpha = 0.9;
@@ -1752,7 +2079,11 @@ function handleHover(ev) {
 
     if (mx < 0 || mx > rect.width || ev.clientY < rect.top || ev.clientY > rect.bottom) {
         $tooltip.style.display = 'none';
-        hovered = null;
+        if (hovered) {
+            hovered = null;
+            if (!active) clearDetail();
+            renderFlameChart();
+        }
         return;
     }
 
@@ -1857,6 +2188,7 @@ function handleHover(ev) {
     } else {
         $tooltip.style.display = 'none';
         hovered = null;
+        if (!active) clearDetail();
     }
 
     if (prevHovered !== hovered) {
