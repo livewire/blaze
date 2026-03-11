@@ -126,12 +126,6 @@ class BlazeManager
 
         $output = $this->blade->restoreRawBlocks($output);
 
-        try {
-            $this->renderer->deleteTemporaryCacheDirectory();
-        } catch (\Throwable $e) {
-            //
-        }
-
         return $output;
     }
 
@@ -420,7 +414,7 @@ class BlazeManager
     {
         foreach ($node->children as $child) {
             if ($child instanceof ComponentNode) {
-                $source = new ComponentSource($this->blade->componentNameToPath($child->name));
+                $source = ComponentSource::for($this->blade->componentNameToPath($child->name));
 
                 if (str_ends_with($child->name, 'delegate-component')) {
                     return true;

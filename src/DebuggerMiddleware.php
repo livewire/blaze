@@ -46,9 +46,10 @@ class DebuggerMiddleware
         $debugger = app('blaze.debugger');
         $debugger->setBlazeEnabled($isBlaze);
 
+        /** @var Response $response */
         $response = $next($request);
 
-        if ($response->status() === 200) {
+        if ($response->getStatusCode() === 200) {
             $this->storeProfilerTrace($url, $debugger, $isBlaze);
             $this->injectDebugger($response, $debugger);
         }

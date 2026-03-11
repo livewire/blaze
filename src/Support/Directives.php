@@ -10,12 +10,19 @@ use Livewire\Blaze\Compiler\DirectiveCompiler;
  */
 class Directives
 {
-    public function __construct(
-        protected string $content,
-    ) {
+    /** @var array<string, string|null> */
+    protected array $parsed;
+
+    protected string $content;
+
+    public function __construct(string $content)
+    {
+        $this->content = $content;
         $this->content = preg_replace(LaravelRegex::BLADE_COMMENT, '', $this->content);
         $this->content = preg_replace(LaravelRegex::VERBATIM_BLOCK, '', $this->content);
         $this->content = preg_replace(LaravelRegex::PHP_BLOCK, '', $this->content);
+
+        $this->parsed = $this->parseKnownDirectives();
     }
 
     /**
@@ -23,15 +30,9 @@ class Directives
      */
     public function has(string $name): bool
     {
-        $result = false;
-        
-        DirectiveCompiler::make()->directive($name, function () use (&$result) {
-            $result = true;
+        $this->resolveIfNeeded($name);
 
-            return '';
-        })->compile($this->content);
-        
-        return $result;
+        return $this->parsed[$name] !== null;
     }
 
     /**
@@ -39,15 +40,9 @@ class Directives
      */
     public function get(string $name): ?string
     {
-        $result = null;
+        $this->resolveIfNeeded($name);
 
-        DirectiveCompiler::make()->directive($name, function ($expression) use (&$result) {
-            $result = $expression;
-
-            return '';
-        })->compile($this->content);
-        
-        return $result;
+        return $this->parsed[$name];
     }
 
     /**
@@ -58,7 +53,7 @@ class Directives
         if ($expression = $this->get($name)) {
             return ArrayParser::parse($expression);
         }
-        
+
         return null;
     }
 
@@ -90,5 +85,50 @@ class Directives
         }
 
         return null;
+    }
+
+    /**
+     * If a directive hasn't been resolved yet, do a one-off compile
+     * for it and cache the result (or null if absent).
+     */
+    protected function resolveIfNeeded(string $name): void
+    {
+        if (array_key_exists($name, $this->parsed)) {
+            return;
+        }
+
+        $result = null;
+
+        DirectiveCompiler::make()->directive($name, function ($expression) use (&$result) {
+            $result = $expression;
+
+            return '';
+        })->compile($this->content);
+
+        $this->parsed[$name] = $result;
+    }
+
+    /**
+     * Extract all known Blaze directives in a single DirectiveCompiler pass.
+     */
+    protected function parseKnownDirectives(): array
+    {
+        $directives = [];
+
+        $capture = function (string $name) use (&$directives) {
+            return function ($expression) use ($name, &$directives) {
+                $directives[$name] = $expression;
+
+                return '';
+            };
+        };
+
+        DirectiveCompiler::make()
+            ->directive('blaze', $capture('blaze'))
+            ->directive('props', $capture('props'))
+            ->directive('aware', $capture('aware'))
+            ->compile($this->content);
+
+        return $directives;
     }
 }

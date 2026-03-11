@@ -200,7 +200,7 @@ class BlazeAttributeBag extends ComponentAttributeBag
 
             $attr = $key.'="'.str_replace('"', '\\"', trim($value)).'"';
 
-            if (Str::match('/^BLAZE_PLACEHOLDER_[A-Z0-9]+$/', $value)) {
+            if (Str::match('/^BLAZE_PLACEHOLDER_[0-9]+_$/', $value)) {
                 $string .= ' [BLAZE_ATTR:'.$value.']';
             } else {
                 $string .= ' '.$attr;

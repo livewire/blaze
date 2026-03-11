@@ -134,7 +134,7 @@ test('wraps output with aware macros if descendants use aware', function () {
     $node = app(Parser::class)->parse($input)[0];
     $node->hasAwareDescendants = true;
 
-    $foldable = new Foldable($node, new ComponentSource(fixture_path('views/components/foldable/card.blade.php')), app(BladeRenderer::class), app(BladeService::class));
+    $foldable = new Foldable($node, new ComponentSource(fixture_path('views/components/foldable/wrapper.blade.php')), app(BladeRenderer::class), app(BladeService::class));
 
     expect($foldable->fold())->toEqualCollapsingWhitespace(join('', [
         '<?php $__blaze->pushData([\'name\' => \'John\']); $__env->pushConsumableComponentData([\'name\' => \'John\']); ?>',
@@ -149,7 +149,7 @@ test('compiles dynamic attributes in aware macros', function () {
     $node = app(Parser::class)->parse($input)[0];
     $node->hasAwareDescendants = true;
 
-    $foldable = new Foldable($node, new ComponentSource(fixture_path('views/components/foldable/card.blade.php')), app(BladeRenderer::class), app(BladeService::class));
+    $foldable = new Foldable($node, new ComponentSource(fixture_path('views/components/foldable/wrapper.blade.php')), app(BladeRenderer::class), app(BladeService::class));
 
     expect($foldable->fold())->toEqualCollapsingWhitespace(join('', [
         '<?php $__blaze->pushData([\'name\' => $name]); $__env->pushConsumableComponentData([\'name\' => $name]); ?>',
@@ -164,7 +164,7 @@ test('compiles echo attributes in aware macros', function () {
     $node = app(Parser::class)->parse($input)[0];
     $node->hasAwareDescendants = true;
 
-    $foldable = new Foldable($node, new ComponentSource(fixture_path('views/components/foldable/card.blade.php')), app(BladeRenderer::class), app(BladeService::class));
+    $foldable = new Foldable($node, new ComponentSource(fixture_path('views/components/foldable/wrapper.blade.php')), app(BladeRenderer::class), app(BladeService::class));
 
     expect($foldable->fold())->toEqualCollapsingWhitespace(join('', [
         '<?php $__blaze->pushData([\'name\' => \'Mr. \'.e($name)]); $__env->pushConsumableComponentData([\'name\' => \'Mr. \'.e($name)]); ?>',

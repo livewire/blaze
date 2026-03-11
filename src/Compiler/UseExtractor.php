@@ -4,7 +4,7 @@ namespace Livewire\Blaze\Compiler;
 
 use PhpParser\Node\Stmt\GroupUse;
 use PhpParser\Node\Stmt\Use_;
-use PhpParser\ParserFactory;
+use PhpParser\Parser;
 
 /**
  * Extracts use statements from raw PHP blocks in compiled templates.
@@ -24,10 +24,8 @@ class UseExtractor
             $inner = $isDirective ? $match[2] : $match[1];
             $block = '<?php' . $inner;
 
-            $parser = (new ParserFactory)->createForNewestSupportedVersion();
-
             try {
-                $ast = $parser->parse($block);
+                $ast = app(Parser::class)->parse($block);
             } catch (\Throwable) {
                 return $match[0];
             }

@@ -4,7 +4,6 @@ namespace Livewire\Blaze\Compiler;
 
 use Closure;
 use Illuminate\Support\Str;
-use Livewire\Blaze\Blaze;
 use Livewire\Blaze\BlazeManager;
 use Livewire\Blaze\Parser\Nodes\SlotNode;
 
@@ -26,27 +25,26 @@ class SlotCompiler
      */
     public function compile(string $slotsVariableName, array $children): string
     {
-        $output = [];
+        $output = '';
 
         // Compile implicit default slot from loose content (non-SlotNode children)
         if (! $this->hasExplicitDefaultSlot($children)) {
-            $output[] = $this->compileSlot('slot', $this->renderLooseContent($children), '[]', $slotsVariableName);
+            $output .= $this->compileSlot('slot', $this->renderLooseContent($children), '[]', $slotsVariableName) . "\n";
         }
 
         // Compile each named slot
         foreach ($children as $child) {
             if ($child instanceof SlotNode) {
-                $output[] = $this->compileSlot(
+                $output .= $this->compileSlot(
                     $this->resolveSlotName($child),
                     $this->renderChildren($child->children),
                     $this->compileSlotAttributes($child),
                     $slotsVariableName,
-                );
+                ) . "\n";
             }
         }
 
-        return '<' . '?php ' . $slotsVariableName . ' = []; ?>' . "\n"
-            . implode("\n", $output);
+        return $output;
     }
 
     /**

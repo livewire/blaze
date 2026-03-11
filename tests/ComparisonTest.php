@@ -91,3 +91,12 @@ test('foldable boolean attributes', fn () => compare(<<<'BLADE'
     BLADE,
     ['readonly' => false],
 ));
+
+test('same component in a slot doesnt affect parents attributes', fn () => compare(<<<'BLADE'
+    <x-card>
+        <x-card x-data>
+            Hello World
+        </x-card>
+    </x-card>
+    BLADE
+));

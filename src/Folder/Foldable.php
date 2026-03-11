@@ -21,6 +21,7 @@ class Foldable
 {
     protected array $attributeByPlaceholder = [];
     protected array $slotByPlaceholder = [];
+    protected int $placeholderIndex = 0;
 
     protected ComponentNode $renderable;
     protected string $html;
@@ -51,7 +52,7 @@ class Foldable
         $this->setupSlots();
         $this->mergeAwareProps();
 
-        $this->html = $this->renderer->render($this->renderable->render());
+        $this->html = $this->renderer->render($this->renderable, $this->source);
         
         $this->processUncompiledAttributes();
         $this->restorePlaceholders();
@@ -67,7 +68,7 @@ class Foldable
     {
         foreach ($this->node->attributes as $key => $attribute) {
             if (! $attribute->isStaticValue()) {
-                $placeholder = 'BLAZE_PLACEHOLDER_' . strtoupper(str()->random());
+                $placeholder = 'BLAZE_PLACEHOLDER_' . $this->placeholderIndex++ . '_';
 
                 $this->attributeByPlaceholder[$placeholder] = $attribute;
 
@@ -95,7 +96,7 @@ class Foldable
 
         foreach ($this->node->children as $child) {
             if ($child instanceof SlotNode) {
-                $placeholder = 'BLAZE_PLACEHOLDER_' . strtoupper(str()->random());
+                $placeholder = 'BLAZE_PLACEHOLDER_' . $this->placeholderIndex++ . '_';
 
                 $this->slotByPlaceholder[$placeholder] = $child;
 
@@ -115,7 +116,7 @@ class Foldable
 
         // Synthesize a default slot from loose content when there's not an explicit one
         if ($looseContent && ! isset($slots['slot'])) {
-            $placeholder = 'BLAZE_PLACEHOLDER_' . strtoupper(str()->random());
+            $placeholder = 'BLAZE_PLACEHOLDER_' . $this->placeholderIndex++ . '_';
 
             $defaultSlot = new SlotNode(
                 name: 'slot',
@@ -160,7 +161,7 @@ class Foldable
                 $attribute = $this->node->parentsAttributes[$prop];
 
                 if (! $attribute->isStaticValue()) {
-                    $placeholder = 'BLAZE_PLACEHOLDER_' . strtoupper(str()->random());
+                    $placeholder = 'BLAZE_PLACEHOLDER_' . $this->placeholderIndex++ . '_';
 
                     $this->attributeByPlaceholder[$placeholder] = $attribute;
 
@@ -201,7 +202,7 @@ class Foldable
      */
     protected function processUncompiledAttributes(): void
     {
-        $this->html = preg_replace_callback('/\[BLAZE_ATTR:(BLAZE_PLACEHOLDER_[A-Z0-9]+)\](\r?\n)?/', function ($matches) {
+        $this->html = preg_replace_callback('/\[BLAZE_ATTR:(BLAZE_PLACEHOLDER_[0-9]+_)\](\r?\n)?/', function ($matches) {
             $attribute = $this->attributeByPlaceholder[$matches[1]];
 
             if ($attribute->bound()) {

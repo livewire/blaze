@@ -15,6 +15,7 @@ use Livewire\Blaze\BladeService;
 use Livewire\Blaze\BlazeManager;
 use Illuminate\Support\Arr;
 use Livewire\Blaze\Config;
+use Throwable;
 
 /**
  * Determines whether a component should be folded and orchestrates the folding process.
@@ -40,7 +41,7 @@ class Folder
 
         $component = $node;
 
-        $source = new ComponentSource($this->blade->componentNameToPath($component->name));
+        $source = ComponentSource::for($this->blade->componentNameToPath($component->name));
 
         if (! $source->exists()) {
             return $component;
@@ -68,9 +69,9 @@ class Folder
             ));
 
             return new TextNode('<?php ob_start(); ?>' . $html . '<?php echo ltrim(ob_get_clean()); ?>');
-        } catch (\Exception $e) {
+        } catch (Throwable $th) {
             if ($this->manager->shouldThrow()) {
-                throw $e;
+                throw $th;
             }
 
             return $node;
@@ -179,7 +180,7 @@ class Folder
     protected function checkProblematicPatterns(ComponentSource $source): void
     {
         // @unblaze blocks can contain dynamic content and are excluded from validation
-        $sourceWithoutUnblaze = preg_replace('/@unblaze.*?@endunblaze/s', '', $source->content);
+        $sourceWithoutUnblaze = preg_replace('/@unblaze.*?@endunblaze/s', '', $source->content());
 
         $problematicPatterns = [
             '@once' => 'forOnce',
