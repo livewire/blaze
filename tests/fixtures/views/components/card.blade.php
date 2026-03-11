@@ -2,4 +2,4 @@
 
 @props([])
 
-<div>{{ $header ?? '' }} {{ $slot ?? '' }} {{ $footer ?? '' }}</div>
+<div {{ $attributes }}>{{ $header ?? '' }} {{ $slot ?? '' }} {{ $footer ?? '' }}</div>

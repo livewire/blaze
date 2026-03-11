@@ -43,14 +43,18 @@ test('compiles slots', function () {
 
     expect($compiled->render())->toEqualCollapsingWhitespace(join('', [
         '<?php $__blaze->ensureRequired(\''. $path .'\', $__blaze->compiledPath.\'/'. $hash .'.php\'); ?> ',
+        '<?php if (isset($__slots'. $hash .')) $__slotsOriginal = $__slots'. $hash .'; ?> ',
+        '<?php if (isset($__attrs'. $hash .')) $__attrsOriginal = $__attrs'. $hash .'; ?> ',
         '<?php $__attrs'. $hash .' = []; ?> ',
         '<?php $__blaze->pushData($__attrs'. $hash .'); ?> ',
-        '<?php $slots'. $hash .' = []; ?> ',
-        '<?php ob_start(); ?> Body <?php $slots'. $hash .'[\'slot\'] = new \Illuminate\View\ComponentSlot(trim(ob_get_clean()), []); ?> ',
-        '<?php ob_start(); ?> Header <?php $slots'. $hash .'[\'header\'] = new \Illuminate\View\ComponentSlot(trim(ob_get_clean()), [\'class\' => \'p-2\']); ?> ',
-        '<?php ob_start(); ?> Footer <?php $slots'. $hash .'[\'footer\'] = new \Illuminate\View\ComponentSlot(trim(ob_get_clean()), [\'class\' => \'mt-4\']); ?> ',
-        '<?php $__blaze->pushSlots($slots'. $hash .'); ?> ',
-        '<?php _'. $hash .'($__blaze, $__attrs'. $hash .', $slots'. $hash .', [], isset($this) ? $this : null); ?> ',
+        '<?php $__slots'. $hash .' = []; ?> ',
+        '<?php ob_start(); ?> Body <?php $__slots'. $hash .'[\'slot\'] = new \Illuminate\View\ComponentSlot(trim(ob_get_clean()), []); ?> ',
+        '<?php ob_start(); ?> Header <?php $__slots'. $hash .'[\'header\'] = new \Illuminate\View\ComponentSlot(trim(ob_get_clean()), [\'class\' => \'p-2\']); ?> ',
+        '<?php ob_start(); ?> Footer <?php $__slots'. $hash .'[\'footer\'] = new \Illuminate\View\ComponentSlot(trim(ob_get_clean()), [\'class\' => \'mt-4\']); ?> ',
+        '<?php $__blaze->pushSlots($__slots'. $hash .'); ?> ',
+        '<?php _'. $hash .'($__blaze, $__attrs'. $hash .', $__slots'. $hash .', [], isset($this) ? $this : null); ?> ',
+        '<?php if (isset($__slotsOriginal)) {$__slots'. $hash .' = $__slotsOriginal; unset($__slotsOriginal); } ?> ',
+        '<?php if (isset($__attrsOriginal)) {$__attrs'. $hash .' = $__attrsOriginal; unset($__attrsOriginal); } ?> ',
         '<?php $__blaze->popData(); ?>',
     ]));
 });

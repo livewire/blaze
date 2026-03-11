@@ -97,7 +97,6 @@ class Compiler
     {
         $hash = Utils::hash($source->path);
         $functionName = ($this->manager->isFolding() ? '__' : '_') . $hash;
-        $slotsVariableName = '$slots' . $hash;
         [$attributesArrayString, $boundKeysArrayString] = $this->getAttributesAndBoundKeysArrayStrings($node->attributeString);
 
         $output = '<' . '?php $__blaze->ensureRequired(\'' . $source->path . '\', $__blaze->compiledPath.\'/'. $hash . '.php\'); ?>' . "\n";
@@ -106,12 +105,17 @@ class Compiler
             $output .= '<' . '?php $__blaze->pushData(' . $attributesArrayString . '); ?>' . "\n";
             $output .= '<' . '?php ' . $functionName . '($__blaze, ' . $attributesArrayString . ', [], ' . $boundKeysArrayString . ', isset($this) ? $this : null); ?>' . "\n";
         } else {
+            $slotsVariableName = '$__slots' . $hash;
             $attributesVariableName = '$__attrs' . $hash;
+            $output .= '<' . '?php if (isset(' . $slotsVariableName . ')) $__slotsOriginal = ' . $slotsVariableName . '; ?>' . "\n";
+            $output .= '<' . '?php if (isset(' . $attributesVariableName . ')) $__attrsOriginal = ' . $attributesVariableName . '; ?>' . "\n";
             $output .= '<' . '?php ' . $attributesVariableName . ' = ' . $attributesArrayString . '; ?>' . "\n";
             $output .= '<' . '?php $__blaze->pushData(' . $attributesVariableName . '); ?>' . "\n";
             $output .= $this->slotCompiler->compile($slotsVariableName, $node->children) . "\n";
             $output .= '<' . '?php $__blaze->pushSlots(' . $slotsVariableName . '); ?>' . "\n";
             $output .= '<' . '?php ' . $functionName . '($__blaze, ' . $attributesVariableName . ', ' . $slotsVariableName . ', ' . $boundKeysArrayString . ', isset($this) ? $this : null); ?>' . "\n";
+            $output .= '<' . '?php if (isset($__slotsOriginal)) {' . $slotsVariableName . ' = $__slotsOriginal; unset($__slotsOriginal); } ?>' . "\n";
+            $output .= '<' . '?php if (isset($__attrsOriginal)) {' . $attributesVariableName . ' = $__attrsOriginal; unset($__attrsOriginal); } ?>' . "\n";
         }
 
         $output .= '<' . '?php $__blaze->popData(); ?>';
@@ -128,8 +132,6 @@ class Compiler
 
         $output = '<' . '?php $__resolved = $__blaze->resolve(' . $componentName . '); ?>' . "\n";
 
-        $slotsVariableName = '$slots' . hash('xxh128', $componentName);
-
         $functionName = '(\'' . ($this->manager->isFolding() ? '__' : '_') . '\' . $__resolved)';
 
         $output .= '<' . '?php $__blaze->pushData($attributes->all()); ?>' . "\n";
@@ -139,9 +141,12 @@ class Compiler
         if ($node->selfClosing) {
             $output .= '<' . '?php ' . $functionName . '($__blaze, $attributes->all(), $__blaze->mergedComponentSlots(), [], isset($this) ? $this : null); ?>' . "\n";
         } else {
+            $slotsVariableName = '$__slots' . Utils::hash($componentName);
+            $output .= '<' . '?php if (isset(' . $slotsVariableName . ')) $__slotsOriginal = ' . $slotsVariableName . '; ?>' . "\n";
             $output .= $this->slotCompiler->compile($slotsVariableName, $node->children);
             $output .= '<' . '?php ' . $slotsVariableName . ' = array_merge($__blaze->mergedComponentSlots(), ' . $slotsVariableName . '); ?>' . "\n";
             $output .= '<' . '?php ' . $functionName . '($__blaze, $attributes->all(), ' . $slotsVariableName . ', [], isset($this) ? $this : null); ?>' . "\n";
+            $output .= '<' . '?php if (isset($__slotsOriginal)) {' . $slotsVariableName . ' = $__slotsOriginal; unset($__slotsOriginal); } ?>' . "\n";
         }
 
         $output .= '<' . '?php else: ?>' . "\n";
