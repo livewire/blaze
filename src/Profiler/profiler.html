@@ -114,7 +114,7 @@ body {
 }
 
 .header-mode.blaze { background: var(--orange-dim); color: var(--orange); }
-.header-mode.blade { background: var(--blue-dim); color: var(--blue); }
+.header-mode.blade { background: rgba(255, 255, 255, 0.06); color: rgba(255, 255, 255, 0.5); }
 
 /* ── Legend + Controls ────────────────────────────── */
 .controls {
@@ -1160,8 +1160,9 @@ document.getElementById('search-input').addEventListener('input', function(ev) {
 // ─── Header ─────────────────────────────────────────────────────────
 function updateHeader() {
     const modeEl = document.getElementById('hdr-mode');
-    modeEl.textContent = (data.mode || 'blaze').toUpperCase();
-    modeEl.className = 'header-mode ' + (data.mode || 'blaze');
+    const isBlaze = (data.mode || 'blaze') === 'blaze';
+    modeEl.textContent = isBlaze ? 'BLAZE ON' : 'BLAZE OFF';
+    modeEl.className = 'header-mode ' + (isBlaze ? 'blaze' : 'blade');
 }
 
 // ─── Sidebar Stats ──────────────────────────────────────────────────
@@ -1236,8 +1237,14 @@ function updateSidebar() {
             <td class="comp-time">${fmtMs(comp.selfTime)}<div class="heat-bar" style="width:${selfPct}%;background:var(--text-muted);opacity:0.5;margin-left:auto;"></div></td>
         `;
         tr.style.cursor = 'pointer';
-        tr.addEventListener('mouseenter', () => updateSearch(comp.name));
-        tr.addEventListener('mouseleave', () => updateSearch(document.getElementById('search-input').value));
+        tr.addEventListener('mouseenter', () => {
+            updateSearch(comp.name);
+            if (!active) showComponentGroupDetail(comp.name);
+        });
+        tr.addEventListener('mouseleave', () => {
+            updateSearch(document.getElementById('search-input').value);
+            if (!active) clearDetail();
+        });
         tbody.appendChild(tr);
     }
 
@@ -1494,6 +1501,56 @@ function showDetail(entry) {
     `;
 
     renderComponentTree(entry);
+}
+
+function showComponentGroupDetail(name) {
+    const matching = entries.filter(e => e.name === name);
+    if (!matching.length) return;
+
+    const grid = document.getElementById('detail-grid');
+
+    const count = matching.length;
+    const totalTime = matching.reduce((s, e) => s + e.duration, 0);
+    const totalSelf = matching.reduce((s, e) => s + getSelfTime(e), 0);
+    const avgTime = totalTime / count;
+
+    // Strategy breakdown for this component group.
+    const stratCounts = {};
+    for (const e of matching) {
+        const s = e.strategy || 'compiled';
+        stratCounts[s] = (stratCounts[s] || 0) + 1;
+    }
+
+    let stratHtml = '';
+    for (const [s, n] of Object.entries(stratCounts).sort((a, b) => b[1] - a[1])) {
+        const sc = colorFor(s);
+        const sl = STRAT_LABELS[s] || s;
+        stratHtml += `<span style="display:inline-flex;align-items:center;gap:4px;margin-bottom:2px;"><span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:${sc.bg};"></span>${sl} (${n}\u00d7)</span><br>`;
+    }
+
+    const fileRow = matching[0].file
+        ? `<div class="detail-label">File</div><div class="detail-value" style="font-size:10px;word-break:break-all;">${matching[0].file}</div>`
+        : '';
+
+    grid.innerHTML = `
+        <div class="detail-label">Name</div>
+        <div class="detail-value">${name}</div>
+        ${fileRow}
+        <div class="detail-label">Instances</div>
+        <div class="detail-value">${count}</div>
+        <div class="detail-label">Total time</div>
+        <div class="detail-value">${fmtMs(totalTime)}</div>
+        <div class="detail-label">Total self</div>
+        <div class="detail-value">${fmtMs(totalSelf)}</div>
+        <div class="detail-label">Avg time</div>
+        <div class="detail-value">${fmtMs(avgTime)}</div>
+        <div class="detail-label">Avg self</div>
+        <div class="detail-value">${fmtMs(totalSelf / count)}</div>
+        <div class="detail-label">Strategies</div>
+        <div class="detail-value">${stratHtml}</div>
+    `;
+
+    clearComponentTree();
 }
 
 function showClusterDetail(cluster) {
