@@ -444,6 +444,79 @@ body {
     font-family: inherit;
 }
 
+/* ── Component Tree ──────────────────────────────── */
+.component-tree {
+    margin-top: 14px;
+    padding-top: 14px;
+    border-top: 1px solid var(--border);
+}
+
+.tree-title {
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--text-muted);
+    margin-bottom: 8px;
+}
+
+.tree-node {
+    display: flex;
+    align-items: center;
+    padding: 3px 6px;
+    font-size: 11px;
+    font-family: inherit;
+    cursor: pointer;
+    border-radius: 3px;
+    white-space: nowrap;
+    min-height: 22px;
+}
+
+.tree-node:hover {
+    background: rgba(255, 255, 255, 0.04);
+}
+
+.tree-node.is-selected {
+    background: rgba(255, 134, 2, 0.1);
+}
+
+.tree-prefix {
+    color: rgba(255, 255, 255, 0.15);
+    flex-shrink: 0;
+    user-select: none;
+    white-space: pre;
+    font-size: 11px;
+}
+
+.tree-dot {
+    display: inline-block;
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    margin-right: 6px;
+    flex-shrink: 0;
+}
+
+.tree-label {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    color: var(--text-dim);
+    min-width: 0;
+}
+
+.tree-node.is-selected .tree-label {
+    color: var(--orange);
+    font-weight: 600;
+}
+
+.tree-time {
+    margin-left: auto;
+    padding-left: 8px;
+    color: var(--text-muted);
+    font-size: 10px;
+    flex-shrink: 0;
+}
+
 /* ── Tooltip ─────────────────────────────────────── */
 .tooltip {
     position: fixed;
@@ -655,6 +728,7 @@ body {
             <div class="detail-grid" id="detail-grid">
                 <div style="color:var(--text-muted);font-size:11px;grid-column:1/-1;">Hover a component to see details</div>
             </div>
+            <div id="component-tree" class="component-tree"></div>
         </div>
     </div>
 </div>
@@ -698,6 +772,7 @@ let $dragSel = null;    // the drag selection overlay element
 let resizeState = null; // { startY, startH } when resizing sidebar
 let childIndex = null;  // Map<entryIndex, number[]> — indices of direct children
 let selfTimeCache = new Map(); // Map<entryIndex, number> — precomputed self-times
+let parentIndex = new Map();   // Map<entryIndex, entryIndex|null> — parent of each entry
 let pendingRender = null; // requestAnimationFrame handle for batched renders
 let searchQuery = '';     // current component search filter
 let searchMatches = new Set(); // indices of entries matching the search
@@ -965,6 +1040,17 @@ function buildChildIndex() {
         }
         selfTimeCache.set(i, e.duration - childTime);
     }
+
+    // Build parentIndex (reverse of childIndex).
+    parentIndex = new Map();
+    for (let i = 0; i < entries.length; i++) {
+        parentIndex.set(i, null);
+    }
+    for (const [pIdx, children] of childIndex) {
+        for (const cIdx of children) {
+            parentIndex.set(cIdx, pIdx);
+        }
+    }
 }
 
 function getSelfTime(entry) {
@@ -1106,6 +1192,105 @@ function updateSidebar() {
 function clearDetail() {
     document.getElementById('detail-grid').innerHTML =
         '<div style="color:var(--text-muted);font-size:11px;grid-column:1/-1;">Hover a component to see details</div>';
+    clearComponentTree();
+}
+
+// ─── Component Tree ─────────────────────────────────────────────────
+function getAncestorChain(entryIdx) {
+    const chain = [];
+    let idx = parentIndex.get(entryIdx);
+    while (idx !== null && idx !== undefined) {
+        chain.unshift(idx);
+        idx = parentIndex.get(idx);
+    }
+    return chain;
+}
+
+function renderComponentTree(entry) {
+    const container = document.getElementById('component-tree');
+    if (!container || entry._idx === undefined) {
+        if (container) container.innerHTML = '';
+        return;
+    }
+
+    const ancestors = getAncestorChain(entry._idx);
+    const children = childIndex.get(entry._idx) || [];
+
+    let html = '<div class="tree-title">Component Tree</div>';
+
+    // Render ancestor chain (root > ... > parent)
+    for (let i = 0; i < ancestors.length; i++) {
+        const e = entries[ancestors[i]];
+        const c = colorFor(e.strategy);
+        const prefix = i === 0 ? '' : '   '.repeat(i - 1) + '\u2514\u2500 ';
+
+        html += '<div class="tree-node" data-idx="' + e._idx + '">' +
+            '<span class="tree-prefix">' + prefix + '</span>' +
+            '<span class="tree-dot" style="background:' + c.bg + '"></span>' +
+            '<span class="tree-label" title="' + e.name + '">' + e.name + '</span>' +
+            '<span class="tree-time">' + fmtMs(e.duration) + '</span>' +
+            '</div>';
+    }
+
+    // Render selected entry (highlighted)
+    {
+        const c = colorFor(entry.strategy);
+        const depth = ancestors.length;
+        const prefix = depth === 0 ? '' : '   '.repeat(depth - 1) + '\u2514\u2500 ';
+
+        html += '<div class="tree-node is-selected" data-idx="' + entry._idx + '">' +
+            '<span class="tree-prefix">' + prefix + '</span>' +
+            '<span class="tree-dot" style="background:' + c.bg + '"></span>' +
+            '<span class="tree-label" title="' + entry.name + '">' + entry.name + '</span>' +
+            '<span class="tree-time">' + fmtMs(entry.duration) + '</span>' +
+            '</div>';
+    }
+
+    // Render direct children
+    const maxShow = 15;
+    const shown = children.slice(0, maxShow);
+    const baseIndent = '   '.repeat(ancestors.length);
+
+    for (let i = 0; i < shown.length; i++) {
+        const e = entries[shown[i]];
+        const c = colorFor(e.strategy);
+        const isLast = i === shown.length - 1 && children.length <= maxShow;
+        const connector = isLast ? '\u2514\u2500 ' : '\u251C\u2500 ';
+
+        html += '<div class="tree-node" data-idx="' + e._idx + '">' +
+            '<span class="tree-prefix">' + baseIndent + connector + '</span>' +
+            '<span class="tree-dot" style="background:' + c.bg + '"></span>' +
+            '<span class="tree-label" title="' + e.name + '">' + e.name + '</span>' +
+            '<span class="tree-time">' + fmtMs(e.duration) + '</span>' +
+            '</div>';
+    }
+
+    if (children.length > maxShow) {
+        html += '<div style="padding:3px 6px;white-space:nowrap;">' +
+            '<span class="tree-prefix">' + baseIndent + '\u2514\u2500 </span>' +
+            '<span style="color:var(--text-muted);font-size:10px;">+' + (children.length - maxShow) + ' more</span>' +
+            '</div>';
+    }
+
+    container.innerHTML = html;
+
+    // Click handlers for tree navigation
+    container.querySelectorAll('.tree-node[data-idx]').forEach(function(node) {
+        node.addEventListener('click', function() {
+            var targetIdx = parseInt(this.dataset.idx);
+            var targetEntry = entries[targetIdx];
+            if (targetEntry) {
+                active = { type: 'entry', entry: targetEntry };
+                showDetail(targetEntry);
+                renderFlameChart();
+            }
+        });
+    });
+}
+
+function clearComponentTree() {
+    const container = document.getElementById('component-tree');
+    if (container) container.innerHTML = '';
 }
 
 function showDetail(entry) {
@@ -1139,6 +1324,8 @@ function showDetail(entry) {
         <div class="detail-label">% of render</div>
         <div class="detail-value">${((entry.duration / totalDuration) * 100).toFixed(1)}%</div>
     `;
+
+    renderComponentTree(entry);
 }
 
 function showClusterDetail(cluster) {
@@ -1184,6 +1371,8 @@ function showClusterDetail(cluster) {
         <div class="detail-label">Top names</div>
         <div class="detail-value">${namesHtml}</div>
     `;
+
+    clearComponentTree();
 }
 
 // ─── Rendering ──────────────────────────────────────────────────────
