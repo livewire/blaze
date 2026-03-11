@@ -492,6 +492,13 @@ body {
     border-radius: 3px;
     white-space: nowrap;
     min-height: 22px;
+    -webkit-user-select: none;
+    user-select: none;
+}
+
+.tree-node * {
+    -webkit-user-select: none;
+    user-select: none;
 }
 
 .tree-node:hover {
@@ -1268,6 +1275,7 @@ function renderComponentTree(entry) {
     const children = childIndex.get(entry._idx) || [];
 
     let html = '<div class="tree-title">Component Tree</div>';
+    html += '<div class="tree-nodes">';
 
     // Render ancestor chain (root > ... > parent)
     for (let i = 0; i < ancestors.length; i++) {
@@ -1323,10 +1331,11 @@ function renderComponentTree(entry) {
             '</div>';
     }
 
+    html += '</div>';
     container.innerHTML = html;
 
     // Hover handlers — dim other components in the flame chart
-    container.addEventListener('mouseleave', function() {
+    container.querySelector('.tree-nodes').addEventListener('mouseleave', function() {
         if (treeHoverIdx !== null) {
             treeHoverIdx = null;
             renderFlameChart();
@@ -1376,6 +1385,7 @@ function renderClusterTree(cluster) {
     const ancestors = getAncestorChain(sampleIdx);
 
     let html = '<div class="tree-title">Component Tree</div>';
+    html += '<div class="tree-nodes">';
 
     // Render ancestor chain
     for (let i = 0; i < ancestors.length; i++) {
@@ -1410,10 +1420,11 @@ function renderClusterTree(cluster) {
             '</div>';
     }
 
+    html += '</div>';
     container.innerHTML = html;
 
     // Hover handler — clear when leaving tree
-    container.addEventListener('mouseleave', function() {
+    container.querySelector('.tree-nodes').addEventListener('mouseleave', function() {
         if (treeHoverIdx !== null) {
             treeHoverIdx = null;
             renderFlameChart();
