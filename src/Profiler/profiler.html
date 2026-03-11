@@ -1610,20 +1610,20 @@ function drawEntry(ctx, e, w, viewDuration, nextStart) {
 
     // Solid background fill
     ctx.fillStyle = c.bg;
-    ctx.globalAlpha = isDimmed ? 0.12 : (isActive ? 0.35 : (isHovered ? 0.65 : 0.5));
+    ctx.globalAlpha = isDimmed ? 0.12 : (isHovered ? 0.65 : 0.5);
     ctx.fillRect(x, y, bw, ROW_H);
 
     // Border (inside clip, lineWidth doubled so inner half = 1px visible)
     ctx.strokeStyle = c.bg;
     ctx.lineWidth = 2;
-    ctx.globalAlpha = isDimmed ? 0.2 : (isActive ? 0.45 : (isHovered ? 0.85 : 0.6));
+    ctx.globalAlpha = isDimmed ? 0.2 : (isHovered ? 0.85 : 0.6);
     roundRect(ctx, x, y, bw, ROW_H, 4);
     ctx.stroke();
 
     ctx.restore();
 
-    // Search match highlight ring
-    if (isSearchMatch) {
+    // Search match / active selection highlight ring
+    if (isSearchMatch || isActive) {
         ctx.strokeStyle = '#FF8602';
         ctx.lineWidth = 2;
         ctx.globalAlpha = 0.9;
@@ -1694,20 +1694,20 @@ function drawCluster(ctx, item, w, viewDuration, nextStart) {
 
     // Solid background fill
     ctx.fillStyle = c.bg;
-    ctx.globalAlpha = isDimmed ? 0.12 : (isActive ? 0.35 : (isHovered ? 0.65 : 0.5));
+    ctx.globalAlpha = isDimmed ? 0.12 : (isHovered ? 0.65 : 0.5);
     ctx.fillRect(x, y, bw, ROW_H);
 
     // Border (inside clip, lineWidth doubled so inner half = 1px visible)
     ctx.strokeStyle = c.bg;
     ctx.lineWidth = 2;
-    ctx.globalAlpha = isDimmed ? 0.2 : (isActive ? 0.45 : (isHovered ? 0.85 : 0.6));
+    ctx.globalAlpha = isDimmed ? 0.2 : (isHovered ? 0.85 : 0.6);
     roundRect(ctx, x, y, bw, ROW_H, 4);
     ctx.stroke();
 
     ctx.restore();
 
-    // Search match highlight ring
-    if (hasSearchMatch) {
+    // Search match / active selection highlight ring
+    if (hasSearchMatch || isActive) {
         ctx.strokeStyle = '#FF8602';
         ctx.lineWidth = 2;
         ctx.globalAlpha = 0.9;
