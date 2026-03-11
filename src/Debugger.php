@@ -525,6 +525,7 @@ class Debugger
             }
 
             #blaze-card {
+                position: relative;
                 background: #0b0809;
                 border: 1px solid #1b1b1b;
                 border-radius: 14px;
@@ -557,40 +558,22 @@ class Debugger
     protected function renderCard(array $data): string
     {
         $isBlaze = $data['blazeEnabled'];
-        $accentColor = $isBlaze ? '#FF8602' : '#6366f1';
-        $modeName = $isBlaze ? 'Blaze' : 'Blade';
+        $accentColor = $isBlaze ? '#FF8602' : '#888888';
         $timeFormatted = $this->formatMs($data['totalTime']);
 
-        $timerViewHtml = '';
-        if ($data['timerView']) {
-            $viewName = htmlspecialchars($data['timerView']);
-            $timerViewHtml = '<div style="color: rgba(255,255,255,0.3); font-size: 10px; margin-top: 4px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">' . $viewName . '</div>';
-        }
-
-        $stratHtml = $this->renderCardStrategies($data);
         $slowestHtml = $this->renderCardSlowest($data);
 
-        $componentCount = $data['totalComponents'];
-        $countHtml = $componentCount > 0
-            ? '<span style="color: rgba(255,255,255,0.3); font-weight: 500; font-size: 12px;">&middot; ' . $componentCount . ' components</span>'
-            : '';
+        $statusLabel = $isBlaze ? 'Blaze On' : 'Blaze Off';
 
         return <<<HTML
         <div id="blaze-card">
-            <div style="display: flex; align-items: center; gap: 7px; margin-bottom: 4px;">
-                <span style="color: {$accentColor}; font-weight: 700; font-size: 11px; letter-spacing: 0.05em; text-transform: uppercase;">{$modeName}</span>
-                <button id="blaze-card-close" title="Close" style="margin-left: auto; background: none; border: none; cursor: pointer; color: #555555; padding: 2px; line-height: 1; font-size: 16px; transition: color 0.15s ease;" onmouseover="this.style.color='#ffffff'" onmouseout="this.style.color='#555555'">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6L6 18"/><path d="M6 6l12 12"/></svg>
-                </button>
-            </div>
+            <button id="blaze-card-close" title="Close" style="position: absolute; top: 14px; right: 14px; background: none; border: none; cursor: pointer; color: #555555; padding: 2px; line-height: 1; font-size: 16px; transition: color 0.15s ease;" onmouseover="this.style.color='#ffffff'" onmouseout="this.style.color='#555555'">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6L6 18"/><path d="M6 6l12 12"/></svg>
+            </button>
 
-            <div style="display: flex; align-items: baseline; gap: 8px;">
-                <span style="color: #ffffff; font-weight: 700; font-size: 26px; letter-spacing: -1.5px; line-height: 1; font-variant-numeric: tabular-nums;">{$timeFormatted}</span>
-                {$countHtml}
-            </div>
+            <div style="color: {$accentColor}; font-weight: 700; font-size: 11px; letter-spacing: 0.05em; text-transform: uppercase; margin-bottom: 4px;">{$statusLabel}</div>
+            <span style="color: #ffffff; font-weight: 700; font-size: 26px; letter-spacing: -1.5px; line-height: 1; font-variant-numeric: tabular-nums;">{$timeFormatted}</span>
 
-            {$timerViewHtml}
-            {$stratHtml}
             {$slowestHtml}
 
             <a href="/_blaze/profiler" target="_blank" id="blaze-profiler-link" style="display: flex; align-items: center; gap: 6px; margin-top: 12px; padding: 7px 10px; border-radius: 4px; background: rgba(255,134,2,0.08); border: 1px solid rgba(255,134,2,0.15); color: #FF8602; font-size: 11px; font-weight: 600; text-decoration: none; transition: all 0.15s ease; cursor: pointer;" onmouseover="this.style.background='rgba(255,134,2,0.12)';this.style.borderColor='rgba(255,134,2,0.25)'" onmouseout="this.style.background='rgba(255,134,2,0.08)';this.style.borderColor='rgba(255,134,2,0.15)'">
@@ -602,41 +585,6 @@ class Debugger
         HTML;
     }
 
-    protected function renderCardStrategies(array $data): string
-    {
-        $strategies = $data['strategies'] ?? [];
-
-        if (empty($strategies)) {
-            return '';
-        }
-
-        $colors = [
-            'compiled' => '#FF8602',
-            'folded'   => '#10b981',
-            'memo'     => '#a855f7',
-            'blade'    => '#3b82f6',
-            'view'     => 'rgba(255,255,255,0.3)',
-        ];
-
-        // Sort strategies in a consistent display order.
-        $order = array_flip(array_keys($colors));
-        uksort($strategies, fn ($a, $b) => ($order[$a] ?? 99) <=> ($order[$b] ?? 99));
-
-        $total = array_sum($strategies);
-
-        // Strategy bar segments.
-        $barSegments = '';
-        foreach ($strategies as $strategy => $count) {
-            $pct = round(($count / $total) * 100, 1);
-            $color = $colors[$strategy] ?? $colors['compiled'];
-            $barSegments .= '<div style="width: ' . $pct . '%; background: ' . $color . '; min-width: 2px;"></div>';
-        }
-
-        return <<<HTML
-        <div style="display: flex; height: 4px; border-radius: 2px; overflow: hidden; margin-top: 10px;">{$barSegments}</div>
-        HTML;
-    }
-
     protected function renderCardSlowest(array $data): string
     {
         $components = $data['components'] ?? [];
@@ -645,7 +593,7 @@ class Debugger
             return '';
         }
 
-        $top = array_slice($components, 0, 3);
+        $top = array_slice($components, 0, 5);
 
         $rows = '';
         foreach ($top as $component) {
@@ -662,7 +610,7 @@ class Debugger
         }
 
         return <<<HTML
-        <div style="display: flex; flex-direction: column; gap: 4px; margin-top: 10px; padding-top: 10px; border-top: 1px solid rgba(255,255,255,0.06);">
+        <div style="display: flex; flex-direction: column; gap: 4px; margin-top: 10px;">
             {$rows}
         </div>
         HTML;
