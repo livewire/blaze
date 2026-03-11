@@ -1232,8 +1232,8 @@ function updateSidebar() {
         const tr = document.createElement('tr');
         tr.innerHTML = `
             <td style="color:var(--text-muted);font-size:9px;padding-right:6px;width:16px;">${i + 1}</td>
-            <td class="comp-name" title="${comp.name}"><span class="comp-strat-dot" style="background:var(--orange)"></span>${comp.name}<span style="color:var(--text-muted);font-size:9px;margin-left:4px;">${comp.count}x</span></td>
-            <td class="comp-time">${fmtMs(comp.selfTime)}<div class="heat-bar" style="width:${selfPct}%;background:var(--orange);opacity:0.5;margin-left:auto;"></div></td>
+            <td class="comp-name" title="${comp.name}">${comp.name}<span style="color:var(--text-muted);font-size:9px;margin-left:4px;">${comp.count}x</span></td>
+            <td class="comp-time">${fmtMs(comp.selfTime)}<div class="heat-bar" style="width:${selfPct}%;background:var(--text-muted);opacity:0.5;margin-left:auto;"></div></td>
         `;
         tr.style.cursor = 'pointer';
         tr.addEventListener('mouseenter', () => updateSearch(comp.name));
