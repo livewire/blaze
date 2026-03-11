@@ -741,7 +741,7 @@ function sizeCanvas(canvas, w, h) {
 }
 
 // ─── Clustering ─────────────────────────────────────────────────────
-const CLUSTER_PX = 8; // entries narrower than this (px) get clustered
+const CLUSTER_PX = 2; // entries narrower than this (px) get clustered
 
 function fmtCount(n) {
     if (n >= 1000) return (n / 1000).toFixed(1) + 'k';
@@ -787,7 +787,7 @@ function buildRenderList() {
                 // Too small — add to cluster
                 if (cluster) {
                     const gapPx = ((e.start - cluster.end) / viewDuration) * w;
-                    if (gapPx > CLUSTER_PX * 3) {
+                    if (gapPx > CLUSTER_PX) {
                         list.push(cluster);
                         cluster = null;
                     }
@@ -1454,7 +1454,7 @@ function drawEntry(ctx, e, w, viewDuration, nextStart) {
     ctx.globalAlpha = 1;
 
     // Text label
-    if (bw > 40) {
+    if (bw > 48) {
         ctx.fillStyle = c.text;
         ctx.font = '600 11px "Roboto Mono", ui-monospace, monospace';
         ctx.textBaseline = 'middle';
