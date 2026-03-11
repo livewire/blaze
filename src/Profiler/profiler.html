@@ -1325,6 +1325,83 @@ function renderComponentTree(entry) {
     });
 }
 
+function renderClusterTree(cluster) {
+    const container = document.getElementById('component-tree');
+    if (!container || !cluster.indices || cluster.indices.size === 0) {
+        if (container) container.innerHTML = '';
+        return;
+    }
+
+    // Use the first entry in the cluster to determine ancestry
+    const sampleIdx = cluster.indices.values().next().value;
+    const ancestors = getAncestorChain(sampleIdx);
+
+    let html = '<div class="tree-title">Component Tree</div>';
+
+    // Render ancestor chain
+    for (let i = 0; i < ancestors.length; i++) {
+        const e = entries[ancestors[i]];
+        const c = colorFor(e.strategy);
+        const prefix = i === 0 ? '' : '   '.repeat(i - 1) + '\u2514\u2500 ';
+
+        html += '<div class="tree-node" data-idx="' + e._idx + '">' +
+            '<span class="tree-prefix">' + prefix + '</span>' +
+            '<span class="tree-dot" style="background:' + c.bg + '"></span>' +
+            '<span class="tree-label" title="' + e.name + '">' + e.name + '</span>' +
+            '<span class="tree-time">' + fmtMs(e.duration) + '</span>' +
+            '</div>';
+    }
+
+    // Render cluster as the selected node
+    {
+        const dom = clusterDominantStrategy(cluster.strategies);
+        const c = colorFor(dom);
+        const depth = ancestors.length;
+        const prefix = depth === 0 ? '' : '   '.repeat(depth - 1) + '\u2514\u2500 ';
+        const uniqueNames = Object.keys(cluster.names).length;
+        const label = uniqueNames === 1
+            ? Object.keys(cluster.names)[0] + ' \u00d7' + cluster.count
+            : cluster.count + ' components';
+
+        html += '<div class="tree-node is-selected">' +
+            '<span class="tree-prefix">' + prefix + '</span>' +
+            '<span class="tree-dot" style="background:' + c.bg + '"></span>' +
+            '<span class="tree-label">' + label + '</span>' +
+            '<span class="tree-time">' + fmtMs(cluster.totalDuration) + '</span>' +
+            '</div>';
+    }
+
+    container.innerHTML = html;
+
+    // Hover handler — clear when leaving tree
+    container.addEventListener('mouseleave', function() {
+        if (treeHoverIdx !== null) {
+            treeHoverIdx = null;
+            renderFlameChart();
+        }
+    });
+
+    // Click + hover handlers for ancestor nodes
+    container.querySelectorAll('.tree-node[data-idx]').forEach(function(node) {
+        node.addEventListener('mouseenter', function() {
+            var idx = parseInt(this.dataset.idx);
+            if (treeHoverIdx !== idx) {
+                treeHoverIdx = idx;
+                renderFlameChart();
+            }
+        });
+        node.addEventListener('click', function() {
+            var targetIdx = parseInt(this.dataset.idx);
+            var targetEntry = entries[targetIdx];
+            if (targetEntry) {
+                active = { type: 'entry', entry: targetEntry };
+                showDetail(targetEntry);
+                renderFlameChart();
+            }
+        });
+    });
+}
+
 function clearComponentTree() {
     const container = document.getElementById('component-tree');
     if (container) container.innerHTML = '';
@@ -1413,7 +1490,7 @@ function showClusterDetail(cluster) {
         <div class="detail-value">${namesHtml}</div>
     `;
 
-    clearComponentTree();
+    renderClusterTree(cluster);
 }
 
 // ─── Rendering ──────────────────────────────────────────────────────
