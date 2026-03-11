@@ -449,6 +449,7 @@ body {
     margin-top: 14px;
     padding-top: 14px;
     border-top: 1px solid var(--border);
+    user-select: none;
 }
 
 .tree-title {
@@ -1304,7 +1305,7 @@ function renderComponentTree(entry) {
         }
     });
 
-    // Click + hover handlers for tree navigation
+    // Click + hover + double-click handlers for tree navigation
     container.querySelectorAll('.tree-node[data-idx]').forEach(function(node) {
         node.addEventListener('mouseenter', function() {
             var idx = parseInt(this.dataset.idx);
@@ -1320,6 +1321,16 @@ function renderComponentTree(entry) {
                 active = { type: 'entry', entry: targetEntry };
                 showDetail(targetEntry);
                 renderFlameChart();
+            }
+        });
+        node.addEventListener('dblclick', function() {
+            var targetIdx = parseInt(this.dataset.idx);
+            var targetEntry = entries[targetIdx];
+            if (targetEntry) {
+                var padding = targetEntry.duration * 0.15;
+                viewStart = Math.max(0, targetEntry.start - padding);
+                viewEnd = Math.min(totalDuration, targetEntry.end + padding);
+                render();
             }
         });
     });
@@ -1381,7 +1392,7 @@ function renderClusterTree(cluster) {
         }
     });
 
-    // Click + hover handlers for ancestor nodes
+    // Click + hover + double-click handlers for ancestor nodes
     container.querySelectorAll('.tree-node[data-idx]').forEach(function(node) {
         node.addEventListener('mouseenter', function() {
             var idx = parseInt(this.dataset.idx);
@@ -1397,6 +1408,16 @@ function renderClusterTree(cluster) {
                 active = { type: 'entry', entry: targetEntry };
                 showDetail(targetEntry);
                 renderFlameChart();
+            }
+        });
+        node.addEventListener('dblclick', function() {
+            var targetIdx = parseInt(this.dataset.idx);
+            var targetEntry = entries[targetIdx];
+            if (targetEntry) {
+                var padding = targetEntry.duration * 0.15;
+                viewStart = Math.max(0, targetEntry.start - padding);
+                viewEnd = Math.min(totalDuration, targetEntry.end + padding);
+                render();
             }
         });
     });
