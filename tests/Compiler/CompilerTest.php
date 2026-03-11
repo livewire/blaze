@@ -53,8 +53,8 @@ test('compiles components', function () {
         '<?php $__blaze->pushData($__attrs'. $hash .'); ?> ',
         '<?php $__blaze->pushSlots($__slots'. $hash .'); ?> ',
         '<?php _'. $hash .'($__blaze, $__attrs'. $hash .', $__slots'. $hash .', [], isset($this) ? $this : null); ?> ',
-        '<?php if (isset($__slotsOriginal)) {$__slots'. $hash .' = $__slotsOriginal; unset($__slotsOriginal); } ?> ',
-        '<?php if (isset($__attrsOriginal)) {$__attrs'. $hash .' = $__attrsOriginal; unset($__attrsOriginal); } ?> ',
+        '<?php if (isset($__slotsOriginal)) { $__slots'. $hash .' = $__slotsOriginal; unset($__slotsOriginal); } ?> ',
+        '<?php if (isset($__attrsOriginal)) { $__attrs'. $hash .' = $__attrsOriginal; unset($__attrsOriginal); } ?> ',
         '<?php $__blaze->popData(); ?>',
     ]));
 });
