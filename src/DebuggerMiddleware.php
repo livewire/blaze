@@ -77,14 +77,15 @@ class DebuggerMiddleware
         }
 
         $debugger->store->storeTrace([
-            'url'        => $url,
-            'mode'       => $isBlaze ? 'blaze' : 'blade',
-            'timestamp'  => now()->toIso8601String(),
-            'renderTime' => $trace['totalTime'],
-            'entries'    => $trace['entries'],
-            'memoHits'   => $trace['memoHits'],
+            'url'          => $url,
+            'mode'         => $isBlaze ? 'blaze' : 'blade',
+            'timestamp'    => now()->toIso8601String(),
+            'renderTime'   => $trace['totalTime'],
+            'entries'      => $trace['entries'],
+            'memoHits'     => $trace['memoHits'],
             'memoHitNames' => $trace['memoHitNames'],
-            'debugBar'   => $debugger->getDebugBarData(),
+            'components'   => $trace['components'],
+            'debugBar'     => $debugger->getDebugBarData(),
         ]);
     }
 

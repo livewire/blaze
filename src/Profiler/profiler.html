@@ -793,7 +793,6 @@ let dragState = null;   // { startX, startTime } when drag-selecting
 let $dragSel = null;    // the drag selection overlay element
 let resizeState = null; // { startY, startH } when resizing sidebar
 let childIndex = null;  // Map<entryIndex, number[]> — indices of direct children
-let selfTimeCache = new Map(); // Map<entryIndex, number> — precomputed self-times
 let parentIndex = new Map();   // Map<entryIndex, entryIndex|null> — parent of each entry
 let pendingRender = null; // requestAnimationFrame handle for batched renders
 let searchQuery = '';     // current component search filter
@@ -1085,47 +1084,34 @@ function processData() {
 // ─── Parent-Child Index ─────────────────────────────────────────────
 // Build a Map from entry index → array of direct-child indices.
 // Also precompute self-time for every entry (total - sum of children).
-// This turns every self-time lookup from O(n) to O(1).
+// Build parent-child index for tree navigation.
+// Self-time is pre-computed on the backend (entry.selfTime).
 function buildChildIndex() {
     childIndex = new Map();
-    selfTimeCache = new Map();
 
-    // Assign stable indices and sort by start time.
+    // Assign stable indices.
     for (let i = 0; i < entries.length; i++) {
         entries[i]._idx = i;
         childIndex.set(i, []);
     }
 
     // Stack-based parent assignment in one pass (entries already sorted by start).
-    const stack = []; // stack of entry indices
+    const stack = [];
     for (let i = 0; i < entries.length; i++) {
         const e = entries[i];
 
-        // Pop entries from the stack whose time range has ended.
         while (stack.length && entries[stack[stack.length - 1]].end <= e.start) {
             stack.pop();
         }
 
-        // The top of the stack is the direct parent (deepest ancestor still open).
         if (stack.length) {
             const parentIdx = stack[stack.length - 1];
-            // Only add as direct child if depth is exactly parent + 1
             if (e.depth === entries[parentIdx].depth + 1) {
                 childIndex.get(parentIdx).push(i);
             }
         }
 
         stack.push(i);
-    }
-
-    // Compute self-time for every entry.
-    for (let i = 0; i < entries.length; i++) {
-        const e = entries[i];
-        let childTime = 0;
-        for (const ci of childIndex.get(i)) {
-            childTime += entries[ci].duration;
-        }
-        selfTimeCache.set(i, e.duration - childTime);
     }
 
     // Build parentIndex (reverse of childIndex).
@@ -1141,11 +1127,7 @@ function buildChildIndex() {
 }
 
 function getSelfTime(entry) {
-    if (entry._idx !== undefined && selfTimeCache.has(entry._idx)) {
-        return selfTimeCache.get(entry._idx);
-    }
-    // Fallback (should not happen after buildChildIndex).
-    return entry.duration;
+    return entry.selfTime != null ? entry.selfTime : entry.duration;
 }
 
 // ─── Search ─────────────────────────────────────────────────────────
@@ -1222,69 +1204,38 @@ function updateSidebar() {
         stratRows.appendChild(row);
     }
 
-    // Component table with self-time (multi-column)
+    // Slowest components — uses pre-computed data.components from the backend.
     const slowestContainer = document.getElementById('slowest-columns');
     slowestContainer.innerHTML = '';
 
-    // Compute self-time using precomputed index (O(1) per entry).
-    const selfTimes = {};
-    for (const e of entries) {
-        if (!selfTimes[e.name]) {
-            selfTimes[e.name] = { selfTime: 0, totalTime: 0, count: 0, strategies: {} };
-        }
-        const st = getSelfTime(e);
-        selfTimes[e.name].totalTime += e.duration;
-        selfTimes[e.name].count++;
-        selfTimes[e.name].selfTime += st;
-        selfTimes[e.name].strategies[e.strategy] = (selfTimes[e.name].strategies[e.strategy] || 0) + st;
+    const components = data.components || [];
+    if (!components.length) return;
+
+    const maxSelfTime = Math.max(components[0].selfTime, 0.001);
+
+    const table = document.createElement('table');
+    table.className = 'comp-table';
+    table.innerHTML = `<thead><tr><th>#</th><th>Component</th><th style="text-align:right;">Self</th></tr></thead>`;
+    const tbody = document.createElement('tbody');
+
+    for (let i = 0; i < components.length; i++) {
+        const comp = components[i];
+        const selfPct = (comp.selfTime / maxSelfTime) * 100;
+
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+            <td style="color:var(--text-muted);font-size:9px;padding-right:6px;width:16px;">${i + 1}</td>
+            <td class="comp-name" title="${comp.name}"><span class="comp-strat-dot" style="background:var(--orange)"></span>${comp.name}<span style="color:var(--text-muted);font-size:9px;margin-left:4px;">${comp.count}x</span></td>
+            <td class="comp-time">${fmtMs(comp.selfTime)}<div class="heat-bar" style="width:${selfPct}%;background:var(--orange);opacity:0.5;margin-left:auto;"></div></td>
+        `;
+        tr.style.cursor = 'pointer';
+        tr.addEventListener('mouseenter', () => updateSearch(comp.name));
+        tr.addEventListener('mouseleave', () => updateSearch(document.getElementById('search-input').value));
+        tbody.appendChild(tr);
     }
 
-    const maxSelfTime = Math.max(...Object.values(selfTimes).map(s => s.selfTime), 0.001);
-    const sorted = Object.entries(selfTimes).sort((a, b) => b[1].selfTime - a[1].selfTime);
-
-    const colCount = 1;
-    const perCol = Math.ceil(sorted.length / colCount);
-
-    for (let col = 0; col < colCount; col++) {
-        const slice = sorted.slice(col * perCol, (col + 1) * perCol);
-        if (!slice.length) break;
-
-        const table = document.createElement('table');
-        table.className = 'comp-table';
-        const rank = col * perCol;
-        table.innerHTML = `<thead><tr><th>#</th><th>Component</th><th style="text-align:right;">Self</th></tr></thead>`;
-        const tbody = document.createElement('tbody');
-
-        for (let i = 0; i < slice.length; i++) {
-            const [name, info] = slice[i];
-            // Dominant strategy = highest self-time contribution
-            const stratSorted = Object.entries(info.strategies).sort((a, b) => b[1] - a[1]);
-            const domColor = colorFor(stratSorted[0][0]);
-            const selfPct = (info.selfTime / maxSelfTime) * 100;
-
-            // Build multi-segment breakdown bar
-            let barSegments = '';
-            for (const [s, time] of stratSorted) {
-                const sc = colorFor(s);
-                const segPct = (time / info.selfTime) * 100;
-                barSegments += '<div style="background:' + sc.bg + ';width:' + segPct + '%;height:100%;"></div>';
-            }
-
-            const tr = document.createElement('tr');
-            tr.innerHTML = `
-                <td style="color:var(--text-muted);font-size:9px;padding-right:6px;width:16px;">${rank + i + 1}</td>
-                <td class="comp-name" title="${name}"><span class="comp-strat-dot" style="background:${domColor.bg}"></span>${name}<span style="color:var(--text-muted);font-size:9px;margin-left:4px;">${info.count}x</span></td>
-                <td class="comp-time">${fmtMs(info.selfTime)}<div class="heat-bar" style="width:${selfPct}%;display:flex;overflow:hidden;opacity:0.5;margin-left:auto;">${barSegments}</div></td>
-            `;
-            tr.style.cursor = 'pointer';
-            tr.addEventListener('mouseenter', () => updateSearch(name));
-            tr.addEventListener('mouseleave', () => updateSearch(document.getElementById('search-input').value));
-            tbody.appendChild(tr);
-        }
-
-        table.appendChild(tbody);
-        slowestContainer.appendChild(table);
-    }
+    table.appendChild(tbody);
+    slowestContainer.appendChild(table);
 
 }
 

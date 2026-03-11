@@ -12,8 +12,6 @@ class Debugger
 
     protected ?string $timerView = null;
 
-    protected array $components = [];
-
     protected int $bladeComponentCount = 0;
 
     protected array $bladeComponents = [];
@@ -28,6 +26,7 @@ class Debugger
     protected ?float $traceOrigin = null;
     protected int $memoHits = 0;
     protected array $memoHitNames = [];
+    protected ?array $traceDataCache = null;
 
     public readonly DebuggerStore $store;
 
@@ -127,9 +126,6 @@ class Debugger
         }
 
         $this->traceEntries[] = $entry;
-
-        // Also feed the debug bar.
-        $this->recordComponent($entry['name'], $entry['duration'] / 1000);
     }
 
     /**
@@ -175,20 +171,111 @@ class Debugger
     }
 
     /**
-     * Get profiler trace entries and summary data for the profiler page.
+     * Get profiler trace entries and summary data.
+     *
+     * This is the single source of truth for both the debug bar
+     * and the profiler page. Self-times and component summaries
+     * are computed here so consumers don't duplicate the work.
      */
     public function getTraceData(): array
     {
+        if ($this->traceDataCache !== null) {
+            return $this->traceDataCache;
+        }
+
         // Sort entries by start time so the flame chart renders correctly.
         $entries = $this->traceEntries;
         usort($entries, fn ($a, $b) => $a['start'] <=> $b['start']);
 
-        return [
+        $entries = $this->computeSelfTimes($entries);
+
+        $this->traceDataCache = [
             'entries'       => $entries,
             'totalTime'     => $this->renderTime,
-            'memoHits'     => $this->memoHits,
-            'memoHitNames' => $this->memoHitNames,
+            'memoHits'      => $this->memoHits,
+            'memoHitNames'  => $this->memoHitNames,
+            'components'    => $this->aggregateComponents($entries),
         ];
+
+        return $this->traceDataCache;
+    }
+
+    /**
+     * Compute self-time for each trace entry.
+     *
+     * Self-time = entry duration minus sum of direct children's durations.
+     * Uses the same stack-based parent assignment as the profiler JS.
+     */
+    protected function computeSelfTimes(array $entries): array
+    {
+        if (empty($entries)) {
+            return $entries;
+        }
+
+        $children = array_fill(0, count($entries), []);
+        $stack = [];
+
+        foreach ($entries as $i => $entry) {
+            while (! empty($stack) && $entries[end($stack)]['end'] <= $entry['start']) {
+                array_pop($stack);
+            }
+
+            if (! empty($stack)) {
+                $parentIdx = end($stack);
+
+                if ($entry['depth'] === $entries[$parentIdx]['depth'] + 1) {
+                    $children[$parentIdx][] = $i;
+                }
+            }
+
+            $stack[] = $i;
+        }
+
+        foreach ($entries as $i => &$entry) {
+            $childTime = 0.0;
+
+            foreach ($children[$i] as $ci) {
+                $childTime += $entries[$ci]['duration'];
+            }
+
+            $entry['selfTime'] = round($entry['duration'] - $childTime, 4);
+        }
+
+        return $entries;
+    }
+
+    /**
+     * Aggregate trace entries into per-component summaries sorted by self-time.
+     */
+    protected function aggregateComponents(array $entries): array
+    {
+        $byName = [];
+
+        foreach ($entries as $entry) {
+            $name = $entry['name'];
+
+            if (! isset($byName[$name])) {
+                $byName[$name] = [
+                    'name'      => $name,
+                    'count'     => 0,
+                    'totalTime' => 0.0,
+                    'selfTime'  => 0.0,
+                ];
+            }
+
+            $byName[$name]['count']++;
+            $byName[$name]['totalTime'] += $entry['duration'];
+            $byName[$name]['selfTime'] += $entry['selfTime'];
+        }
+
+        foreach ($byName as &$comp) {
+            $comp['totalTime'] = round($comp['totalTime'], 2);
+            $comp['selfTime'] = round($comp['selfTime'], 2);
+        }
+
+        usort($byName, fn ($a, $b) => $b['selfTime'] <=> $a['selfTime']);
+
+        return array_values($byName);
     }
 
     public function setTimerView(string $name): void
@@ -309,23 +396,6 @@ class Debugger
     }
 
     /**
-     * Record a component render for the debug bar.
-     */
-    protected function recordComponent(string $name, float $durationSeconds): void
-    {
-        if (! isset($this->components[$name])) {
-            $this->components[$name] = [
-                'name' => $name,
-                'count' => 0,
-                'totalTime' => 0.0,
-            ];
-        }
-
-        $this->components[$name]['count']++;
-        $this->components[$name]['totalTime'] += $durationSeconds;
-    }
-
-    /**
      * Get all collected data for the profiler and debug bar.
      */
     public function getDebugBarData(): array
@@ -335,26 +405,32 @@ class Debugger
 
     /**
      * Get all collected data for rendering the debug bar.
+     *
+     * Derives component data from getTraceData() so self-times
+     * are computed once and shared with the profiler.
      */
     protected function getData(): array
     {
-        $components = collect($this->components)
-            ->map(fn ($data) => [
-                'name' => $data['name'],
-                'count' => $data['count'],
-                'totalTime' => round($data['totalTime'] * 1000, 2), // ms
-            ])
+        $trace = $this->getTraceData();
+
+        // Group flux:icon variants under a single entry for the debug bar.
+        $components = collect($trace['components'])
             ->groupBy(fn ($data) => preg_match('/^flux:icon\./', $data['name']) ? 'flux:icon' : $data['name'])
             ->map(fn ($group, $key) => $group->count() > 1
                 ? [
                     'name' => $key,
                     'count' => $group->sum('count'),
                     'totalTime' => round($group->sum('totalTime'), 2),
+                    'selfTime' => round($group->sum('selfTime'), 2),
                 ]
                 : $group->first()
             )
-            ->sortByDesc('totalTime')
+            ->sortByDesc('selfTime')
             ->values()
+            ->all();
+
+        $strategies = collect($trace['entries'])
+            ->countBy(fn ($entry) => $entry['strategy'] ?? 'compiled')
             ->all();
 
         return [
@@ -369,6 +445,8 @@ class Debugger
                 ->all(),
             'components' => $components,
             'timerView' => $this->timerView,
+            'strategies' => $strategies,
+            'memoHits' => $this->memoHits,
         ];
     }
     
@@ -377,7 +455,6 @@ class Debugger
         $this->renderStart = null;
         $this->renderTime = 0.0;
         $this->timerView = null;
-        $this->components = [];
         $this->bladeComponentCount = 0;
         $this->bladeComponents = [];
         $this->blazeEnabled = false;
@@ -387,6 +464,7 @@ class Debugger
         $this->traceOrigin = null;
         $this->memoHits = 0;
         $this->memoHitNames = [];
+        $this->traceDataCache = null;
     }
 
     protected function formatMs(float $value): string
@@ -489,6 +567,14 @@ class Debugger
             $timerViewHtml = '<div style="color: rgba(255,255,255,0.3); font-size: 10px; margin-top: 4px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">' . $viewName . '</div>';
         }
 
+        $stratHtml = $this->renderCardStrategies($data);
+        $slowestHtml = $this->renderCardSlowest($data);
+
+        $componentCount = $data['totalComponents'];
+        $countHtml = $componentCount > 0
+            ? '<span style="color: rgba(255,255,255,0.3); font-weight: 500; font-size: 12px;">&middot; ' . $componentCount . ' components</span>'
+            : '';
+
         return <<<HTML
         <div id="blaze-card">
             <div style="display: flex; align-items: center; gap: 7px; margin-bottom: 4px;">
@@ -500,15 +586,84 @@ class Debugger
 
             <div style="display: flex; align-items: baseline; gap: 8px;">
                 <span style="color: #ffffff; font-weight: 700; font-size: 26px; letter-spacing: -1.5px; line-height: 1; font-variant-numeric: tabular-nums;">{$timeFormatted}</span>
+                {$countHtml}
             </div>
 
             {$timerViewHtml}
+            {$stratHtml}
+            {$slowestHtml}
 
-            <a href="/_blaze/profiler" target="_blank" id="blaze-profiler-link" style="display: flex; align-items: center; gap: 6px; margin-top: 10px; padding: 7px 10px; border-radius: 4px; background: rgba(255,134,2,0.08); border: 1px solid rgba(255,134,2,0.15); color: #FF8602; font-size: 11px; font-weight: 600; text-decoration: none; transition: all 0.15s ease; cursor: pointer;" onmouseover="this.style.background='rgba(255,134,2,0.12)';this.style.borderColor='rgba(255,134,2,0.25)'" onmouseout="this.style.background='rgba(255,134,2,0.08)';this.style.borderColor='rgba(255,134,2,0.15)'">
+            <a href="/_blaze/profiler" target="_blank" id="blaze-profiler-link" style="display: flex; align-items: center; gap: 6px; margin-top: 12px; padding: 7px 10px; border-radius: 4px; background: rgba(255,134,2,0.08); border: 1px solid rgba(255,134,2,0.15); color: #FF8602; font-size: 11px; font-weight: 600; text-decoration: none; transition: all 0.15s ease; cursor: pointer;" onmouseover="this.style.background='rgba(255,134,2,0.12)';this.style.borderColor='rgba(255,134,2,0.25)'" onmouseout="this.style.background='rgba(255,134,2,0.08)';this.style.borderColor='rgba(255,134,2,0.15)'">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M7 16l4-8 4 4 4-8"/></svg>
                 <span>Open Profiler</span>
                 <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="margin-left: auto; opacity: 0.5;"><path d="M7 17L17 7"/><path d="M7 7h10v10"/></svg>
             </a>
+        </div>
+        HTML;
+    }
+
+    protected function renderCardStrategies(array $data): string
+    {
+        $strategies = $data['strategies'] ?? [];
+
+        if (empty($strategies)) {
+            return '';
+        }
+
+        $colors = [
+            'compiled' => '#FF8602',
+            'folded'   => '#10b981',
+            'memo'     => '#a855f7',
+            'blade'    => '#3b82f6',
+            'view'     => 'rgba(255,255,255,0.3)',
+        ];
+
+        // Sort strategies in a consistent display order.
+        $order = array_flip(array_keys($colors));
+        uksort($strategies, fn ($a, $b) => ($order[$a] ?? 99) <=> ($order[$b] ?? 99));
+
+        $total = array_sum($strategies);
+
+        // Strategy bar segments.
+        $barSegments = '';
+        foreach ($strategies as $strategy => $count) {
+            $pct = round(($count / $total) * 100, 1);
+            $color = $colors[$strategy] ?? $colors['compiled'];
+            $barSegments .= '<div style="width: ' . $pct . '%; background: ' . $color . '; min-width: 2px;"></div>';
+        }
+
+        return <<<HTML
+        <div style="display: flex; height: 4px; border-radius: 2px; overflow: hidden; margin-top: 10px;">{$barSegments}</div>
+        HTML;
+    }
+
+    protected function renderCardSlowest(array $data): string
+    {
+        $components = $data['components'] ?? [];
+
+        if (empty($components)) {
+            return '';
+        }
+
+        $top = array_slice($components, 0, 3);
+
+        $rows = '';
+        foreach ($top as $component) {
+            $name = htmlspecialchars($component['name']);
+            $time = $this->formatMs($component['selfTime']);
+            $count = $component['count'] > 1
+                ? '<span style="color: rgba(255,255,255,0.25); font-size: 9px; margin-left: 3px;">&times;' . $component['count'] . '</span>'
+                : '';
+
+            $rows .= '<div style="display: flex; align-items: baseline; justify-content: space-between; gap: 8px;">'
+                . '<span style="color: rgba(255,255,255,0.5); font-size: 11px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0;">' . $name . $count . '</span>'
+                . '<span style="color: rgba(255,255,255,0.3); font-size: 11px; flex-shrink: 0; font-variant-numeric: tabular-nums;">' . $time . '</span>'
+                . '</div>';
+        }
+
+        return <<<HTML
+        <div style="display: flex; flex-direction: column; gap: 4px; margin-top: 10px; padding-top: 10px; border-top: 1px solid rgba(255,255,255,0.06);">
+            {$rows}
         </div>
         HTML;
     }
