@@ -2079,7 +2079,11 @@ function handleHover(ev) {
 
     if (mx < 0 || mx > rect.width || ev.clientY < rect.top || ev.clientY > rect.bottom) {
         $tooltip.style.display = 'none';
-        hovered = null;
+        if (hovered) {
+            hovered = null;
+            if (!active) clearDetail();
+            renderFlameChart();
+        }
         return;
     }
 
@@ -2184,6 +2188,7 @@ function handleHover(ev) {
     } else {
         $tooltip.style.display = 'none';
         hovered = null;
+        if (!active) clearDetail();
     }
 
     if (prevHovered !== hovered) {
