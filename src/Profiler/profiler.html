@@ -778,6 +778,7 @@ let searchQuery = '';     // current component search filter
 let searchMatches = new Set(); // indices of entries matching the search
 let minimapDrag = null;   // { startX, startViewStart } when dragging minimap viewport
 let minimapResize = null; // { edge: 'left'|'right', startX, startViewStart, startViewEnd, rect } when resizing edges
+let treeHoverIdx = null;  // entry index hovered in the component tree
 
 
 // ─── DOM refs ───────────────────────────────────────────────────────
@@ -878,6 +879,7 @@ function buildRenderList() {
                         totalDuration: 0,
                         strategies: {},
                         names: {},
+                        indices: new Set(),
                     };
                 }
 
@@ -886,6 +888,7 @@ function buildRenderList() {
                 cluster.totalDuration += e.duration;
                 cluster.strategies[e.strategy] = (cluster.strategies[e.strategy] || 0) + 1;
                 cluster.names[e.name] = (cluster.names[e.name] || 0) + 1;
+                if (e._idx !== undefined) cluster.indices.add(e._idx);
             }
         }
 
@@ -1293,8 +1296,23 @@ function renderComponentTree(entry) {
 
     container.innerHTML = html;
 
-    // Click handlers for tree navigation
+    // Hover handlers — dim other components in the flame chart
+    container.addEventListener('mouseleave', function() {
+        if (treeHoverIdx !== null) {
+            treeHoverIdx = null;
+            renderFlameChart();
+        }
+    });
+
+    // Click + hover handlers for tree navigation
     container.querySelectorAll('.tree-node[data-idx]').forEach(function(node) {
+        node.addEventListener('mouseenter', function() {
+            var idx = parseInt(this.dataset.idx);
+            if (treeHoverIdx !== idx) {
+                treeHoverIdx = idx;
+                renderFlameChart();
+            }
+        });
         node.addEventListener('click', function() {
             var targetIdx = parseInt(this.dataset.idx);
             var targetEntry = entries[targetIdx];
@@ -1310,6 +1328,10 @@ function renderComponentTree(entry) {
 function clearComponentTree() {
     const container = document.getElementById('component-tree');
     if (container) container.innerHTML = '';
+    if (treeHoverIdx !== null) {
+        treeHoverIdx = null;
+        renderFlameChart();
+    }
 }
 
 function showDetail(entry) {
@@ -1620,7 +1642,8 @@ function drawEntry(ctx, e, w, viewDuration, nextStart) {
     const isHovered = hovered && hovered.type === 'entry' && hovered.entry === e;
     const isActive = active && active.type === 'entry' && active.entry === e;
     const isSearchMatch = searchQuery && e._idx !== undefined && searchMatches.has(e._idx);
-    const isDimmed = searchQuery && !isSearchMatch;
+    const isTreeTarget = treeHoverIdx !== null && e._idx === treeHoverIdx;
+    const isDimmed = (searchQuery && !isSearchMatch) || (treeHoverIdx !== null && !isTreeTarget);
 
     // Clip to rounded rect — fill + border drawn inside so nothing bleeds out
     ctx.save();
@@ -1641,8 +1664,8 @@ function drawEntry(ctx, e, w, viewDuration, nextStart) {
 
     ctx.restore();
 
-    // Search match / active selection highlight ring
-    if (isSearchMatch || isActive) {
+    // Search match / active selection / tree hover highlight ring
+    if (isSearchMatch || isActive || isTreeTarget) {
         ctx.strokeStyle = '#FF8602';
         ctx.lineWidth = 2;
         ctx.globalAlpha = 0.9;
@@ -1697,11 +1720,12 @@ function drawCluster(ctx, item, w, viewDuration, nextStart) {
     let bw = Math.max(x2 - x, 2);
     const y = 8 + item.depth * ROW_FULL;
     const isHovered = hovered === item;
-    const isActive = active === item;
+    const isActive = active === item || (active && active.type === 'entry' && active.entry._idx !== undefined && item.indices && item.indices.has(active.entry._idx));
 
     // Check if any name in the cluster matches the search
     const hasSearchMatch = searchQuery && Object.keys(item.names).some(n => n.toLowerCase().includes(searchQuery));
-    const isDimmed = searchQuery && !hasSearchMatch;
+    const isTreeTarget = treeHoverIdx !== null && item.indices && item.indices.has(treeHoverIdx);
+    const isDimmed = (searchQuery && !hasSearchMatch) || (treeHoverIdx !== null && !isTreeTarget);
 
     const dom = clusterDominantStrategy(item.strategies);
     const c = colorFor(dom);
@@ -1725,8 +1749,8 @@ function drawCluster(ctx, item, w, viewDuration, nextStart) {
 
     ctx.restore();
 
-    // Search match / active selection highlight ring
-    if (hasSearchMatch || isActive) {
+    // Search match / active selection / tree hover highlight ring
+    if (hasSearchMatch || isActive || isTreeTarget) {
         ctx.strokeStyle = '#FF8602';
         ctx.lineWidth = 2;
         ctx.globalAlpha = 0.9;
