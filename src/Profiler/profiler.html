@@ -1425,22 +1425,12 @@ function showDetail(entry) {
 
     grid.innerHTML = `
         <div class="detail-label">Name</div>
-        <div class="detail-value">${entry.name}</div>
-        <div class="detail-label">Strategy</div>
-        <div class="detail-value"><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${c.bg};margin-right:6px;vertical-align:middle;"></span>${stratLabel}</div>
+        <div class="detail-value"><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${c.bg};margin-right:6px;vertical-align:middle;"></span>${entry.name}</div>
         ${fileRow}
         <div class="detail-label">Total time</div>
         <div class="detail-value">${fmtMs(entry.duration)}</div>
         <div class="detail-label">Self time</div>
-        <div class="detail-value" style="color:var(--orange)">${fmtMs(selfTime)}</div>
-        <div class="detail-label">Start offset</div>
-        <div class="detail-value">${fmtMs(entry.start)}</div>
-        <div class="detail-label">Depth</div>
-        <div class="detail-value">${entry.depth}</div>
-        <div class="detail-label">Children</div>
-        <div class="detail-value">${entry.children}</div>
-        <div class="detail-label">% of render</div>
-        <div class="detail-value">${((entry.duration / totalDuration) * 100).toFixed(1)}%</div>
+        <div class="detail-value">${fmtMs(selfTime)}</div>
     `;
 
     renderComponentTree(entry);
@@ -1463,7 +1453,7 @@ function showClusterDetail(cluster) {
     let namesHtml = '';
     const sortedNames = Object.entries(cluster.names).sort((a, b) => b[1] - a[1]).slice(0, 5);
     for (const [name, count] of sortedNames) {
-        namesHtml += `<span style="color:var(--text-dim)">${name}</span> <span style="color:var(--text)">${count}\u00d7</span><br>`;
+        namesHtml += `<span style="color:var(--text)">${name}</span> <span style="color:var(--text-dim)">${count}\u00d7</span><br>`;
     }
     if (uniqueNames.length > 5) {
         namesHtml += `<span style="color:var(--text-muted)">+${uniqueNames.length - 5} more</span>`;
@@ -1472,22 +1462,14 @@ function showClusterDetail(cluster) {
     grid.innerHTML = `
         <div class="detail-label">Type</div>
         <div class="detail-value" style="color:var(--orange)">Cluster</div>
-        <div class="detail-label">Components</div>
-        <div class="detail-value">${cluster.count}</div>
-        <div class="detail-label">Unique</div>
-        <div class="detail-value">${uniqueNames.length}</div>
         <div class="detail-label">Total time</div>
         <div class="detail-value">${fmtMs(cluster.totalDuration)}</div>
-        <div class="detail-label">Avg time</div>
-        <div class="detail-value" style="color:var(--orange)">${fmtMs(avgDuration)}</div>
         <div class="detail-label">Span</div>
         <div class="detail-value">${fmtMs(clusterSpan)}</div>
-        <div class="detail-label">Depth</div>
-        <div class="detail-value">${cluster.depth}</div>
-        <div class="detail-label">Strategies</div>
-        <div class="detail-value">${stratHtml}</div>
         <div class="detail-label">Top names</div>
         <div class="detail-value">${namesHtml}</div>
+        <div class="detail-label">Strategies</div>
+        <div class="detail-value">${stratHtml}</div>
     `;
 
     renderClusterTree(cluster);
