@@ -895,6 +895,24 @@ function buildRenderList() {
     return list;
 }
 
+// ─── Initial Sidebar Sizing ─────────────────────────────────────────
+// Size the bottom panel to fill remaining space after the flame chart
+// content, so shallow traces get a tall sidebar and deep traces still
+// leave enough room for the timeline.
+function sizeSidebarToFit() {
+    const mainEl = document.getElementById('main-area');
+    const mainH = mainEl.clientHeight;
+    if (mainH <= 0) return;
+
+    const flameContentH = (maxDepth + 1) * ROW_FULL + 20;
+    const flameFixed = 36 + 24 + 5; // minimap + time axis + resize handle
+    const flamePadding = 32;
+
+    const flameNeeded = flameFixed + flameContentH + flamePadding;
+    const sidebarH = Math.max(200, mainH - flameNeeded);
+    $sidebar.style.height = sidebarH + 'px';
+}
+
 // ─── Data Fetch ─────────────────────────────────────────────────────
 async function fetchTrace() {
     try {
@@ -902,6 +920,7 @@ async function fetchTrace() {
         data = await resp.json();
         entries = data.entries || [];
         processData();
+        sizeSidebarToFit();
         render();
     } catch (e) {
         console.error('Failed to fetch trace:', e);
