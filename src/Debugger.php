@@ -12,17 +12,11 @@ class Debugger
 
     protected ?string $timerView = null;
 
-    protected array $components = [];
-
     protected int $bladeComponentCount = 0;
 
     protected array $bladeComponents = [];
 
     protected bool $blazeEnabled = false;
-
-    protected ?array $comparison = null;
-
-    protected bool $isColdRender = false;
 
     protected bool $timerInjected = false;
 
@@ -32,10 +26,14 @@ class Debugger
     protected ?float $traceOrigin = null;
     protected int $memoHits = 0;
     protected array $memoHitNames = [];
+    protected ?array $traceDataCache = null;
+
+    public readonly DebuggerStore $store;
 
     public function __construct(
         protected BladeService $blade,
-    ) {  
+    ) {
+        $this->store = new DebuggerStore;
     }
 
     /**
@@ -128,9 +126,6 @@ class Debugger
         }
 
         $this->traceEntries[] = $entry;
-
-        // Also feed the debug bar.
-        $this->recordComponent($entry['name'], $entry['duration'] / 1000);
     }
 
     /**
@@ -176,20 +171,111 @@ class Debugger
     }
 
     /**
-     * Get profiler trace entries and summary data for the profiler page.
+     * Get profiler trace entries and summary data.
+     *
+     * This is the single source of truth for both the debug bar
+     * and the profiler page. Self-times and component summaries
+     * are computed here so consumers don't duplicate the work.
      */
     public function getTraceData(): array
     {
+        if ($this->traceDataCache !== null) {
+            return $this->traceDataCache;
+        }
+
         // Sort entries by start time so the flame chart renders correctly.
         $entries = $this->traceEntries;
         usort($entries, fn ($a, $b) => $a['start'] <=> $b['start']);
 
-        return [
-            'entries'      => $entries,
-            'totalTime'    => $this->renderTime,
-            'memoHits'     => $this->memoHits,
-            'memoHitNames' => $this->memoHitNames,
+        $entries = $this->computeSelfTimes($entries);
+
+        $this->traceDataCache = [
+            'entries'       => $entries,
+            'totalTime'     => $this->renderTime,
+            'memoHits'      => $this->memoHits,
+            'memoHitNames'  => $this->memoHitNames,
+            'components'    => $this->aggregateComponents($entries),
         ];
+
+        return $this->traceDataCache;
+    }
+
+    /**
+     * Compute self-time for each trace entry.
+     *
+     * Self-time = entry duration minus sum of direct children's durations.
+     * Uses the same stack-based parent assignment as the profiler JS.
+     */
+    protected function computeSelfTimes(array $entries): array
+    {
+        if (empty($entries)) {
+            return $entries;
+        }
+
+        $children = array_fill(0, count($entries), []);
+        $stack = [];
+
+        foreach ($entries as $i => $entry) {
+            while (! empty($stack) && $entries[end($stack)]['end'] <= $entry['start']) {
+                array_pop($stack);
+            }
+
+            if (! empty($stack)) {
+                $parentIdx = end($stack);
+
+                if ($entry['depth'] === $entries[$parentIdx]['depth'] + 1) {
+                    $children[$parentIdx][] = $i;
+                }
+            }
+
+            $stack[] = $i;
+        }
+
+        foreach ($entries as $i => &$entry) {
+            $childTime = 0.0;
+
+            foreach ($children[$i] as $ci) {
+                $childTime += $entries[$ci]['duration'];
+            }
+
+            $entry['selfTime'] = round($entry['duration'] - $childTime, 4);
+        }
+
+        return $entries;
+    }
+
+    /**
+     * Aggregate trace entries into per-component summaries sorted by self-time.
+     */
+    protected function aggregateComponents(array $entries): array
+    {
+        $byName = [];
+
+        foreach ($entries as $entry) {
+            $name = $entry['name'];
+
+            if (! isset($byName[$name])) {
+                $byName[$name] = [
+                    'name'      => $name,
+                    'count'     => 0,
+                    'totalTime' => 0.0,
+                    'selfTime'  => 0.0,
+                ];
+            }
+
+            $byName[$name]['count']++;
+            $byName[$name]['totalTime'] += $entry['duration'];
+            $byName[$name]['selfTime'] += $entry['selfTime'];
+        }
+
+        foreach ($byName as &$comp) {
+            $comp['totalTime'] = round($comp['totalTime'], 2);
+            $comp['selfTime'] = round($comp['selfTime'], 2);
+        }
+
+        usort($byName, fn ($a, $b) => $b['selfTime'] <=> $a['selfTime']);
+
+        return array_values($byName);
     }
 
     public function setTimerView(string $name): void
@@ -293,24 +379,9 @@ class Debugger
         }
     }
 
-    public function getPageRenderTime(): float
-    {
-        return $this->renderTime;
-    }
-
     public function setBlazeEnabled(bool $enabled): void
     {
         $this->blazeEnabled = $enabled;
-    }
-
-    public function setComparison(?array $comparison): void
-    {
-        $this->comparison = $comparison;
-    }
-
-    public function setIsColdRender(bool $cold): void
-    {
-        $this->isColdRender = $cold;
     }
 
     public function incrementBladeComponents(string $name = 'unknown'): void
@@ -325,23 +396,6 @@ class Debugger
     }
 
     /**
-     * Record a component render for the debug bar.
-     */
-    protected function recordComponent(string $name, float $durationSeconds): void
-    {
-        if (! isset($this->components[$name])) {
-            $this->components[$name] = [
-                'name' => $name,
-                'count' => 0,
-                'totalTime' => 0.0,
-            ];
-        }
-
-        $this->components[$name]['count']++;
-        $this->components[$name]['totalTime'] += $durationSeconds;
-    }
-
-    /**
      * Get all collected data for the profiler and debug bar.
      */
     public function getDebugBarData(): array
@@ -351,32 +405,36 @@ class Debugger
 
     /**
      * Get all collected data for rendering the debug bar.
+     *
+     * Derives component data from getTraceData() so self-times
+     * are computed once and shared with the profiler.
      */
     protected function getData(): array
     {
-        $components = collect($this->components)
-            ->map(fn ($data) => [
-                'name' => $data['name'],
-                'count' => $data['count'],
-                'totalTime' => round($data['totalTime'] * 1000, 2), // ms
-            ])
+        $trace = $this->getTraceData();
+
+        // Group flux:icon variants under a single entry for the debug bar.
+        $components = collect($trace['components'])
             ->groupBy(fn ($data) => preg_match('/^flux:icon\./', $data['name']) ? 'flux:icon' : $data['name'])
             ->map(fn ($group, $key) => $group->count() > 1
                 ? [
                     'name' => $key,
                     'count' => $group->sum('count'),
                     'totalTime' => round($group->sum('totalTime'), 2),
+                    'selfTime' => round($group->sum('selfTime'), 2),
                 ]
                 : $group->first()
             )
-            ->sortByDesc('totalTime')
+            ->sortByDesc('selfTime')
             ->values()
+            ->all();
+
+        $strategies = collect($trace['entries'])
+            ->countBy(fn ($entry) => $entry['strategy'] ?? 'compiled')
             ->all();
 
         return [
             'blazeEnabled' => $this->blazeEnabled,
-            'isColdRender' => $this->isColdRender,
-            'comparison' => $this->comparison,
             'totalTime' => round($this->renderTime, 2),
             'totalComponents' => array_sum(array_column($components, 'count')),
             'bladeComponentCount' => $this->bladeComponentCount,
@@ -387,6 +445,8 @@ class Debugger
                 ->all(),
             'components' => $components,
             'timerView' => $this->timerView,
+            'strategies' => $strategies,
+            'memoHits' => $this->memoHits,
         ];
     }
     
@@ -395,18 +455,16 @@ class Debugger
         $this->renderStart = null;
         $this->renderTime = 0.0;
         $this->timerView = null;
-        $this->components = [];
         $this->bladeComponentCount = 0;
         $this->bladeComponents = [];
         $this->blazeEnabled = false;
-        $this->comparison = null;
-        $this->isColdRender = false;
         $this->timerInjected = false;
         $this->traceStack = [];
         $this->traceEntries = [];
         $this->traceOrigin = null;
         $this->memoHits = 0;
         $this->memoHitNames = [];
+        $this->traceDataCache = null;
     }
 
     protected function formatMs(float $value): string
@@ -420,21 +478,6 @@ class Debugger
         }
 
         return round($value, 2) . 'ms';
-    }
-
-    protected function formatMsWithSeparator(float $value): string
-    {
-        $abs = abs($value);
-
-        if ($abs >= 1000) {
-            return number_format($abs / 1000, 2) . 's';
-        }
-
-        if ($abs < 0.01 && $abs > 0) {
-            return number_format($abs * 1000, 2) . 'μs';
-        }
-
-        return number_format($abs, 2) . 'ms';
     }
 
     // ──────────────────────────────────────────
@@ -482,6 +525,7 @@ class Debugger
             }
 
             #blaze-card {
+                position: relative;
                 background: #0b0809;
                 border: 1px solid #1b1b1b;
                 border-radius: 14px;
@@ -496,11 +540,6 @@ class Debugger
             @keyframes blaze-card-in {
                 from { opacity: 0; transform: translateY(6px); }
                 to { opacity: 1; transform: translateY(0); }
-            }
-
-            @keyframes blaze-savings-in {
-                0% { opacity: 0; transform: translateY(4px); }
-                100% { opacity: 1; transform: translateY(0); }
             }
 
         </style>
@@ -519,36 +558,25 @@ class Debugger
     protected function renderCard(array $data): string
     {
         $isBlaze = $data['blazeEnabled'];
-        $accentColor = $isBlaze ? '#FF8602' : '#6366f1';
-        $modeName = $isBlaze ? 'Blaze' : 'Blade';
+        $accentColor = $isBlaze ? '#FF8602' : '#888888';
         $timeFormatted = $this->formatMs($data['totalTime']);
 
-        $timerViewHtml = '';
-        if ($data['timerView']) {
-            $viewName = htmlspecialchars($data['timerView']);
-            $timerViewHtml = '<div style="color: rgba(255,255,255,0.3); font-size: 10px; margin-top: 4px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">' . $viewName . '</div>';
-        }
+        $slowestHtml = $this->renderCardSlowest($data);
 
-        $savingsHtml = $this->renderSavingsBlock($data);
+        $statusLabel = $isBlaze ? 'Blaze On' : 'Blaze Off';
 
         return <<<HTML
         <div id="blaze-card">
-            <div style="display: flex; align-items: center; gap: 7px; margin-bottom: 4px;">
-                <span style="color: {$accentColor}; font-weight: 700; font-size: 11px; letter-spacing: 0.05em; text-transform: uppercase;">{$modeName}</span>
-                <button id="blaze-card-close" title="Close" style="margin-left: auto; background: none; border: none; cursor: pointer; color: #555555; padding: 2px; line-height: 1; font-size: 16px; transition: color 0.15s ease;" onmouseover="this.style.color='#ffffff'" onmouseout="this.style.color='#555555'">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6L6 18"/><path d="M6 6l12 12"/></svg>
-                </button>
-            </div>
+            <button id="blaze-card-close" title="Close" style="position: absolute; top: 14px; right: 14px; background: none; border: none; cursor: pointer; color: #555555; padding: 2px; line-height: 1; font-size: 16px; transition: color 0.15s ease;" onmouseover="this.style.color='#ffffff'" onmouseout="this.style.color='#555555'">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6L6 18"/><path d="M6 6l12 12"/></svg>
+            </button>
 
-            <div style="display: flex; align-items: baseline; gap: 8px;">
-                <span style="color: #ffffff; font-weight: 700; font-size: 26px; letter-spacing: -1.5px; line-height: 1; font-variant-numeric: tabular-nums;">{$timeFormatted}</span>
-            </div>
+            <div style="color: {$accentColor}; font-weight: 700; font-size: 11px; letter-spacing: 0.05em; text-transform: uppercase; margin-bottom: 4px;">{$statusLabel}</div>
+            <span style="color: #ffffff; font-weight: 700; font-size: 26px; letter-spacing: -1.5px; line-height: 1; font-variant-numeric: tabular-nums;">{$timeFormatted}</span>
 
-            {$timerViewHtml}
+            {$slowestHtml}
 
-            {$savingsHtml}
-
-            <a href="/_blaze/profiler" target="_blank" id="blaze-profiler-link" style="display: flex; align-items: center; gap: 6px; margin-top: 10px; padding: 7px 10px; border-radius: 4px; background: rgba(255,134,2,0.08); border: 1px solid rgba(255,134,2,0.15); color: #FF8602; font-size: 11px; font-weight: 600; text-decoration: none; transition: all 0.15s ease; cursor: pointer;" onmouseover="this.style.background='rgba(255,134,2,0.12)';this.style.borderColor='rgba(255,134,2,0.25)'" onmouseout="this.style.background='rgba(255,134,2,0.08)';this.style.borderColor='rgba(255,134,2,0.15)'">
+            <a href="/_blaze/profiler" target="_blank" id="blaze-profiler-link" style="display: flex; align-items: center; gap: 6px; margin-top: 12px; padding: 7px 10px; border-radius: 4px; background: rgba(255,134,2,0.08); border: 1px solid rgba(255,134,2,0.15); color: #FF8602; font-size: 11px; font-weight: 600; text-decoration: none; transition: all 0.15s ease; cursor: pointer;" onmouseover="this.style.background='rgba(255,134,2,0.12)';this.style.borderColor='rgba(255,134,2,0.25)'" onmouseout="this.style.background='rgba(255,134,2,0.08)';this.style.borderColor='rgba(255,134,2,0.15)'">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M7 16l4-8 4 4 4-8"/></svg>
                 <span>Open Profiler</span>
                 <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="margin-left: auto; opacity: 0.5;"><path d="M7 17L17 7"/><path d="M7 7h10v10"/></svg>
@@ -557,108 +585,33 @@ class Debugger
         HTML;
     }
 
-    protected function renderSavingsBlock(array $data): string
+    protected function renderCardSlowest(array $data): string
     {
-        $isBlaze = $data['blazeEnabled'];
-        $isCold = $data['isColdRender'];
-        $comparison = $data['comparison'];
+        $components = $data['components'] ?? [];
 
-        if (! $isBlaze) {
-            $message = $isCold ? 'First load time recorded' : 'Baseline time recorded';
-            return <<<HTML
-            <div style="color: rgba(255,255,255,0.3); font-size: 11px; margin-top: 10px; line-height: 1.5; max-width: 220px;">
-                {$message}. Enable Blaze and reload the page to see comparison data.
-            </div>
-            HTML;
-        }
-
-        if (! $comparison) {
-            return <<<HTML
-            <div style="color: rgba(255,255,255,0.3); font-size: 11px; margin-top: 10px; line-height: 1.5; max-width: 220px;">
-                Disable Blaze and reload the page to record baseline times and display comparison data.
-            </div>
-            HTML;
-        }
-
-        $warm = $comparison['warm'];
-        $cold = $comparison['cold'];
-
-        // Primary = the comparison matching the current render temperature.
-        $primary = $isCold ? $cold : $warm;
-        $secondary = $isCold ? $warm : $cold;
-        $primaryType = $isCold ? 'first load' : 'most recent';
-        $secondaryType = $isCold ? 'most recent' : 'first load';
-
-        if (! $primary) {
-            $primary = $secondary;
-            $primaryType = $secondaryType;
-            $secondary = null;
-        }
-
-        if (! $primary) {
+        if (empty($components)) {
             return '';
         }
 
-        // Use live page time for primary so the number matches the big time above.
-        $primaryHtml = $this->renderSavingsRow($data['totalTime'], $primary['otherTime'], $primaryType, true);
+        $top = array_slice($components, 0, 5);
 
-        $secondaryHtml = '';
-        if ($secondary) {
-            $secondaryHtml = $this->renderSavingsRow($secondary['currentTime'], $secondary['otherTime'], $secondaryType, false);
+        $rows = '';
+        foreach ($top as $component) {
+            $name = htmlspecialchars($component['name']);
+            $time = $this->formatMs($component['selfTime']);
+            $count = $component['count'] > 1
+                ? '<span style="color: rgba(255,255,255,0.25); font-size: 9px; margin-left: 3px;">&times;' . $component['count'] . '</span>'
+                : '';
+
+            $rows .= '<div style="display: flex; align-items: baseline; justify-content: space-between; gap: 8px;">'
+                . '<span style="color: rgba(255,255,255,0.5); font-size: 11px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0;">' . $name . $count . '</span>'
+                . '<span style="color: rgba(255,255,255,0.3); font-size: 11px; flex-shrink: 0; font-variant-numeric: tabular-nums;">' . $time . '</span>'
+                . '</div>';
         }
 
         return <<<HTML
-        <div style="margin-top: 12px; display: flex; flex-direction: column; gap: 8px; animation: blaze-savings-in 0.3s ease-out 0.1s both;">
-            {$primaryHtml}
-            {$secondaryHtml}
-        </div>
-        HTML;
-    }
-
-    protected function renderSavingsRow(float $currentTime, float $otherTime, string $type, bool $isPrimary): string
-    {
-        if ($otherTime <= 0 || $currentTime <= 0) {
-            return '';
-        }
-
-        $isFaster = $currentTime < $otherTime;
-        $diff = $currentTime - $otherTime;
-        $sign = $diff < 0 ? '-' : '+';
-        $multiplier = $isFaster ? ($otherTime / $currentTime) : ($currentTime / $otherTime);
-        $multiplierFormatted = round($multiplier, 1) . 'x';
-
-        $color = $isFaster ? '#22c55e' : '#ef4444';
-        $rgb = $isFaster ? '34, 197, 94' : '239, 68, 68';
-        $word = $isFaster ? 'faster' : 'slower';
-        $diffFormatted = $sign . $this->formatMsWithSeparator($diff);
-        $otherFormatted = $this->formatMs($otherTime);
-        $currentFormatted = $this->formatMs($currentTime);
-
-        if ($isPrimary) {
-            return <<<HTML
-            <div style="background: rgba({$rgb}, 0.06); border: 1px solid rgba({$rgb}, 0.12); border-radius: 4px; padding: 10px 12px;">
-                <div style="display: flex; align-items: baseline; gap: 6px;">
-                    <span style="color: {$color}; font-weight: 800; font-size: 18px; letter-spacing: -0.5px; line-height: 1;">{$diffFormatted}</span>
-                    <span style="color: rgba(255,255,255,0.3); font-size: 10px; margin-left: auto; align-self: start;">{$type}</span>
-                </div>
-                <div style="display: flex; align-items: baseline; gap: 6px; margin-top: 5px;">
-                    <span style="color: rgba(255,255,255,0.3); font-size: 11px;">{$multiplierFormatted} {$word}</span>
-                    <span style="color: rgba(255,255,255,0.3); font-size: 10px; margin-left: auto;">{$otherFormatted} &#8594; {$currentFormatted}</span>
-                </div>
-            </div>
-            HTML;
-        }
-
-        return <<<HTML
-        <div style="background: rgba({$rgb}, 0.04); border: 1px solid rgba({$rgb}, 0.08); border-radius: 4px; padding: 8px 12px;">
-            <div style="display: flex; align-items: baseline; gap: 6px;">
-                <span style="color: {$color}; font-weight: 700; font-size: 13px;">{$diffFormatted}</span>
-                    <span style="color: rgba(255,255,255,0.3); font-size: 9px; margin-left: auto; align-self: start;">{$type}</span>
-            </div>
-            <div style="display: flex; align-items: baseline; gap: 6px; margin-top: 2px;">
-                <span style="color: rgba(255,255,255,0.3); font-size: 10px;">{$multiplierFormatted} {$word}</span>
-                <span style="color: rgba(255,255,255,0.3); font-size: 9px; margin-left: auto;">{$otherFormatted} &#8594; {$currentFormatted}</span>
-            </div>
+        <div style="display: flex; flex-direction: column; gap: 4px; margin-top: 10px;">
+            {$rows}
         </div>
         HTML;
     }
