@@ -24,8 +24,6 @@ class Debugger
     protected array $traceStack = [];
     protected array $traceEntries = [];
     protected ?float $traceOrigin = null;
-    protected int $memoHits = 0;
-    protected array $memoHitNames = [];
     protected ?array $traceDataCache = null;
 
     public readonly DebuggerStore $store;
@@ -149,22 +147,13 @@ class Debugger
     /**
      * Record a memoization cache hit (component skipped rendering).
      *
-     * This is called inside the cache-hit branch of the memoizer output,
-     * while the entry is still on the trace stack (between startTimer and
-     * stopTimer). We change its strategy from 'compiled' to 'memo'
-     * so the profiler can visually distinguish cache hits from misses.
+     * Called inside the cache-hit branch of the memoizer output while
+     * the entry is still on the trace stack (between startTimer and
+     * stopTimer). Re-tags the strategy so memo hits are visible in
+     * the strategy breakdown.
      */
     public function recordMemoHit(string $name): void
     {
-        $this->memoHits++;
-
-        if (! isset($this->memoHitNames[$name])) {
-            $this->memoHitNames[$name] = 0;
-        }
-
-        $this->memoHitNames[$name]++;
-
-        // Re-tag the current trace entry so the profiler shows it as a hit.
         if (! empty($this->traceStack)) {
             $this->traceStack[count($this->traceStack) - 1]['strategy'] = 'memo';
         }
@@ -192,8 +181,6 @@ class Debugger
         $this->traceDataCache = [
             'entries'       => $entries,
             'totalTime'     => $this->renderTime,
-            'memoHits'      => $this->memoHits,
-            'memoHitNames'  => $this->memoHitNames,
             'components'    => $this->aggregateComponents($entries),
         ];
 
@@ -446,7 +433,6 @@ class Debugger
             'components' => $components,
             'timerView' => $this->timerView,
             'strategies' => $strategies,
-            'memoHits' => $this->memoHits,
         ];
     }
     
@@ -462,8 +448,6 @@ class Debugger
         $this->traceStack = [];
         $this->traceEntries = [];
         $this->traceOrigin = null;
-        $this->memoHits = 0;
-        $this->memoHitNames = [];
         $this->traceDataCache = null;
     }
 

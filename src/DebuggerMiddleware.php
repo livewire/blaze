@@ -82,8 +82,6 @@ class DebuggerMiddleware
             'timestamp'    => now()->toIso8601String(),
             'renderTime'   => $trace['totalTime'],
             'entries'      => $trace['entries'],
-            'memoHits'     => $trace['memoHits'],
-            'memoHitNames' => $trace['memoHitNames'],
             'components'   => $trace['components'],
             'debugBar'     => $debugger->getDebugBarData(),
         ]);

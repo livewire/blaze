@@ -2,6 +2,9 @@
 
 namespace Livewire\Blaze;
 
+use Livewire\Blaze\Commands\TraceClearCommand;
+use Livewire\Blaze\Commands\TraceListCommand;
+use Livewire\Blaze\Commands\TraceShowCommand;
 use Livewire\Blaze\Compiler\Profiler;
 use Livewire\Blaze\Runtime\BlazeRuntime;
 use Illuminate\Support\ServiceProvider;
@@ -52,6 +55,14 @@ class BlazeServiceProvider extends ServiceProvider
         $this->interceptBladeCompilation();
         $this->registerDebuggerMiddleware();
         $this->registerOctaneListener();
+
+        if ($this->app->runningInConsole()) {
+            $this->commands([
+                TraceClearCommand::class,
+                TraceListCommand::class,
+                TraceShowCommand::class,
+            ]);
+        }
     }
 
     /**
