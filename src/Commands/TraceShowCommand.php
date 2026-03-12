@@ -8,7 +8,7 @@ use Livewire\Blaze\DebuggerStore;
 
 class TraceShowCommand extends Command
 {
-    protected $signature = 'blaze:traces:show
+    protected $signature = 'blaze:trace:show
                             {id : The trace ID to inspect}
                             {--limit=30 : Number of slowest components to display}';
 

@@ -7,7 +7,7 @@ use Livewire\Blaze\DebuggerStore;
 
 class TraceClearCommand extends Command
 {
-    protected $signature = 'blaze:traces:clear';
+    protected $signature = 'blaze:trace:clear';
 
     protected $description = 'Delete all recorded Blaze profiler traces';
 

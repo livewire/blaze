@@ -8,7 +8,7 @@ use Livewire\Blaze\DebuggerStore;
 
 class TraceListCommand extends Command
 {
-    protected $signature = 'blaze:traces:list
+    protected $signature = 'blaze:trace:list
                             {--limit=30 : Maximum number of traces to display}';
 
     protected $description = 'List recorded Blaze profiler traces';
@@ -37,7 +37,7 @@ class TraceListCommand extends Command
         );
 
         $this->newLine();
-        $this->line('  <fg=gray>Run</> <fg=white>php artisan blaze:traces:show [id]</> <fg=gray>to inspect a trace.</>');
+        $this->line('  <fg=gray>Run</> <fg=white>php artisan blaze:trace:show [id]</> <fg=gray>to inspect a trace.</>');
 
         return self::SUCCESS;
     }
