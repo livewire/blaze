@@ -98,7 +98,7 @@ class DebuggerMiddleware
 
         $content = $response->getContent();
 
-        if (! $content || ! preg_match('/<body[^>]*>/i', $content, $matches, PREG_OFFSET_CAPTURE)) {
+        if (! $content || ! preg_match('/<body(?:[^>"\']*|"[^"]*"|\'[^\'"]*\')*>/si', $content, $matches, PREG_OFFSET_CAPTURE)) {
             return;
         }
 
