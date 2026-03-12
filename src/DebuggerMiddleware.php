@@ -7,6 +7,7 @@ use Illuminate\Contracts\Http\Kernel;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Route;
+use Symfony\Component\HttpFoundation\Response as SymfonyResponse;
 
 class DebuggerMiddleware
 {
@@ -40,7 +41,7 @@ class DebuggerMiddleware
     /**
      * Handle an incoming request.
      */
-    public function handle(Request $request, Closure $next): Response
+    public function handle(Request $request, Closure $next): SymfonyResponse
     {
         $url = '/' . ltrim($request->path(), '/');
 
@@ -54,7 +55,7 @@ class DebuggerMiddleware
         $debugger = app('blaze.debugger');
         $debugger->setBlazeEnabled($isBlaze);
 
-        /** @var Response $response */
+        /** @var SymfonyResponse $response */
         $response = $next($request);
 
         if ($response->getStatusCode() === 200) {
@@ -92,7 +93,7 @@ class DebuggerMiddleware
      *
      * Based on https://github.com/fruitcake/laravel-debugbar/blob/master/src/LaravelDebugbar.php
      */
-    protected function injectDebugger(Response $response, Debugger $debugger): void
+    protected function injectDebugger(SymfonyResponse $response, Debugger $debugger): void
     {
         $content = $response->getContent();
 
@@ -107,7 +108,7 @@ class DebuggerMiddleware
         }
 
         $original = null;
-        if ($response->getOriginalContent()) {
+        if ($response instanceof Response && $response->getOriginalContent()) {
             $original = $response->getOriginalContent();
         }
 
@@ -116,7 +117,7 @@ class DebuggerMiddleware
         $response->headers->remove('Content-Length');
 
         // Restore original response (e.g. the View or Ajax data)
-        if ($original) {
+        if ($response instanceof Response && $original) {
             $response->original = $original;
         }
     }
