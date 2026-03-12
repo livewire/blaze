@@ -5,8 +5,8 @@ namespace Livewire\Blaze;
 use Closure;
 use Illuminate\Contracts\Http\Kernel;
 use Illuminate\Http\Request;
+use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Route;
-use Symfony\Component\HttpFoundation\Response;
 
 class DebuggerMiddleware
 {
@@ -88,24 +88,36 @@ class DebuggerMiddleware
     }
 
     /**
-     * Inject the debug bar HTML after the opening <body> tag.
+     * Inject the debug bar HTML before the closing </body> tag.
+     *
+     * Based on https://github.com/fruitcake/laravel-debugbar/blob/master/src/LaravelDebugbar.php
      */
     protected function injectDebugger(Response $response, Debugger $debugger): void
     {
-        if (! method_exists($response, 'getContent')) {
-            return;
-        }
-
         $content = $response->getContent();
 
-        if (! $content || ! preg_match('/<body(?:[^>"\']*|"[^"]*"|\'[^\'"]*\')*>/si', $content, $matches, PREG_OFFSET_CAPTURE)) {
-            return;
+        $widget = "<!-- Blaze Widget -->\n" . $debugger->render();
+
+        // Try to put the widget at the end, directly before the </body>
+        $pos = strripos($content, '</body>');
+        if (false !== $pos) {
+            $content = substr($content, 0, $pos) . $widget . substr($content, $pos);
+        } else {
+            $content = $content . $widget;
         }
 
-        $insertPos = $matches[0][1] + strlen($matches[0][0]);
+        $original = null;
+        if ($response->getOriginalContent()) {
+            $original = $response->getOriginalContent();
+        }
 
-        $response->setContent(
-            substr($content, 0, $insertPos) . "\n" . $debugger->render() . substr($content, $insertPos)
-        );
+        // Update the new content and reset the content length
+        $response->setContent($content);
+        $response->headers->remove('Content-Length');
+
+        // Restore original response (e.g. the View or Ajax data)
+        if ($original) {
+            $response->original = $original;
+        }
     }
 }
