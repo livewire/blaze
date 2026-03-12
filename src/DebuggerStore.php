@@ -12,7 +12,7 @@ class DebuggerStore
 
     public function __construct()
     {
-        $this->path = storage_path('blaze/debugger');
+        $this->path = storage_path('blaze/traces');
     }
 
     /**
