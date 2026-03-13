@@ -26,22 +26,31 @@ class SlotCompiler
     public function compile(string $slotsVariableName, array $children): string
     {
         $output = '';
+        $hasExplicitDefault = $this->hasExplicitDefaultSlot($children);
 
-        // Compile implicit default slot from loose content (non-SlotNode children)
-        if (! $this->hasExplicitDefaultSlot($children)) {
-            $output .= $this->compileSlot('slot', $this->renderLooseContent($children), '[]', $slotsVariableName) . "\n";
+        if (! $hasExplicitDefault) {
+            $output .= '<' . '?php ob_start(); ?>';
         }
 
-        // Compile each named slot
         foreach ($children as $child) {
             if ($child instanceof SlotNode) {
-                $output .= $this->compileSlot(
+                $output .= ' ' . $this->compileSlot(
                     $this->resolveSlotName($child),
                     $this->renderChildren($child->children),
                     $this->compileSlotAttributes($child),
                     $slotsVariableName,
-                ) . "\n";
+                );
+            } else {
+                $output .= $child->render();
             }
+        }
+
+        if (! $hasExplicitDefault) {
+            $contentHandler = $this->manager->isFolding()
+                ? '$__blaze->processPassthroughContent(\'trim\', trim(ob_get_clean()))'
+                : 'trim(ob_get_clean())';
+
+            $output .= '<' . '?php ' . $slotsVariableName . '[\'slot\'] = new \Illuminate\View\ComponentSlot(' . $contentHandler . ', []); ?>' . "\n";
         }
 
         return $output;
@@ -61,37 +70,6 @@ class SlotCompiler
         }
 
         return false;
-    }
-
-    /**
-     * Render non-SlotNode children as the default slot content.
-     *
-     * @param array<Node> $children
-     */
-    protected function renderLooseContent(array $children): string
-    {
-        $content = '';
-        $previousWasSlot = false;
-
-        foreach ($children as $child) {
-            if ($child instanceof SlotNode) {
-                $previousWasSlot = true;
-                continue;
-            }
-
-            $rendered = $child->render();
-
-            // Laravel's slot compilation consumes the newline after </x-slot> and adds a leading space.
-            // We match this by prepending a space and stripping any leading newline.
-            if ($previousWasSlot) {
-                $rendered = ' ' . preg_replace('/^\n/', '', $rendered);
-            }
-
-            $content .= $rendered;
-            $previousWasSlot = false;
-        }
-
-        return $content;
     }
 
     /**

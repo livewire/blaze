@@ -100,3 +100,25 @@ test('same component in a slot doesnt affect parents attributes', fn () => compa
     </x-card>
     BLADE
 ));
+
+test('conditional slots', fn () => compare(<<<'BLADE'
+    <x-card>
+        @if(false)
+        <x-slot name="header">
+            Header
+        </x-slot>
+        @endif
+    </x-card>
+    BLADE
+));
+
+test('foldable conditional slots', fn () => compare(<<<'BLADE'
+    <x-foldable.card>
+        @if(false)
+        <x-slot name="header">
+            Header
+        </x-slot>
+        @endif
+    </x-foldable.card>
+    BLADE
+));
