@@ -27,6 +27,18 @@ test('card', fn () => compare(<<<'BLADE'
     BLADE
 ));
 
+test('aware', fn () => compare(<<<'BLADE'
+    <x-wrapper type="number">
+        <x-input-aware />
+    </x-wrapper>
+    BLADE
+));
+
+test('aware default', fn () => compare(<<<'BLADE'
+    <x-input-aware />
+    BLADE
+));
+
 test('whitespace', fn () => compare(<<<'BLADE'
     Before
     <x-card>
