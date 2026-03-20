@@ -19,14 +19,16 @@ class BlazeServiceProvider extends ServiceProvider
     {
         $this->registerConfig();
 
-        $this->app->singleton(BladeService::class);
-        $this->app->singleton(BlazeRuntime::class);
-        $this->app->singleton(Config::class);
-        $this->app->singleton(Debugger::class);
-        $this->app->singleton(Profiler::class);
-        $this->app->singleton(BlazeManager::class);
+        $bindMethod = method_exists($this->app, 'scoped') ? 'scoped' : 'singleton';
 
-        $this->app->singleton(\PhpParser\Parser::class, function () {
+        $this->app->$bindMethod(BladeService::class);
+        $this->app->$bindMethod(BlazeRuntime::class);
+        $this->app->$bindMethod(Config::class);
+        $this->app->$bindMethod(Debugger::class);
+        $this->app->$bindMethod(Profiler::class);
+        $this->app->$bindMethod(BlazeManager::class);
+
+        $this->app->$bindMethod(\PhpParser\Parser::class, function () {
             return (new \PhpParser\ParserFactory)->createForNewestSupportedVersion();
         });
 
