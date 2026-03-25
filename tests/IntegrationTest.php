@@ -73,28 +73,16 @@ test('supports antlers engine', function () {
 });
 
 test('forwards $__this through component chain', function () {
-    // Parent component does NOT use $this itself, but renders a child that DOES.
-    // Without the fix, the parent passes null instead of forwarding $__this,
-    // causing "Using $this when not in object context" in the child.
+    app()->register(\Livewire\LivewireServiceProvider::class);
 
-    $blaze = app(BlazeRuntime::class);
+    \Livewire\Livewire::test(new class extends \Livewire\Component {
+        public string $name = 'from-livewire';
 
-    // Compile both component functions via resolve().
-    $blaze->resolve('this-child');
-    $blaze->resolve('this-parent');
-
-    $parentPath = fixture_path('views/components/this-parent.blade.php');
-    $parentFn = '_' . \Livewire\Blaze\Support\Utils::hash($parentPath);
-
-    // Call the parent function with a fake $__this.
-    // The parent should forward it to the child, which uses $this->id.
-    $fakeComponent = new class { public string $id = 'test-123'; };
-
-    ob_start();
-    $parentFn($blaze, [], [], [], $fakeComponent);
-    $output = ob_get_clean();
-
-    expect($output)->toContain('test-123');
+        public function render()
+        {
+            return '<x-this-parent />';
+        }
+    })->assertSee('from-livewire');
 });
 
 test('folds and compiles the same component', function () {

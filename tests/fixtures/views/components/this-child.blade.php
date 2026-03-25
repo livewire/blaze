@@ -1,3 +1,3 @@
 @blaze
 
-<span>{{ $this->id ?? 'no-id' }}</span>
+<span>{{ $this->name }}</span>
