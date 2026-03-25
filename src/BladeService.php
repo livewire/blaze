@@ -198,10 +198,6 @@ class BladeService
     /**
      * Resolve a component name to its file path.
      *
-     * Extracts the class-based component resolution from Laravel's componentClass()
-     * so we can skip those (Blaze only compiles anonymous component templates).
-     * View-based aliases are resolved here since they point to Blade templates.
-     *
      * @see ComponentTagCompiler::componentClass()
      */
     public function componentNameToPath($name): string
@@ -227,10 +223,7 @@ class BladeService
     }
 
     /**
-     * Determine if a component resolves to a class rather than an anonymous template.
-     *
-     * Mirrors the class-based resolution steps from Laravel's componentClass():
-     * aliases, registered namespaces, guessClassName, and subfolder convention.
+     * Determine if a component resolves to a class rather than a blade view.
      *
      * @see ComponentTagCompiler::componentClass()
      */
