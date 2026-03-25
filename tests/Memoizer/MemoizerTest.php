@@ -24,7 +24,7 @@ test('memoizes self-closing components', function () {
         '<?php ob_start(); ?>',
         '<?php $__blaze->ensureRequired(\''. $path .'\', $__blaze->compiledPath.\'/'. $hash .'.php\'); ?> ',
         '<?php $__blaze->pushData([\'src\' => $user->avatar]); ?> ',
-        '<?php _'. $hash .'($__blaze, [\'src\' => $user->avatar], [], [\'src\'], [], isset($this) ? $this : null); ?> ',
+        '<?php _'. $hash .'($__blaze, [\'src\' => $user->avatar], [], [\'src\'], [], $__this ?? (isset($this) ? $this : null)); ?> ',
         '<?php $__blaze->popData(); ?>',
         '<?php $blaze_memoized_html = ob_get_clean(); ?>',
         '<?php if ($blaze_memoized_key !== null) { \Livewire\Blaze\Memoizer\Memo::put($blaze_memoized_key, $blaze_memoized_html); } ?>',

@@ -16,7 +16,7 @@ test('compiles self-closing components', function () {
     expect($compiled->render())->toEqualCollapsingWhitespace(join('', [
         '<?php $__blaze->ensureRequired(\''. $path .'\', $__blaze->compiledPath.\'/'. $hash .'.php\'); ?> ',
         '<?php $__blaze->pushData([\'type\' => \'text\',\'disabled\' => $disabled]); ?> ',
-        '<?php _'. $hash .'($__blaze, [\'type\' => \'text\',\'disabled\' => $disabled], [], [\'disabled\'], [], isset($this) ? $this : null); ?> ',
+        '<?php _'. $hash .'($__blaze, [\'type\' => \'text\',\'disabled\' => $disabled], [], [\'disabled\'], [], $__this ?? (isset($this) ? $this : null)); ?> ',
         '<?php $__blaze->popData(); ?>',
     ]));
 });
@@ -43,8 +43,8 @@ test('compiles components', function () {
 
     expect($compiled->render())->toEqualCollapsingWhitespace(join('', [
         '<?php $__blaze->ensureRequired(\''. $path .'\', $__blaze->compiledPath.\'/'. $hash .'.php\'); ?> ',
-        '<?php if (isset($__slots'. $hash .')) $__slotsOriginal = $__slots'. $hash .'; ?> ',
-        '<?php if (isset($__attrs'. $hash .')) $__attrsOriginal = $__attrs'. $hash .'; ?> ',
+        '<?php if (isset($__slots'. $hash .')) { $__slotsStack'. $hash .'[] = $__slots'. $hash .'; } ?> ',
+        '<?php if (isset($__attrs'. $hash .')) { $__attrsStack'. $hash .'[] = $__attrs'. $hash .'; } ?> ',
         '<?php $__attrs'. $hash .' = [\'class\' => \'mt-8\']; ?> ',
         '<?php $__slots'. $hash .' = []; ?> ',
         '<?php $__blaze->pushData($__attrs'. $hash .'); ?> ',
@@ -52,9 +52,9 @@ test('compiles components', function () {
         '<?php ob_start(); ?> Header <?php $__slots'. $hash .'[\'header\'] = new \Illuminate\View\ComponentSlot(trim(ob_get_clean()), [\'class\' => \'p-2\']); ?> ',
         '<?php ob_start(); ?> Footer <?php $__slots'. $hash .'[\'footer\'] = new \Illuminate\View\ComponentSlot(trim(ob_get_clean()), [\'class\' => \'mt-4\']); ?> ',
         '<?php $__blaze->pushSlots($__slots'. $hash .'); ?> ',
-        '<?php _'. $hash .'($__blaze, $__attrs'. $hash .', $__slots'. $hash .', [], [], isset($this) ? $this : null); ?> ',
-        '<?php if (isset($__slotsOriginal)) { $__slots'. $hash .' = $__slotsOriginal; unset($__slotsOriginal); } ?> ',
-        '<?php if (isset($__attrsOriginal)) { $__attrs'. $hash .' = $__attrsOriginal; unset($__attrsOriginal); } ?> ',
+        '<?php _'. $hash .'($__blaze, $__attrs'. $hash .', $__slots'. $hash .', [], [], $__this ?? (isset($this) ? $this : null)); ?> ',
+        '<?php if (! empty($__slotsStack'. $hash .')) { $__slots'. $hash .' = array_pop($__slotsStack'. $hash .'); } ?> ',
+        '<?php if (! empty($__attrsStack'. $hash .')) { $__attrs'. $hash .' = array_pop($__attrsStack'. $hash .'); } ?> ',
         '<?php $__blaze->popData(); ?>',
     ]));
 });
@@ -69,7 +69,7 @@ test('compiles delegate components', function () {
         '<?php $__resolved = $__blaze->resolve(\'flux::\' . card); ?> ',
         '<?php $__blaze->pushData($attributes->all()); ?> ',
         '<?php if ($__resolved !== false): ?> ',
-        '<?php (\'_\' . $__resolved)($__blaze, $attributes->all(), $__blaze->mergedComponentSlots(), [], [], isset($this) ? $this : null); ?> ',
+        '<?php (\'_\' . $__resolved)($__blaze, $attributes->all(), $__blaze->mergedComponentSlots(), [], [], $__this ?? (isset($this) ? $this : null)); ?> ',
         '<?php else: ?> ',
         '<flux:delegate-component component="card" /> ',
         '<?php endif; ?> ',

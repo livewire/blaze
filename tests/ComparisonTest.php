@@ -76,3 +76,32 @@ test('attributes and props', fn () => compare(<<<'BLADE'
     />
     BLADE
 ));
+
+test('nested same component with different component in between', fn () => compare(<<<'BLADE'
+    <x-card class="outer">
+        <x-wrapper>
+            Wrapped
+        </x-wrapper>
+        <x-card class="inner">
+            <x-wrapper>
+                Inner Wrapped
+            </x-wrapper>
+        </x-card>
+    </x-card>
+    BLADE
+));
+
+test('deeply nested same component with different components interleaved', fn () => compare(<<<'BLADE'
+    <x-card class="outer">
+        <x-wrapper>
+            <x-card class="middle">
+                <x-wrapper>
+                    <x-card class="inner">
+                        Inner
+                    </x-card>
+                </x-wrapper>
+            </x-card>
+        </x-wrapper>
+    </x-card>
+    BLADE
+));
