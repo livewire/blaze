@@ -72,6 +72,31 @@ test('supports antlers engine', function () {
     expect(view('antlers-view')->render())->toBe('NO_BLAZE');
 });
 
+test('forwards $__this through component chain', function () {
+    // Parent component does NOT use $this itself, but renders a child that DOES.
+    // Without the fix, the parent passes null instead of forwarding $__this,
+    // causing "Using $this when not in object context" in the child.
+
+    $blaze = app(BlazeRuntime::class);
+
+    // Compile both component functions via resolve().
+    $blaze->resolve('this-child');
+    $blaze->resolve('this-parent');
+
+    $parentPath = fixture_path('views/components/this-parent.blade.php');
+    $parentFn = '_' . \Livewire\Blaze\Support\Utils::hash($parentPath);
+
+    // Call the parent function with a fake $__this.
+    // The parent should forward it to the child, which uses $this->id.
+    $fakeComponent = new class { public string $id = 'test-123'; };
+
+    ob_start();
+    $parentFn($blaze, [], [], [], $fakeComponent);
+    $output = ob_get_clean();
+
+    expect($output)->toContain('test-123');
+});
+
 test('folds and compiles the same component', function () {
     Blade::render(<<<'BLADE'
         <x-foldable.input required /> {{-- Folded --}}
