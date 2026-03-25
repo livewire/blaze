@@ -67,7 +67,7 @@ class Wrapper
         $output .= 'if (($__data[\'attributes\'] ?? null) instanceof \Illuminate\View\ComponentAttributeBag) { $__data = $__data + $__data[\'attributes\']->all(); unset($__data[\'attributes\']); }'."\n";
         $output .= '$attributes = \\Livewire\\Blaze\\Runtime\\BlazeAttributeBag::sanitized($__data, $__bound);'."\n";
         $output .= 'extract($__slots, EXTR_SKIP); unset($__slots);'."\n";
-        $output .= 'foreach ($__data as $__key => $__value) { if (str_contains($__key, \'-\')) { $__data[\Illuminate\Support\Str::camel($__key)] ??= $__value; } } unset($__key, $__value);'."\n";
+        $output .= 'foreach ($__bound as $__key) { if (str_contains($__key, \'-\') && array_key_exists($__key, $__data)) { $__data[\Illuminate\Support\Str::camel($__key)] ??= $__data[$__key]; } } unset($__key);'."\n";
         $output .= 'extract($__data, EXTR_SKIP); unset($__data, $__bound);'."\n";
         $output .= 'ob_start();' . "\n";
         $output .= '?>' . "\n";
