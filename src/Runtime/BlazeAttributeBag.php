@@ -15,15 +15,17 @@ class BlazeAttributeBag extends ComponentAttributeBag
     /**
      * Create an attribute bag with bound values sanitized for safe HTML rendering.
      */
-    public static function sanitized(array $attributes, array $boundKeys = []): static
+    public static function make(array $attributes, array $boundKeys = [], array $originalKeys = []): static
     {
-        foreach ($boundKeys as $key) {
-            if (array_key_exists($key, $attributes)) {
-                $attributes[$key] = \Illuminate\View\Compilers\BladeCompiler::sanitizeComponentAttribute($attributes[$key]);
-            }
+        $result = [];
+
+        foreach ($attributes as $key => $value) {
+            $result[$originalKeys[$key] ?? $key] = in_array($key, $boundKeys)
+                ? \Illuminate\View\Compilers\BladeCompiler::sanitizeComponentAttribute($value)
+                : $value;
         }
 
-        return new static($attributes);
+        return new static($result);
     }
 
     /** {@inheritdoc} */

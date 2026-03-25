@@ -59,3 +59,20 @@ test('same component in a slot doesnt affect parents attributes', fn () => compa
     </x-card>
     BLADE
 ));
+
+test('attributes and props', fn () => compare(<<<'BLADE'
+    <x-attributes
+        attr="foo"
+        attr-kebab="bar"
+        :str="str('hello')"
+        :str-kebab="str('world')"
+    />
+
+    <x-props
+        prop="foo"
+        prop-kebab="bar"
+        :str="str('hello')"
+        :str-kebab="str('world')"
+    />
+    BLADE
+));

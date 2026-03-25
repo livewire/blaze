@@ -271,11 +271,7 @@ class Foldable
         $data = [];
 
         foreach ($this->node->attributes as $attribute) {
-            if ($attribute->bound()) {
-                $data[] = var_export($attribute->propName, true).' => '.$attribute->value;
-            } else {
-                $data[] = var_export($attribute->propName, true).' => '.$this->blade->compileAttributeEchos($attribute->value);
-            }
+            $data[] = $this->blade->compileAttribute($attribute);
         }
 
         $dataString = implode(', ', $data);
