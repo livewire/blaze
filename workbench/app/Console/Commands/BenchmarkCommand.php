@@ -1,6 +1,6 @@
 <?php
 
-namespace Workbench\App\Console\Commands;
+namespace App\Console\Commands;
 
 use Illuminate\Console\Command;
 use Illuminate\Support\Collection;
