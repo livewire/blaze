@@ -59,3 +59,20 @@ test('same component in a slot doesnt affect parents attributes', fn () => compa
     </x-card>
     BLADE
 ));
+
+test('kebab-case bound prop preserves object type', function () {
+    $result = new class ('ok') {
+        public function __construct(public string $status) {}
+
+        public function __toString(): string
+        {
+            return "Result: {$this->status}";
+        }
+    };
+
+    compare(<<<'BLADE'
+        <x-kebab-prop :api-result="$result" />
+        BLADE,
+        ['result' => $result],
+    );
+});
