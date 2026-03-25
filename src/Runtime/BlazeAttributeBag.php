@@ -18,9 +18,10 @@ class BlazeAttributeBag extends ComponentAttributeBag
     public static function make(array $attributes, array $boundKeys = [], array $originalKeys = []): static
     {
         $result = [];
+        $boundKeys = array_flip($boundKeys);
 
         foreach ($attributes as $key => $value) {
-            $result[$originalKeys[$key] ?? $key] = in_array($key, $boundKeys)
+            $result[$originalKeys[$key] ?? $key] = isset($boundKeys)
                 ? \Illuminate\View\Compilers\BladeCompiler::sanitizeComponentAttribute($value)
                 : $value;
         }
