@@ -21,9 +21,15 @@ class BlazeAttributeBag extends ComponentAttributeBag
         $boundKeys = array_flip($boundKeys);
 
         foreach ($attributes as $key => $value) {
-            $result[$originalKeys[$key] ?? $key] = isset($boundKeys[$key])
+            $value = isset($boundKeys[$key])
                 ? \Illuminate\View\Compilers\BladeCompiler::sanitizeComponentAttribute($value)
                 : $value;
+            
+            if (isset($originalKeys[$key])) {
+                $result[$originalKeys[$key]] = $value;
+            } else {
+                $result[$key] = $value;
+            }
         }
 
         return new static($result);
