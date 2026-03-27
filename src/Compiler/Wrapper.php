@@ -57,17 +57,18 @@ class Wrapper
         $output .= '<'.'?php' . "\n";
         $output .= $imports;
         $output .= 'if (!function_exists(\''.$name.'\')):'."\n";
-        $output .= 'function '.$name.'($__blaze, $__data = [], $__slots = [], $__bound = [], $__this = null) {'."\n";
+        $output .= 'function '.$name.'($__blaze, $__data = [], $__slots = [], $__bound = [], $__keys = [], $__this = null) {'."\n";
 
         if ($sourceUsesThis) {
-            $output .= '$__blazeFn = function () use ($__blaze, $__data, $__slots, $__bound) {'."\n";
+            $output .= '$__blazeFn = function () use ($__blaze, $__data, $__slots, $__bound, $__keys) {'."\n";
         }
 
         $output .= $this->globalVariables($source, $compiled);
         $output .= 'if (isset($__data[\'attributes\']) && $__data[\'attributes\'] instanceof \Illuminate\View\ComponentAttributeBag) { $__data = $__data + $__data[\'attributes\']->all(); unset($__data[\'attributes\']); }'."\n";
-        $output .= '$attributes = \\Livewire\\Blaze\\Runtime\\BlazeAttributeBag::sanitized($__data, $__bound);'."\n";
         $output .= 'extract($__slots, EXTR_SKIP); unset($__slots);'."\n";
-        $output .= 'if ($__data) { extract($__data, EXTR_SKIP); } unset($__data, $__bound);'."\n";
+        $output .= 'extract($__data, EXTR_SKIP);'."\n";
+        $output .= '$attributes = \\Livewire\\Blaze\\Runtime\\BlazeAttributeBag::make($__data, $__bound, $__keys);'."\n";
+        $output .= 'unset($__data, $__bound, $__keys);'."\n";
         $output .= 'ob_start();' . "\n";
         $output .= '?>' . "\n";
 
