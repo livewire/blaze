@@ -17,22 +17,23 @@ class BlazeAttributeBag extends ComponentAttributeBag
      */
     public static function make(array $attributes, array $boundKeys = [], array $originalKeys = []): static
     {
-        $result = [];
-        $boundKeys = array_flip($boundKeys);
-
-        foreach ($attributes as $key => $value) {
-            $value = isset($boundKeys[$key])
-                ? \Illuminate\View\Compilers\BladeCompiler::sanitizeComponentAttribute($value)
-                : $value;
-            
-            if (isset($originalKeys[$key])) {
-                $result[$originalKeys[$key]] = $value;
-            } else {
-                $result[$key] = $value;
+        foreach ($boundKeys as $key) {
+            if (array_key_exists($key, $attributes)) {
+                $attributes[$key] = \Illuminate\View\Compilers\BladeCompiler::sanitizeComponentAttribute($attributes[$key]);
             }
         }
 
-        return new static($result);
+        if ($originalKeys) {
+            $result = [];
+
+            foreach ($attributes as $key => $value) {
+                $result[$originalKeys[$key] ?? $key] = $value;
+            }
+
+            return new static($result);
+        }
+
+        return new static($attributes);
     }
 
     /** {@inheritdoc} */
