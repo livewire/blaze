@@ -64,18 +64,13 @@ class BlazeAttributeBag extends ComponentAttributeBag
                 $value = rtrim((string) $value, ';').';';
             }
 
-            $merged = [];
-            foreach ([$defaultsValue, $value] as $part) {
-                if (! $part) {
-                    continue;
-                }
-
-                if (! in_array($part, $merged)) {
-                    $merged[] = $part;
-                }
+            if (! $defaultsValue) {
+                $attributes[$key] = $value ?: '';
+            } elseif (! $value || $value === $defaultsValue) {
+                $attributes[$key] = $defaultsValue;
+            } else {
+                $attributes[$key] = $defaultsValue.' '.$value;
             }
-
-            $attributes[$key] = implode(' ', $merged);
         }
 
         foreach ($nonAppendableAttributes as $key => $value) {
