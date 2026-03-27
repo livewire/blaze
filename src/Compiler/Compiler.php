@@ -2,7 +2,6 @@
 
 namespace Livewire\Blaze\Compiler;
 
-use Illuminate\View\Compilers\ComponentTagCompiler;
 use Livewire\Blaze\BladeService;
 use Livewire\Blaze\BlazeManager;
 use Livewire\Blaze\Parser\Nodes\ComponentNode;
@@ -18,7 +17,6 @@ use Livewire\Blaze\Support\Utils;
  */
 class Compiler
 {
-    protected ComponentTagCompiler $tagCompiler;
     protected SlotCompiler $slotCompiler;
 
     public function __construct(
@@ -26,8 +24,7 @@ class Compiler
         protected BladeService $blade,
         protected BlazeManager $manager,
     ) {
-        $this->slotCompiler = new SlotCompiler($manager, fn (string $str) => $this->getAttributesAndBoundKeysArrayStrings($str, true)[0]);
-        $this->tagCompiler = new ComponentTagCompiler([], [], $blade->compiler);
+        $this->slotCompiler = new SlotCompiler($manager, $blade);
     }
 
     /**
@@ -97,31 +94,63 @@ class Compiler
     {
         $hash = Utils::hash($source->path);
         $functionName = ($this->manager->isFolding() ? '__' : '_') . $hash;
-        [$attributesArrayString, $boundKeysArrayString] = $this->getAttributesAndBoundKeysArrayStrings($node->attributeString);
+        [$attributesArrayString, $boundKeysArrayString, $originalKeysArrayString] = $this->compileAttributes($node);
 
         $output = '<' . '?php $__blaze->ensureRequired(\'' . $source->path . '\', $__blaze->compiledPath.\'/'. $hash . '.php\'); ?>' . "\n";
 
         if ($node->selfClosing) {
             $output .= '<' . '?php $__blaze->pushData(' . $attributesArrayString . '); ?>' . "\n";
-            $output .= '<' . '?php ' . $functionName . '($__blaze, ' . $attributesArrayString . ', [], ' . $boundKeysArrayString . ', isset($this) ? $this : null); ?>' . "\n";
+            $output .= '<' . '?php ' . $functionName . '($__blaze, ' . $attributesArrayString . ', [], ' . $boundKeysArrayString . ', ' . $originalKeysArrayString . ', $__this ?? (isset($this) ? $this : null)); ?>' . "\n";
         } else {
             $slotsVariableName = '$__slots' . $hash;
             $attributesVariableName = '$__attrs' . $hash;
-            $output .= '<' . '?php if (isset(' . $slotsVariableName . ')) $__slotsOriginal = ' . $slotsVariableName . '; ?>' . "\n";
-            $output .= '<' . '?php if (isset(' . $attributesVariableName . ')) $__attrsOriginal = ' . $attributesVariableName . '; ?>' . "\n";
+            $slotsStackName = '$__slotsStack' . $hash;
+            $attrsStackName = '$__attrsStack' . $hash;
+            $output .= '<' . '?php if (isset(' . $slotsVariableName . ')) { ' . $slotsStackName . '[] = ' . $slotsVariableName . '; } ?>' . "\n";
+            $output .= '<' . '?php if (isset(' . $attributesVariableName . ')) { ' . $attrsStackName . '[] = ' . $attributesVariableName . '; } ?>' . "\n";
             $output .= '<' . '?php ' . $attributesVariableName . ' = ' . $attributesArrayString . '; ?>' . "\n";
             $output .= '<' . '?php ' . $slotsVariableName . ' = []; ?>' . "\n";
             $output .= '<' . '?php $__blaze->pushData(' . $attributesVariableName . '); ?>' . "\n";
             $output .= $this->slotCompiler->compile($slotsVariableName, $node->children);
             $output .= '<' . '?php $__blaze->pushSlots(' . $slotsVariableName . '); ?>' . "\n";
-            $output .= '<' . '?php ' . $functionName . '($__blaze, ' . $attributesVariableName . ', ' . $slotsVariableName . ', ' . $boundKeysArrayString . ', isset($this) ? $this : null); ?>' . "\n";
-            $output .= '<' . '?php if (isset($__slotsOriginal)) { ' . $slotsVariableName . ' = $__slotsOriginal; unset($__slotsOriginal); } ?>' . "\n";
-            $output .= '<' . '?php if (isset($__attrsOriginal)) { ' . $attributesVariableName . ' = $__attrsOriginal; unset($__attrsOriginal); } ?>' . "\n";
+            $output .= '<' . '?php ' . $functionName . '($__blaze, ' . $attributesVariableName . ', ' . $slotsVariableName . ', ' . $boundKeysArrayString . ', ' . $originalKeysArrayString . ', $__this ?? (isset($this) ? $this : null)); ?>' . "\n";
+            $output .= '<' . '?php if (! empty(' . $slotsStackName . ')) { ' . $slotsVariableName . ' = array_pop(' . $slotsStackName . '); } ?>' . "\n";
+            $output .= '<' . '?php if (! empty(' . $attrsStackName . ')) { ' . $attributesVariableName . ' = array_pop(' . $attrsStackName . '); } ?>' . "\n";
         }
 
         $output .= '<' . '?php $__blaze->popData(); ?>';
 
         return $output;
+    }
+
+    /**
+     * Build attribute array string, bound keys, and key map from parsed attributes.
+     *
+     * @return array{string, string, string} Tuple of [attributesArrayString, boundKeysArrayString, originalKeysArrayString]
+     */
+    protected function compileAttributes(ComponentNode $node): array
+    {
+        $data = [];
+        $boundKeys = [];
+        $originalKeys = [];
+
+        foreach ($node->attributes as $attr) {
+            $data[] = $this->blade->compileAttribute($attr);
+
+            if ($attr->bound() || $attr->valueless) {
+                $boundKeys[] = "'{$attr->propName}'";
+            }
+
+            if ($attr->propName !== $attr->name) {
+                $originalKeys[] = "'{$attr->propName}' => '{$attr->name}'";
+            }
+        }
+
+        return [
+            '[' . implode(',', $data) . ']',
+            '[' . implode(', ', $boundKeys) . ']',
+            '[' . implode(', ', $originalKeys) . ']',
+        ];
     }
 
     /**
@@ -137,15 +166,17 @@ class Compiler
         $output .= '<' . '?php if ($__resolved !== false): ?>' . "\n";
 
         if ($node->selfClosing) {
-            $output .= '<' . '?php ' . $functionName . '($__blaze, $attributes->all(), $__blaze->mergedComponentSlots(), [], isset($this) ? $this : null); ?>' . "\n";
+            $output .= '<' . '?php ' . $functionName . '($__blaze, $attributes->all(), $__blaze->mergedComponentSlots(), [], [], $__this ?? (isset($this) ? $this : null)); ?>' . "\n";
         } else {
-            $slotsVariableName = '$__slots' . Utils::hash($componentName);
-            $output .= '<' . '?php if (isset(' . $slotsVariableName . ')) $__slotsOriginal = ' . $slotsVariableName . '; ?>' . "\n";
+            $hash = Utils::hash($componentName);
+            $slotsVariableName = '$__slots' . $hash;
+            $slotsStackName = '$__slotsStack' . $hash;
+            $output .= '<' . '?php if (isset(' . $slotsVariableName . ')) { ' . $slotsStackName . '[] = ' . $slotsVariableName . '; } ?>' . "\n";
             $output .= '<' . '?php ' . $slotsVariableName . ' = []; ?>' . "\n";
             $output .= $this->slotCompiler->compile($slotsVariableName, $node->children);
             $output .= '<' . '?php ' . $slotsVariableName . ' = array_merge($__blaze->mergedComponentSlots(), ' . $slotsVariableName . '); ?>' . "\n";
-            $output .= '<' . '?php ' . $functionName . '($__blaze, $attributes->all(), ' . $slotsVariableName . ', [], isset($this) ? $this : null); ?>' . "\n";
-            $output .= '<' . '?php if (isset($__slotsOriginal)) { ' . $slotsVariableName . ' = $__slotsOriginal; unset($__slotsOriginal); } ?>' . "\n";
+            $output .= '<' . '?php ' . $functionName . '($__blaze, $attributes->all(), ' . $slotsVariableName . ', [], [], $__this ?? (isset($this) ? $this : null)); ?>' . "\n";
+            $output .= '<' . '?php if (! empty(' . $slotsStackName . ')) { ' . $slotsVariableName . ' = array_pop(' . $slotsStackName . '); } ?>' . "\n";
         }
 
         $output .= '<' . '?php else: ?>' . "\n";
@@ -156,37 +187,6 @@ class Compiler
         $output .= '<' . '?php unset($__resolved) ?>';
 
         return $output;
-    }
-
-    /**
-     * Convert attribute string to PHP array syntax using Laravel's ComponentTagCompiler.
-     *
-     * @param bool $escapeBound Whether to wrap bound values in sanitizeComponentAttribute()
-     * @return array{string, string} Tuple of [attributesArrayString, boundKeysArrayString]
-     */
-    protected function getAttributesAndBoundKeysArrayStrings(string $attributeString, bool $escapeBound = false): array
-    {
-        if (empty(trim($attributeString))) {
-            return ['[]', '[]'];
-        }
-
-        return (function (string $str, bool $escapeBound): array {
-            /** @var ComponentTagCompiler $this */
-
-            // We're using reflection here to avoid LSP errors
-            $boundAttributesProp = new \ReflectionProperty($this, 'boundAttributes');
-            $boundAttributesProp->setValue($this, []);
-
-            // parseShortAttributeSyntax expects leading whitespace
-            $str = $this->parseShortAttributeSyntax(' ' . $str);
-            $attributes = $this->getAttributesFromAttributeString($str);
-            $boundKeys = array_keys($boundAttributesProp->getValue($this));
-
-            $attributesString = '[' . $this->attributesToString($attributes, $escapeBound) . ']';
-            $boundKeysString = '[' . implode(', ', array_map(fn ($k) => "'{$k}'", $boundKeys)) . ']';
-
-            return [$attributesString, $boundKeysString];
-        })->call($this->tagCompiler, $attributeString, $escapeBound);
     }
 
 }
