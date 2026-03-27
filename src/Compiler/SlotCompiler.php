@@ -2,8 +2,8 @@
 
 namespace Livewire\Blaze\Compiler;
 
-use Closure;
 use Illuminate\Support\Str;
+use Livewire\Blaze\BladeService;
 use Livewire\Blaze\BlazeManager;
 use Livewire\Blaze\Parser\Nodes\SlotNode;
 
@@ -14,7 +14,7 @@ class SlotCompiler
 {
     public function __construct(
         protected BlazeManager $manager,
-        protected Closure $getAttributesArrayString
+        protected BladeService $blade,
     ) {
     }
 
@@ -111,20 +111,24 @@ class SlotCompiler
      */
     protected function compileSlotAttributes(SlotNode $slot): string
     {
-        $attributeString = $slot->attributeString;
+        $attributes = $slot->attributes;
 
         // For standard syntax, name="..." is the slot name, not an attribute
         if ($slot->slotStyle === 'standard') {
-            $attributeString = preg_replace('/(?:^|\s)name\s*=\s*(?:"[^"]*"|\'[^\']*\')\s*/', ' ', $attributeString);
+            $attributes = array_filter($attributes, fn ($attr) => $attr->name !== 'name');
         }
 
-        $attributeString = trim($attributeString);
-
-        if (empty($attributeString)) {
+        if (empty($attributes)) {
             return '[]';
         }
 
-        return ($this->getAttributesArrayString)($attributeString);
+        $parts = [];
+
+        foreach ($attributes as $attr) {
+            $parts[] = $this->blade->compileAttribute($attr, escapeBound: true);
+        }
+
+        return '[' . implode(', ', $parts) . ']';
     }
 
     /**

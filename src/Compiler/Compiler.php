@@ -2,7 +2,6 @@
 
 namespace Livewire\Blaze\Compiler;
 
-use Illuminate\View\Compilers\ComponentTagCompiler;
 use Livewire\Blaze\BladeService;
 use Livewire\Blaze\BlazeManager;
 use Livewire\Blaze\Parser\Nodes\ComponentNode;
@@ -18,7 +17,6 @@ use Livewire\Blaze\Support\Utils;
  */
 class Compiler
 {
-    protected ComponentTagCompiler $tagCompiler;
     protected SlotCompiler $slotCompiler;
 
     public function __construct(
@@ -26,8 +24,7 @@ class Compiler
         protected BladeService $blade,
         protected BlazeManager $manager,
     ) {
-        $this->slotCompiler = new SlotCompiler($manager, fn (string $str) => $this->getAttributesAndBoundKeysArrayStrings($str, true)[0]);
-        $this->tagCompiler = new ComponentTagCompiler([], [], $blade->compiler);
+        $this->slotCompiler = new SlotCompiler($manager, $blade);
     }
 
     /**
@@ -190,36 +187,6 @@ class Compiler
         $output .= '<' . '?php unset($__resolved) ?>';
 
         return $output;
-    }
-
-    /**
-     * Convert attribute string to PHP array syntax using Laravel's ComponentTagCompiler.
-     *
-     * Only used by the slot compiler for slot attributes.
-     */
-    protected function getAttributesAndBoundKeysArrayStrings(string $attributeString, bool $escapeBound = false): array
-    {
-        if (empty(trim($attributeString))) {
-            return ['[]', '[]'];
-        }
-
-        return (function (string $str, bool $escapeBound): array {
-            /** @var ComponentTagCompiler $this */
-
-            // We're using reflection here to avoid LSP errors
-            $boundAttributesProp = new \ReflectionProperty($this, 'boundAttributes');
-            $boundAttributesProp->setValue($this, []);
-
-            // parseShortAttributeSyntax expects leading whitespace
-            $str = $this->parseShortAttributeSyntax(' ' . $str);
-            $attributes = $this->getAttributesFromAttributeString($str);
-            $boundKeys = array_keys($boundAttributesProp->getValue($this));
-
-            $attributesString = '[' . $this->attributesToString($attributes, $escapeBound) . ']';
-            $boundKeysString = '[' . implode(', ', array_map(fn ($k) => "'{$k}'", $boundKeys)) . ']';
-
-            return [$attributesString, $boundKeysString];
-        })->call($this->tagCompiler, $attributeString, $escapeBound);
     }
 
 }

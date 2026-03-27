@@ -162,12 +162,14 @@ class BladeService
     /**
      * Compile an attribute to a PHP array entry string (e.g. "'propName' => value").
      */
-    public function compileAttribute(Attribute $attribute): string
+    public function compileAttribute(Attribute $attribute, bool $escapeBound = false): string
     {
         if ($attribute->valueless) {
             $value = 'true';
         } elseif ($attribute->bound()) {
-            $value = $attribute->value;
+            $value = $escapeBound
+                ? '\Illuminate\View\Compilers\BladeCompiler::sanitizeComponentAttribute(' . $attribute->value . ')'
+                : $attribute->value;
         } else {
             $value = $this->compileAttributeEchos($attribute->value);
         }
