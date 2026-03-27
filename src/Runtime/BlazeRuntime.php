@@ -4,7 +4,6 @@ namespace Livewire\Blaze\Runtime;
 
 use Illuminate\Contracts\View\Factory;
 use Illuminate\Foundation\Application;
-use Illuminate\Support\Str;
 use Illuminate\Support\ViewErrorBag;
 use Illuminate\View\Compilers\BladeCompiler;
 use Illuminate\View\Compilers\Compiler;
@@ -141,19 +140,12 @@ class BlazeRuntime
         if ($attributes = $data['attributes'] ?? null) {
             unset($data['attributes']);
 
-            $data = array_merge($attributes->all(), $data);
+            $this->dataStack[] = $this->normalizeKeys(array_merge($attributes->all(), $data));
+            $this->slotsStack[] = [];
+        } else {
+            $this->dataStack[] = $this->normalizeKeys($data);
+            $this->slotsStack[] = [];
         }
-
-        foreach ($data as $key => $value) {
-            if (str_contains($key, '-')) {
-                $data = $this->normalizeKeys($data);
-
-                break;
-            }
-        }
-
-        $this->dataStack[] = $data;
-        $this->slotsStack[] = [];
     }
 
     /**
@@ -164,7 +156,7 @@ class BlazeRuntime
         $normalized = [];
 
         foreach ($data as $key => $value) {
-            $normalized[Str::camel($key)] = $value;
+            $normalized[\Illuminate\Support\Str::camel($key)] = $value;
         }
 
         return $normalized;

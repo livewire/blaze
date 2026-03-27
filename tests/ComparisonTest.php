@@ -60,27 +60,6 @@ test('same component in a slot doesnt affect parents attributes', fn () => compa
     BLADE
 ));
 
-test('attributes and props', fn () => compare(<<<'BLADE'
-    <x-attributes
-        attr="foo"
-        attr-kebab="bar"
-        :str="str('hello')"
-        :str-kebab="str('world')"
-    >
-        <x-slot:content class="p-2" data-foo="bar"></x-slot:content>
-    </x-attributes>
-
-    <x-props
-        prop="foo"
-        prop-kebab="bar"
-        :str="str('hello')"
-        :str-kebab="str('world')"
-    >
-        <x-slot:content class="p-2" data-foo="bar"></x-slot:content>
-    </x-props>
-    BLADE
-));
-
 test('nested same component with different component in between', fn () => compare(<<<'BLADE'
     <x-card class="outer">
         <x-wrapper>

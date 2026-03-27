@@ -4,6 +4,7 @@
 
 @props(['type' => 'text', 'disabled' => false])
 
+
 <input
     {{ $attributes }}
     type="{{ $type }}"

@@ -54,7 +54,7 @@ class ComponentNode extends Node
         $output = "<{$this->prefix}{$name}";
 
         foreach ($this->attributes as $attribute) {
-            if ($attribute->valueless) {
+            if ($attribute->value === true) {
                 $output .= ' '.$attribute->name;
             } else {
                 $output .= ' '.$attribute->prefix.$attribute->name;

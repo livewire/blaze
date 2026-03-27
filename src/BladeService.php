@@ -8,7 +8,6 @@ use Illuminate\View\Compilers\BladeCompiler;
 use Illuminate\View\Compilers\ComponentTagCompiler;
 use Illuminate\View\Factory;
 use Livewire\Blaze\Compiler\DirectiveCompiler;
-use Livewire\Blaze\Parser\Attribute;
 use Livewire\Blaze\Support\LaravelRegex;
 use ReflectionClass;
 
@@ -157,26 +156,6 @@ class BladeService
 
             return $method->invoke($this->compiler, $expression);
         })->compile($input);
-    }
-
-    /**
-     * Compile an attribute to a PHP array entry string (e.g. "'propName' => value").
-     */
-    public function compileAttribute(Attribute $attribute, bool $escapeBound = false, bool $originalKey = false): string
-    {
-        $key = $originalKey ? $attribute->name : $attribute->propName;
-
-        if ($attribute->valueless) {
-            $value = 'true';
-        } elseif ($attribute->bound()) {
-            $value = $escapeBound
-                ? '\Illuminate\View\Compilers\BladeCompiler::sanitizeComponentAttribute(' . $attribute->value . ')'
-                : $attribute->value;
-        } else {
-            $value = $this->compileAttributeEchos($attribute->value);
-        }
-
-        return "'{$key}' => {$value}";
     }
 
     /**

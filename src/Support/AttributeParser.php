@@ -38,10 +38,8 @@ class AttributeParser
                 $prefix = '::';
             }
 
-            $valueless = is_null($value);
-
-            if ($valueless) {
-                $value = 'true';
+            if (is_null($value)) {
+                $value = true;
             }
 
             $quotes = '';
@@ -69,7 +67,6 @@ class AttributeParser
                 dynamic: $dynamic,
                 prefix: $prefix,
                 quotes: $quotes,
-                valueless: $valueless,
             );
         }
 

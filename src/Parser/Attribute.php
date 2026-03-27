@@ -14,7 +14,6 @@ class Attribute
         public bool $dynamic,
         public ?string $prefix = null,
         public string $quotes = '"',
-        public bool $valueless = false,
     ) {
     }
 

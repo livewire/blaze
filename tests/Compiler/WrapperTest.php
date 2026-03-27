@@ -13,13 +13,12 @@ test('wraps component templates into function definitions', function () {
     $wrapped = app(Wrapper::class)->wrap($source, $path, $source);
 
     expect($wrapped)->toEqualCollapsingWhitespace(join('', [
-        '<?php if (!function_exists(\'_'. $hash .'\')): function _'. $hash .'($__blaze, $__data = [], $__slots = [], $__bound = [], $__keys = [], $__this = null) { ',
+        '<?php if (!function_exists(\'_'. $hash .'\')): function _'. $hash .'($__blaze, $__data = [], $__slots = [], $__bound = [], $__this = null) { ',
         '$__env = $__blaze->env; ',
         'if (($__data[\'attributes\'] ?? null) instanceof \Illuminate\View\ComponentAttributeBag) { $__data = $__data + $__data[\'attributes\']->all(); unset($__data[\'attributes\']); } ',
+        '$attributes = \Livewire\Blaze\Runtime\BlazeAttributeBag::sanitized($__data, $__bound); ',
         'extract($__slots, EXTR_SKIP); unset($__slots); ',
-        'extract($__data, EXTR_SKIP); ',
-        '$attributes = \Livewire\Blaze\Runtime\BlazeAttributeBag::make($__data, $__bound, $__keys); ',
-        'unset($__data, $__bound, $__keys); ',
+        'extract($__data, EXTR_SKIP); unset($__data, $__bound); ',
         'ob_start(); ?> ',
         '@blaze ',
         '<?php $__defaults = [\'type\' => \'text\', \'disabled\' => false]; ',
@@ -39,13 +38,12 @@ test('compiles aware props', function () {
     $wrapped = app(Wrapper::class)->wrap($source, $path, $source);
 
     expect($wrapped)->toEqualCollapsingWhitespace(join('', [
-        '<?php if (!function_exists(\'_'. $hash .'\')): function _'. $hash .'($__blaze, $__data = [], $__slots = [], $__bound = [], $__keys = [], $__this = null) { ',
+        '<?php if (!function_exists(\'_'. $hash .'\')): function _'. $hash .'($__blaze, $__data = [], $__slots = [], $__bound = [], $__this = null) { ',
         '$__env = $__blaze->env; ',
         'if (($__data[\'attributes\'] ?? null) instanceof \Illuminate\View\ComponentAttributeBag) { $__data = $__data + $__data[\'attributes\']->all(); unset($__data[\'attributes\']); } ',
+        '$attributes = \Livewire\Blaze\Runtime\BlazeAttributeBag::sanitized($__data, $__bound); ',
         'extract($__slots, EXTR_SKIP); unset($__slots); ',
-        'extract($__data, EXTR_SKIP); ',
-        '$attributes = \Livewire\Blaze\Runtime\BlazeAttributeBag::make($__data, $__bound, $__keys); ',
-        'unset($__data, $__bound, $__keys); ',
+        'extract($__data, EXTR_SKIP); unset($__data, $__bound); ',
         'ob_start(); ?> ',
         '@blaze ',
         '<?php $__awareDefaults = [\'type\' => \'text\']; ',
@@ -66,7 +64,7 @@ test('extracts props when props are not defined', function () {
 
 test('wraps in self invoking closure', function ($source) {
     expect(app(Wrapper::class)->wrap($source, ''))->toContain(
-        '$__blazeFn = function () use ($__blaze, $__data, $__slots, $__bound, $__keys) {',
+        '$__blazeFn = function () use ($__blaze, $__data, $__slots, $__bound) {',
         'if ($__this !== null) { $__blazeFn->call($__this); } else { $__blazeFn(); }',
     );
 })->with([

@@ -43,11 +43,15 @@ class Memoizer
 
         $name = $node->name;
 
-        $data = [];
+        $parts = [];
         foreach ($node->attributes as $attr) {
-            $data[] = $this->blade->compileAttribute($attr);
+            if ($attr->bound()) {
+                $parts[] = "'{$attr->propName}' => {$attr->value}";
+            } else {
+                $parts[] = "'{$attr->propName}' => ".$this->blade->compileAttributeEchos($attr->value);
+            }
         }
-        $attributes = '['.implode(', ', $data).']';
+        $attributes = '['.implode(', ', $parts).']';
 
         $compiled = $this->compiler->compile($node)->render();
 

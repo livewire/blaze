@@ -30,8 +30,7 @@ test('parses attributes without value', function () {
     expect($attrs)->toHaveKey('disabled');
     expect($attrs['disabled'])
         ->name->toBe('disabled')
-        ->value->toBe('true')
-        ->valueless->toBeTrue()
+        ->value->toBeTrue()
         ->dynamic->toBeFalse()
         ->quotes->toBe('');
 });
