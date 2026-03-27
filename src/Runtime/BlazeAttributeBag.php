@@ -51,7 +51,7 @@ class BlazeAttributeBag extends ComponentAttributeBag
     {
         if ($escape) {
             foreach ($attributeDefaults as $key => $value) {
-                if (! is_object($value) && ! is_null($value) && ! is_bool($value)) {
+                if ($this->shouldEscapeAttributeValue($escape, $value)) {
                     $attributeDefaults[$key] = e($value);
                 }
             }

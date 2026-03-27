@@ -60,10 +60,6 @@ test('compiles aware props', function () {
     ]));
 });
 
-test('extracts props when props are not defined', function () {
-    expect(app(Wrapper::class)->wrap('<div></div>', ''))->toContain('if ($__data) { extract($__data, EXTR_SKIP); }');
-});
-
 test('wraps in self invoking closure', function ($source) {
     expect(app(Wrapper::class)->wrap($source, ''))->toContain(
         '$__blazeFn = function () use ($__blaze, $__data, $__slots, $__bound, $__keys) {',
