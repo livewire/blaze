@@ -3,7 +3,6 @@
 namespace Livewire\Blaze\Runtime;
 
 use Illuminate\Support\Arr;
-use Illuminate\Support\Str;
 use Illuminate\View\AppendableAttributeValue;
 use Illuminate\View\ComponentAttributeBag;
 
@@ -12,6 +11,16 @@ use Illuminate\View\ComponentAttributeBag;
  */
 class BlazeAttributeBag extends ComponentAttributeBag
 {
+    /**
+     * Skip the parent setAttributes() check for nested ComponentAttributeBag.
+     * In the Blaze path, attributes are always plain arrays — the nested-bag
+     * case is already handled in the Wrapper boilerplate before sanitized() is called.
+     */
+    public function __construct(array $attributes = [])
+    {
+        $this->attributes = $attributes;
+    }
+
     /**
      * Create an attribute bag with bound values sanitized for safe HTML rendering.
      */
@@ -197,7 +206,7 @@ class BlazeAttributeBag extends ComponentAttributeBag
      */
     public function __toString()
     {
-        $string = '';
+        $parts = [];
 
         foreach ($this->attributes as $key => $value) {
             if ($value === false || is_null($value)) {
@@ -208,15 +217,13 @@ class BlazeAttributeBag extends ComponentAttributeBag
                 $value = $key === 'x-data' || str_starts_with($key, 'wire:') ? '' : $key;
             }
 
-            $attr = $key.'="'.str_replace('"', '\\"', trim($value)).'"';
-
-            if (Str::match('/^BLAZE_PLACEHOLDER_[0-9]+_$/', $value)) {
-                $string .= ' [BLAZE_ATTR:'.$value.':'.$key.']';
+            if (str_starts_with($value, 'BLAZE_PLACEHOLDER_') && str_ends_with($value, '_')) {
+                $parts[] = '[BLAZE_ATTR:'.$value.':'.$key.']';
             } else {
-                $string .= ' '.$attr;
+                $parts[] = $key.'="'.str_replace('"', '\\"', trim($value)).'"';
             }
         }
 
-        return trim($string);
+        return implode(' ', $parts);
     }
 }
