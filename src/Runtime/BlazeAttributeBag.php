@@ -13,6 +13,16 @@ use Illuminate\View\ComponentAttributeBag;
 class BlazeAttributeBag extends ComponentAttributeBag
 {
     /**
+     * Skip the parent setAttributes() check for nested ComponentAttributeBag.
+     * In the Blaze path, attributes are always plain arrays — the nested-bag
+     * case is already handled in the Wrapper boilerplate before sanitized() is called.
+     */
+    public function __construct(array $attributes = [])
+    {
+        $this->attributes = $attributes;
+    }
+
+    /**
      * Create an attribute bag with bound values sanitized for safe HTML rendering.
      */
     public static function sanitized(array $attributes, array $boundKeys = []): static
