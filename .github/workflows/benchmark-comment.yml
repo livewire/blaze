@@ -2,14 +2,14 @@ name: Benchmark Comment
 
 on:
   workflow_run:
-    workflows: [CI]
+    workflows: [CI, Benchmark On Demand]
     types: [completed]
 
 jobs:
   comment:
     if: >
-      github.event.workflow_run.event == 'pull_request' &&
-      github.event.workflow_run.conclusion == 'success'
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.event != 'push'
     runs-on: ubuntu-latest
     permissions:
       actions: read
@@ -23,24 +23,27 @@ jobs:
           run-id: ${{ github.event.workflow_run.id }}
           github-token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Extract PR number
-        id: pr
+      - name: Extract metadata
+        id: meta
         run: |
-          echo "number=$(head -1 benchmark-result.md)" >> "$GITHUB_OUTPUT"
+          echo "number=$(sed -n '1p' benchmark-result.md)" >> "$GITHUB_OUTPUT"
+          echo "heading=$(sed -n '2p' benchmark-result.md)" >> "$GITHUB_OUTPUT"
           tail -n +2 benchmark-result.md > benchmark-comment.md
+          echo "" >> benchmark-comment.md
+          echo "<sub>To run a specific benchmark, comment <code>/benchmark &lt;name&gt;</code> where name is one of: <code>attributes</code>, <code>aware</code>, <code>class</code>, <code>default</code>, <code>forwarding</code>, <code>merge</code>, <code>named-slots</code>, <code>no-attributes</code>, <code>slot</code></sub>" >> benchmark-comment.md
 
       - name: Find existing comment
         uses: peter-evans/find-comment@v3
         id: find
         with:
-          issue-number: ${{ steps.pr.outputs.number }}
+          issue-number: ${{ steps.meta.outputs.number }}
           comment-author: 'github-actions[bot]'
-          body-includes: '## Benchmark Results'
+          body-includes: '${{ steps.meta.outputs.heading }}'
 
       - name: Post or update comment
         uses: peter-evans/create-or-update-comment@v4
         with:
-          issue-number: ${{ steps.pr.outputs.number }}
+          issue-number: ${{ steps.meta.outputs.number }}
           comment-id: ${{ steps.find.outputs.comment-id }}
           edit-mode: replace
           body-path: benchmark-comment.md
