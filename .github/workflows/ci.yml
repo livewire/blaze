@@ -76,8 +76,11 @@ jobs:
       - name: Install base dependencies
         run: composer install --prefer-dist --no-progress --no-interaction
 
-      - name: Generate baseline snapshot
-        run: vendor/bin/testbench benchmark props --ci --iterations=5000 --rounds=10 --attempts=10 --snapshot
+      - name: Generate baseline snapshots
+        run: |
+          for bench in props merge no-attributes; do
+            vendor/bin/testbench benchmark $bench --iterations=5000 --rounds=10 --attempts=10 --snapshot
+          done
 
       - name: Save baseline snapshot
         run: cp benchmark-snapshot.json ${{ runner.temp }}/benchmark-snapshot.json
@@ -94,8 +97,14 @@ jobs:
       - name: Save PR number
         run: echo "${{ github.event.pull_request.number }}" > benchmark-result.md
 
-      - name: Run benchmark
-        run: vendor/bin/testbench benchmark props --ci --iterations=5000 --rounds=10 --attempts=10 >> benchmark-result.md
+      - name: Run benchmarks
+        run: |
+          for bench in props merge no-attributes; do
+            echo "### $bench" >> benchmark-result.md
+            echo "" >> benchmark-result.md
+            vendor/bin/testbench benchmark $bench --ci --iterations=5000 --rounds=10 --attempts=10 >> benchmark-result.md
+            echo "" >> benchmark-result.md
+          done
 
       - name: Upload benchmark result
         uses: actions/upload-artifact@v4
