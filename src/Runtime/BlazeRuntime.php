@@ -140,12 +140,19 @@ class BlazeRuntime
         if ($attributes = $data['attributes'] ?? null) {
             unset($data['attributes']);
 
-            $this->dataStack[] = $this->normalizeKeys(array_merge($attributes->all(), $data));
-            $this->slotsStack[] = [];
-        } else {
-            $this->dataStack[] = $this->normalizeKeys($data);
-            $this->slotsStack[] = [];
+            $data = array_merge($attributes->all(), $data);
         }
+
+        foreach ($data as $key => $value) {
+            if (\str_contains($key, '-')) {
+                $data = $this->normalizeKeys($data);
+
+                break;
+            }
+        }
+
+        $this->dataStack[] = $data;
+        $this->slotsStack[] = [];
     }
 
     /**
