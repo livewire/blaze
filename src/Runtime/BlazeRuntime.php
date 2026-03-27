@@ -4,6 +4,7 @@ namespace Livewire\Blaze\Runtime;
 
 use Illuminate\Contracts\View\Factory;
 use Illuminate\Foundation\Application;
+use Illuminate\Support\Str;
 use Illuminate\Support\ViewErrorBag;
 use Illuminate\View\Compilers\BladeCompiler;
 use Illuminate\View\Compilers\Compiler;
@@ -144,7 +145,7 @@ class BlazeRuntime
         }
 
         foreach ($data as $key => $value) {
-            if (\str_contains($key, '-')) {
+            if (str_contains($key, '-')) {
                 $data = $this->normalizeKeys($data);
 
                 break;
@@ -163,7 +164,7 @@ class BlazeRuntime
         $normalized = [];
 
         foreach ($data as $key => $value) {
-            $normalized[\Illuminate\Support\Str::camel($key)] = $value;
+            $normalized[Str::camel($key)] = $value;
         }
 
         return $normalized;
