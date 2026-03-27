@@ -4,6 +4,7 @@ namespace Livewire\Blaze\Runtime;
 
 use Illuminate\Support\Arr;
 use Illuminate\View\AppendableAttributeValue;
+use Illuminate\View\Compilers\BladeCompiler;
 use Illuminate\View\ComponentAttributeBag;
 
 /**
@@ -28,7 +29,7 @@ class BlazeAttributeBag extends ComponentAttributeBag
     {
         foreach ($boundKeys as $key) {
             if (array_key_exists($key, $attributes)) {
-                $attributes[$key] = \Illuminate\View\Compilers\BladeCompiler::sanitizeComponentAttribute($attributes[$key]);
+                $attributes[$key] = BladeCompiler::sanitizeComponentAttribute($attributes[$key]);
             }
         }
 
