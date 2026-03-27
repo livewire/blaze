@@ -19,11 +19,7 @@ class BladeService
         public BladeCompiler $compiler,
         protected Factory $view,
     ) {
-        $this->tagCompiler = new ComponentTagCompiler(
-            $compiler->getClassComponentAliases(),
-            $compiler->getClassComponentNamespaces(),
-            $compiler,
-        );
+        $this->tagCompiler = new ComponentTagCompiler(blade: $compiler);
     }
 
     /**
@@ -196,23 +192,11 @@ class BladeService
     }
 
     /**
-     * Resolve a component name to its file path.
-     *
-     * @see ComponentTagCompiler::componentClass()
+     * Resolve a component name to its file path using registered anonymous component paths.
      */
     public function componentNameToPath($name): string
     {
-        if ($this->hasClassBasedComponent($name)) {
-            return '';
-        }
-
         $finder = $this->view->getFinder();
-
-        $aliases = $this->compiler->getClassComponentAliases();
-
-        if (isset($aliases[$name]) && $this->view->exists($aliases[$name])) {
-            return $finder->find($aliases[$name]);
-        }
 
         if (! is_null($guess = $this->guessAnonymousComponentUsingNamespaces($this->view, $name)) ||
             ! is_null($guess = $this->guessAnonymousComponentUsingPaths($this->view, $name))) {
@@ -220,34 +204,6 @@ class BladeService
         }
 
         return '';
-    }
-
-    /**
-     * Determine if a component resolves to a class rather than a blade view.
-     *
-     * @see ComponentTagCompiler::componentClass()
-     */
-    protected function hasClassBasedComponent(string $name): bool
-    {
-        $aliases = $this->compiler->getClassComponentAliases();
-
-        if (isset($aliases[$name]) && class_exists($aliases[$name])) {
-            return true;
-        }
-
-        if ($this->tagCompiler->findClassByComponent($name)) {
-            return true;
-        }
-
-        if (class_exists($class = $this->tagCompiler->guessClassName($name))) {
-            return true;
-        }
-
-        if (class_exists($class.'\\'.Str::afterLast($class, '\\'))) {
-            return true;
-        }
-
-        return false;
     }
 
     protected function guessAnonymousComponentUsingNamespaces(Factory $viewFactory, string $component): string|null

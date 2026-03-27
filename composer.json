@@ -31,7 +31,7 @@
     "autoload-dev": {
         "psr-4": {
             "Livewire\\Blaze\\Tests\\": "tests/",
-            "App\\": "workbench/app/"
+            "Workbench\\App\\": "workbench/app/"
         }
     },
     "extra": {
