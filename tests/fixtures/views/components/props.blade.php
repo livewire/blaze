@@ -1,6 +1,6 @@
 @blaze
 
-@props(['prop', 'propKebab', 'str', 'strKebab'])
+@props(['prop', 'propKebab', 'str', 'strKebab', 'content'])
 
 {{ $attributes }}
 {{ $prop }}

@@ -66,14 +66,18 @@ test('attributes and props', fn () => compare(<<<'BLADE'
         attr-kebab="bar"
         :str="str('hello')"
         :str-kebab="str('world')"
-    />
+    >
+        <x-slot:content class="p-2" data-foo="bar"></x-slot:content>
+    </x-attributes>
 
     <x-props
         prop="foo"
         prop-kebab="bar"
         :str="str('hello')"
         :str-kebab="str('world')"
-    />
+    >
+        <x-slot:content class="p-2" data-foo="bar"></x-slot:content>
+    </x-props>
     BLADE
 ));
 

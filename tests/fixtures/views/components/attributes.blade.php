@@ -5,3 +5,4 @@
 {{ $attrKebab }}
 {{ $str->upper() }}
 {{ $strKebab->upper() }}
+{{ $content->attributes }}

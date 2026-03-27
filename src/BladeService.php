@@ -162,8 +162,10 @@ class BladeService
     /**
      * Compile an attribute to a PHP array entry string (e.g. "'propName' => value").
      */
-    public function compileAttribute(Attribute $attribute, bool $escapeBound = false): string
+    public function compileAttribute(Attribute $attribute, bool $escapeBound = false, bool $originalKey = false): string
     {
+        $key = $originalKey ? $attribute->name : $attribute->propName;
+
         if ($attribute->valueless) {
             $value = 'true';
         } elseif ($attribute->bound()) {
@@ -174,7 +176,7 @@ class BladeService
             $value = $this->compileAttributeEchos($attribute->value);
         }
 
-        return "'{$attribute->propName}' => {$value}";
+        return "'{$key}' => {$value}";
     }
 
     /**

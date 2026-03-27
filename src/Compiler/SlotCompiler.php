@@ -125,7 +125,7 @@ class SlotCompiler
         $parts = [];
 
         foreach ($attributes as $attr) {
-            $parts[] = $this->blade->compileAttribute($attr, escapeBound: true);
+            $parts[] = $this->blade->compileAttribute($attr, escapeBound: true, originalKey: true);
         }
 
         return '[' . implode(', ', $parts) . ']';
