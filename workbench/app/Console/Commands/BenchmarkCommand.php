@@ -461,22 +461,17 @@ class BenchmarkCommand extends Command
 
     protected function saveSnapshot(array $results): void
     {
-        $path = $this->snapshotPath();
-
-        $existing = File::exists($path) ? File::json($path) : null;
-
         $snapshot = [
             'iterations' => $this->iterations,
             'rounds' => $this->rounds,
-            'benchmarks' => array_merge(
-                $existing['benchmarks'] ?? [],
-                collect($results)->map(fn ($result) => [
-                    'blade_ms' => $result['blade_ms'],
-                    'blaze_ms' => $result['blaze_ms'],
-                    'improvement' => $this->improvement($result),
-                ])->all(),
-            ),
+            'benchmarks' => collect($results)->map(fn ($result) => [
+                'blade_ms' => $result['blade_ms'],
+                'blaze_ms' => $result['blaze_ms'],
+                'improvement' => $this->improvement($result),
+            ])->all(),
         ];
+
+        $path = $this->snapshotPath();
 
         File::put($path, json_encode($snapshot, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES)."\n");
 
