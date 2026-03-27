@@ -4,6 +4,7 @@ namespace Livewire\Blaze\Runtime;
 
 use Illuminate\Support\Arr;
 use Illuminate\View\AppendableAttributeValue;
+use Illuminate\View\Compilers\BladeCompiler;
 use Illuminate\View\ComponentAttributeBag;
 
 /**
@@ -24,12 +25,22 @@ class BlazeAttributeBag extends ComponentAttributeBag
     /**
      * Create an attribute bag with bound values sanitized for safe HTML rendering.
      */
-    public static function sanitized(array $attributes, array $boundKeys = []): static
+    public static function make(array $attributes, array $boundKeys = [], array $originalKeys = []): static
     {
         foreach ($boundKeys as $key) {
             if (array_key_exists($key, $attributes)) {
-                $attributes[$key] = \Illuminate\View\Compilers\BladeCompiler::sanitizeComponentAttribute($attributes[$key]);
+                $attributes[$key] = BladeCompiler::sanitizeComponentAttribute($attributes[$key]);
             }
+        }
+
+        if ($originalKeys) {
+            $result = [];
+
+            foreach ($attributes as $key => $value) {
+                $result[$originalKeys[$key] ?? $key] = $value;
+            }
+
+            return new static($result);
         }
 
         return new static($attributes);
