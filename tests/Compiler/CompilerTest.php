@@ -13,12 +13,12 @@ test('compiles self-closing components', function () {
     $path = fixture_path('views/components/input.blade.php');
     $hash = Utils::hash($path);
 
-    expect($compiled->render())->toEqualCollapsingWhitespace(join('', [
-        '<?php $__blaze->ensureRequired(\''. $path .'\', $__blaze->compiledPath.\'/'. $hash .'.php\'); ?> ',
-        '<?php $__blaze->pushData([\'type\' => \'text\',\'disabled\' => $disabled]); ?> ',
-        '<?php _'. $hash .'($__blaze, [\'type\' => \'text\',\'disabled\' => $disabled], [], [\'disabled\'], [], $__this ?? (isset($this) ? $this : null)); ?> ',
-        '<?php $__blaze->popData(); ?>',
-    ]));
+    expect($compiled->render())->toEqualCollapsingWhitespace(
+        '<?php $__blaze->ensureRequired(\''. $path .'\', $__blaze->compiledPath.\'/'. $hash .'.php\'); '
+        . '$__blaze->pushData([\'type\' => \'text\',\'disabled\' => $disabled]); '
+        . '_'. $hash .'($__blaze, [\'type\' => \'text\',\'disabled\' => $disabled], [], [\'disabled\'], [], $__this ?? (isset($this) ? $this : null)); '
+        . '$__blaze->popData(); ?>'
+    );
 });
 
 test('compiles components', function () {
