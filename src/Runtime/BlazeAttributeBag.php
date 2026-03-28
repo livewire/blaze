@@ -128,6 +128,22 @@ class BlazeAttributeBag extends ComponentAttributeBag
     /** {@inheritdoc} */
     public function style($styleList): static
     {
+        if (is_string($styleList)) {
+            $default = e(rtrim($styleList, ';').';');
+            $current = $this->attributes['style'] ?? '';
+
+            $attributes = $this->attributes;
+
+            if ($current) {
+                $current = rtrim((string) $current, ';').';';
+                $attributes['style'] = $current === $default ? $default : $default.' '.$current;
+            } else {
+                $attributes['style'] = $default;
+            }
+
+            return new static($attributes);
+        }
+
         $styles = $this->toCssStyles((array) $styleList);
 
         return $this->merge(['style' => $styles]);
