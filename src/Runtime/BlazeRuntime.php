@@ -126,8 +126,10 @@ class BlazeRuntime
     {
         $result = [];
 
-        for ($i = 0; $i < count($this->slotsStack); $i++) {
-            $result = array_merge($result, $this->slotsStack[$i]);
+        foreach ($this->slotsStack as $slots) {
+            if ($slots) {
+                $result = array_merge($result, $slots);
+            }
         }
 
         return $result;
