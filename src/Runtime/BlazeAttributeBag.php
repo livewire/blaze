@@ -103,6 +103,23 @@ class BlazeAttributeBag extends ComponentAttributeBag
     /** {@inheritdoc} */
     public function class($classList): static
     {
+        if (is_string($classList)) {
+            $default = e($classList);
+            $current = $this->attributes['class'] ?? '';
+
+            $attributes = $this->attributes;
+
+            if (! $current || $current === $default) {
+                $attributes['class'] = $default;
+            } elseif (! $default) {
+                $attributes['class'] = $current ?: '';
+            } else {
+                $attributes['class'] = $default.' '.$current;
+            }
+
+            return new static($attributes);
+        }
+
         $classes = $this->toCssClasses(Arr::wrap($classList));
 
         return $this->merge(['class' => $classes]);
@@ -111,6 +128,22 @@ class BlazeAttributeBag extends ComponentAttributeBag
     /** {@inheritdoc} */
     public function style($styleList): static
     {
+        if (is_string($styleList)) {
+            $default = e(rtrim($styleList, ';').';');
+            $current = $this->attributes['style'] ?? '';
+
+            $attributes = $this->attributes;
+
+            if ($current) {
+                $current = rtrim((string) $current, ';').';';
+                $attributes['style'] = $current === $default ? $default : $default.' '.$current;
+            } else {
+                $attributes['style'] = $default;
+            }
+
+            return new static($attributes);
+        }
+
         $styles = $this->toCssStyles((array) $styleList);
 
         return $this->merge(['style' => $styles]);
