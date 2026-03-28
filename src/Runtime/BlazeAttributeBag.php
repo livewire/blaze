@@ -103,6 +103,23 @@ class BlazeAttributeBag extends ComponentAttributeBag
     /** {@inheritdoc} */
     public function class($classList): static
     {
+        if (is_string($classList)) {
+            $default = e($classList);
+            $current = $this->attributes['class'] ?? '';
+
+            $attributes = $this->attributes;
+
+            if (! $current || $current === $default) {
+                $attributes['class'] = $default;
+            } elseif (! $default) {
+                $attributes['class'] = $current ?: '';
+            } else {
+                $attributes['class'] = $default.' '.$current;
+            }
+
+            return new static($attributes);
+        }
+
         $classes = $this->toCssClasses(Arr::wrap($classList));
 
         return $this->merge(['class' => $classes]);
