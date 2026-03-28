@@ -10,11 +10,19 @@ use Illuminate\View\Factory;
 use Livewire\Blaze\Compiler\DirectiveCompiler;
 use Livewire\Blaze\Parser\Attribute;
 use Livewire\Blaze\Support\LaravelRegex;
-use ReflectionClass;
 
 class BladeService
 {
     protected ComponentTagCompiler $tagCompiler;
+
+    protected \ReflectionMethod $storeRawBlockMethod;
+    protected \ReflectionMethod $restoreRawContentMethod;
+    protected ?\ReflectionMethod $restorePhpBlocksMethod = null;
+    protected \ReflectionMethod $compileCommentsMethod;
+    protected \ReflectionMethod $compileUseMethod;
+    protected \ReflectionMethod $compileAttributeEchosMethod;
+    protected \ReflectionMethod $guessAnonymousComponentUsingNamespacesMethod;
+    protected \ReflectionMethod $guessAnonymousComponentUsingPathsMethod;
 
     public function __construct(
         public BladeCompiler $compiler,
@@ -25,6 +33,20 @@ class BladeService
             $compiler->getClassComponentNamespaces(),
             $compiler,
         );
+
+        $compilerReflection = new \ReflectionClass($compiler);
+        $this->storeRawBlockMethod = $compilerReflection->getMethod('storeRawBlock');
+        $this->restoreRawContentMethod = $compilerReflection->getMethod('restoreRawContent');
+        if ($compilerReflection->hasMethod('restorePhpBlocks')) {
+            $this->restorePhpBlocksMethod = $compilerReflection->getMethod('restorePhpBlocks');
+        }
+        $this->compileCommentsMethod = $compilerReflection->getMethod('compileComments');
+        $this->compileUseMethod = $compilerReflection->getMethod('compileUse');
+
+        $tagCompilerReflection = new \ReflectionClass($this->tagCompiler);
+        $this->compileAttributeEchosMethod = $tagCompilerReflection->getMethod('compileAttributeEchos');
+        $this->guessAnonymousComponentUsingNamespacesMethod = $tagCompilerReflection->getMethod('guessAnonymousComponentUsingNamespaces');
+        $this->guessAnonymousComponentUsingPathsMethod = $tagCompilerReflection->getMethod('guessAnonymousComponentUsingPaths');
     }
 
     /**
@@ -81,11 +103,8 @@ class BladeService
      */
     protected function storeRawBlock(string $pattern, string $content): string
     {
-        $reflection = new \ReflectionClass($this->compiler);
-        $method = $reflection->getMethod('storeRawBlock');
-
-        return preg_replace_callback($pattern, function ($matches) use ($method) {
-            return $method->invoke($this->compiler, $matches[0]);
+        return preg_replace_callback($pattern, function ($matches) {
+            return $this->storeRawBlockMethod->invoke($this->compiler, $matches[0]);
         }, $content);
     }
 
@@ -94,10 +113,7 @@ class BladeService
      */
     public function restoreRawBlocks(string $input): string
     {
-        $reflection = new \ReflectionClass($this->compiler);
-        $method = $reflection->getMethod('restoreRawContent');
-
-        return $method->invoke($this->compiler, $input);
+        return $this->restoreRawContentMethod->invoke($this->compiler, $input);
     }
 
     /**
@@ -105,10 +121,11 @@ class BladeService
      */
     public function restorePhpBlocks(string $input): string
     {
-        $reflection = new \ReflectionClass($this->compiler);
-        $method = $reflection->getMethod('restorePhpBlocks');
+        if ($this->restorePhpBlocksMethod === null) {
+            return $input;
+        }
 
-        return $method->invoke($this->compiler, $input);
+        return $this->restorePhpBlocksMethod->invoke($this->compiler, $input);
     }
 
     /**
@@ -116,10 +133,7 @@ class BladeService
      */
     public function compileComments(string $input): string
     {
-        $reflection = new \ReflectionClass($this->compiler);
-        $compileComments = $reflection->getMethod('compileComments');
-
-        return $compileComments->invoke($this->compiler, $input);
+        return $this->compileCommentsMethod->invoke($this->compiler, $input);
     }
 
     /**
@@ -152,10 +166,7 @@ class BladeService
     public function compileUseStatements(string $input): string
     {
         return DirectiveCompiler::make()->directive('use', function ($expression) {
-            $reflection = new \ReflectionClass($this->compiler);
-            $method = $reflection->getMethod('compileUse');
-
-            return $method->invoke($this->compiler, $expression);
+            return $this->compileUseMethod->invoke($this->compiler, $expression);
         })->compile($input);
     }
 
@@ -184,10 +195,7 @@ class BladeService
      */
     public function compileAttributeEchos(string $input): string
     {
-        $reflection = new \ReflectionClass($this->tagCompiler);
-        $method = $reflection->getMethod('compileAttributeEchos');
-
-        return Str::unwrap("'".$method->invoke($this->tagCompiler, $input)."'", "''.", ".''");
+        return Str::unwrap("'".$this->compileAttributeEchosMethod->invoke($this->tagCompiler, $input)."'", "''.", ".''");
     }
 
     /**
@@ -273,17 +281,11 @@ class BladeService
 
     protected function guessAnonymousComponentUsingNamespaces(Factory $viewFactory, string $component): string|null
     {
-        $reflection = new \ReflectionClass($this->tagCompiler);
-        $method = $reflection->getMethod('guessAnonymousComponentUsingNamespaces');
-
-        return $method->invoke($this->tagCompiler, $viewFactory, $component);
+        return $this->guessAnonymousComponentUsingNamespacesMethod->invoke($this->tagCompiler, $viewFactory, $component);
     }
 
     protected function guessAnonymousComponentUsingPaths(Factory $viewFactory, string $component): string|null
     {
-        $reflection = new \ReflectionClass($this->tagCompiler);
-        $method = $reflection->getMethod('guessAnonymousComponentUsingPaths');
-
-        return $method->invoke($this->tagCompiler, $viewFactory, $component);
+        return $this->guessAnonymousComponentUsingPathsMethod->invoke($this->tagCompiler, $viewFactory, $component);
     }
 }
