@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Console\Commands;
+namespace Workbench\App\Console\Commands;
 
 use Illuminate\Console\Command;
 use Illuminate\Support\Collection;
@@ -9,6 +9,7 @@ use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Process;
 use Illuminate\Support\Facades\View;
 use Illuminate\Support\Str;
+use Livewire\Blaze\BlazeManager;
 
 class BenchmarkCommand extends Command
 {
@@ -77,6 +78,11 @@ class BenchmarkCommand extends Command
     protected function runBenchmark(): array
     {
         $benchmarkName = $this->argument('benchmark');
+
+        if ($benchmarkName === 'compilation') {
+            return $this->runCompilationBenchmark();
+        }
+
         $bladeView = "bench.blade.{$benchmarkName}";
         $blazeView = "bench.blaze.{$benchmarkName}";
         $showProgress = ! $this->option('ci') && ! $this->option('json');
@@ -142,6 +148,86 @@ class BenchmarkCommand extends Command
             'blade_ms' => round(collect($bladeTimes)->median(), 2),
             'blaze_ms' => round(collect($blazeTimes)->median(), 2),
         ];
+    }
+
+    /**
+     * Run a compilation benchmark measuring BlazeManager::compile() throughput.
+     *
+     * Reports the same value for both blade_ms and blaze_ms so the existing
+     * snapshot format works for tracking compilation time over time.
+     */
+    protected function runCompilationBenchmark(): array
+    {
+        $showProgress = ! $this->option('ci') && ! $this->option('json');
+
+        $templates = [
+            '<x-button type="submit" class="mt-4" />',
+            '<x-card class="mt-8"><x-slot:header>Title</x-slot:header>Body content</x-card>',
+            '<x-button type="submit" /><x-input type="text" :value="$name" /><x-button variant="secondary" />',
+            '<x-card><x-button type="submit" class="mt-4" /><x-slot:footer><x-button variant="link" /></x-slot:footer></x-card>',
+        ];
+
+        $manager = app(BlazeManager::class);
+
+        if ($showProgress) {
+            $this->info("Running 'compilation' ({$this->iterations} iterations x {$this->rounds} rounds, ".count($templates).' templates)...');
+            $this->newLine();
+        }
+
+        $totalSteps = $this->warmupRounds + $this->rounds;
+        $bar = $showProgress ? $this->output->createProgressBar($totalSteps) : null;
+        $bar?->setFormat('[%bar%] %message%');
+        $bar?->setMessage('Warming up...');
+        $bar?->start();
+
+        for ($w = 0; $w < $this->warmupRounds; $w++) {
+            $this->measureCompilation($templates, $manager);
+            $bar?->advance();
+        }
+
+        $times = [];
+
+        $bar?->setMessage('Benchmarking...');
+
+        for ($r = 0; $r < $this->rounds; $r++) {
+            $times[] = $this->measureCompilation($templates, $manager);
+            $bar?->advance();
+        }
+
+        $bar?->setMessage('Done!');
+        $bar?->finish();
+
+        if ($showProgress) {
+            $this->newLine(2);
+        }
+
+        $keptRounds = $this->nonOutlierIndices(collect($times));
+        $this->filteredRounds = $this->rounds - $keptRounds->count();
+
+        $times = $keptRounds->map(fn ($r) => $times[$r])->all();
+        $median = round(collect($times)->median(), 2);
+
+        return [
+            'blade_ms' => $median,
+            'blaze_ms' => $median,
+        ];
+    }
+
+    /**
+     * Measure one round of Blaze compilation.
+     */
+    protected function measureCompilation(array $templates, BlazeManager $manager): float
+    {
+        gc_collect_cycles();
+
+        $start = hrtime(true);
+        for ($i = 0; $i < $this->iterations; $i++) {
+            foreach ($templates as $template) {
+                $manager->compile($template);
+            }
+        }
+
+        return (hrtime(true) - $start) / 1_000_000;
     }
 
     protected function runMultipleAttempts(int $attempts): int

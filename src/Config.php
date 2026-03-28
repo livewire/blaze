@@ -13,6 +13,8 @@ class Config
 
     protected $compile = [];
 
+    protected array $realpathCache = [];
+
     /**
      * Alias for add(), used as Blaze::optimize()->in(...).
      */
@@ -62,7 +64,7 @@ class Config
      */
     protected function isEnabled(string $file, array $config): bool
     {
-        $file = realpath($file);
+        $file = $this->realpathCache[$file] ??= realpath($file);
 
         if ($file === false) {
             return false;
@@ -73,7 +75,7 @@ class Config
         $separator = DIRECTORY_SEPARATOR;
 
         foreach ($paths as $path) {
-            $resolved = realpath($path);
+            $resolved = $this->realpathCache[$path] ??= realpath($path);
 
             if ($resolved === false) {
                 continue;
@@ -117,6 +119,7 @@ class Config
         $this->compile = [];
         $this->memo = [];
         $this->fold = [];
+        $this->realpathCache = [];
 
         return $this;
     }

@@ -18,9 +18,16 @@ class Directives
     public function __construct(string $content)
     {
         $this->content = $content;
-        $this->content = preg_replace(LaravelRegex::BLADE_COMMENT, '', $this->content);
-        $this->content = preg_replace(LaravelRegex::VERBATIM_BLOCK, '', $this->content);
-        $this->content = preg_replace(LaravelRegex::PHP_BLOCK, '', $this->content);
+
+        if (str_contains($content, '{{--')) {
+            $this->content = preg_replace(LaravelRegex::BLADE_COMMENT, '', $this->content);
+        }
+        if (str_contains($this->content, '@verbatim')) {
+            $this->content = preg_replace(LaravelRegex::VERBATIM_BLOCK, '', $this->content);
+        }
+        if (str_contains($this->content, '@php')) {
+            $this->content = preg_replace(LaravelRegex::PHP_BLOCK, '', $this->content);
+        }
 
         $this->parsed = $this->parseKnownDirectives();
     }
