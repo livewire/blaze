@@ -49,6 +49,25 @@ class BlazeAttributeBag extends ComponentAttributeBag
     /** {@inheritdoc} */
     public function merge(array $attributeDefaults = [], $escape = true): static
     {
+        // Fast path: merge(['class' => 'string']) — the most common pattern.
+        // Skip the general-purpose appendable/non-appendable separation.
+        if (count($attributeDefaults) === 1 && isset($attributeDefaults['class']) && is_string($attributeDefaults['class'])) {
+            $default = $escape ? e($attributeDefaults['class']) : $attributeDefaults['class'];
+            $current = $this->attributes['class'] ?? '';
+
+            $attributes = $this->attributes;
+
+            if (! $current || $current === $default) {
+                $attributes['class'] = $default;
+            } elseif (! $default) {
+                $attributes['class'] = $current ?: '';
+            } else {
+                $attributes['class'] = $default.' '.$current;
+            }
+
+            return new static($attributes);
+        }
+
         if ($escape) {
             foreach ($attributeDefaults as $key => $value) {
                 if ($this->shouldEscapeAttributeValue($escape, $value)) {
