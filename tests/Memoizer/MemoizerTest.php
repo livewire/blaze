@@ -22,7 +22,7 @@ test('memoizes self-closing components', function () {
         '<?php echo \Livewire\Blaze\Memoizer\Memo::get($blaze_memoized_key); ?>',
         '<?php else : ?>',
         '<?php ob_start(); ?>',
-        '<?php $__blaze->ensureRequired(\''. $path .'\', $__blaze->compiledPath.\'/'. $hash .'.php\'); ?> ',
+        '<?php if (!function_exists(\'_'. $hash .'\')) { $__blaze->ensureRequired(\''. $path .'\', $__blaze->compiledPath.\'/'. $hash .'.php\'); } ?> ',
         '<?php $__blaze->pushData([\'src\' => $user->avatar]); ?> ',
         '<?php _'. $hash .'($__blaze, [\'src\' => $user->avatar], [], [\'src\'], [], $__this ?? (isset($this) ? $this : null)); ?> ',
         '<?php $__blaze->popData(); ?>',

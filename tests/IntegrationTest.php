@@ -85,6 +85,12 @@ test('forwards $__this through component chain', function () {
     })->assertSee('from-livewire');
 });
 
+test('self-closing component propagates data to @aware descendants', function () {
+    $html = Blade::render('<x-aware-wrapper color="blue" />');
+
+    expect($html)->toContain('text-blue');
+});
+
 test('folds and compiles the same component', function () {
     Blade::render(<<<'BLADE'
         <x-foldable.input required /> {{-- Folded --}}
