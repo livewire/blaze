@@ -27,6 +27,10 @@ class BlazeAttributeBag extends ComponentAttributeBag
      */
     public static function make(array $attributes, array $boundKeys = [], array $originalKeys = []): static
     {
+        if (! $boundKeys && ! $originalKeys) {
+            return new static($attributes);
+        }
+
         foreach ($boundKeys as $key) {
             if (array_key_exists($key, $attributes)) {
                 $attributes[$key] = BladeCompiler::sanitizeComponentAttribute($attributes[$key]);
