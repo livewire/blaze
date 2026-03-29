@@ -13,8 +13,6 @@ class ComponentSource
     public readonly string $path;
     public readonly Directives $directives;
 
-    protected ?string $contentCache = null;
-
     public function __construct(string $path)
     {
         $this->path = $path;
@@ -42,6 +40,6 @@ class ComponentSource
      */
     public function content(): string
     {
-        return $this->contentCache ??= file_get_contents($this->path);
+        return file_get_contents($this->path);
     }
 }
