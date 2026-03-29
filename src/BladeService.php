@@ -2,6 +2,7 @@
 
 namespace Livewire\Blaze;
 
+use Illuminate\Support\Facades\Blade;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Str;
 use Illuminate\View\Compilers\BladeCompiler;
@@ -15,6 +16,10 @@ use ReflectionClass;
 class BladeService
 {
     protected ComponentTagCompiler $tagCompiler;
+
+    protected bool $bladeFacadePathSyncRegistered = false;
+
+    protected ?\Closure $bladeFacadePathSyncCallback = null;
 
     public function __construct(
         public BladeCompiler $compiler,
@@ -40,11 +45,70 @@ class BladeService
      */
     public function earliestPreCompilationHook(callable $callback): void
     {
+        $this->registerBladeFacadePathSync();
+
         app()->booted(function () use ($callback) {
+            $this->ensureBladeFacadePathSyncCallbackIsFirst();
+
             $this->compiler->prepareStringsForCompilationUsing(function ($input) use ($callback) {
                 return $callback($input, $this->compiler->getPath());
             });
         });
+    }
+
+    /**
+     * When the container's blade.compiler is swapped (Sentry/optimize, config:cache, etc.),
+     * the Blade facade may point at a different compiler than the one actually doing
+     * compilation (the Blade engine captures the original compiler instance).
+     *
+     * Livewire's islands precompiler uses `Blade::getPath()` as a signature; if that returns
+     * null it can fall back to a crc32-based signature which may collide across templates.
+     */
+    protected function registerBladeFacadePathSync(): void
+    {
+        if ($this->bladeFacadePathSyncRegistered) {
+            return;
+        }
+
+        $this->bladeFacadePathSyncRegistered = true;
+
+        app()->rebinding('blade.compiler', function ($app, $compiler) {
+            $this->ensureBladeFacadePathSyncCallbackIsFirst();
+        });
+    }
+
+    protected function ensureBladeFacadePathSyncCallbackIsFirst(): void
+    {
+        $sync = $this->bladeFacadePathSyncCallback ??= function ($input) {
+            $path = $this->compiler->getPath();
+
+            if ($path) {
+                $facadeRoot = Blade::getFacadeRoot();
+
+                if ($facadeRoot && $facadeRoot !== $this->compiler && method_exists($facadeRoot, 'setPath')) {
+                    $facadeRoot->setPath($path);
+                }
+            }
+
+            return $input;
+        };
+
+        $reflection = new ReflectionClass($this->compiler);
+
+        if (! $reflection->hasProperty('prepareStringsForCompilationUsing')) {
+            return;
+        }
+
+        $property = $reflection->getProperty('prepareStringsForCompilationUsing');
+        $property->setAccessible(true);
+
+        $callbacks = $property->getValue($this->compiler) ?? [];
+
+        $callbacks = array_values(array_filter($callbacks, fn ($callback) => $callback !== $sync));
+
+        array_unshift($callbacks, $sync);
+
+        $property->setValue($this->compiler, $callbacks);
     }
 
     /**
