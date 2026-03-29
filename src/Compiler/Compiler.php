@@ -96,7 +96,7 @@ class Compiler
         $functionName = ($this->manager->isFolding() ? '__' : '_') . $hash;
         [$attributesArrayString, $boundKeysArrayString, $originalKeysArrayString] = $this->compileAttributes($node);
 
-        $output = '<' . '?php if (!function_exists(\'' . $functionName . '\')) { $__blaze->ensureRequired(\'' . $source->path . '\', $__blaze->compiledPath.\'/'. $hash . '.php\'); } ?>' . "\n";
+        $output = '<' . '?php $__blaze->ensureRequired(\'' . $source->path . '\', $__blaze->compiledPath.\'/'. $hash . '.php\', \'' . $functionName . '\'); ?>' . "\n";
 
         if ($node->selfClosing) {
             $output .= '<' . '?php $__blaze->pushData(' . $attributesArrayString . '); ?>' . "\n";
