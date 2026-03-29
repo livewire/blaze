@@ -22,10 +22,8 @@ test('memoizes self-closing components', function () {
         '<?php echo \Livewire\Blaze\Memoizer\Memo::get($blaze_memoized_key); ?>',
         '<?php else : ?>',
         '<?php ob_start(); ?>',
-        '<?php $__blaze->ensureRequired(\''. $path .'\', $__blaze->compiledPath.\'/'. $hash .'.php\'); ?> ',
-        '<?php $__blaze->pushData([\'src\' => $user->avatar]); ?> ',
-        '<?php _'. $hash .'($__blaze, [\'src\' => $user->avatar], [], [\'src\'], [], $__this ?? (isset($this) ? $this : null)); ?> ',
-        '<?php $__blaze->popData(); ?>',
+        '<?php if (!function_exists(\'_'. $hash .'\')) { $__blaze->ensureRequired(\''. $path .'\', $__blaze->compiledPath.\'/'. $hash .'.php\'); } ',
+        '_'. $hash .'($__blaze, [\'src\' => $user->avatar], [], [\'src\'], [], $__this ?? (isset($this) ? $this : null)); ?>',
         '<?php $blaze_memoized_html = ob_get_clean(); ?>',
         '<?php if ($blaze_memoized_key !== null) { \Livewire\Blaze\Memoizer\Memo::put($blaze_memoized_key, $blaze_memoized_html); } ?>',
         '<?php echo $blaze_memoized_html; ?><?php endif; ?>'

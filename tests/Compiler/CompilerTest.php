@@ -13,12 +13,10 @@ test('compiles self-closing components', function () {
     $path = fixture_path('views/components/input.blade.php');
     $hash = Utils::hash($path);
 
-    expect($compiled->render())->toEqualCollapsingWhitespace(join('', [
-        '<?php $__blaze->ensureRequired(\''. $path .'\', $__blaze->compiledPath.\'/'. $hash .'.php\'); ?> ',
-        '<?php $__blaze->pushData([\'type\' => \'text\',\'disabled\' => $disabled]); ?> ',
-        '<?php _'. $hash .'($__blaze, [\'type\' => \'text\',\'disabled\' => $disabled], [], [\'disabled\'], [], $__this ?? (isset($this) ? $this : null)); ?> ',
-        '<?php $__blaze->popData(); ?>',
-    ]));
+    expect($compiled->render())->toEqualCollapsingWhitespace(
+        '<?php if (!function_exists(\'_'. $hash .'\')) { $__blaze->ensureRequired(\''. $path .'\', $__blaze->compiledPath.\'/'. $hash .'.php\'); } '
+        . '_'. $hash .'($__blaze, [\'type\' => \'text\',\'disabled\' => $disabled], [], [\'disabled\'], [], $__this ?? (isset($this) ? $this : null)); ?>'
+    );
 });
 
 test('compiles components', function () {
@@ -42,7 +40,7 @@ test('compiles components', function () {
     $hash = Utils::hash($path);
 
     expect($compiled->render())->toEqualCollapsingWhitespace(join('', [
-        '<?php $__blaze->ensureRequired(\''. $path .'\', $__blaze->compiledPath.\'/'. $hash .'.php\'); ?> ',
+        '<?php if (!function_exists(\'_'. $hash .'\')) { $__blaze->ensureRequired(\''. $path .'\', $__blaze->compiledPath.\'/'. $hash .'.php\'); } ?> ',
         '<?php if (isset($__slots'. $hash .')) { $__slotsStack'. $hash .'[] = $__slots'. $hash .'; } ?> ',
         '<?php if (isset($__attrs'. $hash .')) { $__attrsStack'. $hash .'[] = $__attrs'. $hash .'; } ?> ',
         '<?php $__attrs'. $hash .' = [\'class\' => \'mt-8\']; ?> ',
