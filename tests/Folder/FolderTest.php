@@ -198,6 +198,45 @@ test('folds components with static non-prop attributes with unsafe attributes ke
     expect($folded)->toBeInstanceOf(TextNode::class);
 });
 
+test('does not fold components with dynamic aware prop from parent', function () {
+    $input = '<x-foldable.input-aware-unsafe />';
+
+    $node = app(Parser::class)->parse($input)[0];
+    $node->setParentsAttributes([
+        'type' => new \Livewire\Blaze\Parser\Attribute(name: 'type', value: '$type', propName: 'type', dynamic: true, prefix: ':'),
+    ]);
+
+    $folded = app(Folder::class)->fold($node);
+
+    expect($folded)->toBeInstanceOf(ComponentNode::class);
+});
+
+test('folds components with aware prop overridden by direct attribute', function () {
+    $input = '<x-foldable.input-aware-unsafe type="number" />';
+
+    $node = app(Parser::class)->parse($input)[0];
+    $node->setParentsAttributes([
+        'type' => new \Livewire\Blaze\Parser\Attribute(name: 'type', value: '$type', propName: 'type', dynamic: true, prefix: ':'),
+    ]);
+
+    $folded = app(Folder::class)->fold($node);
+
+    expect($folded)->toBeInstanceOf(TextNode::class);
+});
+
+test('folds components with static aware prop from parent', function () {
+    $input = '<x-foldable.input-aware-unsafe />';
+
+    $node = app(Parser::class)->parse($input)[0];
+    $node->setParentsAttributes([
+        'type' => new \Livewire\Blaze\Parser\Attribute(name: 'type', value: 'number', propName: 'type', dynamic: false),
+    ]);
+
+    $folded = app(Folder::class)->fold($node);
+
+    expect($folded)->toBeInstanceOf(TextNode::class);
+});
+
 test('does not fold components with no blaze directive', function () {
     $input = '<x-foldable.input-no-blaze />';
     

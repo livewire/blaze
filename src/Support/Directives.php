@@ -72,6 +72,20 @@ class Directives
     }
 
     /**
+     * Get the variable names declared by @aware.
+     *
+     * @return string[]
+     */
+    public function aware(): array
+    {
+        if ($definition = $this->array('aware')) {
+            return collect($definition)->map(fn ($value, $key) => is_int($key) ? $value : $key)->values()->all();
+        }
+
+        return [];
+    }
+
+    /**
      * Query @blaze directive presence or a specific parameter value.
      */
     public function blaze(?string $param = null): mixed
