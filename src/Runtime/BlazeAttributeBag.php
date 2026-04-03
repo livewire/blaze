@@ -49,6 +49,11 @@ class BlazeAttributeBag extends ComponentAttributeBag
     /** {@inheritdoc} */
     public function merge(array $attributeDefaults = [], $escape = true): static
     {
+        // Fast path: merge(['class' => 'string']) — the most common pattern.
+        if (count($attributeDefaults) === 1 && isset($attributeDefaults['class']) && is_string($attributeDefaults['class'])) {
+            return $this->withMergedClass($escape ? e($attributeDefaults['class']) : $attributeDefaults['class']);
+        }
+
         if ($escape) {
             foreach ($attributeDefaults as $key => $value) {
                 if ($this->shouldEscapeAttributeValue($escape, $value)) {
@@ -103,6 +108,10 @@ class BlazeAttributeBag extends ComponentAttributeBag
     /** {@inheritdoc} */
     public function class($classList): static
     {
+        if (is_string($classList)) {
+            return $this->withMergedClass(e($classList));
+        }
+
         $classes = $this->toCssClasses(Arr::wrap($classList));
 
         return $this->merge(['class' => $classes]);
@@ -111,9 +120,43 @@ class BlazeAttributeBag extends ComponentAttributeBag
     /** {@inheritdoc} */
     public function style($styleList): static
     {
+        if (is_string($styleList)) {
+            $default = e(rtrim($styleList, ';').';');
+            $current = $this->attributes['style'] ?? '';
+
+            if ($current) {
+                $current = rtrim((string) $current, ';').';';
+                $style = $current === $default ? $default : $default.' '.$current;
+            } else {
+                $style = $default;
+            }
+
+            return new static(['style' => $style] + $this->attributes);
+        }
+
         $styles = $this->toCssStyles((array) $styleList);
 
         return $this->merge(['style' => $styles]);
+    }
+
+    /**
+     * Return a new bag with the given class default merged into the current class attribute.
+     */
+    protected function withMergedClass(string $default): static
+    {
+        $current = $this->attributes['class'] ?? '';
+
+        if (! $current || $current === $default) {
+            $class = $default;
+        } elseif (! $default) {
+            $class = $current ?: '';
+        } else {
+            $class = $default.' '.$current;
+        }
+
+        // Array union places class first, matching merge()'s
+        // array_merge($attributeDefaults, $attributes) key ordering.
+        return new static(['class' => $class] + $this->attributes);
     }
 
     /**

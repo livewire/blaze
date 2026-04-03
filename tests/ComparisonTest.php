@@ -102,6 +102,11 @@ test('nested same component with different component in between', fn () => compa
     BLADE
 ));
 
+test('merge preserves attribute ordering', fn () => compare(<<<'BLADE'
+    <x-merge-class wire:model="data" class="extra" wire:ignore />
+    BLADE
+));
+
 test('deeply nested same component with different components interleaved', fn () => compare(<<<'BLADE'
     <x-card class="outer">
         <x-wrapper>
