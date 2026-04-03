@@ -6,6 +6,7 @@ use Livewire\Blaze\Folder\Folder;
 use Livewire\Blaze\Parser\Nodes\TextNode;
 use Livewire\Blaze\Parser\Nodes\ComponentNode;
 use Livewire\Blaze\Exceptions\InvalidBlazeFoldUsageException;
+use Livewire\Blaze\Support\AttributeParser;
 
 test('folds components with static attributes', function () {
     $input = '<x-foldable.input disabled />';
@@ -202,9 +203,9 @@ test('does not fold components with dynamic aware prop from parent', function ()
     $input = '<x-foldable.input-aware-unsafe />';
 
     $node = app(Parser::class)->parse($input)[0];
-    $node->setParentsAttributes([
-        'type' => new \Livewire\Blaze\Parser\Attribute(name: 'type', value: '$type', propName: 'type', dynamic: true, prefix: ':'),
-    ]);
+    $node->setParentsAttributes(
+        app(AttributeParser::class)->parse(':type="$type"')
+    );
 
     $folded = app(Folder::class)->fold($node);
 
@@ -215,9 +216,9 @@ test('folds components with aware prop overridden by direct attribute', function
     $input = '<x-foldable.input-aware-unsafe type="number" />';
 
     $node = app(Parser::class)->parse($input)[0];
-    $node->setParentsAttributes([
-        'type' => new \Livewire\Blaze\Parser\Attribute(name: 'type', value: '$type', propName: 'type', dynamic: true, prefix: ':'),
-    ]);
+    $node->setParentsAttributes(
+        app(AttributeParser::class)->parse(':type="$type"')
+    );
 
     $folded = app(Folder::class)->fold($node);
 
@@ -228,9 +229,9 @@ test('folds components with static aware prop from parent', function () {
     $input = '<x-foldable.input-aware-unsafe />';
 
     $node = app(Parser::class)->parse($input)[0];
-    $node->setParentsAttributes([
-        'type' => new \Livewire\Blaze\Parser\Attribute(name: 'type', value: 'number', propName: 'type', dynamic: false),
-    ]);
+    $node->setParentsAttributes(
+        app(AttributeParser::class)->parse(':type="true"')
+    );
 
     $folded = app(Folder::class)->fold($node);
 

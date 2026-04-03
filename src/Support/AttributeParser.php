@@ -3,6 +3,7 @@
 namespace Livewire\Blaze\Support;
 
 use Illuminate\Support\Str;
+use Livewire\Blaze\BladeService;
 use Livewire\Blaze\Parser\Attribute;
 
 /**
@@ -10,13 +11,20 @@ use Livewire\Blaze\Parser\Attribute;
  */
 class AttributeParser
 {
+    public function __construct(
+        protected BladeService $blade,
+    ) {
+    }
+   
     /**
      * Parse preprocessed attribute string into a keyed array of Attribute objects.
      *
      * @return array<string, Attribute>
      */
-    public static function parse(string $attributesString): array
+    public function parse(string $attributesString): array
     {
+        $attributesString = $this->blade->preprocessAttributeString($attributesString);
+
         preg_match_all(LaravelRegex::ATTRIBUTE_PATTERN, $attributesString, $matches, PREG_SET_ORDER);
 
         $attributes = [];

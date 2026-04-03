@@ -3,7 +3,7 @@
 use Livewire\Blaze\Support\AttributeParser;
 
 test('parses bound attributes', function () {
-    $attrs = AttributeParser::parse('bind:foo="bar"');
+    $attrs = app(AttributeParser::class)->parse(':foo="bar"');
 
     expect($attrs)->toHaveKey('foo');
     expect($attrs['foo'])
@@ -14,7 +14,7 @@ test('parses bound attributes', function () {
 });
 
 test('parses escaped bound attributes', function () {
-    $attrs = AttributeParser::parse('::key="value"');
+    $attrs = app(AttributeParser::class)->parse('::key="value"');
 
     expect($attrs)->toHaveKey(':key');
     expect($attrs[':key'])
@@ -25,7 +25,7 @@ test('parses escaped bound attributes', function () {
 });
 
 test('parses attributes without value', function () {
-    $attrs = AttributeParser::parse('disabled');
+    $attrs = app(AttributeParser::class)->parse('disabled');
 
     expect($attrs)->toHaveKey('disabled');
     expect($attrs['disabled'])
@@ -37,7 +37,7 @@ test('parses attributes without value', function () {
 });
 
 test('parses attributes with blade echo', function () {
-    $attrs = AttributeParser::parse('title="{{ $x }}"');
+    $attrs = app(AttributeParser::class)->parse('title="{{ $x }}"');
 
     expect($attrs)->toHaveKey('title');
     expect($attrs['title'])
@@ -47,7 +47,7 @@ test('parses attributes with blade echo', function () {
 });
 
 test('parses attributes with raw blade echo', function () {
-    $attrs = AttributeParser::parse('title="{!! $x !!}"');
+    $attrs = app(AttributeParser::class)->parse('title="{!! $x !!}"');
 
     expect($attrs)->toHaveKey('title');
     expect($attrs['title'])
@@ -57,14 +57,14 @@ test('parses attributes with raw blade echo', function () {
 });
 
 test('parses quotes', function () {
-    $attrs = AttributeParser::parse('double="hello" single=\'hello\'');
+    $attrs = app(AttributeParser::class)->parse('double="hello" single=\'hello\'');
 
     expect($attrs['double']->quotes)->toBe('"');
     expect($attrs['single']->quotes)->toBe("'");
 });
 
 test('parses kebab case attributes', function () {
-    $attrs = AttributeParser::parse('foo-bar="first"');
+    $attrs = app(AttributeParser::class)->parse('foo-bar="first"');
 
     expect($attrs)->toHaveKey('fooBar');
     expect($attrs['fooBar'])
@@ -73,7 +73,7 @@ test('parses kebab case attributes', function () {
 });
 
 test('keeps first attribute when multiple camelize to same key', function () {
-    $attrs = AttributeParser::parse('foo-bar="first" foo_bar="second"');
+    $attrs = app(AttributeParser::class)->parse('foo-bar="first" foo_bar="second"');
 
     expect($attrs)->toHaveCount(1)->toHaveKey('fooBar');
     expect($attrs['fooBar']->value)->toBe('first');
