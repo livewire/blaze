@@ -23,7 +23,6 @@ class BlazeRuntime
     protected ?string $compiledPath = null;
 
     protected array $paths = [];
-    protected array $required = [];
     protected array $blazed = [];
 
     protected array $dataStack = [];
@@ -39,11 +38,11 @@ class BlazeRuntime
     }
 
     /**
-     * Compile a component if its source is newer than the cached output.
+     * Compile and require a component if its function is not yet defined.
      */
-    public function ensureRequired(string $path, string $compiledPath): void
+    public function ensureRequired(string $path, string $compiledPath, string $functionName): void
     {
-        if (isset($this->required[$compiledPath])) {
+        if (function_exists($functionName)) {
             return;
         }
 
@@ -52,8 +51,6 @@ class BlazeRuntime
         }
 
         require $compiledPath;
-
-        $this->required[$compiledPath] = true;
     }
 
     /**
@@ -77,10 +74,9 @@ class BlazeRuntime
 
         $hash = Utils::hash($path);
         $compiled = $this->getCompiledPath().'/'.$hash.'.php';
+        $functionName = '_'.$hash;
 
-        if (! isset($this->required[$path])) {
-            $this->ensureRequired($path, $compiled);
-        }
+        $this->ensureRequired($path, $compiled, $functionName);
 
         return $hash;
     }
