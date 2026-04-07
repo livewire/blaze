@@ -102,6 +102,21 @@ test('nested same component with different component in between', fn () => compa
     BLADE
 ));
 
+test('slots with dynamic content', fn () => compare(<<<'BLADE'
+    <x-card>{{ $title }}</x-card>
+    BLADE,
+    ['title' => 'Hello World'],
+));
+
+test('named slots with dynamic content', fn () => compare(<<<'BLADE'
+    <x-card>
+        <x-slot:header>{{ $title }}</x-slot:header>
+        Body
+    </x-card>
+    BLADE,
+    ['title' => 'Hello World'],
+));
+
 test('deeply nested same component with different components interleaved', fn () => compare(<<<'BLADE'
     <x-card class="outer">
         <x-wrapper>
