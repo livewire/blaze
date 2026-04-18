@@ -29,15 +29,7 @@ class Memoizer
      */
     public function memoize(Node $node): Node
     {
-        if (! $node instanceof ComponentNode) {
-            return $node;
-        }
-
-        if (! $node->selfClosing) {
-            return $node;
-        }
-
-        if (! $this->isMemoizable($node)) {
+        if (! $node instanceof ComponentNode || ! $node->selfClosing || ! $this->isMemoizable($node)) {
             return $node;
         }
 
