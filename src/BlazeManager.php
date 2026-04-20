@@ -294,7 +294,13 @@ class BlazeManager
         $isExpired = false;
 
         if (! $expired) {
-            $contents = file_get_contents($compiled);
+            $contents = @file_get_contents($compiled);
+
+            if ($contents === false) {
+                $compiler->compile($path);
+
+                $contents = file_get_contents($compiled);
+            }
 
             $isExpired = (new FrontMatter)->sourceContainsExpiredFoldedDependencies($contents);
         }

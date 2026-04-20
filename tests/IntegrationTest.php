@@ -5,6 +5,9 @@ use Illuminate\Contracts\View\Engine;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Blade;
 use Illuminate\View\Component;
+use Illuminate\View\Compilers\BladeCompiler;
+use Illuminate\View\Engines\CompilerEngine;
+use Illuminate\View\View;
 use Livewire\Blaze\Blaze;
 use Livewire\Blaze\BlazeManager;
 use Livewire\Blaze\Runtime\BlazeRuntime;
@@ -35,6 +38,47 @@ test('renders components after clearing compiled views in the same process', fun
 
     view('mix')->render();
 })->throwsNoExceptions();
+
+test('recompiles when a compiled view disappears while checking folded dependencies', function () {
+    $path = storage_path('framework/testing/blaze-missing-compiled-view.blade.php');
+
+    app('files')->ensureDirectoryExists(dirname($path));
+    app('files')->put($path, 'Hello');
+
+    $compiler = new class(app('files'), config('view.compiled')) extends BladeCompiler {
+        public bool $deleteCompiledView = false;
+
+        public function isExpired($path)
+        {
+            $expired = parent::isExpired($path);
+
+            if (! $expired && $this->deleteCompiledView) {
+                unlink($this->getCompiledPath($path));
+            }
+
+            return $expired;
+        }
+    };
+
+    $compiler->compile($path);
+    touch($path, time() - 10);
+    touch($compiler->getCompiledPath($path), time());
+
+    $compiler->deleteCompiledView = true;
+
+    $view = new View(
+        app('view'),
+        new CompilerEngine($compiler),
+        'blaze-missing-compiled-view',
+        $path,
+    );
+
+    expect(app(BlazeManager::class)->viewContainsExpiredFrontMatter($view))->toBeFalse();
+    expect(file_exists($compiler->getCompiledPath($path)))->toBeTrue();
+
+    app('files')->delete($path);
+    app('files')->delete($compiler->getCompiledPath($path));
+});
 
 test('supports php engine', function () {
     view('php-view')->render();
