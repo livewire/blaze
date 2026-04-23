@@ -18,8 +18,8 @@ use Livewire\Blaze\Debugger;
  */
 class BlazeRuntime
 {
-    // Lazily cached from config('view.compiled') on first access via __get.
-    // This ensures parallel-testing per-worker path overrides are respected.
+    // Tests and isolated rendering temporarily override this property.
+    // When it is null we always read the current view.compiled config.
     protected ?string $compiledPath = null;
 
     protected array $paths = [];
@@ -48,7 +48,7 @@ class BlazeRuntime
         }
 
         if (! file_exists($compiledPath) || filemtime($path) > filemtime($compiledPath)) {
-            $this->compiler->compile($path);
+            $this->getCompiler()->compile($path);
         }
 
         require $compiledPath;
@@ -243,7 +243,22 @@ class BlazeRuntime
 
     private function getCompiledPath(): string
     {
-        return $this->compiledPath ??= config('view.compiled');
+        return $this->compiledPath ?? config('view.compiled');
+    }
+
+    private function getCompiler(): Compiler
+    {
+        $compiler = app('blade.compiler');
+        $compiledPath = $this->getCompiledPath();
+        static $cachePath;
+
+        $cachePath ??= new \ReflectionProperty($compiler, 'cachePath');
+
+        if ($cachePath->getValue($compiler) !== $compiledPath) {
+            $cachePath->setValue($compiler, $compiledPath);
+        }
+
+        return $compiler;
     }
 
     /**

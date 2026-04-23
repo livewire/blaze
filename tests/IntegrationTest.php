@@ -4,6 +4,7 @@ use Illuminate\Container\Container;
 use Illuminate\Contracts\View\Engine;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Blade;
+use Illuminate\Support\Facades\File;
 use Illuminate\View\Component;
 use Livewire\Blaze\Blaze;
 use Livewire\Blaze\BlazeManager;
@@ -93,3 +94,21 @@ test('folds and compiles the same component', function () {
         ['required' => true]
     );
 })->throwsNoExceptions();
+
+test('uses the current compiled view path after blaze runtime is resolved', function () {
+    Blaze::optimize()->in(__DIR__.'/fixtures/components');
+
+    app(BlazeRuntime::class);
+
+    $compiledPath = sys_get_temp_dir() . '/blaze-compiled-' . bin2hex(random_bytes(4));
+
+    File::ensureDirectoryExists($compiledPath);
+
+    config()->set('view.compiled', $compiledPath);
+
+    try {
+        expect(view('mix')->render())->toContain('<input');
+    } finally {
+        File::deleteDirectory($compiledPath);
+    }
+});
