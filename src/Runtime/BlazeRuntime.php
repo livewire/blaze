@@ -18,8 +18,8 @@ use Livewire\Blaze\Debugger;
  */
 class BlazeRuntime
 {
-    // Tests and isolated rendering temporarily override this property.
-    // When it is null we always read the current view.compiled config.
+    // Lazily cached from config('view.compiled') on first access via __get.
+    // Tests and isolated rendering can still override it temporarily.
     protected ?string $compiledPath = null;
 
     protected array $paths = [];
@@ -243,7 +243,7 @@ class BlazeRuntime
 
     private function getCompiledPath(): string
     {
-        return $this->compiledPath ?? config('view.compiled');
+        return $this->compiledPath ??= config('view.compiled');
     }
 
     private function getCompiler(): Compiler
@@ -267,6 +267,14 @@ class BlazeRuntime
     public function setApplication(Application $app): void
     {
         $this->app = $app;
+    }
+
+    /**
+     * Refresh the cached compiled path from the current config.
+     */
+    public function syncCompiledPath(): void
+    {
+        $this->compiledPath = config('view.compiled');
     }
 
     /**

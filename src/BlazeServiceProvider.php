@@ -87,6 +87,8 @@ class BlazeServiceProvider extends ServiceProvider
                 $view->getEngine()->getCompiler()->compile($view->getPath());
             }
 
+            $runtime->syncCompiledPath();
+
             if ($blaze->isDebugging()) {
                 $debugger->injectRenderTimer($view);
 
