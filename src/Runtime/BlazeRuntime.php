@@ -7,7 +7,6 @@ use Illuminate\Foundation\Application;
 use Illuminate\Support\Str;
 use Illuminate\Support\ViewErrorBag;
 use Illuminate\View\Compilers\BladeCompiler;
-use Illuminate\View\Compilers\Compiler;
 use Livewire\Blaze\BladeService;
 use Livewire\Blaze\Support\Directives;
 use Livewire\Blaze\Support\Utils;
@@ -48,7 +47,7 @@ class BlazeRuntime
         }
 
         if (! file_exists($compiledPath) || filemtime($path) > filemtime($compiledPath)) {
-            $this->getCompiler()->compile($path);
+            $this->compiler->compile($path);
         }
 
         require $compiledPath;
@@ -246,21 +245,6 @@ class BlazeRuntime
         return $this->compiledPath ??= config('view.compiled');
     }
 
-    private function getCompiler(): Compiler
-    {
-        $compiler = app('blade.compiler');
-        $compiledPath = $this->getCompiledPath();
-        static $cachePath;
-
-        $cachePath ??= new \ReflectionProperty($compiler, 'cachePath');
-
-        if ($cachePath->getValue($compiler) !== $compiledPath) {
-            $cachePath->setValue($compiler, $compiledPath);
-        }
-
-        return $compiler;
-    }
-
     /**
      * Set the application instance (used by Octane to swap in the sandbox).
      */
@@ -275,6 +259,14 @@ class BlazeRuntime
     public function syncCompiledPath(): void
     {
         $this->compiledPath = config('view.compiled');
+
+        static $cachePath;
+
+        $cachePath ??= new \ReflectionProperty($this->compiler, 'cachePath');
+
+        if ($cachePath->getValue($this->compiler) !== $this->compiledPath) {
+            $cachePath->setValue($this->compiler, $this->compiledPath);
+        }
     }
 
     /**
