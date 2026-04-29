@@ -276,12 +276,11 @@ class BlazeManager
     public function viewContainsExpiredFrontMatter($view): bool
     {
         $engine = $view->getEngine();
+        $path = $view->getPath();
 
         if (! $engine instanceof CompilerEngine) {
             return false;
         }
-
-        $path = $view->getPath();
 
         if (isset($this->expiredMemo[$path])) {
             return $this->expiredMemo[$path];
@@ -290,7 +289,7 @@ class BlazeManager
         $compiler = $engine->getCompiler();
         $compiled = $compiler->getCompiledPath($path);
 
-        $expired = $compiler->isExpired($path) ?: (new FrontMatter)->sourceContainsExpiredFoldedDependencies($compiled);
+        $expired = $compiler->isExpired($path) ? false : (new FrontMatter)->sourceContainsExpiredFoldedDependencies($compiled);
 
         return $this->expiredMemo[$path] = $expired;
     }

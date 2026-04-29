@@ -35,7 +35,7 @@ class FrontMatter
         $source = @file_get_contents($path);
         
         if ($source === false) {
-            return true;
+            return false;
         }
 
         $foldedComponents = $this->parseFromTemplate($source);
