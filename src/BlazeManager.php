@@ -289,19 +289,13 @@ class BlazeManager
 
         $compiler = $engine->getCompiler();
         $compiled = $compiler->getCompiledPath($path);
+
         $expired = $compiler->isExpired($path);
+        $expired = $expired ? true : (new FrontMatter)->sourceContainsExpiredFoldedDependencies($compiled);
 
-        $isExpired = false;
+        $this->expiredMemo[$path] = $expired;
 
-        if (! $expired) {
-            $contents = file_get_contents($compiled);
-
-            $isExpired = (new FrontMatter)->sourceContainsExpiredFoldedDependencies($contents);
-        }
-
-        $this->expiredMemo[$path] = $isExpired;
-
-        return $isExpired;
+        return $expired;
     }
 
     /**
