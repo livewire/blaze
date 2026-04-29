@@ -30,7 +30,7 @@ class FrontMatter
     /**
      * Check if any folded component referenced in the compiled file has been modified.
      */
-    public function sourceContainsExpiredFoldedDependencies(string $path): bool
+    public function containsExpiredFoldedDependencies(string $path): bool
     {
         $source = @file_get_contents($path);
         
