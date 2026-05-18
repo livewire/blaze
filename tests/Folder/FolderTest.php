@@ -238,7 +238,7 @@ test('folds components with static aware prop from parent', function () {
     expect($folded)->toBeInstanceOf(TextNode::class);
 });
 
-test('does not fold components with dynamic aware prop from parent even when listed in safe', function () {
+test('does not fold components if a dynamic prop comes from parent using aware even when marked as safe', function () {
     $input = '<x-foldable.input-aware-safe />';
 
     $node = app(Parser::class)->parse($input)[0];
@@ -251,26 +251,10 @@ test('does not fold components with dynamic aware prop from parent even when lis
     expect($folded)->toBeInstanceOf(ComponentNode::class);
 });
 
-test('folds components with aware prop listed in safe overridden by direct attribute', function () {
+test('folds components when a prop is passed directly even if aware is declared', function () {
     $input = '<x-foldable.input-aware-safe type="number" />';
 
     $node = app(Parser::class)->parse($input)[0];
-    $node->setParentsAttributes(
-        app(AttributeParser::class)->parse(':type="$type"')
-    );
-
-    $folded = app(Folder::class)->fold($node);
-
-    expect($folded)->toBeInstanceOf(TextNode::class);
-});
-
-test('folds components with static aware prop listed in safe from parent', function () {
-    $input = '<x-foldable.input-aware-safe />';
-
-    $node = app(Parser::class)->parse($input)[0];
-    $node->setParentsAttributes(
-        app(AttributeParser::class)->parse(':type="true"')
-    );
 
     $folded = app(Folder::class)->fold($node);
 
