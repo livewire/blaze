@@ -104,7 +104,7 @@ class Folder
                 && isset($node->parentsAttributes[$prop])
                 && ! $node->parentsAttributes[$prop]->isStaticValue()
             ) {
-                $dynamicAttributes[$prop] = $node->parentsAttributes[$prop];
+                return false;
             }
         }
 
