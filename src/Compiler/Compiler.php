@@ -63,7 +63,7 @@ class Compiler
     protected function shouldCompile(ComponentSource $source): bool
     {
         if ($source->directives->blaze()) {
-            return true;
+            return $source->directives->blaze('compile') ?? true;
         }
 
         return $this->config->shouldCompile($source->path)
