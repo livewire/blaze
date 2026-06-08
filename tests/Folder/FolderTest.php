@@ -247,6 +247,18 @@ test('does not fold components with no blaze directive', function () {
     expect($folded)->toBeInstanceOf(ComponentNode::class);
 });
 
+test('does not fold components with blaze directive override set to false', function () {
+    $input = '<x-foldable.fold-false />';
+
+    app(Config::class)->add(fixture_path('views/components/foldable'), fold: true);
+
+    $node = app(Parser::class)->parse($input)[0];
+    $compiled = app(Folder::class)->fold($node);
+
+    expect($compiled)->toBeInstanceOf(ComponentNode::class);
+});
+
+
 test('folds components with no blaze directive if enabled in config', function () {
     $input = '<x-foldable.input-no-blaze />';
 

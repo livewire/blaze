@@ -2,6 +2,8 @@
 
 use Livewire\Blaze\Parser\Parser;
 use Livewire\Blaze\Compiler\Compiler;
+use Livewire\Blaze\Config;
+use Livewire\Blaze\Parser\Nodes\ComponentNode;
 use Livewire\Blaze\Support\Utils;
 
 test('compiles self-closing components', function () {
@@ -76,4 +78,15 @@ test('compiles delegate components', function () {
         '<?php $__blaze->popData(); ?> ',
         '<?php unset($__resolved) ?>',
     ]));
+});
+
+test('does not compile components with blaze directive override set to false', function () {
+    $input = '<x-compile-false />';
+
+    app(Config::class)->add(fixture_path('views/components'));
+
+    $node = app(Parser::class)->parse($input)[0];
+    $compiled = app(Compiler::class)->compile($node);
+
+    expect($compiled)->toBeInstanceOf(ComponentNode::class);
 });
