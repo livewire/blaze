@@ -17,11 +17,11 @@ class Utils
     {
         $params = BlazeDirective::parseParameters($expression);
 
-        if ($params['compile'] === false && $params['memo'] === true) {
+        if (data_get($params, 'compile', true) === false && data_get($params, 'memo', false) === true) {
             throw new \InvalidArgumentException('Cannot set `memo: true` with `compile: false` in @blaze directive.');
         }
 
-        if ($params['compile'] === false && $params['fold'] === true) {
+        if (data_get($params, 'compile', true) === false && data_get($params, 'fold', false) === true) {
             throw new \InvalidArgumentException('Cannot set `fold: true` with `compile: false` in @blaze directive.');
         }
 
