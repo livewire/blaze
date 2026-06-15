@@ -40,6 +40,14 @@ class Attribute
             throw new \LogicException("Cannot get static value of dynamic attribute '{$this->name}'.");
         }
 
+        if ($this->valueless) {
+            return true;
+        }
+
+        if (! $this->bound()) {
+            return $this->value;
+        }
+
         return match ($this->value) {
             'true' => true,
             'false' => false,
