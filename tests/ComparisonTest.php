@@ -58,6 +58,13 @@ test('foldable boolean attributes', fn () => compare(<<<'BLADE'
     ['readonly' => false],
 ));
 
+test('foldable literal string attributes matching PHP constants', fn () => compare(<<<'BLADE'
+    <x-foldable.input value="true" />
+    <x-foldable.input value="false" />
+    <x-foldable.input value="null" />
+    BLADE
+));
+
 test('same component in a slot doesnt affect parents attributes', fn () => compare(<<<'BLADE'
     <x-card>
         <x-card x-data>

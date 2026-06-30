@@ -49,7 +49,7 @@ class AttributeParser
             $valueless = is_null($value);
 
             if ($valueless) {
-                $value = 'true';
+                $value = true;
             }
 
             $quotes = '';
