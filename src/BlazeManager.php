@@ -166,6 +166,30 @@ class BlazeManager
     }
 
     /**
+     * Exclude Blaze's internal variables from Volt fragment component arguments.
+     *
+     * Volt compiles @volt fragments (used in Laravel Folio pages) into a Livewire
+     * mount call that captures the surrounding template scope via get_defined_vars().
+     * Blaze introduces variables into that scope ($__blaze and call-site temporaries)
+     * that would otherwise be forwarded to Livewire, serialized into the component
+     * snapshot, and corrupt its checksum on subsequent requests.
+     */
+    public function excludeBlazeVariablesFromVoltFragments(string $template): string
+    {
+        $needle = 'ExtractFragments::componentArguments([...get_defined_vars()';
+
+        if (! str_contains($template, $needle)) {
+            return $template;
+        }
+
+        return str_replace(
+            $needle,
+            'ExtractFragments::componentArguments([...\Livewire\Blaze\Support\Utils::exceptBlazeVariables(get_defined_vars())',
+            $template,
+        );
+    }
+
+    /**
      * Compile a template for debug-only mode (Blaze disabled).
      *
      * Parses the template to find components and wraps them with timer

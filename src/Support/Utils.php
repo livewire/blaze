@@ -35,4 +35,16 @@ class Utils
     {
         return hash('xxh128', 'v2' . $componentPath);
     }
+
+    /**
+     * Remove Blaze's internal template-scope variables (the shared runtime and
+     * compiled call-site temporaries) from a get_defined_vars() capture.
+     */
+    public static function exceptBlazeVariables(array $variables): array
+    {
+        return array_filter($variables, function ($key) {
+            return ! str_starts_with($key, '__blaze')
+                && ! preg_match('/^__(?:attrs|slots)(?:Stack)?[0-9a-f]{32}$/', $key);
+        }, ARRAY_FILTER_USE_KEY);
+    }
 }

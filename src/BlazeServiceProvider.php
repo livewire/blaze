@@ -156,6 +156,8 @@ class BlazeServiceProvider extends ServiceProvider
                 return $input;
             }
 
+            $input = $blaze->excludeBlazeVariablesFromVoltFragments($input);
+
             if ($blaze->isDisabled()) {
                 if ($blaze->isDebugging()) {
                     return $blaze->compileForDebug($input, $path);

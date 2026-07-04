@@ -54,3 +54,21 @@ test('viewContainsExpiredFrontMatter returns false when view isnt compiled', fun
 
     expect($manager->viewContainsExpiredFrontMatter($view))->toBeFalse();
 });
+
+test('blaze variables are excluded from volt fragment component arguments', function () {
+    // Volt compiles @volt fragments into a Livewire mount call that captures the
+    // entire template scope via get_defined_vars(). Blaze's runtime and call-site
+    // temporaries must be filtered out of that capture, otherwise they end up
+    // serialized into the Livewire snapshot and corrupt its checksum...
+    $input = '@livewire("volt-anonymous-fragment-abc123", Livewire\Volt\Precompilers\ExtractFragments::componentArguments([...get_defined_vars(), ...array()]))';
+
+    $compiled = app('blade.compiler')->compileString($input);
+
+    expect($compiled)->toContain('ExtractFragments::componentArguments([...\Livewire\Blaze\Support\Utils::exceptBlazeVariables(get_defined_vars()), ...array()])');
+});
+
+test('get_defined_vars is left untouched outside volt fragment component arguments', function () {
+    $input = '<?php $vars = get_defined_vars(); ?>';
+
+    expect(Blaze::excludeBlazeVariablesFromVoltFragments($input))->toBe($input);
+});
