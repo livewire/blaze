@@ -49,8 +49,9 @@ class BlazeAttributeBag extends ComponentAttributeBag
     /** {@inheritdoc} */
     public function merge(array $attributeDefaults = [], $escape = true): static
     {
-        // Fast path: merge(['class' => 'string']) — the most common pattern.
-        if (count($attributeDefaults) === 1 && isset($attributeDefaults['class']) && is_string($attributeDefaults['class'])) {
+        // Fast path: merge(['class' => 'string']) — the most common pattern. Skipped when the
+        // bag contains a style attribute, which merge() normalizes and reorders alongside class.
+        if (count($attributeDefaults) === 1 && isset($attributeDefaults['class']) && is_string($attributeDefaults['class']) && ! isset($this->attributes['style'])) {
             return $this->withMergedClass($escape ? e($attributeDefaults['class']) : $attributeDefaults['class']);
         }
 
@@ -108,7 +109,7 @@ class BlazeAttributeBag extends ComponentAttributeBag
     /** {@inheritdoc} */
     public function class($classList): static
     {
-        if (is_string($classList)) {
+        if (is_string($classList) && ! isset($this->attributes['style'])) {
             return $this->withMergedClass(e($classList));
         }
 
@@ -120,11 +121,11 @@ class BlazeAttributeBag extends ComponentAttributeBag
     /** {@inheritdoc} */
     public function style($styleList): static
     {
-        if (is_string($styleList)) {
+        if (is_string($styleList) && ! isset($this->attributes['class'])) {
             $default = e(rtrim($styleList, ';').';');
-            $current = $this->attributes['style'] ?? '';
+            $current = $this->attributes['style'] ?? null;
 
-            if ($current) {
+            if ($current !== null) {
                 $current = rtrim((string) $current, ';').';';
                 $style = $current === $default ? $default : $default.' '.$current;
             } else {

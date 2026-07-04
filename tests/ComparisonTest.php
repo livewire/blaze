@@ -100,6 +100,19 @@ test('merge preserves attribute ordering', fn () => compare(<<<'BLADE'
     BLADE
 ));
 
+test('merge class with style attribute present', fn () => compare(<<<'BLADE'
+    <x-merge-class wire:model="data" style="color:blue" class="extra" />
+    BLADE
+));
+
+test('class and style string arguments', fn () => compare(<<<'BLADE'
+    <x-class-style-string wire:model="data" class="extra" style="color:blue" />
+    <x-class-style-string wire:model="data" class="extra" />
+    <x-class-style-string wire:model="data" style="color:blue" />
+    <x-class-style-string data-x="1" />
+    BLADE
+));
+
 test('deeply nested same component with different components interleaved', fn () => compare(<<<'BLADE'
     <x-card class="outer">
         <x-wrapper>
