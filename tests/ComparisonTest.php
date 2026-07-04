@@ -145,3 +145,27 @@ test('foldable conditional slots', fn () => compare(<<<'BLADE'
     </x-foldable.card>
     BLADE
 ));
+
+test('truthy conditional slots', fn () => compare(<<<'BLADE'
+    <x-card>
+        @if(true)
+        <x-slot name="header">
+            Header
+        </x-slot>
+        @endif
+        Body
+    </x-card>
+    BLADE
+));
+
+test('foldable truthy conditional slots', fn () => compare(<<<'BLADE'
+    <x-foldable.card>
+        @if(true)
+        <x-slot name="header">
+            Header
+        </x-slot>
+        @endif
+        Body
+    </x-foldable.card>
+    BLADE
+));

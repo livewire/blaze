@@ -55,6 +55,10 @@ class Folder
             return $component;
         }
 
+        if ($this->hasConditionallyRenderedSlots($component)) {
+            return $component;
+        }
+
         $this->checkProblematicPatterns($source);
 
         try {
@@ -169,6 +173,61 @@ class Folder
         }
 
         return true;
+    }
+
+    /**
+     * Determine if any slot is wrapped in a runtime control structure (e.g. @if ... @endif).
+     *
+     * Folding extracts slots at compile time, so a slot inside an unclosed conditional
+     * or loop would always render. When we detect one, we skip the fold and let the
+     * regular compiler handle the component, which evaluates conditionals at runtime.
+     */
+    protected function hasConditionallyRenderedSlots(ComponentNode $node): bool
+    {
+        $depth = 0;
+
+        foreach ($node->children as $child) {
+            if ($child instanceof SlotNode) {
+                if ($depth > 0) {
+                    return true;
+                }
+
+                continue;
+            }
+
+            if ($child instanceof TextNode) {
+                $depth += $this->controlStructureDepthChange($child->content);
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * Calculate the net change in Blade control structure nesting within a chunk of text.
+     */
+    protected function controlStructureDepthChange(string $content): int
+    {
+        $pattern = '/\B@(end)?(if|unless|isset|switch|foreach|forelse|for|while|empty)\b(\s*\()?/';
+
+        if (! preg_match_all($pattern, $content, $matches, PREG_SET_ORDER)) {
+            return 0;
+        }
+
+        $depth = 0;
+
+        foreach ($matches as $match) {
+            if ($match[1] === 'end') {
+                $depth--;
+            } elseif ($match[2] === 'empty' && ! isset($match[3])) {
+                // Bare @empty is the @forelse separator, not a conditional opener...
+                continue;
+            } else {
+                $depth++;
+            }
+        }
+
+        return $depth;
     }
 
     /**
