@@ -21,6 +21,7 @@ use Livewire\Blaze\Parser\Walker;
 use Livewire\Blaze\Support\Directives;
 use Livewire\Blaze\Support\ComponentSource;
 use Livewire\Blaze\Parser\Nodes\SlotNode;
+use Livewire\Blaze\Support\AttributeParser;
 
 class BlazeManager
 {
@@ -49,7 +50,7 @@ class BlazeManager
         protected BladeService $blade,
     ) {
         $this->renderer = new BladeRenderer($bladeCompiler, app('view'), $this->runtime, $this);
-        $this->parser = new Parser(new Tokenizer, $this->blade);
+        $this->parser = new Parser(new Tokenizer, new AttributeParser($this->blade));
         $this->walker = new Walker;
         $this->compiler = new Compiler($config, $this->blade, $this);
         $this->folder = new Folder($config, $this->blade, $this->renderer, $this);
@@ -275,32 +276,21 @@ class BlazeManager
     public function viewContainsExpiredFrontMatter($view): bool
     {
         $engine = $view->getEngine();
-
-        if (! $engine instanceof CompilerEngine) {
-            return false;
-        }
-
         $path = $view->getPath();
 
         if (isset($this->expiredMemo[$path])) {
             return $this->expiredMemo[$path];
         }
 
-        $compiler = $engine->getCompiler();
-        $compiled = $compiler->getCompiledPath($path);
-        $expired = $compiler->isExpired($path);
-
-        $isExpired = false;
-
-        if (! $expired) {
-            $contents = file_get_contents($compiled);
-
-            $isExpired = (new FrontMatter)->sourceContainsExpiredFoldedDependencies($contents);
+        if (! $engine instanceof CompilerEngine) {
+            return $this->expiredMemo[$path] = false;
         }
 
-        $this->expiredMemo[$path] = $isExpired;
+        $compiler = $engine->getCompiler();
+        $compiled = $compiler->getCompiledPath($path);
+        $expired = $compiler->isExpired($path) ? false : (new FrontMatter)->containsExpiredFoldedDependencies($compiled);
 
-        return $isExpired;
+        return $this->expiredMemo[$path] = $expired;
     }
 
     /**

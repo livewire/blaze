@@ -3,8 +3,8 @@
 namespace Livewire\Blaze\Runtime;
 
 use Illuminate\Support\Arr;
-use Illuminate\Support\Str;
 use Illuminate\View\AppendableAttributeValue;
+use Illuminate\View\Compilers\BladeCompiler;
 use Illuminate\View\ComponentAttributeBag;
 
 /**
@@ -13,14 +13,34 @@ use Illuminate\View\ComponentAttributeBag;
 class BlazeAttributeBag extends ComponentAttributeBag
 {
     /**
+     * Skip the parent setAttributes() check for nested ComponentAttributeBag.
+     * In the Blaze path, attributes are always plain arrays — the nested-bag
+     * case is already handled in the Wrapper boilerplate before sanitized() is called.
+     */
+    public function __construct(array $attributes = [])
+    {
+        $this->attributes = $attributes;
+    }
+
+    /**
      * Create an attribute bag with bound values sanitized for safe HTML rendering.
      */
-    public static function sanitized(array $attributes, array $boundKeys = []): static
+    public static function make(array $attributes, array $boundKeys = [], array $originalKeys = []): static
     {
         foreach ($boundKeys as $key) {
             if (array_key_exists($key, $attributes)) {
-                $attributes[$key] = \Illuminate\View\Compilers\BladeCompiler::sanitizeComponentAttribute($attributes[$key]);
+                $attributes[$key] = BladeCompiler::sanitizeComponentAttribute($attributes[$key]);
             }
+        }
+
+        if ($originalKeys) {
+            $result = [];
+
+            foreach ($attributes as $key => $value) {
+                $result[$originalKeys[$key] ?? $key] = $value;
+            }
+
+            return new static($result);
         }
 
         return new static($attributes);
@@ -64,18 +84,13 @@ class BlazeAttributeBag extends ComponentAttributeBag
                 $value = rtrim((string) $value, ';').';';
             }
 
-            $merged = [];
-            foreach ([$defaultsValue, $value] as $part) {
-                if (! $part) {
-                    continue;
-                }
-
-                if (! in_array($part, $merged)) {
-                    $merged[] = $part;
-                }
+            if (! $defaultsValue) {
+                $attributes[$key] = $value ?: '';
+            } elseif (! $value || $value === $defaultsValue) {
+                $attributes[$key] = $defaultsValue;
+            } else {
+                $attributes[$key] = $defaultsValue.' '.$value;
             }
-
-            $attributes[$key] = implode(' ', $merged);
         }
 
         foreach ($nonAppendableAttributes as $key => $value) {
@@ -187,7 +202,7 @@ class BlazeAttributeBag extends ComponentAttributeBag
      */
     public function __toString()
     {
-        $string = '';
+        $parts = [];
 
         foreach ($this->attributes as $key => $value) {
             if ($value === false || is_null($value)) {
@@ -198,15 +213,13 @@ class BlazeAttributeBag extends ComponentAttributeBag
                 $value = $key === 'x-data' || str_starts_with($key, 'wire:') ? '' : $key;
             }
 
-            $attr = $key.'="'.str_replace('"', '\\"', trim($value)).'"';
-
-            if (Str::match('/^BLAZE_PLACEHOLDER_[0-9]+_$/', $value)) {
-                $string .= ' [BLAZE_ATTR:'.$value.']';
+            if (str_starts_with($value, 'BLAZE_PLACEHOLDER_') && str_ends_with($value, '_')) {
+                $parts[] = '[BLAZE_ATTR:'.$value.':'.$key.']';
             } else {
-                $string .= ' '.$attr;
+                $parts[] = $key.'="'.str_replace('"', '\\"', trim($value)).'"';
             }
         }
 
-        return trim($string);
+        return implode(' ', $parts);
     }
 }

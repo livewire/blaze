@@ -202,18 +202,19 @@ class Foldable
      */
     protected function processUncompiledAttributes(): void
     {
-        $this->html = preg_replace_callback('/\[BLAZE_ATTR:(BLAZE_PLACEHOLDER_[0-9]+_)\](\r?\n)?/', function ($matches) {
+        $this->html = preg_replace_callback('/\[BLAZE_ATTR:(BLAZE_PLACEHOLDER_[0-9]+_):(.+?)\](\r?\n)?/', function ($matches) {
             $attribute = $this->attributeByPlaceholder[$matches[1]];
+            $name = $matches[2];
 
             if ($attribute->bound()) {
                 // x-data and wire:* get empty string for true, others get key name
-                $booleanValue = ($attribute->name === 'x-data' || str_starts_with($attribute->name, 'wire:')) ? "''" : "'".addslashes($attribute->name)."'";
+                $booleanValue = ($name === 'x-data' || str_starts_with($name, 'wire:')) ? "''" : "'".addslashes($name)."'";
 
                 return '<'.'?php if (($__blazeAttr = '.$attribute->value.') !== false && !is_null($__blazeAttr)): ?'.'>'
-                . $attribute->name.'="<'.'?php echo e($__blazeAttr === true ? '.$booleanValue.' : $__blazeAttr); ?'.'>"'
-                .'<'.'?php endif; unset($__blazeAttr); ?'.'>' . (isset($matches[2]) ? $matches[2] . $matches[2] : '');
+                . $name.'="<'.'?php echo e($__blazeAttr === true ? '.$booleanValue.' : $__blazeAttr); ?'.'>"'
+                .'<'.'?php endif; unset($__blazeAttr); ?'.'>' . (isset($matches[3]) ? $matches[3] . $matches[3] : '');
             } else {
-                return $attribute->name.'="'.$attribute->value.'"';
+                return $name.'="'.$attribute->value.'"';
             }
         }, $this->html);
     }
@@ -270,11 +271,7 @@ class Foldable
         $data = [];
 
         foreach ($this->node->attributes as $attribute) {
-            if ($attribute->bound()) {
-                $data[] = var_export($attribute->propName, true).' => '.$attribute->value;
-            } else {
-                $data[] = var_export($attribute->propName, true).' => '.$this->blade->compileAttributeEchos($attribute->value);
-            }
+            $data[] = $this->blade->compileAttribute($attribute);
         }
 
         $dataString = implode(', ', $data);

@@ -20,6 +20,11 @@ test('button', fn () => compare(<<<'BLADE'
     BLADE
 ));
 
+test('button with dynamic wire:click', fn () => compare(<<<'BLADE'
+    <flux:button wire:click="save({{ $id }})">Save changes</flux:button>
+    BLADE, ['id' => 1]
+));
+
 test('icon', fn () => compare(<<<'BLADE'
     <flux:icon icon="loading" />
     BLADE

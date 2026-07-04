@@ -4,6 +4,7 @@ namespace Livewire\Blaze;
 
 use Closure;
 use Illuminate\Contracts\Http\Kernel;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Route;
@@ -43,11 +44,19 @@ class DebuggerMiddleware
      */
     public function handle(Request $request, Closure $next): SymfonyResponse
     {
+        /** @var SymfonyResponse $response */
+        $response = $next($request);
+
         $url = '/' . ltrim($request->path(), '/');
 
-        // Skip internal debug bar routes and Livewire requests.
-        if (str_starts_with($url, '/_blaze/') || $request->hasHeader('X-Livewire')) {
-            return $next($request);
+        if (str_starts_with($url, '/_blaze/')
+            || ! str_contains($response->headers->get('Content-Type', 'text/html'), 'html')
+            || $this->isJsonRequest($request)
+            || $this->isJsonResponse($response)
+            || $response->getContent() === false
+            || ! in_array($request->getRequestFormat(), [null, 'html'], true)
+        ) {
+            return $response;
         }
 
         $isBlaze = app('blaze')->isEnabled();
@@ -55,12 +64,12 @@ class DebuggerMiddleware
         $debugger = app('blaze.debugger');
         $debugger->setBlazeEnabled($isBlaze);
 
-        /** @var SymfonyResponse $response */
-        $response = $next($request);
-
         if ($response->getStatusCode() === 200) {
             $this->storeProfilerTrace($url, $debugger, $isBlaze);
-            $this->injectDebugger($response, $debugger);
+
+            rescue(function () use ($response, $debugger) {
+                $this->injectDebugger($response, $debugger);
+            });
         }
 
         return $response;
@@ -120,5 +129,59 @@ class DebuggerMiddleware
         if ($response instanceof Response && $original) {
             $response->original = $original;
         }
+    }
+
+    /**
+     * Based on https://github.com/fruitcake/laravel-debugbar/blob/master/src/LaravelDebugbar.php
+     */
+    protected function isJsonRequest(Request $request): bool
+    {
+        // If XmlHttpRequest, Live or HTMX, return true
+        if (
+            $request->isXmlHttpRequest()
+            || $request->headers->has('X-Livewire')
+            || ($request->headers->has('Hx-Request') && $request->headers->has('Hx-Target'))
+        ) {
+            return true;
+        }
+
+        // Check if the request wants Json
+        $acceptable = $request->getAcceptableContentTypes();
+        if (isset($acceptable[0]) && in_array($acceptable[0], ['application/json', 'application/javascript'], true)) {
+            return true;
+        }
+
+        return false;
+    }
+
+    /**
+     * Based on https://github.com/fruitcake/laravel-debugbar/blob/master/src/LaravelDebugbar.php
+     */
+    protected function isJsonResponse(SymfonyResponse $response): bool
+    {
+        if ($response instanceof JsonResponse || $response->headers->get('Content-Type') === 'application/json') {
+            return true;
+        }
+
+        $content = $response->getContent();
+        if (is_string($content)) {
+            $content = trim($content);
+            if ($content === '') {
+                return false;
+            }
+
+            // Quick check to see if it looks like JSON
+            $first = $content[0];
+            $last  = $content[strlen($content) - 1];
+            if (
+                ($first === '{' && $last === '}')
+                || ($first === '[' && $last === ']')
+            ) {
+                // Must contain a colon or comma
+                return strpbrk($content, ':,') !== false;
+            }
+        }
+
+        return false;
     }
 }

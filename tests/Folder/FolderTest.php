@@ -6,6 +6,7 @@ use Livewire\Blaze\Folder\Folder;
 use Livewire\Blaze\Parser\Nodes\TextNode;
 use Livewire\Blaze\Parser\Nodes\ComponentNode;
 use Livewire\Blaze\Exceptions\InvalidBlazeFoldUsageException;
+use Livewire\Blaze\Support\AttributeParser;
 
 test('folds components with static attributes', function () {
     $input = '<x-foldable.input disabled />';
@@ -198,6 +199,45 @@ test('folds components with static non-prop attributes with unsafe attributes ke
     expect($folded)->toBeInstanceOf(TextNode::class);
 });
 
+test('does not fold components with dynamic aware prop from parent', function () {
+    $input = '<x-foldable.input-aware-unsafe />';
+
+    $node = app(Parser::class)->parse($input)[0];
+    $node->setParentsAttributes(
+        app(AttributeParser::class)->parse(':type="$type"')
+    );
+
+    $folded = app(Folder::class)->fold($node);
+
+    expect($folded)->toBeInstanceOf(ComponentNode::class);
+});
+
+test('folds components with aware prop overridden by direct attribute', function () {
+    $input = '<x-foldable.input-aware-unsafe type="number" />';
+
+    $node = app(Parser::class)->parse($input)[0];
+    $node->setParentsAttributes(
+        app(AttributeParser::class)->parse(':type="$type"')
+    );
+
+    $folded = app(Folder::class)->fold($node);
+
+    expect($folded)->toBeInstanceOf(TextNode::class);
+});
+
+test('folds components with static aware prop from parent', function () {
+    $input = '<x-foldable.input-aware-unsafe />';
+
+    $node = app(Parser::class)->parse($input)[0];
+    $node->setParentsAttributes(
+        app(AttributeParser::class)->parse(':type="true"')
+    );
+
+    $folded = app(Folder::class)->fold($node);
+
+    expect($folded)->toBeInstanceOf(TextNode::class);
+});
+
 test('does not fold components with no blaze directive', function () {
     $input = '<x-foldable.input-no-blaze />';
     
@@ -206,6 +246,18 @@ test('does not fold components with no blaze directive', function () {
 
     expect($folded)->toBeInstanceOf(ComponentNode::class);
 });
+
+test('does not fold components with blaze directive override set to false', function () {
+    $input = '<x-foldable.fold-false />';
+
+    app(Config::class)->add(fixture_path('views/components/foldable'), fold: true);
+
+    $node = app(Parser::class)->parse($input)[0];
+    $compiled = app(Folder::class)->fold($node);
+
+    expect($compiled)->toBeInstanceOf(ComponentNode::class);
+});
+
 
 test('folds components with no blaze directive if enabled in config', function () {
     $input = '<x-foldable.input-no-blaze />';

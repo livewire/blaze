@@ -72,6 +72,19 @@ test('supports antlers engine', function () {
     expect(view('antlers-view')->render())->toBe('NO_BLAZE');
 });
 
+test('forwards $__this through component chain', function () {
+    app()->register(\Livewire\LivewireServiceProvider::class);
+
+    \Livewire\Livewire::test(new class extends \Livewire\Component {
+        public string $name = 'from-livewire';
+
+        public function render()
+        {
+            return '<x-this-parent />';
+        }
+    })->assertSee('from-livewire');
+});
+
 test('folds and compiles the same component', function () {
     Blade::render(<<<'BLADE'
         <x-foldable.input required /> {{-- Folded --}}

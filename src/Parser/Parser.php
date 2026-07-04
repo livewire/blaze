@@ -22,7 +22,7 @@ class Parser
 {
     public function __construct(
         protected Tokenizer $tokenizer,
-        protected BladeService $blade,
+        protected AttributeParser $attributes,
     ) {
     }
 
@@ -63,9 +63,7 @@ class Parser
             attributeString: $attributeString,
             children: [],
             selfClosing: false,
-            attributes: AttributeParser::parse(
-                $this->blade->preprocessAttributeString($attributeString)
-            ),
+            attributes: $this->attributes->parse($attributeString),
         );
 
         $stack->pushContainer($node);
@@ -84,9 +82,7 @@ class Parser
             attributeString: $attributeString,
             children: [],
             selfClosing: true,
-            attributes: AttributeParser::parse(
-                $this->blade->preprocessAttributeString($attributeString)
-            ),
+            attributes: $this->attributes->parse($attributeString),
         );
 
         $stack->addToRoot($node);
@@ -114,9 +110,7 @@ class Parser
             children: [],
             prefix: $token->prefix,
             closeHasName: false,
-            attributes: AttributeParser::parse(
-                $this->blade->preprocessAttributeString($attributeString)
-            ),
+            attributes: $this->attributes->parse($attributeString),
         );
 
         $stack->pushContainer($node);

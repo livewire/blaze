@@ -12,7 +12,7 @@ use Livewire\Blaze\Tests\TestCase;
 uses(TestCase::class)->in(__DIR__);
 
 expect()->extend('toEqualCollapsingWhitespace', function ($other) {
-    expect(preg_replace('/\s+/', ' ', $this->value))->toBe(preg_replace('/\s+/', ' ', $other));
+    expect(preg_replace('/\s+/', ' ', rtrim($this->value)))->toBe(preg_replace('/\s+/', ' ', rtrim($other)));
 
     return $this;
 });

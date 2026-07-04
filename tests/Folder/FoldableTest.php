@@ -1,11 +1,14 @@
 <?php
 
+use Illuminate\Support\Facades\Artisan;
 use Livewire\Blaze\BladeRenderer;
 use Livewire\Blaze\BladeService;
 use Livewire\Blaze\Folder\Foldable;
 use Livewire\Blaze\Parser\Attribute;
 use Livewire\Blaze\Parser\Parser;
 use Livewire\Blaze\Support\ComponentSource;
+
+beforeEach(fn () => Artisan::call('view:clear'));
 
 test('folds dynamic attributes', function () {
     $input = '<x-foldable.input :type="$type" />';
@@ -125,6 +128,15 @@ test('folds dynamic attributes passed through attribute bag', function () {
             'readonly="<?php echo e($__blazeAttr === true ? \'readonly\' : $__blazeAttr); ?>"',
             '<?php endif; unset($__blazeAttr); ?>',
         ]))
+    );
+});
+
+test('folds dynamic attributes reused under a different key', function () {
+    $input = '<x-foldable.button wire:click="save({{ $id }})" />';
+    $node = app(Parser::class)->parse($input)[0];
+    $foldable = new Foldable($node, new ComponentSource(fixture_path('views/components/foldable/button.blade.php')), app(BladeRenderer::class), app(BladeService::class));
+    expect($foldable->fold())->toEqualCollapsingWhitespace(
+        '<button wire:target="save({{ $id }})" wire:click="save({{ $id }})" type="button"></button>'
     );
 });
 

@@ -99,6 +99,15 @@ class Folder
     {
         $dynamicAttributes = array_filter($node->attributes, fn ($attribute) => ! $attribute->isStaticValue());
 
+        foreach ($source->directives->aware() as $prop) {
+            if (! isset($node->attributes[$prop])
+                && isset($node->parentsAttributes[$prop])
+                && ! $node->parentsAttributes[$prop]->isStaticValue()
+            ) {
+                $dynamicAttributes[$prop] = $node->parentsAttributes[$prop];
+            }
+        }
+
         if (array_key_exists('attributes', $dynamicAttributes)) {
             return false;
         }
@@ -112,6 +121,8 @@ class Folder
         }
 
         $props = $source->directives->props();
+        $aware = $source->directives->aware();
+
         $safe = Arr::wrap($source->directives->blaze('safe'));
         $unsafe = Arr::wrap($source->directives->blaze('unsafe'));
 
@@ -141,7 +152,7 @@ class Folder
             $unsafe = array_merge($unsafe, array_diff(array_keys($node->attributes), $props));
         }
 
-        $unsafe = array_diff(array_merge($props, $unsafe), $safe);
+        $unsafe = array_diff(array_merge($props, $aware, $unsafe), $safe);
 
         foreach ($dynamicAttributes as $attribute) {
             if (in_array($attribute->propName, $unsafe)) {

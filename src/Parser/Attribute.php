@@ -14,6 +14,7 @@ class Attribute
         public bool $dynamic,
         public ?string $prefix = null,
         public string $quotes = '"',
+        public bool $valueless = false,
     ) {
     }
 
@@ -30,20 +31,43 @@ class Attribute
      */
     public function isStaticValue(): bool
     {
-        return $this->dynamic === false || in_array($this->value, ['true', 'false', 'null'], true);
+        return $this->dynamic === false || $this->hasConstantDynamicValue();
     }
 
+    /**
+     * Resolve the compile time value of this attribute.
+     */
     public function getStaticValue(): mixed
     {
-        if (! $this->isStaticValue()) {
+        if ($this->hasConstantDynamicValue()) {
+            return $this->getConstantValue();
+        }
+            
+        if ($this->dynamic) {
             throw new \LogicException("Cannot get static value of dynamic attribute '{$this->name}'.");
         }
 
+        return $this->value;
+    }
+
+    /**
+     * Check if this attribute is dynamic and has a constant value (true, false, or null).
+     */
+    protected function hasConstantDynamicValue(): bool
+    {
+        return $this->dynamic && in_array($this->value, ['true', 'false', 'null'], true);
+    }
+
+    /**
+     * Resolve the constant value of this attribute (true, false, or null).
+     */
+    protected function getConstantValue()
+    {
         return match ($this->value) {
             'true' => true,
             'false' => false,
             'null' => null,
-            default => $this->value,
+            default => throw new \LogicException("Invalid constant value '{$this->value}'."),
         };
     }
 }

@@ -1,0 +1,70 @@
+name: Benchmark On Demand
+
+on:
+  issue_comment:
+    types: [created]
+
+jobs:
+  benchmark:
+    if: >
+      github.event.issue.pull_request &&
+      startsWith(github.event.comment.body, '/benchmark ')
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Parse and validate benchmark name
+        id: input
+        env:
+          COMMENT: ${{ github.event.comment.body }}
+        run: |
+          BENCHMARK=$(echo "$COMMENT" | awk '{print $2}')
+          VALID="attributes aware class default forwarding merge named-slots no-attributes slot"
+          if ! echo "$VALID" | grep -qw "$BENCHMARK"; then
+            echo "::error::Unknown benchmark '$BENCHMARK'. Valid options: $VALID"
+            exit 1
+          fi
+          echo "benchmark=$BENCHMARK" >> "$GITHUB_OUTPUT"
+
+      - name: Checkout base branch
+        uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          tools: composer:v2
+          coverage: none
+          extensions: mbstring, dom, curl, json, libxml, xml, xmlwriter, simplexml, tokenizer
+
+      - name: Install base dependencies
+        run: composer install --prefer-dist --no-progress --no-interaction
+
+      - name: Generate baseline snapshot
+        run: vendor/bin/testbench benchmark ${{ steps.input.outputs.benchmark }} --ci --iterations=5000 --rounds=10 --attempts=10 --snapshot
+
+      - name: Save baseline snapshot
+        run: cp benchmark-snapshot.json ${{ runner.temp }}/benchmark-snapshot.json
+
+      - name: Checkout PR
+        uses: actions/checkout@v4
+        with:
+          ref: refs/pull/${{ github.event.issue.number }}/head
+
+      - name: Install PR dependencies
+        run: composer install --prefer-dist --no-progress --no-interaction
+
+      - name: Restore baseline snapshot
+        run: cp ${{ runner.temp }}/benchmark-snapshot.json benchmark-snapshot.json
+
+      - name: Run benchmark
+        run: |
+          echo "${{ github.event.issue.number }}" > benchmark-result.md
+          vendor/bin/testbench benchmark ${{ steps.input.outputs.benchmark }} --ci --iterations=5000 --rounds=10 --attempts=10 >> benchmark-result.md
+
+      - name: Upload benchmark result
+        uses: actions/upload-artifact@v4
+        with:
+          name: benchmark-result
+          path: benchmark-result.md

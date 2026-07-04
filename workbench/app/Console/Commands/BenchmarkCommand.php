@@ -1,6 +1,6 @@
 <?php
 
-namespace Workbench\App\Console\Commands;
+namespace App\Console\Commands;
 
 use Illuminate\Console\Command;
 use Illuminate\Support\Collection;
@@ -297,8 +297,10 @@ class BenchmarkCommand extends Command
 
         $separator = '| '.$widths->map(fn ($w) => str_repeat('-', $w))->implode(' | ').' |';
 
+        $heading = Str::headline($this->argument('benchmark'));
+
         $md = collect([
-            '## Benchmark Results',
+            "## Benchmark Result: {$heading}",
             '',
             $formatRow($headers),
             $separator,
@@ -422,8 +424,10 @@ class BenchmarkCommand extends Command
 
         $separator = '| '.$widths->map(fn ($w) => str_repeat('-', $w))->implode(' | ').' |';
 
+        $heading = Str::headline($this->argument('benchmark'));
+
         $md = collect([
-            '## Benchmark Results',
+            "## Benchmark Result: {$heading}",
             '',
             $formatRow($headers),
             $separator,
