@@ -3,6 +3,7 @@
 namespace Livewire\Blaze;
 
 use Livewire\Blaze\Compiler\DirectiveCompiler;
+use Livewire\Blaze\Exceptions\StaleUnblazeCacheException;
 use Illuminate\Support\Str;
 
 /**
@@ -20,6 +21,14 @@ class Unblaze
     public static function storeScope($token, $scope = [])
     {
         static::$unblazeScopes[$token] = $scope;
+    }
+
+    /**
+     * Store the original template content for an @unblaze token.
+     */
+    public static function storeReplacement($token, $content)
+    {
+        static::$unblazeReplacements[$token] = $content;
     }
 
     /**
@@ -57,8 +66,13 @@ class Unblaze
 
             static::$unblazeReplacements[$token] = $innerContent;
 
+            // The replacement is also stored from within the compiled file itself (base64
+            // encoded so it's opaque to later compilation passes) because the file is
+            // cached on disk and may be reused by a process where the in-memory
+            // replacement stored above no longer exists...
             return ''
                 . '[STARTCOMPILEDUNBLAZE:'.$token.']'
+                . '<'.'?php \Livewire\Blaze\Unblaze::storeReplacement("'.$token.'", base64_decode(\''.base64_encode($innerContent).'\')) ?>'
                 . '<'.'?php \Livewire\Blaze\Unblaze::storeScope("'.$token.'", '.$expression.') ?>'
                 . '[ENDCOMPILEDUNBLAZE:'.$token.']';
         }, $result);
@@ -81,6 +95,10 @@ class Unblaze
                 // based on the surrounding content and now we'll reapply it here.
                 if ($trim = Str::match('/:(ltrim|rtrim|trim)$/', $token)) {
                     $token = substr($token, 0, -(strlen($trim) + 1));
+                }
+
+                if (! array_key_exists($token, static::$unblazeReplacements)) {
+                    throw new StaleUnblazeCacheException($token);
                 }
 
                 $innerContent = Blaze::compileForUnblaze(

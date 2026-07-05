@@ -8,6 +8,7 @@ use Illuminate\Support\Facades\File;
 use Illuminate\View\Compilers\BladeCompiler;
 use Illuminate\View\Component;
 use Illuminate\View\ComponentSlot;
+use Livewire\Blaze\Exceptions\StaleUnblazeCacheException;
 use Livewire\Blaze\Parser\Attribute;
 use Livewire\Blaze\Parser\Nodes\ComponentNode;
 use Livewire\Blaze\Parser\Nodes\SlotNode;
@@ -139,7 +140,16 @@ class BladeRenderer
             $restoreRuntime();
         }
 
-        $result = Unblaze::replaceUnblazePrecompiledDirectives($result);
+        try {
+            $result = Unblaze::replaceUnblazePrecompiledDirectives($result);
+        } catch (StaleUnblazeCacheException $th) {
+            // The token came from a compiled file cached by an older version of Blaze.
+            // Delete the cache so it gets regenerated on the next compile, and let
+            // the fold be aborted so the component renders normally this time...
+            $this->deleteTemporaryCacheDirectory();
+
+            throw $th;
+        }
 
         return $result;
     }
