@@ -21,6 +21,7 @@ use Livewire\Blaze\Parser\Walker;
 use Livewire\Blaze\Support\Directives;
 use Livewire\Blaze\Support\ComponentSource;
 use Livewire\Blaze\Parser\Nodes\SlotNode;
+use Livewire\Blaze\Parser\Nodes\TextNode;
 use Livewire\Blaze\Support\AttributeParser;
 
 class BlazeManager
@@ -79,6 +80,10 @@ class BlazeManager
         $ast = $this->walker->walk(
             nodes: $this->parser->parse($clean),
             preCallback: function ($node) use (&$dataStack) {
+                if ($node instanceof ComponentNode) {
+                    $node->hasComponentAncestors = $dataStack !== [];
+                }
+
                 if ($node instanceof ComponentNode && $node->children) {
                     $dataStack[] = $node->attributes;
 
@@ -417,10 +422,58 @@ class BlazeManager
                 if ($this->hasAwareDescendant($child)) {
                     return true;
                 }
+
+                // Components rendered from within the child's own template aren't
+                // lexically visible here, so we need to scan its source too...
+                if ($this->templateHasAwareComponents($source)) {
+                    return true;
+                }
             } elseif ($child instanceof SlotNode) {
                 if ($this->hasAwareDescendant($child)) {
                     return true;
                 }
+            } elseif ($child instanceof TextNode) {
+                // Included partials can render components that use @aware...
+                if (preg_match('/@include|@each/', $child->content)) {
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * Recursively check if a component's template renders components that use @aware.
+     */
+    protected function templateHasAwareComponents(ComponentSource $source, array &$visited = []): bool
+    {
+        if (! $source->exists() || isset($visited[$source->path])) {
+            return false;
+        }
+
+        $visited[$source->path] = true;
+
+        $content = $source->content();
+
+        // Includes and dynamically resolved components can't be inspected statically...
+        if (preg_match('/@include|@each|delegate-component|dynamic-component/', $content)) {
+            return true;
+        }
+
+        preg_match_all('/<(x-|x:|flux:)([\w.-]+)/', $content, $matches, PREG_SET_ORDER);
+
+        foreach ($matches as $match) {
+            $name = $match[1] === 'flux:' ? 'flux::' . $match[2] : $match[2];
+
+            $childSource = ComponentSource::for($this->blade->componentNameToPath($name));
+
+            if ($childSource->directives->has('aware')) {
+                return true;
+            }
+
+            if ($this->templateHasAwareComponents($childSource, $visited)) {
+                return true;
             }
         }
 

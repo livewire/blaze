@@ -52,6 +52,20 @@ test('foldable aware default', fn () => compare(<<<'BLADE'
     BLADE
 ));
 
+test('foldable aware through include partial', fn () => compare(<<<'BLADE'
+    <x-foldable.wrapper type="number">
+        @include('partials.aware-input')
+    </x-foldable.wrapper>
+    BLADE
+));
+
+test('foldable aware through nested component', fn () => compare(<<<'BLADE'
+    <x-foldable.wrapper type="number">
+        <x-aware-input-wrapper />
+    </x-foldable.wrapper>
+    BLADE
+));
+
 test('foldable boolean attributes', fn () => compare(<<<'BLADE'
     <x-foldable.input :readonly="$readonly" />
     BLADE,

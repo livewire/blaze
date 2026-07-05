@@ -106,6 +106,17 @@ class Folder
             ) {
                 $dynamicAttributes[$prop] = $node->parentsAttributes[$prop];
             }
+
+            // When an @aware prop isn't resolvable from the template itself, the real
+            // parent is only known at runtime — the template may be rendered inside
+            // another component through an @include or a slot — so folding here
+            // would bake in the wrong value...
+            if (! isset($node->attributes[$prop])
+                && ! isset($node->parentsAttributes[$prop])
+                && ! $node->hasComponentAncestors
+            ) {
+                return false;
+            }
         }
 
         if (array_key_exists('attributes', $dynamicAttributes)) {

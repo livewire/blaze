@@ -34,6 +34,20 @@ test('listbox', fn () => compare(<<<'BLADE'
     BLADE
 ));
 
+test('listbox with options emitted from an include partial', fn () => compare(<<<'BLADE'
+    <flux:select variant="listbox" searchable placeholder="Choose...">
+        @include('partials.listbox-options')
+    </flux:select>
+    BLADE
+));
+
+test('listbox with options emitted from a nested component', fn () => compare(<<<'BLADE'
+    <flux:select variant="listbox" searchable placeholder="Choose...">
+        <x-category-options />
+    </flux:select>
+    BLADE
+));
+
 test('chart', fn () => compare(<<<'BLADE'
     <flux:chart wire:model="data" class="w-full aspect-2/1">
         <flux:chart.viewport class="size-full">

@@ -1,0 +1,1 @@
+<x-foldable.input-aware />

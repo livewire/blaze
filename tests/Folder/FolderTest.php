@@ -238,6 +238,26 @@ test('folds components with static aware prop from parent', function () {
     expect($folded)->toBeInstanceOf(TextNode::class);
 });
 
+test('does not fold components with unresolvable aware props at the template root', function () {
+    // The template may be rendered inside another component at runtime
+    // (through an @include or a slot), so the aware value is unknowable here...
+    $input = '<x-foldable.input-aware />';
+
+    $node = app(Parser::class)->parse($input)[0];
+    $folded = app(Folder::class)->fold($node);
+
+    expect($folded)->toBeInstanceOf(ComponentNode::class);
+});
+
+test('folds components with aware props at the template root when provided directly', function () {
+    $input = '<x-foldable.input-aware type="number" />';
+
+    $node = app(Parser::class)->parse($input)[0];
+    $folded = app(Folder::class)->fold($node);
+
+    expect($folded)->toBeInstanceOf(TextNode::class);
+});
+
 test('does not fold components with no blaze directive', function () {
     $input = '<x-foldable.input-no-blaze />';
     

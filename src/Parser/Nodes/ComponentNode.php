@@ -10,6 +10,9 @@ class ComponentNode extends Node
     /** Pre-computed by the Walker before children are compiled to TextNodes. */
     public bool $hasAwareDescendants = false;
 
+    /** Whether this node is nested inside another component in the same template. */
+    public bool $hasComponentAncestors = false;
+
     public function __construct(
         public string $name,
         public string $prefix,
