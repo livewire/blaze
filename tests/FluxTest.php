@@ -68,3 +68,11 @@ test('select', fn () => compare(<<<'BLADE'
     </flux:select>
     BLADE
 ));
+
+/**
+ * Checks that bound attributes passed through delegate component aren't double escaped
+ */
+test('select with bound attribute with ampersand', fn () => compare(<<<'BLADE'
+    <flux:select :placeholder="'Fish & Chips'" />
+    BLADE
+));
