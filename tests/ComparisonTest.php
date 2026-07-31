@@ -127,9 +127,9 @@ test('deeply nested same component with different components interleaved', fn ()
 test('conditional slots', fn () => compare(<<<'BLADE'
     <x-card>
         @if(false)
-        <x-slot name="header">
+        <x-slot:header>
             Header
-        </x-slot>
+        </x-slot:header>
         @endif
     </x-card>
     BLADE
@@ -138,9 +138,9 @@ test('conditional slots', fn () => compare(<<<'BLADE'
 test('foldable conditional slots', fn () => compare(<<<'BLADE'
     <x-foldable.card>
         @if(false)
-        <x-slot name="header">
+        <x-slot:header>
             Header
-        </x-slot>
+        </x-slot:header>
         @endif
     </x-foldable.card>
     BLADE
