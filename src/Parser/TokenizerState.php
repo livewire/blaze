@@ -4,6 +4,8 @@ namespace Livewire\Blaze\Parser;
 
 /**
  * Tokenizer FSM states for Blade template lexing.
+ * 
+ * TODO: this doesn't need to be backed
  */
 enum TokenizerState: string
 {
@@ -13,4 +15,5 @@ enum TokenizerState: string
     case TAG_CLOSE = 'TAG_CLOSE';
     case SLOT_CLOSE = 'SLOT_CLOSE';
     case SHORT_SLOT = 'SHORT_SLOT';
+    case DIRECTIVE = 'DIRECTIVE';
 }

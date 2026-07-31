@@ -7,6 +7,7 @@ use Livewire\Blaze\Parser\Tokens\TagCloseToken;
 use Livewire\Blaze\Parser\Tokens\TagOpenToken;
 use Livewire\Blaze\Parser\Tokens\TagSelfCloseToken;
 use Livewire\Blaze\Parser\Tokens\TextToken;
+use Livewire\Blaze\Parser\Tokens\DirectiveToken;
 
 test('tokenizes tags', function () {
     $input = '<x-button type="button"></x-button>';
@@ -59,6 +60,26 @@ test('tokenizes short slots', function () {
     expect($result)->toEqual([
         new SlotOpenToken(name: 'header', slotStyle: 'short', prefix: 'x-slot', attributes: ['class="p-2"']),
         new SlotCloseToken(name: 'header', prefix: 'x-'),
+    ]);
+});
+
+test('tokenizes directives without parameters', function () {
+    $input = '@csrf';
+
+    $result = app(Tokenizer::class)->tokenize($input);
+
+    expect($result)->toEqual([
+        new DirectiveToken(name: 'csrf')
+    ]);
+});
+
+test('tokenizes directives with parameters', function () {
+    $input = '@dd($foo)';
+
+    $result = app(Tokenizer::class)->tokenize($input);
+
+    expect($result)->toEqual([
+        new DirectiveToken(name: 'dd', content: '$foo')
     ]);
 });
 
@@ -143,3 +164,95 @@ test('handles php blocks inside tags', function () {
         new TextToken(content: '<x-button <?php echo \'disabled\'; ?>>'),
     ]);
 });
+
+test('handles escaped directives', function () {
+    $input = '@@csrf';
+
+    $result = app(Tokenizer::class)->tokenize($input);
+
+    expect($result)->toEqual([
+        new TextToken(content: '@@csrf')
+    ]);
+});
+
+test('handles directives with whitespace', function () {
+    $input = '@if ($foo)';
+
+    $result = app(Tokenizer::class)->tokenize($input);
+
+    expect($result)->toEqual([
+        new DirectiveToken(name: 'if', content: '$foo')
+    ]);
+});
+
+test('handles namespaced directives', function () {
+    $input = '@Foo::bar($foo)';
+
+    $result = app(Tokenizer::class)->tokenize($input);
+
+    expect($result)->toEqual([
+        new DirectiveToken(name: 'Foo::bar', content: '$foo')
+    ]);
+});
+
+test('handles directives with nested parentheses', function () {
+    $input = "@include('foo', ['((a)' => '((a)'])";
+
+    $result = app(Tokenizer::class)->tokenize($input);
+
+    expect($result)->toEqual([
+        new DirectiveToken(name: 'include', content: "'foo', ['((a)' => '((a)']")
+    ]);
+});
+
+test('handles unclosed directives', function () {
+    $input = "@include('foo'";
+
+    $result = app(Tokenizer::class)->tokenize($input);
+
+    expect($result)->toEqual([
+        new DirectiveToken(name: 'include')
+    ]);
+});
+
+test('handles Laravel directive parenthesis cases', function (string $input, array $expected) {
+    $result = app(Tokenizer::class)->tokenize($input);
+
+    expect($result)->toEqual($expected);
+})->with([
+    'nested function calls' => [
+        '@if (name(foo(bar)))',
+        [new DirectiveToken(name: 'if', content: 'name(foo(bar))')],
+    ],
+    'closing parentheses in an each argument' => [
+        "@each('foo', '(bar))')",
+        [new DirectiveToken(name: 'each', content: "'foo', '(bar))'")],
+    ],
+    'opening parentheses in include data' => [
+        "@include('foo', ['(('])",
+        [new DirectiveToken(name: 'include', content: "'foo', ['((']")],
+    ],
+    'mixed parentheses in include data' => [
+        "@include('foo', ['((a)' => '((a)'])",
+        [new DirectiveToken(name: 'include', content: "'foo', ['((a)' => '((a)']")],
+    ],
+    'multiple closing parentheses in include data' => [
+        '@includeUnless(true, \'foo\', ["foo" => "bar_))-))>"])',
+        [new DirectiveToken(name: 'includeUnless', content: 'true, \'foo\', ["foo" => "bar_))-))>"]')],
+    ],
+    'mixed parentheses and a cast' => [
+        '@includeFirst(["issue", "#45424)"], [(string) "foo()" => "bar(-(("])',
+        [new DirectiveToken(name: 'includeFirst', content: '["issue", "#45424)"], [(string) "foo()" => "bar(-(("]')],
+    ],
+    'parentheses in a section name' => [
+        "@section('issue#18317 :))')",
+        [new DirectiveToken(name: 'section', content: "'issue#18317 :))'")],
+    ],
+    'parentheses after a directive' => [
+        '@unset ($unset)))',
+        [
+            new DirectiveToken(name: 'unset', content: '$unset'),
+            new TextToken(content: '))'),
+        ],
+    ],
+]);

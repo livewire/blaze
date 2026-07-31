@@ -2,6 +2,7 @@
 
 namespace Livewire\Blaze\Parser;
 
+use Livewire\Blaze\Parser\Tokens\DirectiveToken;
 use Livewire\Blaze\Parser\Tokens\TagSelfCloseToken;
 use Livewire\Blaze\Parser\Tokens\SlotCloseToken;
 use Livewire\Blaze\Parser\Tokens\SlotOpenToken;
@@ -10,6 +11,7 @@ use Livewire\Blaze\Parser\Tokens\TagOpenToken;
 use Livewire\Blaze\Parser\Tokens\TextToken;
 use Livewire\Blaze\Parser\Tokens\Token;
 use Livewire\Blaze\Support\LaravelRegex;
+use ParseError;
 
 /**
  * Finite state machine that lexes Blade templates into component/slot/text tokens.
@@ -77,6 +79,7 @@ class Tokenizer
                         TokenizerState::SLOT_OPEN => $this->handleSlotOpenState(),
                         TokenizerState::SLOT_CLOSE => $this->handleSlotCloseState(),
                         TokenizerState::SHORT_SLOT => $this->handleShortSlotState(),
+                        TokenizerState::DIRECTIVE => $this->handleDirectiveState(),
                         default => throw new \RuntimeException("Unknown state: $state"),
                     };
                 }
@@ -155,6 +158,20 @@ class Tokenizer
 
                 return TokenizerState::TAG_CLOSE;
             }
+        }
+
+        if ($char === '@') {
+            if ($this->peek(1) === '@') {
+                $this->advance(2);
+
+                return TokenizerState::TEXT;
+            }
+            
+            $this->flushBuffer();
+
+            $this->currentToken = new DirectiveToken(name: '');
+
+            return TokenizerState::DIRECTIVE;
         }
 
         $this->advance();
@@ -314,6 +331,66 @@ class Tokenizer
         $this->advance();
 
         return TokenizerState::SHORT_SLOT;
+    }
+
+    protected function handleDirectiveState(): TokenizerState
+    {
+        $this->advance(); // skip @ symbol
+
+        if (! $this->match('\w+(?:::\w+)?')) {
+            return TokenizerState::TEXT;
+        }
+
+        $this->currentToken->name = substr($this->buffer, 1);
+
+        $this->match('([ \t]*)?');
+
+        if ($this->current() !== '(') {
+            $this->emitToken();
+
+            return TokenizerState::TEXT;
+        }
+
+        $this->advance();
+
+        $this->buffer = '';
+
+        while (! $this->isAtEnd()) {
+            $mayCloseDirective = $this->current() === ')';
+            $this->advance();
+
+            if ($mayCloseDirective && $this->hasBalancedParentheses('('.$this->buffer)) {
+                $this->currentToken->content = substr($this->buffer, 0, -1);
+
+                break;
+            }
+        }
+
+        $this->emitToken();
+
+        return TokenizerState::TEXT;
+    }
+
+    protected function hasBalancedParentheses(string $expression): bool
+    {
+        try {
+            $tokens = token_get_all('<?php '.$expression);
+        } catch (ParseError) {
+            return false;
+        }
+
+        $opening = 0;
+        $closing = 0;
+
+        foreach ($tokens as $token) {
+            if ($token === '(') {
+                $opening++;
+            } elseif ($token === ')') {
+                $closing++;
+            }
+        }
+
+        return $opening === $closing;
     }
 
     /**
