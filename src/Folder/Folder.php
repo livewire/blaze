@@ -14,10 +14,10 @@ use Livewire\Blaze\BladeRenderer;
 use Livewire\Blaze\BladeService;
 use Livewire\Blaze\BlazeManager;
 use Illuminate\Support\Arr;
-use Illuminate\Support\Str;
 use Livewire\Blaze\Config;
 use Throwable;
 use Livewire\Blaze\Parser\Nodes\DirectiveNode;
+use Livewire\Blaze\Support\DirectiveStack;
 
 /**
  * Determines whether a component should be folded and orchestrates the folding process.
@@ -182,38 +182,15 @@ class Folder
      */
     protected function slotsAreWrappedInDirective(ComponentNode $node): bool
     {
-        $seenSlotAfterDirective = false;
-        $directiveDepth = 0;
-
-        $nonClosingDirectives = [
-            'else*',
-            'case', 'default', 'break', 'continue',
-            'include*', 'each',
-            'bool', 'checked', 'disabled', 'required', 'readonly', 'selected', 'class', 'style',
-            'extends*', 'parent', 'yield', 'show', 'append', 'overwrite', 'stop', 'stack',
-            'csrf', 'method', 'dd', 'dump', 'inject', 'json', 'js', 'choice', 'fonts', 'vite*',
-            'props', 'aware', 'unset', 'use',
-        ];
+        $stack = DirectiveStack::make($this->blade->customBladeConditions());
 
         foreach ($node->children as $child) {
-            if ($child instanceof DirectiveNode && str_starts_with($child->name, 'end') && $directiveDepth > 0) {
-                if ($seenSlotAfterDirective) {
-                    return true;
-                }
-
-                $directiveDepth--;
-
-                if ($directiveDepth === 0) {
-                    $seenSlotAfterDirective = false;
-                }
-            } elseif ($child instanceof DirectiveNode) {
-                if (! Str::is($nonClosingDirectives, $child->name)) {
-                    $directiveDepth++;
-                }
+            if ($child instanceof DirectiveNode) {
+                $stack->add($child->name);
             }
 
-            if ($child instanceof SlotNode && $directiveDepth > 0) {
-                $seenSlotAfterDirective = true;
+            if ($child instanceof SlotNode && $stack->open()) {
+                return true;
             }
         }
 

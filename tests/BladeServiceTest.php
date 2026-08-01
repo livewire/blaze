@@ -44,3 +44,9 @@ test('componentNameToPath resolves view-based component alias', function () {
     expect(app(BladeService::class)->componentNameToPath('my-input'))
         ->toBe(fixture_path('views/components/input.blade.php'));
 });
+
+test('gets custom Blade conditions', function () {
+    Blade::if('disk', fn (string $disk) => $disk === 'local');
+
+    expect(app(BladeService::class)->customBladeConditions())->toContain('disk');
+});
