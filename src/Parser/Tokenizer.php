@@ -360,6 +360,8 @@ class Tokenizer
 
         $offset = strlen($this->buffer);
 
+        $arguments = null;
+
         while (! $this->isAtEnd()) {
             $mayCloseDirective = $this->current() === ')';
             
@@ -373,7 +375,11 @@ class Tokenizer
             }
         }
 
+        $remainder = $arguments === null ? substr($this->buffer, $offset - 1) : '';
+
         $this->emitToken();
+
+        $this->buffer = $remainder;
 
         return TokenizerState::TEXT;
     }

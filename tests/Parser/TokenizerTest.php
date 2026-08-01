@@ -212,6 +212,7 @@ test('handles unclosed directives', function () {
 
     expect($result)->toEqual([
         new DirectiveToken(name: 'include', original: '@include'),
+        new TextToken("('foo'")
     ]);
 });
 
