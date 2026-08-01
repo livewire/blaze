@@ -357,6 +357,7 @@ class Tokenizer
 
         while (! $this->isAtEnd()) {
             $mayCloseDirective = $this->current() === ')';
+            
             $this->advance();
 
             if ($mayCloseDirective && $this->hasBalancedParentheses('('.$this->buffer)) {
