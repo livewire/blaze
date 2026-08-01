@@ -7,13 +7,12 @@ use Illuminate\Support\Str;
 
 class DirectiveStack
 {
-    /** @var list<DirectiveStructure> */
+    /** @var DirectiveStructure[] */
     protected array $stack = [];
 
-    /** @var list<DirectiveStructure> */
+    /** @var DirectiveStructure[] */
     protected array $structures = [];
 
-    /** @param  list<string>  $conditions */
     public function __construct(array $conditions = [])
     {
         $this->structures = [
@@ -68,8 +67,6 @@ class DirectiveStack
 
     /**
      * Create a new directive stack.
-     *
-     * @param  list<string>  $conditions
      */
     public static function make(array $conditions = []): static
     {

@@ -4,10 +4,6 @@ namespace Livewire\Blaze\Support;
 
 class DirectiveStructure
 {
-    /**
-     * @param  list<string>  $openers
-     * @param  list<string>  $closers
-     */
     public function __construct(
         public array $openers,
         public array $closers = [],
