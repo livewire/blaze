@@ -73,4 +73,11 @@ class LaravelRegex
      * @see BladeCompiler::storePhpBlocks() — /(?<!@)@php(.*?)@endphp/s
      */
     const PHP_BLOCK = '/(?<!@)@php(.*?)@endphp/s';
+
+    /**
+     * Pattern for matching Blade statements that start with "@".
+     *
+     * @see BladeCompiler::compileStatements() — /\B@(@?\w+(?:::\w+)?)([ \t]*)(\( ( [\S\s]*? ) \))?/x
+     */
+    const BLADE_STATEMENT = '/^@(@?\w+(?:::\w+)?)([ \t]*)(\( ( [\S\s]*? ) \))?/x';
 }
