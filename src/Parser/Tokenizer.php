@@ -363,18 +363,16 @@ class Tokenizer
 
     /**
      * Match a Blade directive at the current position.
-     *
-     * @see \Illuminate\View\Compilers\BladeCompiler::compileStatements()
      */
     protected function matchDirective(): ?array
     {
-        $template = $this->remaining();
-
         /**
          * The following code matches the parenthesis handling in Blade as closely as possible.
          *
          * @see \Illuminate\View\Compilers\BladeCompiler::compileStatements()
          */
+
+        $template = $this->remaining();
 
         if (! preg_match(LaravelRegex::BLADE_STATEMENT, $template, $matches, PREG_UNMATCHED_AS_NULL)) {
             return null;
