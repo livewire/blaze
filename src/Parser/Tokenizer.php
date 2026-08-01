@@ -2,6 +2,8 @@
 
 namespace Livewire\Blaze\Parser;
 
+use Illuminate\Support\Str;
+use Livewire\Blaze\BladeService;
 use Livewire\Blaze\Parser\Tokens\DirectiveToken;
 use Livewire\Blaze\Parser\Tokens\TagSelfCloseToken;
 use Livewire\Blaze\Parser\Tokens\SlotCloseToken;
@@ -11,13 +13,17 @@ use Livewire\Blaze\Parser\Tokens\TagOpenToken;
 use Livewire\Blaze\Parser\Tokens\TextToken;
 use Livewire\Blaze\Parser\Tokens\Token;
 use Livewire\Blaze\Support\LaravelRegex;
-use ParseError;
 
 /**
  * Finite state machine that lexes Blade templates into component/slot/text tokens.
  */
 class Tokenizer
 {
+    public function __construct(
+        protected BladeService $blade,
+    ) {
+    }
+
     protected array $prefixes = [
         'flux:' => [
             'namespace' => 'flux::',
@@ -338,75 +344,77 @@ class Tokenizer
      */
     protected function handleDirectiveState(): TokenizerState
     {
-        $this->advance(); // skip @ symbol
-
-        if (! $this->match('\w+(?:::\w+)?')) {
-            return TokenizerState::TEXT;
-        }
-
-        $this->currentToken->name = substr($this->buffer, 1);
-
-        $this->match('([ \t]*)?');
-
-        $this->currentToken->original = $this->buffer;
-
-        if ($this->current() !== '(') {
-            $this->emitToken();
-
-            return TokenizerState::TEXT;
-        }
-
-        $this->advance();
-
-        $offset = strlen($this->buffer);
-
-        $arguments = null;
-
-        while (! $this->isAtEnd()) {
-            $mayCloseDirective = $this->current() === ')';
-            
+        if (! $match = $this->matchDirective()) {
             $this->advance();
-        
-            if ($mayCloseDirective && $this->hasBalancedParentheses('(' . ($arguments = substr($this->buffer, $offset, -1)) . ')')) {
-                $this->currentToken->arguments = $arguments;
-                $this->currentToken->original = $this->buffer;
 
-                break;
-            }
+            return TokenizerState::TEXT;
         }
 
-        $remainder = $arguments === null ? substr($this->buffer, $offset - 1) : '';
+        $this->advance(strlen($match['original']));
+
+        $this->currentToken->name = $match['name'];
+        $this->currentToken->original = $match['original'];
+        $this->currentToken->arguments = $match['arguments'];
 
         $this->emitToken();
-
-        $this->buffer = $remainder;
 
         return TokenizerState::TEXT;
     }
 
     /**
-     * Determine whether the given expression has balanced parentheses.
+     * Match a Blade directive at the current position.
+     *
+     * @see \Illuminate\View\Compilers\BladeCompiler::compileStatements()
      */
-    protected function hasBalancedParentheses(string $expression): bool
+    protected function matchDirective(): ?array
     {
-        try {
-            $tokens = token_get_all('<?php '.$expression);
-        } catch (ParseError) {
-            return false;
+        $template = $this->remaining();
+
+        /**
+         * The following code matches the parenthesis handling in Blade as closely as possible.
+         *
+         * @see \Illuminate\View\Compilers\BladeCompiler::compileStatements()
+         */
+
+        if (! preg_match(LaravelRegex::BLADE_STATEMENT, $template, $matches, PREG_UNMATCHED_AS_NULL)) {
+            return null;
         }
 
-        $opening = 0;
-        $closing = 0;
+        $match = [
+            $matches[0],
+            $matches[1],
+            $matches[2],
+            $matches[3] ?: null,
+            $matches[4] ?: null,
+        ];
 
-        foreach ($tokens as $token) {
-            if ($token === '(') {
-                $opening++;
-            } elseif ($token === ')') {
-                $closing++;
+        // Here we check to see if we have properly found the closing parenthesis by
+        // regex pattern or not, and will recursively continue on to the next ")"
+        // then check again until the tokenizer confirms we find the right one.
+        while (isset($match[4]) &&
+               Str::endsWith($match[0], ')') &&
+               ! $this->blade->hasEvenNumberOfParentheses($match[0])) {
+            if (($after = Str::after($template, $match[0])) === $template) {
+                break;
             }
+
+            $rest = Str::before($after, ')');
+
+            $match[0] = $match[0].$rest.')';
+            $match[3] = $match[3].$rest.')';
+            $match[4] = $match[4].$rest;
         }
 
-        return $opening === $closing;
+        // No closing parenthesis found
+        if (! Str::startsWith($template, $match[0])) {
+            return null;
+        }
+
+        return [
+            'name' => $match[1],
+            'original' => $match[0],
+            'arguments' => isset($match[3]) ? (Str::substr($match[3], 1, -1) ?: null) : null,
+        ];
     }
 
     /**

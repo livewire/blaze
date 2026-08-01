@@ -125,6 +125,17 @@ class BladeService
     }
 
     /**
+     * Invoke the Blade compiler's hasEvenNumberOfParentheses via reflection.
+     */
+    public function hasEvenNumberOfParentheses(string $expression): bool
+    {
+        $reflection = new ReflectionClass($this->compiler);
+        $method = $reflection->getMethod('hasEvenNumberOfParentheses');
+
+        return $method->invoke($this->compiler, $expression);
+    }
+
+    /**
      * Preprocess a component attribute string using Laravel's ComponentTagCompiler.
      *
      * Runs all five of Laravel's preprocessing transforms:

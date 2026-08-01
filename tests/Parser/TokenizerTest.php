@@ -175,6 +175,17 @@ test('handles escaped directives', function () {
     ]);
 });
 
+test('does not skip invalid directive prefixes', function () {
+    $input = '@- @if($foo)';
+
+    $result = app(Tokenizer::class)->tokenize($input);
+
+    expect($result)->toEqual([
+        new TextToken(content: '@- '),
+        new DirectiveToken(name: 'if', original: '@if($foo)', arguments: '$foo'),
+    ]);
+});
+
 test('handles directives with whitespace', function () {
     $input = '@if ($foo)';
 
@@ -213,6 +224,16 @@ test('handles unclosed directives', function () {
     expect($result)->toEqual([
         new DirectiveToken(name: 'include', original: '@include'),
         new TextToken("('foo'")
+    ]);
+});
+
+test('preserves directives whose parentheses cannot be repaired', function () {
+    $input = '@if(foo(bar) trailing text';
+
+    $result = app(Tokenizer::class)->tokenize($input);
+
+    expect($result)->toEqual([
+        new TextToken(content: $input),
     ]);
 });
 

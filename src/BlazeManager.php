@@ -50,7 +50,7 @@ class BlazeManager
         protected BladeService $blade,
     ) {
         $this->renderer = new BladeRenderer($bladeCompiler, app('view'), $this->runtime, $this);
-        $this->parser = new Parser(new Tokenizer, new AttributeParser($this->blade));
+        $this->parser = new Parser(new Tokenizer($this->blade), new AttributeParser($this->blade));
         $this->walker = new Walker;
         $this->compiler = new Compiler($config, $this->blade, $this);
         $this->folder = new Folder($config, $this->blade, $this->renderer, $this);
