@@ -16,6 +16,7 @@ use Livewire\Blaze\BlazeManager;
 use Illuminate\Support\Arr;
 use Livewire\Blaze\Config;
 use Throwable;
+use Livewire\Blaze\Parser\Nodes\DirectiveNode;
 
 /**
  * Determines whether a component should be folded and orchestrates the folding process.
@@ -97,6 +98,10 @@ class Folder
      */
     protected function isSafeToFold(ComponentSource $source, ComponentNode $node): bool
     {
+        if ($this->slotsAreWrappedInDirective($node)) {
+            return false;
+        }
+
         $dynamicAttributes = array_filter($node->attributes, fn ($attribute) => ! $attribute->isStaticValue());
 
         foreach ($source->directives->aware() as $prop) {
@@ -169,6 +174,37 @@ class Folder
         }
 
         return true;
+    }
+
+    /**
+     * Check if a slot is wrapped in a directive.
+     */
+    protected function slotsAreWrappedInDirective(ComponentNode $node): bool
+    {
+        $seenSlotAfterDirective = false;
+        $directiveDepth = 0;
+
+        foreach ($node->children as $child) {
+            if ($child instanceof DirectiveNode && str_starts_with($child->name, 'end') && $directiveDepth > 0) {
+                if ($seenSlotAfterDirective) {
+                    return true;
+                }
+
+                $directiveDepth--;
+
+                if ($directiveDepth === 0) {
+                    $seenSlotAfterDirective = false;
+                }
+            } elseif ($child instanceof DirectiveNode) {
+                $directiveDepth++;
+            }
+
+            if ($child instanceof SlotNode && $directiveDepth > 0) {
+                $seenSlotAfterDirective = true;
+            }
+        }
+
+        return false;
     }
 
     /**
