@@ -6,6 +6,7 @@ class DirectiveToken extends Token
 {
     public function __construct(
         public string $name,
+        public string $original,
         public ?string $arguments = null,
     ) {}
 }

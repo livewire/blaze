@@ -169,7 +169,7 @@ class Tokenizer
             
             $this->flushBuffer();
 
-            $this->currentToken = new DirectiveToken(name: '');
+            $this->currentToken = new DirectiveToken(name: '', original: '');
 
             return TokenizerState::DIRECTIVE;
         }
@@ -345,6 +345,8 @@ class Tokenizer
 
         $this->match('([ \t]*)?');
 
+        $this->currentToken->original = $this->buffer;
+
         if ($this->current() !== '(') {
             $this->emitToken();
 
@@ -353,15 +355,16 @@ class Tokenizer
 
         $this->advance();
 
-        $this->buffer = '';
+        $offset = strlen($this->buffer);
 
         while (! $this->isAtEnd()) {
             $mayCloseDirective = $this->current() === ')';
             
             $this->advance();
-
-            if ($mayCloseDirective && $this->hasBalancedParentheses('('.$this->buffer)) {
-                $this->currentToken->content = substr($this->buffer, 0, -1);
+        
+            if ($mayCloseDirective && $this->hasBalancedParentheses('(' . ($arguments = substr($this->buffer, $offset, -1)) . ')')) {
+                $this->currentToken->arguments = $arguments;
+                $this->currentToken->original = $this->buffer;
 
                 break;
             }
