@@ -15,9 +15,9 @@ use Livewire\Blaze\BladeService;
 use Livewire\Blaze\BlazeManager;
 use Illuminate\Support\Arr;
 use Livewire\Blaze\Config;
-use Throwable;
 use Livewire\Blaze\Parser\Nodes\DirectiveNode;
 use Livewire\Blaze\Support\DirectiveStack;
+use Throwable;
 
 /**
  * Determines whether a component should be folded and orchestrates the folding process.
