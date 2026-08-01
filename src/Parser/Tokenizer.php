@@ -333,6 +333,9 @@ class Tokenizer
         return TokenizerState::SHORT_SLOT;
     }
 
+    /**
+     * Process directive state, extracting the directive name and arguments.
+     */
     protected function handleDirectiveState(): TokenizerState
     {
         $this->advance(); // skip @ symbol
@@ -375,6 +378,9 @@ class Tokenizer
         return TokenizerState::TEXT;
     }
 
+    /**
+     * Determine whether the given expression has balanced parentheses.
+     */
     protected function hasBalancedParentheses(string $expression): bool
     {
         try {
