@@ -315,3 +315,12 @@ test('folds components with closing directives outside slot', function () {
 
     expect($result)->toBeInstanceOf(TextNode::class);
 });
+
+test('folds components with non-closing directive before slot followed by closing directive', function () {
+    $input = '<x-foldable.card>@csrf<x-slot:header>Header</x-slot:header>@if(false)after@endif</x-foldable.card>';
+
+    $node = app(Parser::class)->parse($input)[0];
+    $result = app(Folder::class)->fold($node);
+
+    expect($result)->toBeInstanceOf(TextNode::class);
+});

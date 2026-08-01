@@ -14,6 +14,7 @@ use Livewire\Blaze\BladeRenderer;
 use Livewire\Blaze\BladeService;
 use Livewire\Blaze\BlazeManager;
 use Illuminate\Support\Arr;
+use Illuminate\Support\Str;
 use Livewire\Blaze\Config;
 use Throwable;
 use Livewire\Blaze\Parser\Nodes\DirectiveNode;
@@ -184,6 +185,16 @@ class Folder
         $seenSlotAfterDirective = false;
         $directiveDepth = 0;
 
+        $nonClosingDirectives = [
+            'else*',
+            'case', 'default', 'break', 'continue',
+            'include*', 'each',
+            'bool', 'checked', 'disabled', 'required', 'readonly', 'selected', 'class', 'style',
+            'extends*', 'parent', 'yield', 'show', 'append', 'overwrite', 'stop', 'stack',
+            'csrf', 'method', 'dd', 'dump', 'inject', 'json', 'js', 'choice', 'fonts', 'vite*',
+            'props', 'aware', 'unset', 'use',
+        ];
+
         foreach ($node->children as $child) {
             if ($child instanceof DirectiveNode && str_starts_with($child->name, 'end') && $directiveDepth > 0) {
                 if ($seenSlotAfterDirective) {
@@ -196,7 +207,9 @@ class Folder
                     $seenSlotAfterDirective = false;
                 }
             } elseif ($child instanceof DirectiveNode) {
-                $directiveDepth++;
+                if (! Str::is($nonClosingDirectives, $child->name)) {
+                    $directiveDepth++;
+                }
             }
 
             if ($child instanceof SlotNode && $directiveDepth > 0) {
