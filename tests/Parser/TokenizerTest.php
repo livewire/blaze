@@ -79,7 +79,7 @@ test('tokenizes directives with parameters', function () {
     $result = app(Tokenizer::class)->tokenize($input);
 
     expect($result)->toEqual([
-        new DirectiveToken(name: 'dd', content: '$foo')
+        new DirectiveToken(name: 'dd', arguments: '$foo')
     ]);
 });
 
@@ -181,7 +181,7 @@ test('handles directives with whitespace', function () {
     $result = app(Tokenizer::class)->tokenize($input);
 
     expect($result)->toEqual([
-        new DirectiveToken(name: 'if', content: '$foo')
+        new DirectiveToken(name: 'if', arguments: '$foo')
     ]);
 });
 
@@ -191,7 +191,7 @@ test('handles namespaced directives', function () {
     $result = app(Tokenizer::class)->tokenize($input);
 
     expect($result)->toEqual([
-        new DirectiveToken(name: 'Foo::bar', content: '$foo')
+        new DirectiveToken(name: 'Foo::bar', arguments: '$foo')
     ]);
 });
 
@@ -201,7 +201,7 @@ test('handles directives with nested parentheses', function () {
     $result = app(Tokenizer::class)->tokenize($input);
 
     expect($result)->toEqual([
-        new DirectiveToken(name: 'include', content: "'foo', ['((a)' => '((a)']")
+        new DirectiveToken(name: 'include', arguments: "'foo', ['((a)' => '((a)']")
     ]);
 });
 
@@ -222,36 +222,36 @@ test('handles Laravel directive parenthesis cases', function (string $input, arr
 })->with([
     'nested function calls' => [
         '@if (name(foo(bar)))',
-        [new DirectiveToken(name: 'if', content: 'name(foo(bar))')],
+        [new DirectiveToken(name: 'if', arguments: 'name(foo(bar))')],
     ],
     'closing parentheses in an each argument' => [
         "@each('foo', '(bar))')",
-        [new DirectiveToken(name: 'each', content: "'foo', '(bar))'")],
+        [new DirectiveToken(name: 'each', arguments: "'foo', '(bar))'")],
     ],
     'opening parentheses in include data' => [
         "@include('foo', ['(('])",
-        [new DirectiveToken(name: 'include', content: "'foo', ['((']")],
+        [new DirectiveToken(name: 'include', arguments: "'foo', ['((']")],
     ],
     'mixed parentheses in include data' => [
         "@include('foo', ['((a)' => '((a)'])",
-        [new DirectiveToken(name: 'include', content: "'foo', ['((a)' => '((a)']")],
+        [new DirectiveToken(name: 'include', arguments: "'foo', ['((a)' => '((a)']")],
     ],
     'multiple closing parentheses in include data' => [
         '@includeUnless(true, \'foo\', ["foo" => "bar_))-))>"])',
-        [new DirectiveToken(name: 'includeUnless', content: 'true, \'foo\', ["foo" => "bar_))-))>"]')],
+        [new DirectiveToken(name: 'includeUnless', arguments: 'true, \'foo\', ["foo" => "bar_))-))>"]')],
     ],
     'mixed parentheses and a cast' => [
         '@includeFirst(["issue", "#45424)"], [(string) "foo()" => "bar(-(("])',
-        [new DirectiveToken(name: 'includeFirst', content: '["issue", "#45424)"], [(string) "foo()" => "bar(-(("]')],
+        [new DirectiveToken(name: 'includeFirst', arguments: '["issue", "#45424)"], [(string) "foo()" => "bar(-(("]')],
     ],
     'parentheses in a section name' => [
         "@section('issue#18317 :))')",
-        [new DirectiveToken(name: 'section', content: "'issue#18317 :))'")],
+        [new DirectiveToken(name: 'section', arguments: "'issue#18317 :))'")],
     ],
     'parentheses after a directive' => [
         '@unset ($unset)))',
         [
-            new DirectiveToken(name: 'unset', content: '$unset'),
+            new DirectiveToken(name: 'unset', arguments: '$unset'),
             new TextToken(content: '))'),
         ],
     ],
