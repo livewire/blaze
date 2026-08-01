@@ -48,5 +48,5 @@ test('componentNameToPath resolves view-based component alias', function () {
 test('gets custom Blade conditions', function () {
     Blade::if('disk', fn (string $disk) => $disk === 'local');
 
-    expect(app(BladeService::class)->customBladeConditions())->toContain('disk');
+    expect(app(BladeService::class)->customConditions())->toContain('disk');
 });

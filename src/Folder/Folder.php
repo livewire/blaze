@@ -182,7 +182,7 @@ class Folder
      */
     protected function slotsAreWrappedInDirective(ComponentNode $node): bool
     {
-        $stack = DirectiveStack::make($this->blade->customBladeConditions());
+        $stack = DirectiveStack::make($this->blade->customConditions());
 
         foreach ($node->children as $child) {
             if ($child instanceof DirectiveNode) {

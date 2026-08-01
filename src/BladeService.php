@@ -16,7 +16,7 @@ class BladeService
 {
     protected ComponentTagCompiler $tagCompiler;
 
-    protected ?array $customBladeConditions = null;
+    protected ?array $customConditions = null;
 
     public function __construct(
         public BladeCompiler $compiler,
@@ -164,16 +164,16 @@ class BladeService
     /**
      * Get the custom conditional directives registered with the Blade compiler.
      */
-    public function customBladeConditions(): array
+    public function customConditions(): array
     {
-        if ($this->customBladeConditions !== null) {
-            return $this->customBladeConditions;
+        if ($this->customConditions !== null) {
+            return $this->customConditions;
         }
 
         $reflection = new ReflectionClass($this->compiler);
         $conditions = $reflection->getProperty('conditions')->getValue($this->compiler);
 
-        return $this->customBladeConditions = collect($conditions)->keys()->all();
+        return $this->customConditions = collect($conditions)->keys()->all();
     }
 
     /**
