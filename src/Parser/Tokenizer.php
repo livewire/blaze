@@ -348,7 +348,7 @@ class Tokenizer
     }
 
     /**
-     * Process directive state, extracting the directive name and arguments.
+     * Process directive state, extracting the directive name and expression.
      */
     protected function handleDirectiveState(): TokenizerState
     {
@@ -362,7 +362,7 @@ class Tokenizer
 
         $this->currentToken->name = $match['name'];
         $this->currentToken->original = $match['original'];
-        $this->currentToken->arguments = $match['arguments'];
+        $this->currentToken->expression = $match['expression'];
 
         $this->emitToken();
 
@@ -419,7 +419,7 @@ class Tokenizer
         return [
             'name' => $match[1],
             'original' => $match[0],
-            'arguments' => isset($match[3]) ? (Str::substr($match[3], 1, -1) ?: null) : null,
+            'expression' => isset($match[3]) ? (Str::substr($match[3], 1, -1) ?: null) : null,
         ];
     }
 

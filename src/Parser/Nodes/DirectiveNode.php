@@ -7,7 +7,7 @@ class DirectiveNode extends TextNode
     public function __construct(
         public string $name,
         public string $original,
-        public ?string $arguments = null,
+        public ?string $expression = null,
     ) {
     }
 
