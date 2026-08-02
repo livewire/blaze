@@ -4,6 +4,7 @@ use Illuminate\Container\Container;
 use Illuminate\Contracts\View\Engine;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Blade;
+use Illuminate\Support\Facades\View;
 use Illuminate\View\Component;
 use Livewire\Blaze\Blaze;
 use Livewire\Blaze\BlazeManager;
@@ -83,6 +84,14 @@ test('forwards $__this through component chain', function () {
             return '<x-this-parent />';
         }
     })->assertSee('from-livewire');
+});
+
+test('View::share variables are accessible in components', function () {
+    View::share('sharedValue', 'hello-from-share');
+
+    $html = Blade::render('<x-shared-var />');
+
+    expect($html)->toContain('hello-from-share');
 });
 
 test('folds and compiles the same component', function () {
