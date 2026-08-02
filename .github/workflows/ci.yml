@@ -60,10 +60,19 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      - name: Checkout PR benchmark harness
+        uses: actions/checkout@v4
+
+      - name: Save PR benchmark harness
+        run: cp workbench/app/Console/Commands/BenchmarkCommand.php ${{ runner.temp }}/BenchmarkCommand.php
+
       - name: Checkout base branch
         uses: actions/checkout@v4
         with:
           ref: v1.0.13
+
+      - name: Restore PR benchmark harness
+        run: cp ${{ runner.temp }}/BenchmarkCommand.php workbench/app/Console/Commands/BenchmarkCommand.php
 
       - name: Setup PHP
         uses: shivammathur/setup-php@v2
