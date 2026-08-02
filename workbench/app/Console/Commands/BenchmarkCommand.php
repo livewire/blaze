@@ -9,6 +9,7 @@ use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Process;
 use Illuminate\Support\Facades\View;
 use Illuminate\Support\Str;
+use Livewire\Blaze\Blaze;
 
 class BenchmarkCommand extends Command
 {
@@ -106,6 +107,8 @@ class BenchmarkCommand extends Command
 
         $bladeTimes = [];
         $blazeTimes = [];
+        $bladeCompilationTimes = [];
+        $blazeCompilationTimes = [];
 
         $bar?->setMessage('Benchmarking...');
 
@@ -121,6 +124,20 @@ class BenchmarkCommand extends Command
             $bar?->advance();
         }
 
+        // Compilation clears the view cache, so measure it only after all render rounds.
+        $this->measureCompilation(false);
+        $this->measureCompilation(true);
+
+        for ($r = 0; $r < $this->rounds; $r++) {
+            if ($r % 2 === 0) {
+                $bladeCompilationTimes[] = $this->measureCompilation(false);
+                $blazeCompilationTimes[] = $this->measureCompilation(true);
+            } else {
+                $blazeCompilationTimes[] = $this->measureCompilation(true);
+                $bladeCompilationTimes[] = $this->measureCompilation(false);
+            }
+        }
+
         $bar?->setMessage('Done!');
         $bar?->finish();
 
@@ -132,15 +149,21 @@ class BenchmarkCommand extends Command
         // if neither its blade nor blaze time is an outlier.
         $keptRounds = $this->nonOutlierIndices(collect($bladeTimes))
             ->intersect($this->nonOutlierIndices(collect($blazeTimes)))
+            ->intersect($this->nonOutlierIndices(collect($bladeCompilationTimes)))
+            ->intersect($this->nonOutlierIndices(collect($blazeCompilationTimes)))
             ->values();
         $this->filteredRounds = $this->rounds - $keptRounds->count();
 
         $bladeTimes = $keptRounds->map(fn ($r) => $bladeTimes[$r])->all();
         $blazeTimes = $keptRounds->map(fn ($r) => $blazeTimes[$r])->all();
+        $bladeCompilationTimes = $keptRounds->map(fn ($r) => $bladeCompilationTimes[$r])->all();
+        $blazeCompilationTimes = $keptRounds->map(fn ($r) => $blazeCompilationTimes[$r])->all();
 
         return [
             'blade_ms' => round(collect($bladeTimes)->median(), 2),
             'blaze_ms' => round(collect($blazeTimes)->median(), 2),
+            'blade_compilation_ms' => round(collect($bladeCompilationTimes)->median(), 2),
+            'blaze_compilation_ms' => round(collect($blazeCompilationTimes)->median(), 2),
         ];
     }
 
@@ -216,13 +239,19 @@ class BenchmarkCommand extends Command
         // Filter outlier attempts — if either blade or blaze is an outlier, drop the whole attempt.
         $bladeValues = collect($allAttempts)->map(fn ($r) => $r['blade_ms']);
         $blazeValues = collect($allAttempts)->map(fn ($r) => $r['blaze_ms']);
+        $bladeCompilationValues = collect($allAttempts)->map(fn ($r) => $r['blade_compilation_ms']);
+        $blazeCompilationValues = collect($allAttempts)->map(fn ($r) => $r['blaze_compilation_ms']);
         $keptIndices = $this->nonOutlierIndices($bladeValues)
             ->intersect($this->nonOutlierIndices($blazeValues))
+            ->intersect($this->nonOutlierIndices($bladeCompilationValues))
+            ->intersect($this->nonOutlierIndices($blazeCompilationValues))
             ->values();
 
         $medianResult = [
             'blade_ms' => round($keptIndices->map(fn ($i) => $allAttempts[$i]['blade_ms'])->median(), 2),
             'blaze_ms' => round($keptIndices->map(fn ($i) => $allAttempts[$i]['blaze_ms'])->median(), 2),
+            'blade_compilation_ms' => round($keptIndices->map(fn ($i) => $allAttempts[$i]['blade_compilation_ms'])->median(), 2),
+            'blaze_compilation_ms' => round($keptIndices->map(fn ($i) => $allAttempts[$i]['blaze_compilation_ms'])->median(), 2),
         ];
 
         $results = [$benchmarkName => $medianResult];
@@ -246,20 +275,35 @@ class BenchmarkCommand extends Command
     {
         $snapshot = $this->option('snapshot') ? null : $this->loadSnapshot();
 
-        $headers = ['Blade', 'Blaze', 'Improvement'];
+        $headers = ['Benchmark', 'Blade', 'Blaze', 'Improvement'];
 
-        $rows = collect($results)->map(function ($result, $name) use ($snapshot) {
+        $rows = collect($results)->flatMap(function ($result, $name) use ($snapshot) {
             $blade = $this->formatTime($result['blade_ms']);
             $blaze = $this->formatTime($result['blaze_ms']);
             $improvement = $this->improvement($result).'%';
+            $bladeCompilation = $this->formatTime($result['blade_compilation_ms']);
+            $blazeCompilation = $this->formatTime($result['blaze_compilation_ms']);
+            $compilationImprovement = $this->improvement($result, 'blade_compilation_ms', 'blaze_compilation_ms').'%';
 
             if ($prev = $snapshot['benchmarks'][$name] ?? null) {
                 $blade .= ' '.$this->formatChange($prev['blade_ms'], $result['blade_ms']);
                 $blaze .= ' '.$this->formatChange($prev['blaze_ms'], $result['blaze_ms']);
                 $improvement .= ' '.$this->formatImprovementChange($prev['improvement'], $this->improvement($result));
+
+                if (isset($prev['blade_compilation_ms'], $prev['blaze_compilation_ms'])) {
+                    $bladeCompilation .= ' '.$this->formatChange($prev['blade_compilation_ms'], $result['blade_compilation_ms']);
+                    $blazeCompilation .= ' '.$this->formatChange($prev['blaze_compilation_ms'], $result['blaze_compilation_ms']);
+                    $compilationImprovement .= ' '.$this->formatImprovementChange(
+                        $prev['compilation_improvement'],
+                        $this->improvement($result, 'blade_compilation_ms', 'blaze_compilation_ms')
+                    );
+                }
             }
 
-            return [$blade, $blaze, $improvement];
+            return [
+                ['Render', $blade, $blaze, $improvement],
+                ['Compilation', $bladeCompilation, $blazeCompilation, $compilationImprovement],
+            ];
         })->values()->all();
 
         return [$headers, $rows, $snapshot];
@@ -413,6 +457,21 @@ class BenchmarkCommand extends Command
 
         $rows[] = ['**Result**', "**{$blade}**", "**{$blaze}**", "**{$improvement}**"];
 
+        $bladeCompilation = $this->formatTime($medianResult['blade_compilation_ms']);
+        $blazeCompilation = $this->formatTime($medianResult['blaze_compilation_ms']);
+        $compilationImprovement = $this->improvement($medianResult, 'blade_compilation_ms', 'blaze_compilation_ms').'%';
+
+        if (isset($snapshotData['blade_compilation_ms'], $snapshotData['blaze_compilation_ms'])) {
+            $bladeCompilation .= ' '.$this->formatChange($snapshotData['blade_compilation_ms'], $medianResult['blade_compilation_ms']);
+            $blazeCompilation .= ' '.$this->formatChange($snapshotData['blaze_compilation_ms'], $medianResult['blaze_compilation_ms']);
+            $compilationImprovement .= ' '.$this->formatImprovementChange(
+                $snapshotData['compilation_improvement'],
+                $this->improvement($medianResult, 'blade_compilation_ms', 'blaze_compilation_ms')
+            );
+        }
+
+        $rows[] = ['**Compilation**', "**{$bladeCompilation}**", "**{$blazeCompilation}**", "**{$compilationImprovement}**"];
+
         $allRows = collect([$headers, ...$rows]);
         $widths = collect($headers)->keys()->map(
             fn ($i) => $allRows->max(fn ($row) => mb_strlen($row[$i]))
@@ -457,6 +516,9 @@ class BenchmarkCommand extends Command
                 'blade_ms' => $attempt['blade_ms'],
                 'blaze_ms' => $attempt['blaze_ms'],
                 'improvement' => $this->improvement($attempt),
+                'blade_compilation_ms' => $attempt['blade_compilation_ms'],
+                'blaze_compilation_ms' => $attempt['blaze_compilation_ms'],
+                'compilation_improvement' => $this->improvement($attempt, 'blade_compilation_ms', 'blaze_compilation_ms'),
                 'outlier' => ! $keptIndices->contains($i),
             ])->values()->all(),
             'benchmarks' => $results,
@@ -472,6 +534,9 @@ class BenchmarkCommand extends Command
                 'blade_ms' => $result['blade_ms'],
                 'blaze_ms' => $result['blaze_ms'],
                 'improvement' => $this->improvement($result),
+                'blade_compilation_ms' => $result['blade_compilation_ms'],
+                'blaze_compilation_ms' => $result['blaze_compilation_ms'],
+                'compilation_improvement' => $this->improvement($result, 'blade_compilation_ms', 'blaze_compilation_ms'),
             ])->all(),
         ];
 
@@ -501,10 +566,10 @@ class BenchmarkCommand extends Command
         return dirname(__DIR__, 4).'/benchmark-snapshot.json';
     }
 
-    protected function improvement(array $result): float
+    protected function improvement(array $result, string $bladeKey = 'blade_ms', string $blazeKey = 'blaze_ms'): float
     {
-        return $result['blade_ms'] > 0
-            ? round((1 - $result['blaze_ms'] / $result['blade_ms']) * 100, 1)
+        return $result[$bladeKey] > 0
+            ? round((1 - $result[$blazeKey] / $result[$bladeKey]) * 100, 1)
             : 0;
     }
 
@@ -573,6 +638,28 @@ class BenchmarkCommand extends Command
 
         $start = hrtime(true);
         $this->renderView($view);
+
+        return (hrtime(true) - $start) / 1_000_000;
+    }
+
+    protected function measureCompilation(bool $blaze): float
+    {
+        $blaze ? Blaze::enable() : Blaze::disable();
+
+        Artisan::call('view:clear');
+
+        $compiler = app('blade.compiler');
+        $views = File::allFiles(resource_path('views'));
+
+        gc_collect_cycles();
+
+        $start = hrtime(true);
+
+        foreach ($views as $view) {
+            if ($view->getExtension() === 'php' && str_ends_with($view->getFilename(), '.blade.php')) {
+                $compiler->compile($view->getPathname());
+            }
+        }
 
         return (hrtime(true) - $start) / 1_000_000;
     }
