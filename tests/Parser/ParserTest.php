@@ -2,7 +2,6 @@
 
 use Livewire\Blaze\Parser\Parser;
 use Livewire\Blaze\Parser\Nodes\ComponentNode;
-use Livewire\Blaze\Parser\Nodes\DirectiveNode;
 use Livewire\Blaze\Parser\Nodes\SlotNode;
 use Livewire\Blaze\Parser\Nodes\TextNode;
 use Livewire\Blaze\Support\AttributeParser;
@@ -142,11 +141,3 @@ test('preprocesses attributes using Laravel pipeline', function ($input, $expect
         '<x-button :style="\Illuminate\Support\Arr::toCssStyles([\'color\' => \'red\'])" />',
     ],
 ]);
-
-test('parses directives', function () {
-    $input = '@csrf';
-
-    expect(app(Parser::class)->parse($input))->toEqual([
-        new DirectiveNode('csrf', $input),
-    ]);
-});

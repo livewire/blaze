@@ -2,9 +2,6 @@
 
 namespace Livewire\Blaze\Parser;
 
-use Illuminate\Support\Str;
-use Livewire\Blaze\BladeService;
-use Livewire\Blaze\Parser\Tokens\DirectiveToken;
 use Livewire\Blaze\Parser\Tokens\TagSelfCloseToken;
 use Livewire\Blaze\Parser\Tokens\SlotCloseToken;
 use Livewire\Blaze\Parser\Tokens\SlotOpenToken;
@@ -19,11 +16,6 @@ use Livewire\Blaze\Support\LaravelRegex;
  */
 class Tokenizer
 {
-    public function __construct(
-        protected BladeService $blade,
-    ) {
-    }
-
     protected array $prefixes = [
         'flux:' => [
             'namespace' => 'flux::',
@@ -85,7 +77,6 @@ class Tokenizer
                         TokenizerState::SLOT_OPEN => $this->handleSlotOpenState(),
                         TokenizerState::SLOT_CLOSE => $this->handleSlotCloseState(),
                         TokenizerState::SHORT_SLOT => $this->handleShortSlotState(),
-                        TokenizerState::DIRECTIVE => $this->handleDirectiveState(),
                         default => throw new \RuntimeException("Unknown state: $state"),
                     };
                 }
@@ -164,28 +155,6 @@ class Tokenizer
 
                 return TokenizerState::TAG_CLOSE;
             }
-        }
-
-        if ($char === '@') {
-            // Skip escaped directives like `@@if`
-            if ($this->peek(1) === '@') {
-                $this->advance(2);
-
-                return TokenizerState::TEXT;
-            }
-
-            // Skip @ preceded by a word char like `info@example`
-            if ($this->position > 0 && preg_match('/\w/', $this->content[$this->position - 1])) {
-                $this->advance();
-
-                return TokenizerState::TEXT;
-            }
-
-            $this->flushBuffer();
-
-            $this->currentToken = new DirectiveToken(name: '', original: '');
-
-            return TokenizerState::DIRECTIVE;
         }
 
         $this->advance();
@@ -345,82 +314,6 @@ class Tokenizer
         $this->advance();
 
         return TokenizerState::SHORT_SLOT;
-    }
-
-    /**
-     * Process directive state, extracting the directive name and arguments.
-     */
-    protected function handleDirectiveState(): TokenizerState
-    {
-        if (! $match = $this->matchDirective()) {
-            $this->advance();
-
-            return TokenizerState::TEXT;
-        }
-
-        $this->advance(strlen($match['original']));
-
-        $this->currentToken->name = $match['name'];
-        $this->currentToken->original = $match['original'];
-        $this->currentToken->arguments = $match['arguments'];
-
-        $this->emitToken();
-
-        return TokenizerState::TEXT;
-    }
-
-    /**
-     * Match a Blade directive at the current position.
-     */
-    protected function matchDirective(): ?array
-    {
-        /**
-         * The following code matches the parenthesis handling in Blade as closely as possible.
-         *
-         * @see \Illuminate\View\Compilers\BladeCompiler::compileStatements()
-         */
-
-        $template = $this->remaining();
-
-        if (! preg_match(LaravelRegex::BLADE_STATEMENT, $template, $matches, PREG_UNMATCHED_AS_NULL)) {
-            return null;
-        }
-
-        $match = [
-            $matches[0],
-            $matches[1],
-            $matches[2],
-            $matches[3] ?: null,
-            $matches[4] ?: null,
-        ];
-
-        // Here we check to see if we have properly found the closing parenthesis by
-        // regex pattern or not, and will recursively continue on to the next ")"
-        // then check again until the tokenizer confirms we find the right one.
-        while (isset($match[4]) &&
-               Str::endsWith($match[0], ')') &&
-               ! $this->blade->hasEvenNumberOfParentheses($match[0])) {
-            if (($after = Str::after($template, $match[0])) === $template) {
-                break;
-            }
-
-            $rest = Str::before($after, ')');
-
-            $match[0] = $match[0].$rest.')';
-            $match[3] = $match[3].$rest.')';
-            $match[4] = $match[4].$rest;
-        }
-
-        // No closing parenthesis found
-        if (! Str::startsWith($template, $match[0])) {
-            return null;
-        }
-
-        return [
-            'name' => $match[1],
-            'original' => $match[0],
-            'arguments' => isset($match[3]) ? (Str::substr($match[3], 1, -1) ?: null) : null,
-        ];
     }
 
     /**

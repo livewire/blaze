@@ -15,8 +15,6 @@ use Livewire\Blaze\BladeService;
 use Livewire\Blaze\BlazeManager;
 use Illuminate\Support\Arr;
 use Livewire\Blaze\Config;
-use Livewire\Blaze\Parser\Nodes\DirectiveNode;
-use Livewire\Blaze\Support\DirectiveStack;
 use Throwable;
 
 /**
@@ -99,10 +97,6 @@ class Folder
      */
     protected function isSafeToFold(ComponentSource $source, ComponentNode $node): bool
     {
-        if ($this->slotsAreWrappedInDirective($node)) {
-            return false;
-        }
-
         $dynamicAttributes = array_filter($node->attributes, fn ($attribute) => ! $attribute->isStaticValue());
 
         foreach ($source->directives->aware() as $prop) {
@@ -175,26 +169,6 @@ class Folder
         }
 
         return true;
-    }
-
-    /**
-     * Check if a slot is wrapped in a directive.
-     */
-    protected function slotsAreWrappedInDirective(ComponentNode $node): bool
-    {
-        $stack = DirectiveStack::make($this->blade->customConditions());
-
-        foreach ($node->children as $child) {
-            if ($child instanceof DirectiveNode) {
-                $stack->add($child->name);
-            }
-
-            if ($child instanceof SlotNode && $stack->open()) {
-                return true;
-            }
-        }
-
-        return false;
     }
 
     /**

@@ -258,6 +258,7 @@ test('does not fold components with blaze directive override set to false', func
     expect($compiled)->toBeInstanceOf(ComponentNode::class);
 });
 
+
 test('folds components with no blaze directive if enabled in config', function () {
     $input = '<x-foldable.input-no-blaze />';
 
@@ -288,39 +289,3 @@ test('throws exception for components with problematic patterns', function (stri
     expect(fn () => app(Folder::class)->fold($node))
         ->toThrow(InvalidBlazeFoldUsageException::class);
 })->with(['errors', 'session', 'error', 'csrf', 'auth', 'request', 'old', 'once']);
-
-test('does not fold components with slots wrapped in directives', function () {
-    $input = '<x-foldable.card>@if(false)<x-slot:header>Header</x-slot:header>@endif</x-foldable.card>';
-
-    $node = app(Parser::class)->parse($input)[0];
-    $result = app(Folder::class)->fold($node);
-
-    expect($result)->toBeInstanceOf(ComponentNode::class);
-});
-
-test('folds components with nonclosing directives', function () {
-    $input = '<x-foldable.card>@csrf<x-slot:header>Header</x-slot:header></x-foldable.card>';
-
-    $node = app(Parser::class)->parse($input)[0];
-    $result = app(Folder::class)->fold($node);
-
-    expect($result)->toBeInstanceOf(TextNode::class);
-});
-
-test('folds components with closing directives outside slot', function () {
-    $input = '<x-foldable.card> @if(false) before @endif <x-slot:header>Header</x-slot:header> @if(false) after @endif </x-foldable.card>';
-
-    $node = app(Parser::class)->parse($input)[0];
-    $result = app(Folder::class)->fold($node);
-
-    expect($result)->toBeInstanceOf(TextNode::class);
-});
-
-test('folds components with non-closing directive before slot followed by closing directive', function () {
-    $input = '<x-foldable.card>@csrf<x-slot:header>Header</x-slot:header>@if(false)after@endif</x-foldable.card>';
-
-    $node = app(Parser::class)->parse($input)[0];
-    $result = app(Folder::class)->fold($node);
-
-    expect($result)->toBeInstanceOf(TextNode::class);
-});

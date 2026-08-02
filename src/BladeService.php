@@ -16,8 +16,6 @@ class BladeService
 {
     protected ComponentTagCompiler $tagCompiler;
 
-    protected ?array $customConditions = null;
-
     public function __construct(
         public BladeCompiler $compiler,
         protected Factory $view,
@@ -125,17 +123,6 @@ class BladeService
     }
 
     /**
-     * Invoke the Blade compiler's hasEvenNumberOfParentheses via reflection.
-     */
-    public function hasEvenNumberOfParentheses(string $expression): bool
-    {
-        $reflection = new ReflectionClass($this->compiler);
-        $method = $reflection->getMethod('hasEvenNumberOfParentheses');
-
-        return $method->invoke($this->compiler, $expression);
-    }
-
-    /**
      * Preprocess a component attribute string using Laravel's ComponentTagCompiler.
      *
      * Runs all five of Laravel's preprocessing transforms:
@@ -170,21 +157,6 @@ class BladeService
 
             return $method->invoke($this->compiler, $expression);
         })->compile($input);
-    }
-
-    /**
-     * Get the custom conditional directives registered with the Blade compiler.
-     */
-    public function customConditions(): array
-    {
-        if ($this->customConditions !== null) {
-            return $this->customConditions;
-        }
-
-        $reflection = new ReflectionClass($this->compiler);
-        $conditions = $reflection->getProperty('conditions')->getValue($this->compiler);
-
-        return $this->customConditions = collect($conditions)->keys()->all();
     }
 
     /**
