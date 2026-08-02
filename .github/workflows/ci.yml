@@ -63,7 +63,7 @@ jobs:
       - name: Checkout base branch
         uses: actions/checkout@v4
         with:
-          ref: ${{ github.event.pull_request.base.sha }}
+          ref: v1.0.13
 
       - name: Setup PHP
         uses: shivammathur/setup-php@v2
