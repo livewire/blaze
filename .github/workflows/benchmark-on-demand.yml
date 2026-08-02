@@ -18,7 +18,7 @@ jobs:
           COMMENT: ${{ github.event.comment.body }}
         run: |
           BENCHMARK=$(echo "$COMMENT" | awk '{print $2}')
-          VALID="attributes aware class default forwarding merge named-slots no-attributes slot"
+          VALID="attributes aware class compilation default forwarding merge named-slots no-attributes slot"
           if ! echo "$VALID" | grep -qw "$BENCHMARK"; then
             echo "::error::Unknown benchmark '$BENCHMARK'. Valid options: $VALID"
             exit 1
