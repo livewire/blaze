@@ -308,7 +308,7 @@ test('folds components with nonclosing directives', function () {
 });
 
 test('folds components with closing directives outside slot', function () {
-    $input = '<x-foldable.card>@if(false)before@endif<x-slot:header>Header</x-slot:header>@if(false)after@endif</x-foldable.card>';
+    $input = '<x-foldable.card> @if(false) before @endif <x-slot:header>Header</x-slot:header> @if(false) after @endif </x-foldable.card>';
 
     $node = app(Parser::class)->parse($input)[0];
     $result = app(Folder::class)->fold($node);
