@@ -60,19 +60,10 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout PR benchmark harness
-        uses: actions/checkout@v4
-
-      - name: Save PR benchmark harness
-        run: cp workbench/app/Console/Commands/BenchmarkCommand.php ${{ runner.temp }}/BenchmarkCommand.php
-
       - name: Checkout base branch
         uses: actions/checkout@v4
         with:
-          ref: v1.0.13
-
-      - name: Restore PR benchmark harness
-        run: cp ${{ runner.temp }}/BenchmarkCommand.php workbench/app/Console/Commands/BenchmarkCommand.php
+          ref: ${{ github.event.pull_request.base.sha }}
 
       - name: Setup PHP
         uses: shivammathur/setup-php@v2
@@ -86,7 +77,7 @@ jobs:
         run: composer install --prefer-dist --no-progress --no-interaction
 
       - name: Generate baseline snapshot
-        run: vendor/bin/testbench benchmark compilation --ci --rounds=10 --attempts=10 --snapshot
+        run: vendor/bin/testbench benchmark default --ci --iterations=5000 --rounds=10 --attempts=10 --snapshot
 
       - name: Save baseline snapshot
         run: cp benchmark-snapshot.json ${{ runner.temp }}/benchmark-snapshot.json
@@ -103,7 +94,7 @@ jobs:
       - name: Run benchmark
         run: |
           echo "${{ github.event.pull_request.number }}" > benchmark-result.md
-          vendor/bin/testbench benchmark compilation --ci --rounds=10 --attempts=10 >> benchmark-result.md
+          vendor/bin/testbench benchmark default --ci --iterations=5000 --rounds=10 --attempts=10 >> benchmark-result.md
 
       - name: Upload benchmark result
         uses: actions/upload-artifact@v4
