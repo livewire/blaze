@@ -167,8 +167,16 @@ class Tokenizer
         }
 
         if ($char === '@') {
+            // Skip escaped directives like `@@if`
             if ($this->peek(1) === '@') {
                 $this->advance(2);
+
+                return TokenizerState::TEXT;
+            }
+
+            // Skip @ preceded by a word char like `info@example`
+            if ($this->position > 0 && preg_match('/\w/', $this->content[$this->position - 1])) {
+                $this->advance();
 
                 return TokenizerState::TEXT;
             }

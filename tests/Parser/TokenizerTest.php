@@ -175,6 +175,16 @@ test('handles escaped directives', function () {
     ]);
 });
 
+test('does not tokenize directives preceded by a word character', function () {
+    $input = 'foo@if($bar)';
+
+    $result = app(Tokenizer::class)->tokenize($input);
+
+    expect($result)->toEqual([
+        new TextToken(content: $input),
+    ]);
+});
+
 test('does not skip invalid directive prefixes', function () {
     $input = '@- @if($foo)';
 
