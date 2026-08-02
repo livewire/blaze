@@ -78,7 +78,7 @@ class SlotCompiler
     protected function compileSlot(string $name, string $content, string $attributes, string $slotsVariableName): string
     {
         $contentHandler = $this->manager->isFolding() ? '$__blaze->processPassthroughContent(\'trim\', trim(ob_get_clean()))' : 'trim(ob_get_clean())';
-        
+
         return '<' . '?php ob_start(); ?>'
             . $content
             . '<' . '?php ' . $slotsVariableName . '[\'' . $name . '\'] = new \Illuminate\View\ComponentSlot(' . $contentHandler . ', ' . $attributes . '); ?>';

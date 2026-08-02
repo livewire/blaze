@@ -172,7 +172,7 @@ class Tokenizer
 
                 return TokenizerState::TEXT;
             }
-            
+
             $this->flushBuffer();
 
             $this->currentToken = new DirectiveToken(name: '', original: '');
