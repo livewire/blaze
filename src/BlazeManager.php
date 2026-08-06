@@ -66,14 +66,10 @@ class BlazeManager
      */
     public function compile(string $template, ?string $path = null): string
     {
-        $source = $template;
-
-        $clean = $template;
-
         $dataStack = [];
 
         $ast = $this->walker->walk(
-            nodes: $this->parser->parse($clean),
+            nodes: $this->parser->parse($template),
             preCallback: function ($node) use (&$dataStack) {
                 if ($node instanceof ComponentNode && $node->children) {
                     $dataStack[] = $node->attributes;
@@ -113,12 +109,12 @@ class BlazeManager
 
         $output = $this->render($ast);
 
-        $directives = new Directives($source);
+        $directives = new Directives($template);
 
         if ($path && ($directives->blaze() || $this->config->shouldCompile($path))) {
-            $output = $this->wrapper->wrap($output, $path, $source);
+            $output = $this->render($this->wrapper->wrap($ast, $path));
         } elseif ($this->isDebugging() && ! $this->isFolding() && $path) {
-            $output = $this->instrumenter->profileView($output, $path, $source);
+            $output = $this->instrumenter->profileView($output, $path, $template);
         }
 
         return $output;
@@ -185,8 +181,6 @@ class BlazeManager
             $output = $this->instrumenter->profileView($output, $path, $source);
         }
 
-        $output = $this->blade->restoreRawBlocks($output);
-
         return $output;
     }
 
@@ -208,8 +202,6 @@ class BlazeManager
 
         $output = $this->render($ast);
 
-        $output = $this->blade->restoreRawBlocks($output);
-
         if (! $path) {
             return $output;
         }
@@ -220,7 +212,7 @@ class BlazeManager
             || $this->config->shouldCompile($path);
 
         if ($directives->blaze() || $shouldWrap) {
-            $output = $this->wrapper->wrap($output, $path, $source);
+            $output = $this->render($this->wrapper->wrap($ast, $path));
         }
 
         return $output;

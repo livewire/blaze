@@ -8,6 +8,7 @@ use Livewire\Blaze\Parser\Nodes\SlotNode;
 use Livewire\Blaze\Parser\Nodes\TextNode;
 use Livewire\Blaze\Parser\Nodes\VerbatimBlockNode;
 use Livewire\Blaze\Support\AttributeParser;
+use Livewire\Blaze\Parser\Walker;
 
 
 test('parses self-closing components', function () {
@@ -168,15 +169,20 @@ test('parses directives', function () {
 });
 
 test('parses PHP and verbatim blocks', function () {
-    $input = '<x-card><?php echo "body"; ?>@verbatim<x-button />@endverbatim</x-card>';
+    $input = '<x-card> <?php echo "body"; ?> @verbatim <x-button /> @endverbatim @php echo "footer"; @endphp </x-card>';
 
     expect(app(Parser::class)->parse($input))->toEqual([
         new ComponentNode(
             name: 'card',
             prefix: 'x-',
             children: [
+                new TextNode(' '),
                 new PhpBlockNode('<?php echo "body"; ?>'),
-                new VerbatimBlockNode('@verbatim<x-button />@endverbatim'),
+                new TextNode(' '),
+                new VerbatimBlockNode('@verbatim <x-button /> @endverbatim'),
+                new TextNode(' '),
+                new PhpBlockNode('@php echo "footer"; @endphp'),
+                new TextNode(' '),
             ],
         ),
     ]);

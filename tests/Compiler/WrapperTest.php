@@ -4,13 +4,15 @@ use Livewire\Blaze\Support\Utils;
 use Livewire\Blaze\Compiler\Wrapper;
 use Illuminate\Support\Facades\Blade;
 use Livewire\Blaze\BladeService;
+use Livewire\Blaze\Parser\Parser;
 
 test('wraps component templates into function definitions', function () {
     $path = fixture_path('views/components/input.blade.php');
     $source = file_get_contents($path);
     $hash = Utils::hash($path);
 
-    $wrapped = app(Wrapper::class)->wrap($source, $path, $source);
+    $ast = app(Parser::class)->parse($source);
+    $wrapped = join('', array_map(fn ($node) => $node->render(), app(Wrapper::class)->wrap($ast, $path)));
 
     expect($wrapped)->toEqualCollapsingWhitespace(join('', [
         '<?php if (!function_exists(\'_'. $hash .'\')): function _'. $hash .'($__blaze, $__data = [], $__slots = [], $__bound = [], $__keys = [], $__this = null) { ',
@@ -36,7 +38,8 @@ test('compiles aware props', function () {
     $source = file_get_contents($path);
     $hash = Utils::hash($path);
 
-    $wrapped = app(Wrapper::class)->wrap($source, $path, $source);
+    $ast = app(Parser::class)->parse($source);
+    $wrapped = join('', array_map(fn ($node) => $node->render(), app(Wrapper::class)->wrap($ast, $path)));
 
     expect($wrapped)->toEqualCollapsingWhitespace(join('', [
         '<?php if (!function_exists(\'_'. $hash .'\')): function _'. $hash .'($__blaze, $__data = [], $__slots = [], $__bound = [], $__keys = [], $__this = null) { ',
@@ -61,11 +64,17 @@ test('compiles aware props', function () {
 });
 
 test('extracts props when props are not defined', function () {
-    expect(app(Wrapper::class)->wrap('<div></div>', ''))->toContain('extract($__data, EXTR_SKIP);');
+    $ast = app(Parser::class)->parse('<div></div>');
+    $wrapped = join('', array_map(fn ($node) => $node->render(), app(Wrapper::class)->wrap($ast, '')));
+
+    expect($wrapped)->toContain('extract($__data, EXTR_SKIP);');
 });
 
 test('wraps in self invoking closure', function ($source) {
-    expect(app(Wrapper::class)->wrap($source, ''))->toContain(
+    $ast = app(Parser::class)->parse($source);
+    $wrapped = join('', array_map(fn ($node) => $node->render(), app(Wrapper::class)->wrap($ast, '')));
+
+    expect($wrapped)->toContain(
         '$__blazeFn = function () use ($__blaze, $__data, $__slots, $__bound, $__keys) {',
         'if ($__this !== null) { $__blazeFn->call($__this); } else { $__blazeFn(); }',
     );
@@ -77,8 +86,10 @@ test('wraps in self invoking closure', function ($source) {
 ]);
 
 test('injects variables', function ($source, $expected) {
-    expect(app(Wrapper::class)->wrap('', '', $source))->toContain($expected);
-    expect(app(Wrapper::class)->wrap($source, '', ''))->toContain($expected);
+    $ast = app(Parser::class)->parse($source);
+    $wrapped = join('', array_map(fn ($node) => $node->render(), app(Wrapper::class)->wrap($ast, '')));
+
+    expect($wrapped)->toContain($expected);
 })->with([
     'errors' => ['{{ $errors->has(\'name\') }}', '$errors = $__blaze->errors;'],
     'errors directive' => ['<input @error(\'name\') invalid @enderror >', '$errors = $__blaze->errors;'],
@@ -92,14 +103,17 @@ test('injects variables', function ($source, $expected) {
 test('injects echo handler', function () {
     Blade::stringable((new class {})::class, fn () => 'dummy');
 
-    expect(app(Wrapper::class)->wrap('{{ $a }}', ''))->toContain('$__bladeCompiler = app(\'blade.compiler\');');
+    $ast = app(Parser::class)->parse('{{ $a }}');
+    $wrapped = join('', array_map(fn ($node) => $node->render(), app(Wrapper::class)->wrap($ast, '')));
+
+    expect($wrapped)->toContain('$__bladeCompiler = app(\'blade.compiler\');');
 });
 
 test('hoists use statements to top of output', function ($statement) {
-    // Replace raw @php blocks for placeholders. This normally happens in BlazeManager before the template gets to the Wrapper
-    $source = app(BladeService::class)->preStoreUncompiledBlocks($statement);
+    $ast = app(Parser::class)->parse($statement);
+    $wrapped = join('', array_map(fn ($node) => $node->render(), app(Wrapper::class)->wrap($ast, '')));
 
-    expect(app(Wrapper::class)->wrap($source, '', $source))->toStartWith("<?php\nuse \App\Models\User");
+    expect($wrapped)->toStartWith("<?php\nuse \App\Models\User");
 })->with([
     ['@use(\'App\Models\User\')'],
     ['@php use \App\Models\User; @endphp'],
@@ -108,12 +122,16 @@ test('hoists use statements to top of output', function ($statement) {
 
 test('preserves php directives', function () {
     $input = '@php /* uncompiled */ @endphp';
+    $ast = app(Parser::class)->parse($input);
+    $wrapped = join('', array_map(fn ($node) => $node->render(), app(Wrapper::class)->wrap($ast, '')));
 
-    expect(app(Wrapper::class)->wrap($input, ''))->toContain($input);
+    expect($wrapped)->toContain($input);
 });
 
 test('preserves verbatim directives', function () {
     $input = '@verbatim /* uncompiled */ @endverbatim';
+    $ast = app(Parser::class)->parse($input);
+    $wrapped = join('', array_map(fn ($node) => $node->render(), app(Wrapper::class)->wrap($ast, '')));
 
-    expect(app(Wrapper::class)->wrap($input, ''))->toContain($input);
+    expect($wrapped)->toContain($input);
 });

@@ -18,17 +18,31 @@ class Walker
         $result = [];
 
         foreach ($nodes as $node) {
-            $processed = $preCallback($node);
+            $node = $preCallback($node) ?? $node;
 
             if (($node instanceof ComponentNode || $node instanceof SlotNode) && !empty($node->children)) {
                 $node->children = $this->walk($node->children, $preCallback, $postCallback);
             }
 
-            $processed = $postCallback($node);
+            $node = $postCallback($node) ?? $node;
 
-            $result[] = $processed ?? $node;
+            $result[] = $node;
         }
 
         return $result;
+    }
+
+    /**
+     * @return \Generator<int, \Livewire\Blaze\Parser\Nodes\Node>
+     */
+    public function iterate(array $nodes): \Generator
+    {
+        foreach ($nodes as $node) {
+            yield spl_object_id($node) => $node;
+
+            if (($node instanceof ComponentNode || $node instanceof SlotNode) && $node->children) {
+                yield from $this->iterate($node->children);
+            }
+        }
     }
 }
