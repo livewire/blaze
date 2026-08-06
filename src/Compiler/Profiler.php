@@ -8,6 +8,7 @@ use Livewire\Blaze\Config;
 use Livewire\Blaze\Parser\Nodes\ComponentNode;
 use Livewire\Blaze\Parser\Nodes\Node;
 use Livewire\Blaze\Parser\Nodes\TextNode;
+use Livewire\Blaze\Support\ComponentRepository;
 
 /**
  * Wraps every component's compiled output with profiler timer calls.
@@ -24,6 +25,7 @@ class Profiler
         protected Config $config,
         protected BladeService $blade,
         protected BlazeManager $manager,
+        protected ComponentRepository $components,
     ) {
     }
 
@@ -32,7 +34,7 @@ class Profiler
      */
     public function profile(Node $node, string $componentName, ?string $strategy = null): Node
     {
-        $source = $this->manager->components->get($componentName);
+        $source = $this->components->get($componentName);
 
         if ($strategy === null) {
             $isBlade = $node instanceof ComponentNode;

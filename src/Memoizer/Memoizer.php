@@ -9,6 +9,7 @@ use Livewire\Blaze\Parser\Nodes\TextNode;
 use Livewire\Blaze\Parser\Nodes\Node;
 use Livewire\Blaze\Config;
 use Livewire\Blaze\Compiler\Compiler;
+use Livewire\Blaze\Support\ComponentRepository;
 
 /**
  * Wraps compiled component output with runtime memoization logic.
@@ -20,6 +21,7 @@ class Memoizer
         protected Compiler $compiler,
         protected BladeService $blade,
         protected BlazeManager $manager,
+        protected ComponentRepository $components,
     ) {
     }
 
@@ -76,7 +78,7 @@ class Memoizer
             return false;
         }
 
-        $source = $this->manager->components->get($node->name);
+        $source = $this->components->get($node->name);
 
         if (! $source) {
             return false;

@@ -18,6 +18,7 @@ use Livewire\Blaze\Config;
 use Livewire\Blaze\Parser\Nodes\DirectiveNode;
 use Livewire\Blaze\Support\DirectiveStack;
 use Throwable;
+use Livewire\Blaze\Support\ComponentRepository;
 
 /**
  * Determines whether a component should be folded and orchestrates the folding process.
@@ -29,6 +30,7 @@ class Folder
         protected BladeService $blade,
         protected BladeRenderer $renderer,
         protected BlazeManager $manager,
+        protected ComponentRepository $components,
     ) {
     }
 
@@ -43,7 +45,7 @@ class Folder
 
         $component = $node;
 
-        $source = $this->manager->components->get($component->name);
+        $source = $this->components->get($component->name);
 
         if (! $source) {
             return $component;

@@ -9,6 +9,7 @@ use Livewire\Blaze\Parser\Nodes\SlotNode;
 use Livewire\Blaze\Parser\Nodes\TextNode;
 use Livewire\Blaze\Parser\Nodes\Node;
 use Livewire\Blaze\Config;
+use Livewire\Blaze\Support\ComponentRepository;
 use Livewire\Blaze\Support\ComponentSource;
 use Livewire\Blaze\Support\Utils;
 
@@ -23,6 +24,7 @@ class Compiler
         protected Config $config,
         protected BladeService $blade,
         protected BlazeManager $manager,
+        protected ComponentRepository $components,
     ) {
         $this->slotCompiler = new SlotCompiler($manager, $blade);
     }
@@ -40,7 +42,7 @@ class Compiler
             return new TextNode($this->compileDelegateComponentTag($node));
         }
 
-        $source = $this->manager->components->get($node->name);
+        $source = $this->components->get($node->name);
 
         if (! $source) {
             return $node;

@@ -52,11 +52,11 @@ class BlazeManager
         $this->renderer = new BladeRenderer($bladeCompiler, app('view'), $this->runtime, $this);
         $this->parser = new Parser(new Tokenizer($this->blade), new AttributeParser($this->blade));
         $this->walker = new Walker;
-        $this->compiler = new Compiler($config, $this->blade, $this);
-        $this->folder = new Folder($config, $this->blade, $this->renderer, $this);
-        $this->memoizer = new Memoizer($config, $this->compiler, $this->blade, $this);
+        $this->compiler = new Compiler($config, $this->blade, $this, $this->components);
+        $this->folder = new Folder($config, $this->blade, $this->renderer, $this, $this->components);
+        $this->memoizer = new Memoizer($config, $this->compiler, $this->blade, $this, $this->components);
         $this->wrapper = new Wrapper($this->blade, $this);
-        $this->instrumenter = new Profiler($config, $this->blade, $this);
+        $this->instrumenter = new Profiler($config, $this->blade, $this, $this->components);
 
         Event::listen(ComponentFolded::class, function (ComponentFolded $event) {
             $this->foldedEvents[] = $event;
