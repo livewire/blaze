@@ -50,70 +50,6 @@ class BladeService
     }
 
     /**
-     * Invoke the Blade compiler's storeUncompiledBlocks via reflection.
-     */
-    public function preStoreUncompiledBlocks(string $input): string
-    {
-        $output = $input;
-
-        $output = $this->storeVerbatimBlocks($output);
-        $output = $this->storePhpBlocks($output);
-        
-        return $output;
-    }
-
-    /**
-     * Store only @verbatim blocks as raw block placeholders.
-     */
-    public function storeVerbatimBlocks(string $input): string
-    {
-        return $this->storeRawBlock(LaravelRegex::VERBATIM_BLOCK, $input);
-    }
-
-    /**
-     * Store only @verbatim blocks as raw block placeholders.
-     */
-    public function storePhpBlocks(string $input): string
-    {
-        return $this->storeRawBlock(LaravelRegex::PHP_BLOCK, $input);
-    }
-
-    /**
-     * Store a raw block placeholder via the Blade compiler.
-     */
-    protected function storeRawBlock(string $pattern, string $content): string
-    {
-        $reflection = new \ReflectionClass($this->compiler);
-        $method = $reflection->getMethod('storeRawBlock');
-
-        return preg_replace_callback($pattern, function ($matches) use ($method) {
-            return $method->invoke($this->compiler, $matches[0]);
-        }, $content);
-    }
-
-    /**
-     * Restore raw block placeholders to their original content.
-     */
-    public function restoreRawBlocks(string $input): string
-    {
-        $reflection = new \ReflectionClass($this->compiler);
-        $method = $reflection->getMethod('restoreRawContent');
-
-        return $method->invoke($this->compiler, $input);
-    }
-
-    /**
-     * Restore raw block placeholders to their original content.
-     */
-    public function restorePhpBlocks(string $input): string
-    {
-        $reflection = new \ReflectionClass($this->compiler);
-        $method = $reflection->getMethod('restorePhpBlocks');
-
-        return $method->invoke($this->compiler, $input);
-    }
-
-    /**
      * Invoke the Blade compiler's compileComments via reflection.
      */
     public function compileComments(string $input): string
@@ -162,14 +98,12 @@ class BladeService
         })->call($this->tagCompiler, $attributeString);
     }
 
-    public function compileUseStatements(string $input): string
+    public function compileUseStatements(string $expression): string
     {
-        return DirectiveCompiler::make()->directive('use', function ($expression) {
-            $reflection = new \ReflectionClass($this->compiler);
-            $method = $reflection->getMethod('compileUse');
+        $reflection = new \ReflectionClass($this->compiler);
+        $method = $reflection->getMethod('compileUse');
 
-            return $method->invoke($this->compiler, $expression);
-        })->compile($input);
+        return $method->invoke($this->compiler, $expression);
     }
 
     /**

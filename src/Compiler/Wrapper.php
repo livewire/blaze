@@ -45,7 +45,7 @@ class Wrapper
             nodes: $ast,
             preCallback: function ($node) {
                 if ($node instanceof DirectiveNode && $node->name === 'use') {
-                    return new PhpBlockNode($this->blade->compileUseStatements($node->original));
+                    return new PhpBlockNode($this->blade->compileUseStatements($node->expression));
                 }
 
                 return $node;
