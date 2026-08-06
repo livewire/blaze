@@ -10,12 +10,16 @@ use Livewire\Blaze\Compiler\ArrayParser;
  */
 class Directives
 {
-    /** @var array<string, \Livewire\Blaze\Parser\Nodes\DirectiveNode> */
+    /** @var array<string,\Livewire\Blaze\Parser\Nodes\DirectiveNode> */
     protected array $directives;
+
+    protected array $props;
+    protected array $aware;
+    protected array $blaze;
 
     public function __construct(array $nodes)
     {
-        $this->directives = Arr::mapWithKeys($nodes, fn ($node) => [$node->name => $node]);
+        $this->directives = Arr::keyBy($nodes, 'name');
     }
 
     /**
@@ -53,11 +57,15 @@ class Directives
      */
     public function props(): array
     {
-        if ($definition = $this->array('props')) {
-            return collect($definition)->map(fn ($value, $key) => is_int($key) ? $value : $key)->values()->all();
+        if (isset($this->props)) {
+            return $this->props;
         }
 
-        return [];
+        if ($definition = $this->array('props')) {
+            return $this->props = collect($definition)->map(fn ($value, $key) => is_int($key) ? $value : $key)->values()->all();
+        }
+
+        return $this->props = [];
     }
 
     /**
@@ -67,11 +75,15 @@ class Directives
      */
     public function aware(): array
     {
-        if ($definition = $this->array('aware')) {
-            return collect($definition)->map(fn ($value, $key) => is_int($key) ? $value : $key)->values()->all();
+        if (isset($this->aware)) {
+            return $this->aware;
         }
 
-        return [];
+        if ($definition = $this->array('aware')) {
+            return $this->aware = collect($definition)->map(fn ($value, $key) => is_int($key) ? $value : $key)->values()->all();
+        }
+
+        return $this->aware = [];
     }
 
     /**
@@ -83,10 +95,14 @@ class Directives
             return $this->has('blaze');
         }
 
-        if ($expression = $this->get('blaze')) {
-            return Utils::parseBlazeDirective($expression)[$param] ?? null;
+        if (array_key_exists($param, $this->blaze)) {
+            return $this->blaze[$param];
         }
 
-        return null;
+        if ($expression = $this->get('blaze')) {
+            return $this->blaze[$param] = Utils::parseBlazeDirective($expression)[$param] ?? null;
+        }
+
+        return $this->blaze[$param] = null;
     }
 }
