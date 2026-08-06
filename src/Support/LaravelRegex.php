@@ -87,7 +87,7 @@ class LaravelRegex
      * @see ComponentTagCompiler::compileOpeningTags()     — (?<attributes>...)
      * @see ComponentTagCompiler::compileSelfClosingTags() — (?<attributes>...)
      */
-    const ATTRIBUTES = '(?<attributes>
+    const ATTRIBUTES = "(?<attributes>
         (?:
             \s+
             (?:
@@ -123,5 +123,5 @@ class LaravelRegex
             )
         )*
         \s*
-    )';
+    )";
 }
