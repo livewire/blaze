@@ -60,8 +60,8 @@ class Tokenizer
     {
         $this->buffer = '';
         $this->position = 0;
-        $this->content = $content;
-        $this->length = strlen($content);
+        $this->content = $this->blade->compileComments($content);
+        $this->length = strlen($this->content);
 
         while (! $this->isAtEnd()) {
             $this->process();
@@ -134,7 +134,7 @@ class Tokenizer
 
             $this->advance(strlen($match['original']));
 
-            $this->emitToken(new OpeningTagToken($match['name'], $match['attributes'], $match['original'], $match['selfClosing']));
+            $this->emitToken(new OpeningTagToken($match['prefix'], $match['name'], $match['attributes'], $match['original'], $match['selfClosing']));
 
             return;
         }
@@ -144,7 +144,7 @@ class Tokenizer
 
             $this->advance(strlen($match['original']));
 
-            $this->emitToken(new ClosingTagToken($match['name'], $match['original']));
+            $this->emitToken(new ClosingTagToken($match['prefix'], $match['name'], $match['original']));
 
             return;
         }
@@ -223,14 +223,15 @@ class Tokenizer
      */
     protected function matchOpeningTag(): array|null
     {
-        $pattern = "/^<\s*((?:x[-:]|flux:)[\w\-:.]*)". LaravelRegex::ATTRIBUTES ."(?<![=\-])(?<selfClosing>\/?)>/x";
+        $pattern = "/^<\s*(x[-:]|flux:)([\w\-:.]*)". LaravelRegex::ATTRIBUTES ."(?<![=\-])(?<selfClosing>\/?)>/x";
 
         preg_match($pattern, $this->remaining(), $matches);
 
         if ($matches) {
             return [
                 'original' => $matches[0],
-                'name' => $matches[1],
+                'prefix' => $matches[1],
+                'name' => $matches[2],
                 'attributes' => $matches['attributes'],
                 'selfClosing' => $matches['selfClosing'] === '/',
             ];
@@ -244,14 +245,15 @@ class Tokenizer
      */
     protected function matchClosingTag(): array|null
     {
-        $pattern = "/^<\/\s*((?:x[-:]|flux:)[\w\-\:\.]*)\s*>/x";
+        $pattern = "/^<\/\s*(x[-:]|flux:)([\w\-\:\.]*)\s*>/x";
 
         preg_match($pattern, $this->remaining(), $matches);
 
         if ($matches) {
             return [
                 'original' => $matches[0],
-                'name' => $matches[1],
+                'prefix' => $matches[1],
+                'name' => $matches[2],
             ];
         }
 

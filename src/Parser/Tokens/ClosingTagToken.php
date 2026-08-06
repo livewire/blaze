@@ -8,6 +8,7 @@ namespace Livewire\Blaze\Parser\Tokens;
 class ClosingTagToken extends Token
 {
     public function __construct(
+        public string $prefix,
         public string $name,
         public string $original,
     ) {}

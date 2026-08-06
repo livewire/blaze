@@ -3,8 +3,10 @@
 use Livewire\Blaze\Parser\Parser;
 use Livewire\Blaze\Parser\Nodes\ComponentNode;
 use Livewire\Blaze\Parser\Nodes\DirectiveNode;
+use Livewire\Blaze\Parser\Nodes\PhpBlockNode;
 use Livewire\Blaze\Parser\Nodes\SlotNode;
 use Livewire\Blaze\Parser\Nodes\TextNode;
+use Livewire\Blaze\Parser\Nodes\VerbatimBlockNode;
 use Livewire\Blaze\Support\AttributeParser;
 
 
@@ -148,5 +150,20 @@ test('parses directives', function () {
 
     expect(app(Parser::class)->parse($input))->toEqual([
         new DirectiveNode('csrf', $input),
+    ]);
+});
+
+test('parses PHP and verbatim blocks', function () {
+    $input = '<x-card><?php echo "body"; ?>@verbatim<x-button />@endverbatim</x-card>';
+
+    expect(app(Parser::class)->parse($input))->toEqual([
+        new ComponentNode(
+            name: 'card',
+            prefix: 'x-',
+            children: [
+                new PhpBlockNode('<?php echo "body"; ?>'),
+                new VerbatimBlockNode('@verbatim<x-button />@endverbatim'),
+            ],
+        ),
     ]);
 });
