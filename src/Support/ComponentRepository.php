@@ -31,7 +31,7 @@ class ComponentRepository
             return $this->components[$name] = null;
         }
 
-        $ast = $this->parser->parse(file_get_contents($path));
+        $ast = $this->parser->parse(file_get_contents($path), $path);
 
         return $this->components[$name] = new ComponentSource($name, $path, $ast);
     }

@@ -5,6 +5,7 @@ namespace Livewire\Blaze;
 use Illuminate\Support\Facades\Event;
 use Illuminate\View\Compilers\BladeCompiler;
 use Illuminate\View\Engines\CompilerEngine;
+use Illuminate\View\View;
 use Livewire\Blaze\Compiler\Wrapper;
 use Livewire\Blaze\Compiler\Compiler;
 use Livewire\Blaze\Compiler\Profiler;
@@ -66,12 +67,14 @@ class BlazeManager
     /**
      * Compile a Blade template through the full Blaze pipeline.
      */
-    public function compile(string $template, ?string $path = null): string
+    public function compile(string $source, ?string $path = null): string
     {
         $dataStack = [];
 
+        $template = $this->parser->parse($source, $path);
+
         $ast = $this->walker->walk(
-            nodes: $this->parser->parse($template),
+            nodes: $template->nodes,
             preCallback: function ($node) use (&$dataStack) {
                 if ($node instanceof ComponentNode && $node->children) {
                     $dataStack[] = $node->attributes;
@@ -111,12 +114,10 @@ class BlazeManager
 
         $output = $this->render($ast);
 
-        $directives = new Directives($this->walker->filter($ast, fn ($n) => $n instanceof DirectiveNode));
-
-        if ($path && ($directives->blaze() || $this->config->shouldCompile($path))) {
+        if ($path && ($template->directives->blaze() || $this->config->shouldCompile($path))) {
             $output = $this->render($this->wrapper->wrap($ast, $path));
         } elseif ($this->isDebugging() && ! $this->isFolding() && $path) {
-            $output = $this->instrumenter->profileView($output, $path, $template);
+            $output = $this->instrumenter->profileView($output, $path, $source);
         }
 
         return $output;
@@ -125,10 +126,12 @@ class BlazeManager
     /**
      * Compile a template within an @unblaze block (no folding, no wrapping).
      */
-    public function compileForUnblaze(string $template): string
+    public function compileForUnblaze(string $source): string
     {
+        $template = $this->parser->parse($source);
+
         $ast = $this->walker->walk(
-            nodes: $this->parser->parse($template),
+            nodes: $template->nodes,
             preCallback: fn ($node) => $node,
             postCallback: function ($node) {
                 $wasComponent = $node instanceof ComponentNode;
@@ -145,13 +148,7 @@ class BlazeManager
             },
         );
 
-        $output = $this->render($ast);
-
-        // We should not restore raw blocks here. Doing so would preemptively
-        // flush all raw blocks stored in the original template and they
-        // wouldn't be restored in the parent compile() method.
-
-        return $output;
+        return $this->render($ast);
     }
 
     /**
@@ -161,12 +158,12 @@ class BlazeManager
      * calls, but does NOT fold, memoize, or compile — Blade handles that.
      * Also injects view-level timers for non-wrapped views.
      */
-    public function compileForDebug(string $template, ?string $path = null): string
+    public function compileForDebug(string $source, ?string $path = null): string
     {
-        $source = $template;
+        $template = $this->parser->parse($source, $path);
 
         $ast = $this->walker->walk(
-            nodes: $this->parser->parse($template),
+            nodes: $template->nodes,
             preCallback: fn ($node) => $node,
             postCallback: function ($node) {
                 if (! ($node instanceof ComponentNode)) {
@@ -190,12 +187,12 @@ class BlazeManager
      * Compile for folding context - only tag compiler and component compiler.
      * No folding or memoization to avoid infinite recursion.
      */
-    public function compileForFolding(string $template, ?string $path = null): string
+    public function compileForFolding(string $source, ?string $path = null): string
     {
-        $source = $template;
+        $template = $this->parser->parse($source, $path);
 
         $ast = $this->walker->walk(
-            nodes: $this->parser->parse($template),
+            nodes: $template->nodes,
             preCallback: fn ($node) => $node,
             postCallback: function ($node) {
                 return $this->compiler->compile($node);
@@ -208,15 +205,11 @@ class BlazeManager
             return $output;
         }
 
-        $directives = new Directives(
-            (new Walker)->filter($ast, fn ($node) => $node instanceof DirectiveNode)
-        );
-
         $shouldWrap = $this->config->shouldFold($path)
             || $this->config->shouldMemoize($path)
             || $this->config->shouldCompile($path);
 
-        if ($directives->blaze() || $shouldWrap) {
+        if ($template->directives->blaze() || $shouldWrap) {
             $output = $this->render($this->wrapper->wrap($ast, $path));
         }
 
@@ -238,11 +231,11 @@ class BlazeManager
     /**
      * Run a compilation callback and prepend front matter from any folded components.
      */
-    public function collectAndAppendFrontMatter($template, $callback)
+    public function collectAndAppendFrontMatter(string $source, callable $callback)
     {
         $this->flushFoldedEvents();
 
-        $output = $callback($template);
+        $output = $callback($source);
 
         $frontmatter = (new FrontMatter)->compileFromEvents(
             $this->flushFoldedEvents()
@@ -254,7 +247,7 @@ class BlazeManager
     /**
      * Check if a view's compiled output contains stale folded component references.
      */
-    public function viewContainsExpiredFrontMatter($view): bool
+    public function viewContainsExpiredFrontMatter(View $view): bool
     {
         $engine = $view->getEngine();
         $path = $view->getPath();
@@ -385,13 +378,13 @@ class BlazeManager
     {
         foreach ($node->children as $child) {
             if ($child instanceof ComponentNode) {
-                $source = $this->components->get($child->name);
+                $component = $this->components->get($child->name);
 
                 if (str_ends_with($child->name, 'delegate-component')) {
                     return true;
                 }
 
-                if ($source->directives->has('aware')) {
+                if ($component->template->directives->has('aware')) {
                     return true;
                 }
 

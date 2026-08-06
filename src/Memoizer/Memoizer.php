@@ -84,7 +84,7 @@ class Memoizer
             return false;
         }
 
-        if (! is_null($memo = $source->directives->blaze('memo'))) {
+        if (! is_null($memo = $source->template->directives->blaze('memo'))) {
             return $memo;
         }
 

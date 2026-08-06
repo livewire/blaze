@@ -22,6 +22,8 @@ use Livewire\Blaze\Support\AttributeParser;
  */
 class Parser
 {
+    public array $templates = [];
+
     public function __construct(
         protected Tokenizer $tokenizer,
         protected AttributeParser $attributes,
@@ -31,8 +33,12 @@ class Parser
     /**
      * Parse tokens into an AST.
      */
-    public function parse(string $content): array
+    public function parse(string $content, ?string $path = null): Template
     {
+        if ($path && isset($this->templates[$path])) {
+            return $this->templates[$path];
+        }
+
         $stack = new ParseStack;
 
         $tokens = $this->tokenizer->tokenize($content);
@@ -49,7 +55,13 @@ class Parser
             };
         }
 
-        return $stack->getAst();
+        $template = new Template($stack->getAst());
+
+        if ($path) {
+            $this->templates[$path] = $template;
+        }
+
+        return $template;
     }
 
     /**

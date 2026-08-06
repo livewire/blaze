@@ -6,7 +6,7 @@ use Livewire\Blaze\Support\Directives;
 
 test('parses arrays', function () {
     $directives = new Directives(
-        app(Parser::class)->parse('@aware([\'name\' => null, \'value\'])')
+        app(Parser::class)->parse('@aware([\'name\' => null, \'value\'])')->nodes
     );
 
     expect($directives->array('aware'))->toBe(['name' => null, 'value']);
@@ -14,7 +14,7 @@ test('parses arrays', function () {
 
 test('parses props', function () {
     $directives = new Directives(
-        app(Parser::class)->parse('@props([\'name\' => null, \'value\'])')
+        app(Parser::class)->parse('@props([\'name\' => null, \'value\'])')->nodes
     );
 
     expect($directives->props())->toBe(['name', 'value']);
@@ -22,7 +22,7 @@ test('parses props', function () {
 
 test('parses blaze directive', function () {
     $directives = new Directives(
-        app(Parser::class)->parse('@blaze')
+        app(Parser::class)->parse('@blaze')->nodes
     );
 
     expect($directives->has('blaze'))->toBeTrue();
@@ -31,7 +31,7 @@ test('parses blaze directive', function () {
 
 test('parses blaze directive with params', function () {
     $directives = new Directives(
-        app(Parser::class)->parse('@blaze(fold: true, safe: [\'name\'])')
+        app(Parser::class)->parse('@blaze(fold: true, safe: [\'name\'])')->nodes
     );
 
     expect($directives->blaze())->toBeTrue();

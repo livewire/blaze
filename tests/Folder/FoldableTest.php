@@ -13,7 +13,7 @@ beforeEach(fn () => Artisan::call('view:clear'));
 test('folds dynamic attributes', function () {
     $input = '<x-foldable.input :type="$type" />';
 
-    $node = app(Parser::class)->parse($input)[0];
+    $node = app(Parser::class)->parse($input)->nodes[0];
     $foldable = new Foldable($node, app(ComponentRepository::class)->get('foldable.input'), app(BladeRenderer::class), app(BladeService::class));
 
     expect($foldable->fold())->toEqualCollapsingWhitespace(
@@ -37,7 +37,7 @@ test('folds slots', function () {
         BLADE
     ;
 
-    $node = app(Parser::class)->parse($input)[0];
+    $node = app(Parser::class)->parse($input)->nodes[0];
     $foldable = new Foldable($node, app(ComponentRepository::class)->get('foldable.card'), app(BladeRenderer::class), app(BladeService::class));
 
     expect($foldable->fold())->toEqualCollapsingWhitespace(<<<'HTML'
@@ -55,7 +55,7 @@ test('folds slots', function () {
 test('preserves dynamic attributes with static false', function () {
     $input = '<x-foldable.input :disabled="false" />';
 
-    $node = app(Parser::class)->parse($input)[0];
+    $node = app(Parser::class)->parse($input)->nodes[0];
     $foldable = new Foldable($node, app(ComponentRepository::class)->get('foldable.input'), app(BladeRenderer::class), app(BladeService::class));
 
     expect($foldable->fold())->toEqualCollapsingWhitespace(
@@ -66,7 +66,7 @@ test('preserves dynamic attributes with static false', function () {
 test('preserves dynamic attributes with static null', function () {
     $input = '<x-foldable.input :disabled="null" />';
 
-    $node = app(Parser::class)->parse($input)[0];
+    $node = app(Parser::class)->parse($input)->nodes[0];
     $foldable = new Foldable($node, app(ComponentRepository::class)->get('foldable.input'), app(BladeRenderer::class), app(BladeService::class));
 
     expect($foldable->fold())->toEqualCollapsingWhitespace(
@@ -77,7 +77,7 @@ test('preserves dynamic attributes with static null', function () {
 test('merges aware props from parent attributes', function () {
     $input = '<x-foldable.input-aware />';
 
-    $node = app(Parser::class)->parse($input)[0];
+    $node = app(Parser::class)->parse($input)->nodes[0];
     $foldable = new Foldable($node, app(ComponentRepository::class)->get('foldable.input-aware'), app(BladeRenderer::class), app(BladeService::class));
 
     $node->setParentsAttributes([
@@ -97,7 +97,7 @@ test('merges aware props from parent attributes', function () {
 test('merges dynamic aware props from parent attributes', function () {
     $input = '<x-foldable.input-aware />';
 
-    $node = app(Parser::class)->parse($input)[0];
+    $node = app(Parser::class)->parse($input)->nodes[0];
     $node->setParentsAttributes([
         'type' => new Attribute(
             name: 'type',
@@ -119,7 +119,7 @@ test('merges dynamic aware props from parent attributes', function () {
 test('folds dynamic attributes passed through attribute bag', function () {
     $input = '<x-foldable.input :readonly="$readonly" />';
 
-    $node = app(Parser::class)->parse($input)[0];
+    $node = app(Parser::class)->parse($input)->nodes[0];
     $foldable = new Foldable($node, app(ComponentRepository::class)->get('foldable.input'), app(BladeRenderer::class), app(BladeService::class));
 
     expect($foldable->fold())->toEqualCollapsingWhitespace(
@@ -133,7 +133,7 @@ test('folds dynamic attributes passed through attribute bag', function () {
 
 test('folds dynamic attributes reused under a different key', function () {
     $input = '<x-foldable.button wire:click="save({{ $id }})" />';
-    $node = app(Parser::class)->parse($input)[0];
+    $node = app(Parser::class)->parse($input)->nodes[0];
     $foldable = new Foldable($node, app(ComponentRepository::class)->get('foldable.button'), app(BladeRenderer::class), app(BladeService::class));
     expect($foldable->fold())->toEqualCollapsingWhitespace(
         '<button wire:target="save({{ $id }})" wire:click="save({{ $id }})" type="button"></button>'
@@ -143,7 +143,7 @@ test('folds dynamic attributes reused under a different key', function () {
 test('wraps output with aware macros if descendants use aware', function () {
     $input = '<x-foldable.wrapper name="John"><x-aware-descendant /></x-foldable.wrapper>';
 
-    $node = app(Parser::class)->parse($input)[0];
+    $node = app(Parser::class)->parse($input)->nodes[0];
     $node->hasAwareDescendants = true;
 
     $foldable = new Foldable($node, app(ComponentRepository::class)->get('foldable.wrapper'), app(BladeRenderer::class), app(BladeService::class));
@@ -158,7 +158,7 @@ test('wraps output with aware macros if descendants use aware', function () {
 test('compiles dynamic attributes in aware macros', function () {
     $input = '<x-foldable.wrapper :name="$name"><x-aware-descendant /></x-foldable.wrapper>';
 
-    $node = app(Parser::class)->parse($input)[0];
+    $node = app(Parser::class)->parse($input)->nodes[0];
     $node->hasAwareDescendants = true;
 
     $foldable = new Foldable($node, app(ComponentRepository::class)->get('foldable.wrapper'), app(BladeRenderer::class), app(BladeService::class));
@@ -173,7 +173,7 @@ test('compiles dynamic attributes in aware macros', function () {
 test('compiles echo attributes in aware macros', function () {
     $input = '<x-foldable.wrapper name="Mr. {{ $name }}"><x-aware-descendant /></x-foldable.wrapper>';
 
-    $node = app(Parser::class)->parse($input)[0];
+    $node = app(Parser::class)->parse($input)->nodes[0];
     $node->hasAwareDescendants = true;
 
     $foldable = new Foldable($node, app(ComponentRepository::class)->get('foldable.wrapper'), app(BladeRenderer::class), app(BladeService::class));

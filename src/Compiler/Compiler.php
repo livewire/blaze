@@ -42,13 +42,13 @@ class Compiler
             return new TextNode($this->compileDelegateComponentTag($node));
         }
 
-        $source = $this->components->get($node->name);
+        $component = $this->components->get($node->name);
 
-        if (! $source) {
+        if (! $component) {
             return $node;
         }
         
-        if (! $this->shouldCompile($source)) {
+        if (! $this->shouldCompile($component)) {
             return $node;
         }
 
@@ -56,7 +56,7 @@ class Compiler
             return $node;
         }
 
-        return new TextNode($this->compileComponentTag($node, $source));
+        return new TextNode($this->compileComponentTag($node, $component));
     }
 
     /**
@@ -64,8 +64,8 @@ class Compiler
      */
     protected function shouldCompile(ComponentSource $source): bool
     {
-        if ($source->directives->blaze()) {
-            return $source->directives->blaze('compile') ?? true;
+        if ($source->template->directives->blaze()) {
+            return $source->template->directives->blaze('compile') ?? true;
         }
 
         return $this->config->shouldCompile($source->path)
@@ -94,7 +94,7 @@ class Compiler
      */
     protected function compileComponentTag(ComponentNode $node, ComponentSource $source): string
     {
-        $hash = Utils::hash($source->path);
+        $hash = $source->hash;
         $functionName = ($this->manager->isFolding() ? '__' : '_') . $hash;
         [$attributesArrayString, $boundKeysArrayString, $originalKeysArrayString] = $this->compileAttributes($node);
 

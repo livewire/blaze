@@ -145,7 +145,7 @@ class Foldable
      */
     protected function mergeAwareProps(): void
     {
-        $aware = $this->source->directives->array('aware') ?? [];
+        $aware = $this->source->template->directives->array('aware') ?? [];
         
         foreach ($aware as $prop => $default) {
             if (is_int($prop)) {

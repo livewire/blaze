@@ -72,37 +72,37 @@ class BlazeRuntime
      * (no @blaze directive and not configured for compilation), so the
      * caller can fall back to standard Blade rendering.
      */
-    public function resolve(string $component): string|false
+    public function resolve(string $name): string|false
     {
-        $source = $this->components->get($component);
+        $component = $this->components->get($name);
 
-        if (! $source || ! $this->isBlazeComponent($source)) {
+        if (! $component || ! $this->isBlazeComponent($component)) {
             return false;
         }
 
-        $compiled = $this->getCompiledPath().'/'.$source->hash.'.php';
+        $compiled = $this->getCompiledPath().'/'.$component->hash.'.php';
 
-        if (! isset($this->required[$source->path])) {
-            $this->ensureRequired($source->path, $compiled);
+        if (! isset($this->required[$component->path])) {
+            $this->ensureRequired($component->path, $compiled);
         }
 
-        return $source->hash;
+        return $component->hash;
     }
 
     /**
      * Check if a component file is a Blaze component.
      */
-    protected function isBlazeComponent(ComponentSource $source): bool
+    protected function isBlazeComponent(ComponentSource $component): bool
     {
-        if ($source->directives->blaze()) {
-            return $this->blazed[$source->path] = true;
+        if ($component->template->directives->blaze()) {
+            return $this->blazed[$component->path] = true;
         }
 
         $config = app('blaze.config');
 
-        return $this->blazed[$source->path] = $config->shouldCompile($source->path)
-            || $config->shouldMemoize($source->path)
-            || $config->shouldFold($source->path);
+        return $this->blazed[$component->path] = $config->shouldCompile($component->path)
+            || $config->shouldMemoize($component->path)
+            || $config->shouldFold($component->path);
     }
 
     /**

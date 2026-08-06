@@ -14,7 +14,7 @@ use Livewire\Blaze\Parser\Walker;
 test('parses self-closing components', function () {
     $input = '<x-button class="my-4" />';
 
-    expect(app(Parser::class)->parse($input))->toEqual([
+    expect(app(Parser::class)->parse($input)->nodes)->toEqual([
         new ComponentNode(
             name: 'button',
             prefix: 'x-',
@@ -28,7 +28,7 @@ test('parses self-closing components', function () {
 test('parses flux components', function () {
     $input = '<flux:button class="my-4" />';
 
-    expect(app(Parser::class)->parse($input))->toEqual([
+    expect(app(Parser::class)->parse($input)->nodes)->toEqual([
         new ComponentNode(
             name: 'flux::button',
             prefix: 'flux:',
@@ -42,7 +42,7 @@ test('parses flux components', function () {
 test('parses named slots', function () {
     $input = '<x-card><x-slot name="footer" class="p-2">Footer</x-slot></x-card>';
 
-    expect(app(Parser::class)->parse($input))->toEqual([
+    expect(app(Parser::class)->parse($input)->nodes)->toEqual([
         new ComponentNode(
             name: 'card',
             prefix: 'x-',
@@ -63,7 +63,7 @@ test('parses named slots', function () {
 test('parses named slots with short syntax', function () {
     $input = '<x-card><x-slot:footer class="p-2">Footer</x-slot></x-card>';
 
-    expect(app(Parser::class)->parse($input))->toEqual([
+    expect(app(Parser::class)->parse($input)->nodes)->toEqual([
         new ComponentNode(
             name: 'card',
             prefix: 'x-',
@@ -85,7 +85,7 @@ test('parses named slots with short syntax', function () {
 test('parses named slots with short syntax and name in close tag', function () {
     $input = '<x-card><x-slot:footer class="p-2">Footer</x-slot:footer></x-card>';
 
-    expect(app(Parser::class)->parse($input))->toEqual([
+    expect(app(Parser::class)->parse($input)->nodes)->toEqual([
         new ComponentNode(
             name: 'card',
             prefix: 'x-',
@@ -108,7 +108,7 @@ test('parses named slots with short syntax and name in close tag', function () {
 test('parses explicit default slot', function () {
     $input = '<x-card><x-slot class="p-2">Body</x-slot></x-card>';
 
-    expect(app(Parser::class)->parse($input))->toEqual([
+    expect(app(Parser::class)->parse($input)->nodes)->toEqual([
         new ComponentNode(
             name: 'card',
             prefix: 'x-',
@@ -127,7 +127,7 @@ test('parses explicit default slot', function () {
 });
 
 test('parses component prefixes', function ($input, $prefix, $name) {
-    expect(app(Parser::class)->parse($input))->toEqual([
+    expect(app(Parser::class)->parse($input)->nodes)->toEqual([
         new ComponentNode($name, $prefix),
     ]);
 })->with([
@@ -138,7 +138,7 @@ test('parses component prefixes', function ($input, $prefix, $name) {
 ]);
 
 test('preprocesses attributes using Laravel pipeline', function ($input, $expected) {
-    $result = app(Parser::class)->parse($input);
+    $result = app(Parser::class)->parse($input)->nodes;
 
     expect($result[0]->render())->toBe($expected);
 })->with([
@@ -163,7 +163,7 @@ test('preprocesses attributes using Laravel pipeline', function ($input, $expect
 test('parses directives', function () {
     $input = '@csrf';
 
-    expect(app(Parser::class)->parse($input))->toEqual([
+    expect(app(Parser::class)->parse($input)->nodes)->toEqual([
         new DirectiveNode('csrf', $input),
     ]);
 });
@@ -171,7 +171,7 @@ test('parses directives', function () {
 test('parses PHP and verbatim blocks', function () {
     $input = '<x-card> <?php echo "body"; ?> @verbatim <x-button /> @endverbatim @php echo "footer"; @endphp </x-card>';
 
-    expect(app(Parser::class)->parse($input))->toEqual([
+    expect(app(Parser::class)->parse($input)->nodes)->toEqual([
         new ComponentNode(
             name: 'card',
             prefix: 'x-',

@@ -11,7 +11,7 @@ test('wraps component templates into function definitions', function () {
     $source = file_get_contents($path);
     $hash = Utils::hash($path);
 
-    $ast = app(Parser::class)->parse($source);
+    $ast = app(Parser::class)->parse($source)->nodes;
     $wrapped = join('', array_map(fn ($node) => $node->render(), app(Wrapper::class)->wrap($ast, $path)));
 
     expect($wrapped)->toEqualCollapsingWhitespace(join('', [
@@ -38,7 +38,7 @@ test('compiles aware props', function () {
     $source = file_get_contents($path);
     $hash = Utils::hash($path);
 
-    $ast = app(Parser::class)->parse($source);
+    $ast = app(Parser::class)->parse($source)->nodes;
     $wrapped = join('', array_map(fn ($node) => $node->render(), app(Wrapper::class)->wrap($ast, $path)));
 
     expect($wrapped)->toEqualCollapsingWhitespace(join('', [
@@ -64,14 +64,14 @@ test('compiles aware props', function () {
 });
 
 test('extracts props when props are not defined', function () {
-    $ast = app(Parser::class)->parse('<div></div>');
+    $ast = app(Parser::class)->parse('<div></div>')->nodes;
     $wrapped = join('', array_map(fn ($node) => $node->render(), app(Wrapper::class)->wrap($ast, '')));
 
     expect($wrapped)->toContain('extract($__data, EXTR_SKIP);');
 });
 
 test('wraps in self invoking closure', function ($source) {
-    $ast = app(Parser::class)->parse($source);
+    $ast = app(Parser::class)->parse($source)->nodes;
     $wrapped = join('', array_map(fn ($node) => $node->render(), app(Wrapper::class)->wrap($ast, '')));
 
     expect($wrapped)->toContain(
@@ -86,7 +86,7 @@ test('wraps in self invoking closure', function ($source) {
 ]);
 
 test('injects variables', function ($source, $expected) {
-    $ast = app(Parser::class)->parse($source);
+    $ast = app(Parser::class)->parse($source)->nodes;
     $wrapped = join('', array_map(fn ($node) => $node->render(), app(Wrapper::class)->wrap($ast, '')));
 
     expect($wrapped)->toContain($expected);
@@ -103,14 +103,14 @@ test('injects variables', function ($source, $expected) {
 test('injects echo handler', function () {
     Blade::stringable((new class {})::class, fn () => 'dummy');
 
-    $ast = app(Parser::class)->parse('{{ $a }}');
+    $ast = app(Parser::class)->parse('{{ $a}}')->nodes;
     $wrapped = join('', array_map(fn ($node) => $node->render(), app(Wrapper::class)->wrap($ast, '')));
 
     expect($wrapped)->toContain('$__bladeCompiler = app(\'blade.compiler\');');
 });
 
 test('hoists use statements to top of output', function ($statement) {
-    $ast = app(Parser::class)->parse($statement);
+    $ast = app(Parser::class)->parse($statement)->nodes;
     $wrapped = join('', array_map(fn ($node) => $node->render(), app(Wrapper::class)->wrap($ast, '')));
 
     expect($wrapped)->toStartWith("<?php\nuse \App\Models\User");
@@ -122,7 +122,7 @@ test('hoists use statements to top of output', function ($statement) {
 
 test('preserves php directives', function () {
     $input = '@php /* uncompiled */ @endphp';
-    $ast = app(Parser::class)->parse($input);
+    $ast = app(Parser::class)->parse($input)->nodes;
     $wrapped = join('', array_map(fn ($node) => $node->render(), app(Wrapper::class)->wrap($ast, '')));
 
     expect($wrapped)->toContain($input);
@@ -130,7 +130,7 @@ test('preserves php directives', function () {
 
 test('preserves verbatim directives', function () {
     $input = '@verbatim /* uncompiled */ @endverbatim';
-    $ast = app(Parser::class)->parse($input);
+    $ast = app(Parser::class)->parse($input)->nodes;
     $wrapped = join('', array_map(fn ($node) => $node->render(), app(Wrapper::class)->wrap($ast, '')));
 
     expect($wrapped)->toContain($input);
