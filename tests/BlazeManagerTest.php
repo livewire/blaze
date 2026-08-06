@@ -12,8 +12,20 @@ test('compile preserves php directives', function () {
     expect(Blaze::compile($input))->toBe($input);
 });
 
+test('compile preserves verbatim directives', function () {
+    $input = '@verbatim <x-card /> @endverbatim';
+
+    expect(Blaze::compile($input))->toBe($input);
+});
+
 test('compileForDebug preserves php directives', function () {
     $input = '@php /* uncompiled */ @endphp';
+
+    expect(Blaze::compileForDebug($input))->toBe($input);
+});
+
+test('compileForDebug preserves verbatim directives', function () {
+    $input = '@verbatim <x-card /> @endverbatim';
 
     expect(Blaze::compileForDebug($input))->toBe($input);
 });
@@ -24,12 +36,22 @@ test('compileForFolding preserves php directives', function () {
     expect(Blaze::compileForFolding($input))->toBe($input);
 });
 
-test('compileForUnblaze does not restore raw blocks', function () {
+test('compileForFolding preserves verbatim directives', function () {
+    $input = '@verbatim <x-card /> @endverbatim';
+
+    expect(Blaze::compileForFolding($input))->toBe($input);
+});
+
+test('compileForUnblaze preserves php directives', function () {
     $input = '@php /* uncompiled */ @endphp';
 
-    // compileForUnblaze should only store raw blocks, not restore them.
-    // They will be restored in the parent compile() method.
-    expect(Blaze::compileForUnblaze($input))->toBe('@__raw_block_0__@');
+    expect(Blaze::compileForUnblaze($input))->toBe($input);
+});
+
+test('compileForUnblaze preserves verbatim directives', function () {
+    $input = '@verbatim <x-card /> @endverbatim';
+
+    expect(Blaze::compileForUnblaze($input))->toBe($input);
 });
 
 test('viewContainsExpiredFrontMatter returns true when folded component source is updated', function () {

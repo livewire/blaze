@@ -8,9 +8,7 @@ use Illuminate\View\Engines\CompilerEngine;
 use Livewire\Blaze\Compiler\Wrapper;
 use Livewire\Blaze\Compiler\Compiler;
 use Livewire\Blaze\Compiler\Profiler;
-use Livewire\Blaze\Memoizer\Memo;
 use Livewire\Blaze\Runtime\BlazeRuntime;
-use Livewire\Blaze\Directive\BlazeDirective;
 use Livewire\Blaze\Events\ComponentFolded;
 use Livewire\Blaze\Folder\Folder;
 use Livewire\Blaze\Memoizer\Memoizer;
@@ -71,8 +69,6 @@ class BlazeManager
         $source = $template;
 
         $clean = $template;
-        $clean = $this->blade->preStoreUncompiledBlocks($clean);
-        $clean = $this->blade->compileComments($clean);
 
         $dataStack = [];
 
@@ -125,8 +121,6 @@ class BlazeManager
             $output = $this->instrumenter->profileView($output, $path, $source);
         }
 
-        $output = $this->blade->restoreRawBlocks($output);
-
         return $output;
     }
 
@@ -135,9 +129,6 @@ class BlazeManager
      */
     public function compileForUnblaze(string $template): string
     {
-        $template = $this->blade->preStoreUncompiledBlocks($template);
-        $template = $this->blade->compileComments($template);
-
         $ast = $this->walker->walk(
             nodes: $this->parser->parse($template),
             preCallback: fn ($node) => $node,
@@ -176,12 +167,8 @@ class BlazeManager
     {
         $source = $template;
 
-        $clean = $template;
-        $clean = $this->blade->preStoreUncompiledBlocks($clean);
-        $clean = $this->blade->compileComments($clean);
-
         $ast = $this->walker->walk(
-            nodes: $this->parser->parse($clean),
+            nodes: $this->parser->parse($template),
             preCallback: fn ($node) => $node,
             postCallback: function ($node) {
                 if (! ($node instanceof ComponentNode)) {
@@ -210,9 +197,6 @@ class BlazeManager
     public function compileForFolding(string $template, ?string $path = null): string
     {
         $source = $template;
-
-        $template = $this->blade->preStoreUncompiledBlocks($template);
-        $template = $this->blade->compileComments($template);
 
         $ast = $this->walker->walk(
             nodes: $this->parser->parse($template),
