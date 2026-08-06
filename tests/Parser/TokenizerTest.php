@@ -1,13 +1,21 @@
 <?php
 
 use Livewire\Blaze\Parser\Tokenizer;
-use Livewire\Blaze\Parser\Tokens\SlotCloseToken;
-use Livewire\Blaze\Parser\Tokens\SlotOpenToken;
-use Livewire\Blaze\Parser\Tokens\TagCloseToken;
-use Livewire\Blaze\Parser\Tokens\TagOpenToken;
-use Livewire\Blaze\Parser\Tokens\TagSelfCloseToken;
+use Livewire\Blaze\Parser\Tokens\OpeningTagToken;
 use Livewire\Blaze\Parser\Tokens\TextToken;
 use Livewire\Blaze\Parser\Tokens\DirectiveToken;
+use Livewire\Blaze\Parser\Tokens\ClosingTagToken;
+use Livewire\Blaze\Parser\Tokens\PhpBlockToken;
+
+test('tokenizes php directive blocks', function () {
+    $input = '@php $i = 0; @endphp';
+
+    $result = app(Tokenizer::class)->tokenize($input);
+
+    expect($result)->toEqual([
+        new PhpBlockToken($input)
+    ]);
+});
 
 test('tokenizes tags', function () {
     $input = '<x-button type="button"></x-button>';
@@ -15,8 +23,8 @@ test('tokenizes tags', function () {
     $result = app(Tokenizer::class)->tokenize($input);
 
     expect($result)->toEqual([
-        new TagOpenToken(name: 'button', prefix: 'x-', attributes: ['type="button"']),
-        new TagCloseToken(name: 'button', prefix: 'x-'),
+        new OpeningTagToken(name: 'x-button', attributes: ' type="button"', original: '<x-button type="button">', selfClosing: false),
+        new ClosingTagToken(name: 'x-button', original: '</x-button>'),
     ]);
 });
 
@@ -26,40 +34,29 @@ test('tokenizes self-closing tags', function () {
     $result = app(Tokenizer::class)->tokenize($input);
 
     expect($result)->toEqual([
-        new TagSelfCloseToken(name: 'button', prefix: 'x-', attributes: ['type="button"']),
+        new OpeningTagToken(name: 'x-button', attributes: ' type="button" ', original: '<x-button type="button" />', selfClosing: true),
     ]);
 });
 
-test('tokenizes default slots', function () {
-    $input = '<x-slot></x-slot>';
+test('tokenizes flux tags', function () {
+    $input = '<flux:button type="button"></flux:button>';
 
     $result = app(Tokenizer::class)->tokenize($input);
 
     expect($result)->toEqual([
-        new SlotOpenToken(prefix: 'x-slot'),
-        new SlotCloseToken(prefix: 'x-'),
+        new OpeningTagToken(name: 'flux:button', attributes: ' type="button"', original: '<flux:button type="button">', selfClosing: false),
+        new ClosingTagToken(name: 'flux:button', original: '</flux:button>'),
     ]);
 });
 
-test('tokenizes standard slots', function () {
-    $input = '<x-slot name="header"></x-slot>';
+test('only matches tags at the current position', function () {
+    $input = '< invalid <x-button></ invalid </x-button>';
 
-    $result = app(Tokenizer::class)->tokenize($input);
-
-    expect($result)->toEqual([
-        new SlotOpenToken(name: 'header', prefix: 'x-slot'),
-        new SlotCloseToken(prefix: 'x-'),
-    ]);
-});
-
-test('tokenizes short slots', function () {
-    $input = '<x-slot:header class="p-2"></x-slot:header>';
-
-    $result = app(Tokenizer::class)->tokenize($input);
-
-    expect($result)->toEqual([
-        new SlotOpenToken(name: 'header', slotStyle: 'short', prefix: 'x-slot', attributes: ['class="p-2"']),
-        new SlotCloseToken(name: 'header', prefix: 'x-'),
+    expect(app(Tokenizer::class)->tokenize($input))->toEqual([
+        new TextToken('< invalid '),
+        new OpeningTagToken(name: 'x-button', attributes: '', original: '<x-button>', selfClosing: false),
+        new TextToken('</ invalid '),
+        new ClosingTagToken(name: 'x-button', original: '</x-button>'),
     ]);
 });
 
@@ -83,65 +80,15 @@ test('tokenizes directives with parameters', function () {
     ]);
 });
 
-test('handles whitespace in tags', function () {
-    $input = '< x-button ></ x-button >'; // This is valid Blade syntax...
-
-    $result = app(Tokenizer::class)->tokenize($input);
-
-    expect($result)->toEqual([
-        new TagOpenToken(name: 'button', prefix: 'x-'),
-        new TagCloseToken(name: 'button', prefix: 'x-'),
-    ]);
-});
-
-test('handles whitespace in slot tags', function () {
-    $input = '< x-slot:header ></ x-slot >';  // This is valid Blade syntax...
-
-    $result = app(Tokenizer::class)->tokenize($input);
-
-    expect($result)->toEqual([
-        new SlotOpenToken(name: 'header', slotStyle: 'short', prefix: 'x-slot'),
-        new SlotCloseToken(),
-    ]);
-});
-
-test('handles whitespace in short slot tags', function () {
-    $input = '< x-slot:header ></ x-slot:header >'; // This is valid Blade syntax...
-
-    $result = app(Tokenizer::class)->tokenize($input);
-
-    expect($result)->toEqual([
-        new SlotOpenToken(name: 'header', slotStyle: 'short', prefix: 'x-slot'),
-        new SlotCloseToken(name: 'header'),
-    ]);
-});
-
-test('handles attributes with angled brackets', function () {
-    $input = '<x-button :data="[\'foo\' => \'bar\']" :callback="fn () => 0">';
-
-    $result = app(Tokenizer::class)->tokenize($input);
-
-    expect($result)->toEqual([
-        new TagOpenToken(
-            name: 'button',
-            prefix: 'x-',
-            attributes: [
-                ':data="[\'foo\' => \'bar\']"',
-                ':callback="fn () => 0"',
-            ],
-        ),
-    ]);
-});
-
-test('handles php blocks', function () {
+test('tokenizes php blocks', function () {
     $input = '<x-button><?php // <x-button /> ?></x-button>';
 
     $result = app(Tokenizer::class)->tokenize($input);
 
     expect($result)->toEqual([
-        new TagOpenToken(name: 'button', prefix: 'x-'),
-        new TextToken(content: '<?php // <x-button /> ?>'),
-        new TagCloseToken(name: 'button', prefix: 'x-'),
+        new OpeningTagToken(name: 'x-button', attributes: '', original: '<x-button>', selfClosing: false),
+        new PhpBlockToken(content: '<?php // <x-button /> ?>'),
+        new ClosingTagToken(name: 'x-button', original: '</x-button>'),
     ]);
 });
 
@@ -151,17 +98,47 @@ test('handles unclosed php blocks', function () {
     $result = app(Tokenizer::class)->tokenize($input);
 
     expect($result)->toEqual([
-        new TextToken(content: '<?php // <x-button />'),
+        new PhpBlockToken(content: '<?php // <x-button />'),
+    ]);
+});
+
+test('handles Blade php blocks', function () {
+    $input = '<x-button> @php $value = "<x-button />"; @endphp </x-button>';
+
+    expect(app(Tokenizer::class)->tokenize($input))->toEqual([
+        new OpeningTagToken(name: 'x-button', attributes: '', original: '<x-button>', selfClosing: false),
+        new TextToken(' '),
+        new PhpBlockToken(content: '@php $value = "<x-button />"; @endphp'),
+        new TextToken(' '),
+        new ClosingTagToken(name: 'x-button', original: '</x-button>'),
+    ]);
+});
+
+test('handles unclosed Blade php blocks', function () {
+    $input = '@php $value = "<x-button />";';
+
+    expect(app(Tokenizer::class)->tokenize($input))->toEqual([
+        new DirectiveToken(name: 'php', original: '@php '), // <-- TODO: weird whitespace
+        new TextToken(content: '$value = "'),
+        new OpeningTagToken(
+            name: 'x-button',
+            attributes: ' ', // <-- TODO: weird whitespace
+            original: '<x-button />',
+            selfClosing: true,
+        ),
+        new TextToken(content: '";'),
     ]);
 });
 
 test('handles php blocks inside tags', function () {
-    $input = '<x-button <?php echo \'disabled\'; ?>>';
+    $input = '<x-button <?php echo "disabled"; ?>>';
 
     $result = app(Tokenizer::class)->tokenize($input);
 
     expect($result)->toEqual([
-        new TextToken(content: '<x-button <?php echo \'disabled\'; ?>>'),
+        new TextToken(content: '<x-button '),
+        new PhpBlockToken(content: '<?php echo "disabled"; ?>'),
+        new TextToken(content: '>'),
     ]);
 });
 
