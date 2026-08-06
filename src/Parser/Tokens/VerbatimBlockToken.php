@@ -3,7 +3,7 @@
 namespace Livewire\Blaze\Parser\Tokens;
 
 /**
- * Represents raw text/HTML content between component tags.
+ * Represents a Blade @verbatim block.
  */
 class VerbatimBlockToken extends Token
 {

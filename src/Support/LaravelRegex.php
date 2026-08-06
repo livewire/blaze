@@ -81,6 +81,12 @@ class LaravelRegex
      */
     const BLADE_STATEMENT = '/^@(@?\w+(?:::\w+)?)([ \t]*)(\( ( [\S\s]*? ) \))?/x';
 
+    /**
+     * Pattern for matching component tag attributes.
+     *
+     * @see ComponentTagCompiler::compileOpeningTags()     — (?<attributes>...)
+     * @see ComponentTagCompiler::compileSelfClosingTags() — (?<attributes>...)
+     */
     const ATTRIBUTES = '(?<attributes>
         (?:
             \s+

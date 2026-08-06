@@ -3,7 +3,7 @@
 namespace Livewire\Blaze\Parser\Tokens;
 
 /**
- * Represents an opening component tag (<x-button).
+ * Represents an opening or self-closing component tag.
  */
 class OpeningTagToken extends Token
 {

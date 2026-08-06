@@ -4,17 +4,17 @@ namespace Livewire\Blaze\Parser;
 
 use Illuminate\Support\Str;
 use Livewire\Blaze\BladeService;
+use Livewire\Blaze\Parser\Tokens\ClosingTagToken;
 use Livewire\Blaze\Parser\Tokens\DirectiveToken;
 use Livewire\Blaze\Parser\Tokens\OpeningTagToken;
+use Livewire\Blaze\Parser\Tokens\PhpBlockToken;
 use Livewire\Blaze\Parser\Tokens\TextToken;
 use Livewire\Blaze\Parser\Tokens\Token;
-use Livewire\Blaze\Support\LaravelRegex;
-use Livewire\Blaze\Parser\Tokens\PhpBlockToken;
-use Livewire\Blaze\Parser\Tokens\ClosingTagToken;
 use Livewire\Blaze\Parser\Tokens\VerbatimBlockToken;
+use Livewire\Blaze\Support\LaravelRegex;
 
 /**
- * Finite state machine that lexes Blade templates into component/slot/text tokens.
+ * Lexes Blade templates into tags, directives, PHP blocks, verbatim blocks, and text tokens.
  */
 class Tokenizer
 {
@@ -45,7 +45,7 @@ class Tokenizer
                 continue;
             }
 
-             $this->buffer .= is_array($token) ? $token[1] : $token;
+            $this->buffer .= is_array($token) ? $token[1] : $token;
         }
 
         $this->flushBuffer(PhpBlockToken::class);
@@ -53,6 +53,9 @@ class Tokenizer
         return $this->tokens;
     }
 
+    /**
+     * Tokenize a string of inline HTML content.
+     */
     protected function tokenizeString(string $content): void
     {
         $this->buffer = '';
@@ -67,6 +70,9 @@ class Tokenizer
         $this->flushBuffer();
     }
 
+    /**
+     * Process the token starting at the current position.
+     */
     protected function process(): void
     {
         if ($this->startsWith('@php') && ($match = $this->matchDirective()) && ! $match['expression']) {
@@ -200,7 +206,7 @@ class Tokenizer
             $match[4] = $match[4].$rest;
         }
 
-        // No closing parenthesis found
+        // Reject matches that do not begin at the current position.
         if (! Str::startsWith($template, $match[0])) {
             return null;
         }
@@ -212,6 +218,9 @@ class Tokenizer
         ];
     }
 
+    /**
+     * Match an opening or self-closing component tag at the current position.
+     */
     protected function matchOpeningTag(): array|null
     {
         $pattern = "/^<\s*((?:x[-:]|flux:)[\w\-:.]*)". LaravelRegex::ATTRIBUTES ."(?<![=\-])(?<selfClosing>\/?)>/x";
@@ -230,6 +239,9 @@ class Tokenizer
         return null;
     }
 
+    /**
+     * Match a closing component tag at the current position.
+     */
     protected function matchClosingTag(): array|null
     {
         $pattern = "/^<\/\s*((?:x[-:]|flux:)[\w\-\:\.]*)\s*>/x";
@@ -282,6 +294,9 @@ class Tokenizer
         $this->position += $count;
     }
 
+    /**
+     * Advance until a matching string satisfying the optional condition is found.
+     */
     protected function advanceUntil(string $str, ?callable $condition = null): bool
     {
         while (! $this->isAtEnd()) {
@@ -295,11 +310,17 @@ class Tokenizer
         return false;
     }
 
+    /**
+     * Advance through the next occurrence of any of the given characters.
+     */
     protected function advanceUntilNext(string $characters): void
     {
         $this->advance(strcspn($this->content, $characters, $this->position + 1) + 1);
     }
 
+    /**
+     * Determine whether the remaining content starts with the given string.
+     */
     protected function startsWith(string $str): bool
     {
         return substr_compare($this->content, $str, $this->position, strlen($str)) === 0;
@@ -323,6 +344,9 @@ class Tokenizer
         $this->buffer = '';
     }
 
+    /**
+     * Move to a position and discard the accumulated buffer.
+     */
     protected function rewind(int $position): void
     {
         $this->position = $position;
