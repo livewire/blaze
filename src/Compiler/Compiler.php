@@ -40,9 +40,9 @@ class Compiler
             return new TextNode($this->compileDelegateComponentTag($node));
         }
 
-        $source = ComponentSource::for($this->blade->componentNameToPath($node->name));
+        $source = $this->manager->components->get($node->name);
 
-        if (! $source->exists()) {
+        if (! $source) {
             return $node;
         }
         

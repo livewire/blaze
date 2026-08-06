@@ -13,13 +13,14 @@ use Livewire\Blaze\Events\ComponentFolded;
 use Livewire\Blaze\Folder\Folder;
 use Livewire\Blaze\Memoizer\Memoizer;
 use Livewire\Blaze\Parser\Nodes\ComponentNode;
+use Livewire\Blaze\Parser\Nodes\DirectiveNode;
 use Livewire\Blaze\Parser\Parser;
 use Livewire\Blaze\Parser\Tokenizer;
 use Livewire\Blaze\Parser\Walker;
 use Livewire\Blaze\Support\Directives;
-use Livewire\Blaze\Support\ComponentSource;
 use Livewire\Blaze\Parser\Nodes\SlotNode;
 use Livewire\Blaze\Support\AttributeParser;
+use Livewire\Blaze\Support\ComponentRepository;
 
 class BlazeManager
 {
@@ -46,6 +47,7 @@ class BlazeManager
         protected BladeCompiler $bladeCompiler,
         protected BlazeRuntime $runtime,
         protected BladeService $blade,
+        protected ComponentRepository $components,
     ) {
         $this->renderer = new BladeRenderer($bladeCompiler, app('view'), $this->runtime, $this);
         $this->parser = new Parser(new Tokenizer($this->blade), new AttributeParser($this->blade));
@@ -54,7 +56,7 @@ class BlazeManager
         $this->folder = new Folder($config, $this->blade, $this->renderer, $this);
         $this->memoizer = new Memoizer($config, $this->compiler, $this->blade, $this);
         $this->wrapper = new Wrapper($this->blade, $this);
-        $this->instrumenter = new Profiler($config, $this->blade);
+        $this->instrumenter = new Profiler($config, $this->blade, $this);
 
         Event::listen(ComponentFolded::class, function (ComponentFolded $event) {
             $this->foldedEvents[] = $event;
@@ -109,7 +111,7 @@ class BlazeManager
 
         $output = $this->render($ast);
 
-        $directives = new Directives($template);
+        $directives = new Directives($this->walker->filter($ast, fn ($n) => $n instanceof DirectiveNode));
 
         if ($path && ($directives->blaze() || $this->config->shouldCompile($path))) {
             $output = $this->render($this->wrapper->wrap($ast, $path));
@@ -206,7 +208,10 @@ class BlazeManager
             return $output;
         }
 
-        $directives = new Directives($source);
+        $directives = new Directives(
+            (new Walker)->filter($ast, fn ($node) => $node instanceof DirectiveNode)
+        );
+
         $shouldWrap = $this->config->shouldFold($path)
             || $this->config->shouldMemoize($path)
             || $this->config->shouldCompile($path);
@@ -380,7 +385,7 @@ class BlazeManager
     {
         foreach ($node->children as $child) {
             if ($child instanceof ComponentNode) {
-                $source = ComponentSource::for($this->blade->componentNameToPath($child->name));
+                $source = $this->components->get($child->name);
 
                 if (str_ends_with($child->name, 'delegate-component')) {
                     return true;

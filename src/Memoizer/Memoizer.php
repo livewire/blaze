@@ -8,7 +8,6 @@ use Livewire\Blaze\Parser\Nodes\ComponentNode;
 use Livewire\Blaze\Parser\Nodes\TextNode;
 use Livewire\Blaze\Parser\Nodes\Node;
 use Livewire\Blaze\Config;
-use Livewire\Blaze\Support\ComponentSource;
 use Livewire\Blaze\Compiler\Compiler;
 
 /**
@@ -77,9 +76,9 @@ class Memoizer
             return false;
         }
 
-        $source = ComponentSource::for($this->blade->componentNameToPath($node->name));
+        $source = $this->manager->components->get($node->name);
 
-        if (! $source->exists()) {
+        if (! $source) {
             return false;
         }
 

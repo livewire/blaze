@@ -45,4 +45,15 @@ class Walker
             }
         }
     }
+
+    public function filter(array $nodes, callable $predicate): array
+    {
+        return iterator_to_array((function () use ($nodes, $predicate) {
+            foreach ($this->iterate($nodes) as $key => $value) {
+                if ($predicate($value)) {
+                    yield $key => $value;
+                }
+            }
+        })());
+    }
 }

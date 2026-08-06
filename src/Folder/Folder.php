@@ -43,9 +43,9 @@ class Folder
 
         $component = $node;
 
-        $source = ComponentSource::for($this->blade->componentNameToPath($component->name));
+        $source = $this->manager->components->get($component->name);
 
-        if (! $source->exists()) {
+        if (! $source) {
             return $component;
         }
 
@@ -216,8 +216,11 @@ class Folder
      */
     protected function checkProblematicPatterns(ComponentSource $source): void
     {
+        // TODO: Refactor to AST
+        $content = file_get_contents($source->path);
+
         // @unblaze blocks can contain dynamic content and are excluded from validation
-        $sourceWithoutUnblaze = preg_replace('/@unblaze.*?@endunblaze/s', '', $source->content());
+        $sourceWithoutUnblaze = preg_replace('/@unblaze.*?@endunblaze/s', '', $content);
 
         $problematicPatterns = [
             '@once' => 'forOnce',

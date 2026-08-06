@@ -6,15 +6,14 @@ use Illuminate\Contracts\View\Factory;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\File;
 use Illuminate\View\Compilers\BladeCompiler;
-use Illuminate\View\Component;
 use Illuminate\View\ComponentSlot;
 use Livewire\Blaze\Parser\Attribute;
 use Livewire\Blaze\Parser\Nodes\ComponentNode;
 use Livewire\Blaze\Parser\Nodes\SlotNode;
 use Livewire\Blaze\Runtime\BlazeRuntime;
-use Livewire\Blaze\Support\ComponentSource;
 use Livewire\Blaze\Support\Utils;
 use ReflectionClass;
+use Livewire\Blaze\Support\ComponentSource;
 
 /**
  * Handles isolated Blade rendering used during compile-time folding.
