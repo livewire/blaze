@@ -24,6 +24,20 @@ test('parses self-closing components', function () {
     ]);
 });
 
+test('parses flux components', function () {
+    $input = '<flux:button class="my-4" />';
+
+    expect(app(Parser::class)->parse($input))->toEqual([
+        new ComponentNode(
+            name: 'flux::button',
+            prefix: 'flux:',
+            selfClosing: true,
+            attributeString: 'class="my-4"',
+            attributes: app(AttributeParser::class)->parse('class="my-4"'),
+        ),
+    ]);
+});
+
 test('parses named slots', function () {
     $input = '<x-card><x-slot name="footer" class="p-2">Footer</x-slot></x-card>';
 

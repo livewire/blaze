@@ -64,7 +64,7 @@ class Parser
         }
 
         $node = new ComponentNode(
-            name: $token->name,
+            name: $token->prefix === 'flux:' ? 'flux::' . $token->name : $token->name,
             prefix: $token->prefix,
             attributeString: trim($token->attributes),
             children: [],
@@ -105,18 +105,18 @@ class Parser
 
         if (! $short && isset($attributes['name'])) {
             // TODO: We should be able to handle dynamic slot names...
-            $name = $attributes['name'];
-            $attributeString = trim(preg_replace('/(?:^|\s+)name\s*=\s*(["\']).*?\1/', '', $token->attributes, 1));
+            $name = $attributes['name']->value;
+            $attributeString = preg_replace('/(?:^|\s+)name\s*=\s*(["\']).*?\1/', '', $token->attributes, 1);
 
             unset($attributes['name']);
         }
 
         $node = new SlotNode(
             name: $name,
-            attributeString: $attributeString,
+            attributeString: trim($attributeString),
             slotStyle: $short ? 'short' : 'standard',
             children: [],
-            prefix: $token->prefix . 'slot' . ($short ? ':' : ''),
+            prefix: $token->prefix . 'slot',
             closeHasName: false,
             attributes: $attributes,
         );
