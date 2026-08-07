@@ -36,14 +36,16 @@ class Wrapper
     public function wrap(array $ast, string $path): array
     {
         $name = ($this->manager->isFolding() ? '__' : '_') . Utils::hash($path);
-
-        $sourceUsesThis = $this->usesThis($ast);
-
+        $sourceUsesThis = false;
         $imports = '';
 
         $ast = (new Walker)->walk(
             nodes: $ast,
-            preCallback: function ($node) {
+            preCallback: function ($node) use (&$sourceUsesThis) {
+                if (! $sourceUsesThis && $node->usesVariable('$this') || $node->isDirective(['entangle', 'script', 'assets'])) {
+                    $sourceUsesThis = true;
+                }
+
                 if ($node instanceof DirectiveNode && $node->name === 'use') {
                     return new PhpBlockNode($this->blade->compileUseStatements($node->expression));
                 }
@@ -82,7 +84,7 @@ class Wrapper
             $opening .= '$__blazeFn = function () use ($__blaze, $__data, $__slots, $__bound, $__keys) {'."\n";
         }
 
-        $opening .= $this->globalVariables($ast);
+        $opening .= $this->globalVariables($ast)."\n";
         $opening .= 'if (($__data[\'attributes\'] ?? null) instanceof \Illuminate\View\ComponentAttributeBag) { $__data = $__data + $__data[\'attributes\']->all(); unset($__data[\'attributes\']); }'."\n";
         $opening .= 'extract($__slots, EXTR_SKIP); unset($__slots);'."\n";
         $opening .= 'extract($__data, EXTR_SKIP);'."\n";
@@ -144,17 +146,6 @@ class Wrapper
             }
         }
 
-        return join(";\n", $variables) . ";\n";
-    }
-
-    protected function usesThis(array $ast): bool
-    {
-        foreach ((new Walker)->iterate($ast) as $node) {
-            if ($node->usesVariable('$this') || $node->isDirective(['entangle', 'script', 'assets'])) {
-                return true;
-            }
-        }
-
-        return false;
+        return join(";\n", $variables);
     }
 }
