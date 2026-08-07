@@ -47,7 +47,7 @@ class Wrapper
                     $sourceUsesThis = true;
                 }
 
-                if ($node instanceof DirectiveNode && $node->name === 'use') {
+                if ($node instanceof DirectiveNode && $node->name === 'use') { // TODO: we should use ->is('use') for directives to cover for case insensitivty
                     return new PhpBlockNode($this->blade->compileUseStatements($node->expression));
                 }
 
@@ -74,17 +74,11 @@ class Wrapper
             }
         );
 
-        $opening = '';
-
-        $opening .= '<'.'?php' . "\n";
+        $opening = '<'.'?php' . "\n";
         $opening .= $imports;
         $opening .= 'if (!function_exists(\''.$name.'\')):'."\n";
         $opening .= 'function '.$name.'($__blaze, $__data = [], $__slots = [], $__bound = [], $__keys = [], $__this = null) {'."\n";
-
-        if ($sourceUsesThis) {
-            $opening .= '$__blazeFn = function () use ($__blaze, $__data, $__slots, $__bound, $__keys) {'."\n";
-        }
-
+        $opening .= $sourceUsesThis ? '$__blazeFn = function () use ($__blaze, $__data, $__slots, $__bound, $__keys) {'."\n" : '';
         $opening .= $this->globalVariables($ast)."\n";
         $opening .= 'if (($__data[\'attributes\'] ?? null) instanceof \Illuminate\View\ComponentAttributeBag) { $__data = $__data + $__data[\'attributes\']->all(); unset($__data[\'attributes\']); }'."\n";
         $opening .= 'extract($__slots, EXTR_SKIP); unset($__slots);'."\n";
@@ -95,15 +89,8 @@ class Wrapper
         $opening .= '?>' . "\n";
 
         $closing = '<?php' . "\n";
-
-        $contentHandler = $this->manager->isFolding() ? '$__blaze->processPassthroughContent(\'ltrim\', ltrim(ob_get_clean()))' : 'ltrim(ob_get_clean())';
-
-        $closing .= 'echo ' . $contentHandler . ';' . "\n";
-
-        if ($sourceUsesThis) {
-            $closing .= '}; if ($__this !== null) { $__blazeFn->call($__this); } else { $__blazeFn(); }'."\n";
-        }
-
+        $closing .= 'echo ' . ($this->manager->isFolding() ? '$__blaze->processPassthroughContent(\'ltrim\', ltrim(ob_get_clean()))' : 'ltrim(ob_get_clean())') . ';' . "\n";
+        $closing .= $sourceUsesThis ? '}; if ($__this !== null) { $__blazeFn->call($__this); } else { $__blazeFn(); }'."\n" : '';
         $closing .= '} endif; ?>';
 
         return [
