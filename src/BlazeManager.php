@@ -39,7 +39,6 @@ class BlazeManager
 
     public readonly Parser $parser;
     
-    protected Walker $walker;
     protected Compiler $compiler;
     protected Folder $folder;
     protected Memoizer $memoizer;
@@ -56,7 +55,6 @@ class BlazeManager
     ) {
         $this->renderer = new BladeRenderer($bladeCompiler, app('view'), $this->runtime, $this);
         $this->parser = new Parser(new Tokenizer($this->blade), new AttributeParser($this->blade));
-        $this->walker = new Walker;
         $this->compiler = new Compiler($config, $this->blade, $this, $this->components);
         $this->folder = new Folder($config, $this->blade, $this->renderer, $this, $this->components);
         $this->memoizer = new Memoizer($config, $this->compiler, $this->blade, $this, $this->components);
@@ -77,7 +75,7 @@ class BlazeManager
 
         $template = $this->parser->parse($source, $path);
 
-        $ast = $this->walker->walk(
+        $ast = Walker::walk(
             nodes: $template->nodes,
             preCallback: function ($node) use (&$dataStack) {
                 if ($node instanceof ComponentNode && $node->children) {
@@ -137,7 +135,7 @@ class BlazeManager
 
         $currentUnblazeToken = null;
 
-        $ast = $this->walker->walk(
+        $ast = Walker::walk(
             nodes: $template->nodes,
             preCallback: function (Node $node) use (&$currentUnblazeToken) {
                 if ($node instanceof DirectiveNode && $node->name === 'unblaze') {
@@ -191,7 +189,7 @@ class BlazeManager
     {
         $template = $this->parser->parse($source);
 
-        $ast = $this->walker->walk(
+        $ast = Walker::walk(
             nodes: $template->nodes,
             preCallback: fn ($node) => $node,
             postCallback: function ($node) {
@@ -223,7 +221,7 @@ class BlazeManager
     {
         $template = $this->parser->parse($source, $path);
 
-        $ast = $this->walker->walk(
+        $ast = Walker::walk(
             nodes: $template->nodes,
             preCallback: fn ($node) => $node,
             postCallback: function ($node) {

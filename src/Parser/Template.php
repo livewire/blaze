@@ -13,7 +13,7 @@ class Template
         public array $nodes,
     ) {
         $this->directives = new Directives(
-            (new Walker)->filter($nodes, function (Node $node) {
+            Walker::filter($nodes, function (Node $node) {
                 return $node->isDirective(['blaze', 'aware', 'props']);
             })
         );

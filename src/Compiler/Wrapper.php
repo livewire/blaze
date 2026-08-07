@@ -40,7 +40,7 @@ class Wrapper
         $sourceUsesThis = false;
         $imports = '';
 
-        $ast = (new Walker)->walk(
+        $ast = Walker::walk(
             nodes: $ast,
             preCallback: function ($node) use (&$sourceUsesThis) {
                 if (! $sourceUsesThis && $node->usesVariable('$this') || $node->isDirective(['entangle', 'script', 'assets'])) {
@@ -121,7 +121,7 @@ class Wrapper
 
         $hasEchoHandlers = $this->blade->hasEchoHandlers();
 
-        foreach ((new Walker)->iterate($ast) as $node) {
+        foreach (Walker::iterate($ast) as $node) {
             if (! isset($variables['$app']) && $node->usesVariable('$app')) {
                 $variables['$app'] = '$app = $__blaze->app;';
             }

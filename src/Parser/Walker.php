@@ -13,7 +13,7 @@ class Walker
     /**
      * Walk the AST, applying pre-callback before children and post-callback after.
      */
-    public function walk(array $nodes, callable $preCallback, callable $postCallback): array
+    public static function walk(array $nodes, callable $preCallback, callable $postCallback): array
     {
         $result = [];
 
@@ -21,7 +21,7 @@ class Walker
             $node = $preCallback($node) ?? $node;
 
             if (($node instanceof ComponentNode || $node instanceof SlotNode) && !empty($node->children)) {
-                $node->children = $this->walk($node->children, $preCallback, $postCallback);
+                $node->children = self::walk($node->children, $preCallback, $postCallback);
             }
 
             $node = $postCallback($node) ?? $node;
@@ -35,21 +35,21 @@ class Walker
     /**
      * @return \Generator<int, \Livewire\Blaze\Parser\Nodes\Node>
      */
-    public function iterate(array $nodes): \Generator
+    public static function iterate(array $nodes): \Generator
     {
         foreach ($nodes as $node) {
             yield spl_object_id($node) => $node;
 
             if (($node instanceof ComponentNode || $node instanceof SlotNode) && $node->children) {
-                yield from $this->iterate($node->children);
+                yield from self::iterate($node->children);
             }
         }
     }
 
-    public function filter(array $nodes, callable $predicate): array
+    public static function filter(array $nodes, callable $predicate): array
     {
         return iterator_to_array((function () use ($nodes, $predicate) {
-            foreach ($this->iterate($nodes) as $key => $value) {
+            foreach (self::iterate($nodes) as $key => $value) {
                 if ($predicate($value)) {
                     yield $key => $value;
                 }

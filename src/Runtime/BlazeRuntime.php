@@ -16,7 +16,6 @@ use Livewire\Blaze\Parser\Nodes\DirectiveNode;
 use Livewire\Blaze\Parser\Parser;
 use Livewire\Blaze\Support\AttributeParser;
 use Livewire\Blaze\Parser\Tokenizer;
-use Livewire\Blaze\Parser\Walker;
 use Livewire\Blaze\BlazeManager;
 use Livewire\Blaze\Support\ComponentRepository;
 use Livewire\Blaze\Support\ComponentSource;

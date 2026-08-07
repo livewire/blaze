@@ -8,7 +8,6 @@ use Livewire\Blaze\Parser\Nodes\SlotNode;
 use Livewire\Blaze\Parser\Nodes\TextNode;
 use Livewire\Blaze\Parser\Nodes\VerbatimBlockNode;
 use Livewire\Blaze\Support\AttributeParser;
-use Livewire\Blaze\Parser\Walker;
 
 
 test('parses self-closing components', function () {
