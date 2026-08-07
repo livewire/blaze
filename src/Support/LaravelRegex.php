@@ -13,6 +13,8 @@ namespace Livewire\Blaze\Support;
  * @see vendor/laravel/framework/src/Illuminate/View/Compilers/ComponentTagCompiler.php
  * @see vendor/laravel/framework/src/Illuminate/View/Compilers/BladeCompiler.php
  * @see vendor/laravel/framework/src/Illuminate/View/Compilers/Concerns/CompilesComments.php
+ * 
+ * TODO: check if we use all of these
  */
 class LaravelRegex
 {

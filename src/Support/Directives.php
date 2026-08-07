@@ -7,6 +7,8 @@ use Livewire\Blaze\Compiler\ArrayParser;
 
 /**
  * Extracts and queries Blade directives from component source content.
+ * 
+ * TODO: make this less flexible - we only need props, aware and blaze
  */
 class Directives
 {
