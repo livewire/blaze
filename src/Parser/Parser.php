@@ -2,7 +2,6 @@
 
 namespace Livewire\Blaze\Parser;
 
-use Livewire\Blaze\BladeService;
 use Livewire\Blaze\Parser\Nodes\ComponentNode;
 use Livewire\Blaze\Parser\Nodes\DirectiveNode;
 use Livewire\Blaze\Parser\Nodes\PhpBlockNode;

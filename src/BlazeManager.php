@@ -23,6 +23,7 @@ use Livewire\Blaze\Support\AttributeParser;
 use Livewire\Blaze\Support\ComponentRepository;
 use Livewire\Blaze\Parser\Nodes\Node;
 use Livewire\Blaze\Parser\Nodes\TextNode;
+use Illuminate\View\Factory;
 
 class BlazeManager
 {
@@ -49,8 +50,9 @@ class BlazeManager
         protected BladeCompiler $bladeCompiler,
         protected BlazeRuntime $runtime,
         protected BladeService $blade,
+        protected Factory $factory,
     ) {
-        $this->renderer = new BladeRenderer($bladeCompiler, app('view'), $this->runtime, $this);
+        $this->renderer = new BladeRenderer($bladeCompiler, $factory, $this->runtime, $this);
         $this->parser = new Parser(new Tokenizer($this->blade), new AttributeParser($this->blade));
         $this->components = new ComponentRepository($this->blade, $this->parser);
         $this->compiler = new Compiler($config, $this->blade, $this, $this->components);
