@@ -7,9 +7,7 @@ use Illuminate\Support\Str;
 use Illuminate\View\Compilers\BladeCompiler;
 use Illuminate\View\Compilers\ComponentTagCompiler;
 use Illuminate\View\Factory;
-use Livewire\Blaze\Compiler\DirectiveCompiler;
 use Livewire\Blaze\Parser\Attribute;
-use Livewire\Blaze\Support\LaravelRegex;
 use ReflectionClass;
 
 class BladeService

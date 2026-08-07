@@ -2,7 +2,6 @@
 
 namespace Livewire\Blaze;
 
-use Livewire\Blaze\Compiler\DirectiveCompiler;
 use Illuminate\Support\Str;
 
 /**
