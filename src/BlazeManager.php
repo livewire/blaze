@@ -14,12 +14,17 @@ use Livewire\Blaze\Events\ComponentFolded;
 use Livewire\Blaze\Folder\Folder;
 use Livewire\Blaze\Memoizer\Memoizer;
 use Livewire\Blaze\Parser\Nodes\ComponentNode;
+use Livewire\Blaze\Parser\Nodes\DirectiveNode;
 use Livewire\Blaze\Parser\Parser;
 use Livewire\Blaze\Parser\Tokenizer;
 use Livewire\Blaze\Parser\Walker;
 use Livewire\Blaze\Parser\Nodes\SlotNode;
 use Livewire\Blaze\Support\AttributeParser;
 use Livewire\Blaze\Support\ComponentRepository;
+use Livewire\Blaze\Support\DirectiveStack;
+use Livewire\Blaze\Support\DirectiveStructure;
+use Livewire\Blaze\Parser\Nodes\Node;
+use Livewire\Blaze\Parser\Nodes\TextNode;
 
 class BlazeManager
 {
@@ -32,7 +37,8 @@ class BlazeManager
     protected $foldedEvents = [];
     protected $expiredMemo = [];
 
-    protected Parser $parser;
+    public readonly Parser $parser;
+    
     protected Walker $walker;
     protected Compiler $compiler;
     protected Folder $folder;
@@ -122,6 +128,63 @@ class BlazeManager
     }
 
     /**
+     * Compile for folding context - only tag compiler and component compiler.
+     * No folding or memoization to avoid infinite recursion.
+     */
+    public function compileForFolding(string $source, ?string $path = null): string
+    {
+        $template = $this->parser->parse($source, $path);
+
+        $currentUnblazeToken = null;
+
+        $ast = $this->walker->walk(
+            nodes: $template->nodes,
+            preCallback: function (Node $node) use (&$currentUnblazeToken) {
+                if ($node instanceof DirectiveNode && $node->name === 'unblaze') {
+                    $currentUnblazeToken = str()->random(10);
+                    $tag = '[STARTCOMPILEDUNBLAZE:' . $currentUnblazeToken . ']';
+                    $content = '<?php \Livewire\Blaze\Unblaze::storeScope("' . $currentUnblazeToken . '", ' . $node->expression . '); ?>';
+
+                    return new TextNode($tag . $content);
+                }
+
+                if ($node instanceof DirectiveNode && $node->name === 'endunblaze' && $currentUnblazeToken) {
+                    $tag = '[ENDCOMPILEDUNBLAZE:' . $currentUnblazeToken . ']';
+
+                    $currentUnblazeToken = null;
+
+                    return new TextNode($tag);
+                }
+
+                if ($currentUnblazeToken) {
+                    Unblaze::storeReplacement($currentUnblazeToken, $node->render());
+
+                    return new TextNode('');
+                }
+            },
+            postCallback: function ($node) {
+                return $this->compiler->compile($node);
+            },
+        );
+
+        $output = $this->render($ast);
+
+        if (! $path) {
+            return $output;
+        }
+
+        $shouldWrap = $this->config->shouldFold($path)
+            || $this->config->shouldMemoize($path)
+            || $this->config->shouldCompile($path);
+
+        if ($template->directives->blaze() || $shouldWrap) {
+            $output = $this->render($this->wrapper->wrap($ast, $path));
+        }
+
+        return $output;
+    }
+
+    /**
      * Compile a template within an @unblaze block (no folding, no wrapping).
      */
     public function compileForUnblaze(string $source): string
@@ -176,39 +239,6 @@ class BlazeManager
 
         if ($path) {
             $output = $this->instrumenter->profileView($output, $path, $source);
-        }
-
-        return $output;
-    }
-
-    /**
-     * Compile for folding context - only tag compiler and component compiler.
-     * No folding or memoization to avoid infinite recursion.
-     */
-    public function compileForFolding(string $source, ?string $path = null): string
-    {
-        $template = $this->parser->parse($source, $path);
-
-        $ast = $this->walker->walk(
-            nodes: $template->nodes,
-            preCallback: fn ($node) => $node,
-            postCallback: function ($node) {
-                return $this->compiler->compile($node);
-            },
-        );
-
-        $output = $this->render($ast);
-
-        if (! $path) {
-            return $output;
-        }
-
-        $shouldWrap = $this->config->shouldFold($path)
-            || $this->config->shouldMemoize($path)
-            || $this->config->shouldCompile($path);
-
-        if ($template->directives->blaze() || $shouldWrap) {
-            $output = $this->render($this->wrapper->wrap($ast, $path));
         }
 
         return $output;

@@ -69,13 +69,7 @@ class BladeRenderer
             'footer' => [],
             'prepareStringsForCompilationUsing' => [
                 function ($input) {
-                    if (Unblaze::hasUnblaze($input)) {
-                        $input = Unblaze::processUnblazeDirectives($input);
-                    };
-
-                    $input = $this->manager->compileForFolding($input, $this->blade->getPath());
-
-                    return $input;
+                    return $this->manager->compileForFolding($input, $this->blade->getPath());
                 },
             ],
             'path' => null,

@@ -1,10 +1,13 @@
 <?php
 
+use Illuminate\Support\Facades\Artisan;
 use Livewire\Blaze\BladeRenderer;
 use Livewire\Blaze\BladeService;
 use Livewire\Blaze\Folder\Foldable;
 use Livewire\Blaze\Parser\Parser;
 use Livewire\Blaze\Support\ComponentRepository;
+
+beforeEach(fn () => Artisan::call('view:clear'));
 
 test('compiles unblaze blocks', function () {
     $input = '<x-foldable.input-unblaze name="address" />';

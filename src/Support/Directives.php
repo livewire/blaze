@@ -95,7 +95,7 @@ class Directives
             return $this->has('blaze');
         }
 
-        if (array_key_exists($param, $this->blaze)) {
+        if (isset($this->blaze) && array_key_exists($param, $this->blaze)) {
             return $this->blaze[$param];
         }
 
