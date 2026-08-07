@@ -181,7 +181,7 @@ test('parses PHP and verbatim blocks', function () {
                 new TextNode(' '),
                 new VerbatimBlockNode('@verbatim <x-button /> @endverbatim'),
                 new TextNode(' '),
-                new PhpBlockNode('@php echo "footer"; @endphp'),
+                new PhpBlockNode('<?php echo "footer"; ?>'),
                 new TextNode(' '),
             ],
         ),

@@ -3,7 +3,7 @@
 namespace Livewire\Blaze\Parser\Nodes;
 
 /**
- * Represents a native PHP block or Blade @php block in the AST.
+ * Represents a native PHP block in the AST.
  */
 class PhpBlockNode extends Node
 {

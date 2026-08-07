@@ -162,7 +162,7 @@ class Parser
      */
     protected function handlePhpBlock(PhpBlockToken $token, ParseStack $stack): void
     {
-        $node = new PhpBlockNode(content: $token->content);
+        $node = new PhpBlockNode(content: str_replace(['@php', '@endphp'], ['<?php', '?>'], $token->content));
 
         $stack->addToRoot($node);
     }

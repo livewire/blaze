@@ -11,58 +11,56 @@ use PhpParser\Parser;
  */
 class UseExtractor
 {
+    protected Parser $parser;
+
+    public function __construct()
+    {
+        $this->parser = app(Parser::class);
+    }
+
     /**
      * Extract use statements from <?php ?> blocks in the compiled template.
      *
      * Uses php-parser to find the boundary between use statements and code,
      * then splits the original text at that point — no re-printing.
      */
-    public function extract(string $compiled, callable $callback): string
+    public function extract(string $php, callable $callback): string
     {
-        return preg_replace_callback('/<\?php(.*?)\?>|(?<!@)@php(.*?)@endphp/s', function ($match) use ($callback) {
-            $isDirective = $match[0][0] === '@';
-            $inner = $isDirective ? $match[2] : $match[1];
-            $block = '<?php' . $inner;
+        try {
+            $ast = $this->parser->parse($php);
+        } catch (\Throwable) {
+            return $php;
+        }
 
-            try {
-                $ast = app(Parser::class)->parse($block);
-            } catch (\Throwable) {
-                return $match[0];
+        if (! $ast) {
+            return $php;
+        }
+
+        $lastUseEnd = null;
+
+        foreach ($ast as $stmt) {
+            if (! $stmt instanceof Use_ && ! $stmt instanceof GroupUse) {
+                break;
             }
 
-            if (! $ast) {
-                return $match[0];
-            }
+            $start = $stmt->getStartFilePos();
+            $end = $stmt->getEndFilePos();
 
-            $lastUseEnd = null;
+            $callback(substr($php, $start, $end - $start + 1));
 
-            foreach ($ast as $stmt) {
-                if (! $stmt instanceof Use_ && ! $stmt instanceof GroupUse) {
-                    break;
-                }
+            $lastUseEnd = $end;
+        }
 
-                $start = $stmt->getStartFilePos();
-                $end = $stmt->getEndFilePos();
+        if ($lastUseEnd === null) {
+            return $php;
+        }
 
-                $callback(substr($block, $start, $end - $start + 1));
+        $remaining = ltrim(substr($php, $lastUseEnd + 1));
 
-                $lastUseEnd = $end;
-            }
-
-            if ($lastUseEnd === null) {
-                return $match[0];
-            }
-
-            $remaining = ltrim(substr($block, $lastUseEnd + 1));
-
-            if ($remaining === '') {
-                return '';
-            }
-
-            $open = $isDirective ? '@php ' : '<?php ';
-            $close = $isDirective ? '@endphp' : '?>';
-
-            return $open . $remaining . $close;
-        }, $compiled);
+        if (! $remaining) {
+            return '';
+        }
+        
+        return '<?php ' . $remaining . '?>';
     }
 }
