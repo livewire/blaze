@@ -43,7 +43,7 @@ class Wrapper
         $ast = Walker::walk(
             nodes: $ast,
             preCallback: function ($node) use (&$sourceUsesThis) {
-                if (! $sourceUsesThis && $node->usesVariable('$this') || $node->isDirective(['entangle', 'script', 'assets'])) {
+                if (! $sourceUsesThis && ($node->usesVariable('$this') || $node->isDirective(['entangle', 'script', 'assets']))) {
                     $sourceUsesThis = true;
                 }
 
