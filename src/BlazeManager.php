@@ -21,8 +21,6 @@ use Livewire\Blaze\Parser\Walker;
 use Livewire\Blaze\Parser\Nodes\SlotNode;
 use Livewire\Blaze\Support\AttributeParser;
 use Livewire\Blaze\Support\ComponentRepository;
-use Livewire\Blaze\Support\DirectiveStack;
-use Livewire\Blaze\Support\DirectiveStructure;
 use Livewire\Blaze\Parser\Nodes\Node;
 use Livewire\Blaze\Parser\Nodes\TextNode;
 
