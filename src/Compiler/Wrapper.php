@@ -74,7 +74,7 @@ class Wrapper
             }
         );
 
-        $opening = '<'.'?php' . "\n";
+        $opening = '<'.'?php'."\n";
         $opening .= $imports;
         $opening .= 'if (!function_exists(\''.$name.'\')):'."\n";
         $opening .= 'function '.$name.'($__blaze, $__data = [], $__slots = [], $__bound = [], $__keys = [], $__this = null) {'."\n";
@@ -88,8 +88,8 @@ class Wrapper
         $opening .= 'ob_start();' . "\n";
         $opening .= '?>' . "\n";
 
-        $closing = '<?php' . "\n";
-        $closing .= 'echo ' . ($this->manager->isFolding() ? '$__blaze->processPassthroughContent(\'ltrim\', ltrim(ob_get_clean()))' : 'ltrim(ob_get_clean())') . ';' . "\n";
+        $closing = '<?php'."\n";
+        $closing .= 'echo '.($this->manager->isFolding() ? '$__blaze->processPassthroughContent(\'ltrim\', ltrim(ob_get_clean()));' : 'ltrim(ob_get_clean());')."\n";
         $closing .= $sourceUsesThis ? '}; if ($__this !== null) { $__blazeFn->call($__this); } else { $__blazeFn(); }'."\n" : '';
         $closing .= '} endif; ?>';
 
@@ -129,7 +129,7 @@ class Wrapper
                 $variables['$slot'] = '$__slots[\'slot\'] ??= new \Illuminate\View\ComponentSlot(\'\');';
             }
 
-            if ($hasEchoHandlers && ! isset($variables['$__bladeCompiler']) && $node->usesEchoSyntax()) {
+            if (! isset($variables['$__bladeCompiler']) && $hasEchoHandlers && $node->usesEchoSyntax()) {
                 $variables['$__bladeCompiler'] = '$__bladeCompiler = app(\'blade.compiler\');';
             }
         }
