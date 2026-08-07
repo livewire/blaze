@@ -1,10 +1,10 @@
 <?php
 
 use Livewire\Blaze\Parser\Tokenizer;
-use Livewire\Blaze\Parser\Tokens\OpeningTagToken;
+use Livewire\Blaze\Parser\Tokens\TagOpenToken;
 use Livewire\Blaze\Parser\Tokens\TextToken;
 use Livewire\Blaze\Parser\Tokens\DirectiveToken;
-use Livewire\Blaze\Parser\Tokens\ClosingTagToken;
+use Livewire\Blaze\Parser\Tokens\TagCloseToken;
 use Livewire\Blaze\Parser\Tokens\PhpBlockToken;
 
 test('tokenizes php directive blocks', function () {
@@ -23,8 +23,8 @@ test('tokenizes tags', function () {
     $result = app(Tokenizer::class)->tokenize($input);
 
     expect($result)->toEqual([
-        new OpeningTagToken(prefix: 'x-', name: 'button', attributes: ' type="button"', original: '<x-button type="button">', selfClosing: false),
-        new ClosingTagToken(prefix: 'x-', name: 'button', original: '</x-button>'),
+        new TagOpenToken(prefix: 'x-', name: 'button', attributes: ' type="button"', original: '<x-button type="button">', selfClosing: false),
+        new TagCloseToken(prefix: 'x-', name: 'button', original: '</x-button>'),
     ]);
 });
 
@@ -34,7 +34,7 @@ test('tokenizes self-closing tags', function () {
     $result = app(Tokenizer::class)->tokenize($input);
 
     expect($result)->toEqual([
-        new OpeningTagToken(prefix: 'x-', name: 'button', attributes: ' type="button" ', original: '<x-button type="button" />', selfClosing: true),
+        new TagOpenToken(prefix: 'x-', name: 'button', attributes: ' type="button" ', original: '<x-button type="button" />', selfClosing: true),
     ]);
 });
 
@@ -44,8 +44,8 @@ test('tokenizes flux tags', function () {
     $result = app(Tokenizer::class)->tokenize($input);
 
     expect($result)->toEqual([
-        new OpeningTagToken(prefix: 'flux:', name: 'button', attributes: ' type="button"', original: '<flux:button type="button">', selfClosing: false),
-        new ClosingTagToken(prefix: 'flux:', name: 'button', original: '</flux:button>'),
+        new TagOpenToken(prefix: 'flux:', name: 'button', attributes: ' type="button"', original: '<flux:button type="button">', selfClosing: false),
+        new TagCloseToken(prefix: 'flux:', name: 'button', original: '</flux:button>'),
     ]);
 });
 
@@ -54,9 +54,9 @@ test('only matches tags at the current position', function () {
 
     expect(app(Tokenizer::class)->tokenize($input))->toEqual([
         new TextToken('< invalid '),
-        new OpeningTagToken(prefix: 'x-', name: 'button', attributes: '', original: '<x-button>', selfClosing: false),
+        new TagOpenToken(prefix: 'x-', name: 'button', attributes: '', original: '<x-button>', selfClosing: false),
         new TextToken('</ invalid '),
-        new ClosingTagToken(prefix: 'x-', name: 'button', original: '</x-button>'),
+        new TagCloseToken(prefix: 'x-', name: 'button', original: '</x-button>'),
     ]);
 });
 
@@ -86,9 +86,9 @@ test('tokenizes php blocks', function () {
     $result = app(Tokenizer::class)->tokenize($input);
 
     expect($result)->toEqual([
-        new OpeningTagToken(prefix: 'x-', name: 'button', attributes: '', original: '<x-button>', selfClosing: false),
+        new TagOpenToken(prefix: 'x-', name: 'button', attributes: '', original: '<x-button>', selfClosing: false),
         new PhpBlockToken(content: '<?php // <x-button /> ?>'),
-        new ClosingTagToken(prefix: 'x-', name: 'button', original: '</x-button>'),
+        new TagCloseToken(prefix: 'x-', name: 'button', original: '</x-button>'),
     ]);
 });
 
@@ -106,11 +106,11 @@ test('handles Blade php blocks', function () {
     $input = '<x-button> @php $value = "<x-button />"; @endphp </x-button>';
 
     expect(app(Tokenizer::class)->tokenize($input))->toEqual([
-        new OpeningTagToken(prefix: 'x-', name: 'button', attributes: '', original: '<x-button>', selfClosing: false),
+        new TagOpenToken(prefix: 'x-', name: 'button', attributes: '', original: '<x-button>', selfClosing: false),
         new TextToken(' '),
         new PhpBlockToken(content: '@php $value = "<x-button />"; @endphp'),
         new TextToken(' '),
-        new ClosingTagToken(prefix: 'x-', name: 'button', original: '</x-button>'),
+        new TagCloseToken(prefix: 'x-', name: 'button', original: '</x-button>'),
     ]);
 });
 
@@ -120,7 +120,7 @@ test('handles unclosed Blade php blocks', function () {
     expect(app(Tokenizer::class)->tokenize($input))->toEqual([
         new DirectiveToken(name: 'php', original: '@php '), // <-- TODO: weird whitespace
         new TextToken(content: '$value = "'),
-        new OpeningTagToken(
+        new TagOpenToken(
             prefix: 'x-', name: 'button',
             attributes: ' ', // <-- TODO: weird whitespace
             original: '<x-button />',
@@ -278,6 +278,6 @@ test('handles comments', function () {
     $result = app(Tokenizer::class)->tokenize($input);
 
     expect($result)->toEqual([
-        new OpeningTagToken(prefix: 'x-', name: 'button', attributes: ' ', original: '<x-button />', selfClosing: true),
+        new TagOpenToken(prefix: 'x-', name: 'button', attributes: ' ', original: '<x-button />', selfClosing: true),
     ]);
 });

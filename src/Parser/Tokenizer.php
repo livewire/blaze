@@ -4,9 +4,9 @@ namespace Livewire\Blaze\Parser;
 
 use Illuminate\Support\Str;
 use Livewire\Blaze\BladeService;
-use Livewire\Blaze\Parser\Tokens\ClosingTagToken;
+use Livewire\Blaze\Parser\Tokens\TagCloseToken;
 use Livewire\Blaze\Parser\Tokens\DirectiveToken;
-use Livewire\Blaze\Parser\Tokens\OpeningTagToken;
+use Livewire\Blaze\Parser\Tokens\TagOpenToken;
 use Livewire\Blaze\Parser\Tokens\PhpBlockToken;
 use Livewire\Blaze\Parser\Tokens\TextToken;
 use Livewire\Blaze\Parser\Tokens\Token;
@@ -134,7 +134,7 @@ class Tokenizer
 
             $this->advance(strlen($match['original']));
 
-            $this->emitToken(new OpeningTagToken($match['prefix'], $match['name'], $match['attributes'], $match['original'], $match['selfClosing']));
+            $this->emitToken(new TagOpenToken($match['prefix'], $match['name'], $match['attributes'], $match['original'], $match['selfClosing']));
 
             return;
         }
@@ -144,7 +144,7 @@ class Tokenizer
 
             $this->advance(strlen($match['original']));
 
-            $this->emitToken(new ClosingTagToken($match['prefix'], $match['name'], $match['original']));
+            $this->emitToken(new TagCloseToken($match['prefix'], $match['name'], $match['original']));
 
             return;
         }

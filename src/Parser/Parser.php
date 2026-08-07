@@ -8,9 +8,9 @@ use Livewire\Blaze\Parser\Nodes\PhpBlockNode;
 use Livewire\Blaze\Parser\Nodes\SlotNode;
 use Livewire\Blaze\Parser\Nodes\TextNode;
 use Livewire\Blaze\Parser\Nodes\VerbatimBlockNode;
-use Livewire\Blaze\Parser\Tokens\ClosingTagToken;
+use Livewire\Blaze\Parser\Tokens\TagCloseToken;
 use Livewire\Blaze\Parser\Tokens\DirectiveToken;
-use Livewire\Blaze\Parser\Tokens\OpeningTagToken;
+use Livewire\Blaze\Parser\Tokens\TagOpenToken;
 use Livewire\Blaze\Parser\Tokens\PhpBlockToken;
 use Livewire\Blaze\Parser\Tokens\TextToken;
 use Livewire\Blaze\Parser\Tokens\VerbatimBlockToken;
@@ -44,8 +44,8 @@ class Parser
 
         foreach ($tokens as $token) {
             match(get_class($token)) {
-                OpeningTagToken::class => $this->handleOpeningTag($token, $stack),
-                ClosingTagToken::class => $this->handleClosingTag($token, $stack),
+                TagOpenToken::class => $this->handleOpeningTag($token, $stack),
+                TagCloseToken::class => $this->handleClosingTag($token, $stack),
                 DirectiveToken::class => $this->handleDirective($token, $stack),
                 TextToken::class => $this->handleText($token, $stack),
                 PhpBlockToken::class => $this->handlePhpBlock($token, $stack),
@@ -66,7 +66,7 @@ class Parser
     /**
      * Handle an opening component tag token.
      */
-    protected function handleOpeningTag(OpeningTagToken $token, ParseStack $stack): void
+    protected function handleOpeningTag(TagOpenToken $token, ParseStack $stack): void
     {
         if ($token->isSlot()) {
             $this->handleSlotOpen($token, $stack);
@@ -93,7 +93,7 @@ class Parser
     /**
      * Handle a closing component or slot tag token.
      */
-    protected function handleClosingTag(ClosingTagToken $token, ParseStack $stack): void
+    protected function handleClosingTag(TagCloseToken $token, ParseStack $stack): void
     {
         $closed = $stack->popContainer();
 
@@ -105,7 +105,7 @@ class Parser
     /**
      * Handle an opening slot tag token.
      */
-    protected function handleSlotOpen(OpeningTagToken $token, ParseStack $stack): void
+    protected function handleSlotOpen(TagOpenToken $token, ParseStack $stack): void
     {
         $short = str_starts_with($token->name, 'slot:');
 

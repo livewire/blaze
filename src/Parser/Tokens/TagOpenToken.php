@@ -5,7 +5,7 @@ namespace Livewire\Blaze\Parser\Tokens;
 /**
  * Represents an opening or self-closing component tag.
  */
-class OpeningTagToken extends Token
+class TagOpenToken extends Token
 {
     public function __construct(
         public string $prefix,

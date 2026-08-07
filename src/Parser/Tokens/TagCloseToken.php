@@ -5,7 +5,7 @@ namespace Livewire\Blaze\Parser\Tokens;
 /**
  * Represents a closing component tag (</x-button>).
  */
-class ClosingTagToken extends Token
+class TagCloseToken extends Token
 {
     public function __construct(
         public string $prefix,
