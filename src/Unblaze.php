@@ -74,9 +74,6 @@ class Unblaze
             }, $template);
         }
 
-        static::$unblazeScopes = [];
-        static::$unblazeReplacements = [];
-
         return $template;
     }
 
