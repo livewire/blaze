@@ -84,7 +84,7 @@ class Wrapper
             $opening .= '$__blazeFn = function () use ($__blaze, $__data, $__slots, $__bound, $__keys) {'."\n";
         }
 
-        $opening .= $this->globalVariables($ast)."\n";
+        $opening .= $this->globalVariables($ast).";\n";
         $opening .= 'if (($__data[\'attributes\'] ?? null) instanceof \Illuminate\View\ComponentAttributeBag) { $__data = $__data + $__data[\'attributes\']->all(); unset($__data[\'attributes\']); }'."\n";
         $opening .= 'extract($__slots, EXTR_SKIP); unset($__slots);'."\n";
         $opening .= 'extract($__data, EXTR_SKIP);'."\n";

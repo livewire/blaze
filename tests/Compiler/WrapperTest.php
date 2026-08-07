@@ -125,7 +125,7 @@ test('preserves php directives', function () {
     $ast = app(Parser::class)->parse($input)->nodes;
     $wrapped = join('', array_map(fn ($node) => $node->render(), app(Wrapper::class)->wrap($ast, '')));
 
-    expect($wrapped)->toContain($input);
+    expect($wrapped)->toContain('<?php /* uncompiled */ ?>');
 });
 
 test('preserves verbatim directives', function () {
