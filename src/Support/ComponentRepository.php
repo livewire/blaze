@@ -4,19 +4,15 @@ namespace Livewire\Blaze\Support;
 
 use Livewire\Blaze\BladeService;
 use Livewire\Blaze\Parser\Parser;
-use Livewire\Blaze\Parser\Tokenizer;
-use Livewire\Blaze\Support\AttributeParser;
 
 class ComponentRepository
 {
     protected array $components = [];
 
-    protected Parser $parser;
-
     public function __construct(
         protected BladeService $blade,
+        protected Parser $parser,
     ) {
-        $this->parser = new Parser(new Tokenizer($blade), new AttributeParser($blade));
     }
 
     public function get(string $name): ?ComponentSource
