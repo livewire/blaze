@@ -8,6 +8,7 @@ use Livewire\Blaze\Support\Utils;
 use Livewire\Blaze\Parser\Nodes\DirectiveNode;
 use Livewire\Blaze\Parser\Nodes\PhpBlockNode;
 use Livewire\Blaze\Parser\Walker;
+use Livewire\Blaze\Compiler\UseExtractor;
 
 /**
  * Compiles Blaze component templates into PHP function definitions.
@@ -84,7 +85,7 @@ class Wrapper
             $opening .= '$__blazeFn = function () use ($__blaze, $__data, $__slots, $__bound, $__keys) {'."\n";
         }
 
-        $opening .= $this->globalVariables($ast).";\n";
+        $opening .= $this->globalVariables($ast)."\n";
         $opening .= 'if (($__data[\'attributes\'] ?? null) instanceof \Illuminate\View\ComponentAttributeBag) { $__data = $__data + $__data[\'attributes\']->all(); unset($__data[\'attributes\']); }'."\n";
         $opening .= 'extract($__slots, EXTR_SKIP); unset($__slots);'."\n";
         $opening .= 'extract($__data, EXTR_SKIP);'."\n";
@@ -115,37 +116,37 @@ class Wrapper
     protected function globalVariables(array $ast): string
     {
         $variables = [
-            '$__env' => '$__env = $__blaze->env',
+            '$__env' => '$__env = $__blaze->env;',
         ];
 
         $hasEchoHandlers = $this->blade->hasEchoHandlers();
 
         foreach ((new Walker)->iterate($ast) as $node) {
             if (! isset($variables['$app']) && $node->usesVariable('$app')) {
-                $variables['$app'] = '$app = $__blaze->app';
+                $variables['$app'] = '$app = $__blaze->app;';
             }
 
             if (! isset($variables['$errors']) && ($node->usesVariable('$errors') || $node->isDirective('error'))) {
-                $variables['$errors'] = '$errors = $__blaze->errors';
+                $variables['$errors'] = '$errors = $__blaze->errors;';
             }
 
             if (! isset($variables['$__livewire']) && ($node->usesVariable('$__livewire') || $node->isDirective('entangle') || $node->isDirective('this'))) {
-                $variables['$__livewire'] = '$__livewire = $__env->shared(\'__livewire\')';
+                $variables['$__livewire'] = '$__livewire = $__env->shared(\'__livewire\');';
             }
 
             if (! isset($variables['$_instance']) && $node->isDirective('this')) {
-                $variables['$_instance'] = '$_instance = $__livewire';
+                $variables['$_instance'] = '$_instance = $__livewire;';
             }
 
             if (! isset($variables['$slot']) && $node->usesVariable('$slot')) {
-                $variables['$slot'] = '$__slots[\'slot\'] ??= new \Illuminate\View\ComponentSlot(\'\')';
+                $variables['$slot'] = '$__slots[\'slot\'] ??= new \Illuminate\View\ComponentSlot(\'\');';
             }
 
             if ($hasEchoHandlers && ! isset($variables['$__bladeCompiler']) && $node->usesEchoSyntax()) {
-                $variables['$__bladeCompiler'] = '$__bladeCompiler = app(\'blade.compiler\')';
+                $variables['$__bladeCompiler'] = '$__bladeCompiler = app(\'blade.compiler\');';
             }
         }
 
-        return join(";\n", $variables);
+        return join("\n", $variables);
     }
 }
