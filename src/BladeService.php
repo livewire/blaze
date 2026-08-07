@@ -204,6 +204,17 @@ class BladeService
     }
 
     /**
+    * Check if the Blade compiler has any echo handlers registered.
+    */
+    public function hasEchoHandlers(): bool
+    {
+        $reflection = new ReflectionClass($this->compiler);
+        $handlers = $reflection->getProperty('echoHandlers')->getValue($this->compiler);
+
+        return ! empty($handlers);
+    }
+
+    /**
      * Determine if a component resolves to a class rather than a blade view.
      *
      * @see ComponentTagCompiler::componentClass()

@@ -116,7 +116,7 @@ class Wrapper
             '$__env' => '$__env = $__blaze->env',
         ];
 
-        $hasEchoHandlers = $this->hasEchoHandlers();
+        $hasEchoHandlers = $this->blade->hasEchoHandlers();
 
         foreach ((new Walker)->iterate($ast) as $node) {
             if (! isset($variables['$app']) && $node->usesVariable('$app')) {
@@ -145,17 +145,6 @@ class Wrapper
         }
 
         return join(";\n", $variables) . ";\n";
-    }
-
-    /**
-     * Check if the Blade compiler has any echo handlers registered.
-     */
-    protected function hasEchoHandlers(): bool
-    {
-        $compiler = $this->blade->compiler;
-        $reflection = new \ReflectionProperty($compiler, 'echoHandlers');
-
-        return ! empty($reflection->getValue($compiler));
     }
 
     protected function usesThis(array $ast): bool
