@@ -3,15 +3,17 @@
 use Livewire\Blaze\Parser\Parser;
 use Livewire\Blaze\Parser\Nodes\ComponentNode;
 use Livewire\Blaze\Parser\Nodes\DirectiveNode;
+use Livewire\Blaze\Parser\Nodes\PhpBlockNode;
 use Livewire\Blaze\Parser\Nodes\SlotNode;
 use Livewire\Blaze\Parser\Nodes\TextNode;
+use Livewire\Blaze\Parser\Nodes\VerbatimBlockNode;
 use Livewire\Blaze\Support\AttributeParser;
 
 
 test('parses self-closing components', function () {
     $input = '<x-button class="my-4" />';
 
-    expect(app(Parser::class)->parse($input))->toEqual([
+    expect(app(Parser::class)->parse($input)->nodes)->toEqual([
         new ComponentNode(
             name: 'button',
             prefix: 'x-',
@@ -22,10 +24,24 @@ test('parses self-closing components', function () {
     ]);
 });
 
+test('parses flux components', function () {
+    $input = '<flux:button class="my-4" />';
+
+    expect(app(Parser::class)->parse($input)->nodes)->toEqual([
+        new ComponentNode(
+            name: 'flux::button',
+            prefix: 'flux:',
+            selfClosing: true,
+            attributeString: 'class="my-4"',
+            attributes: app(AttributeParser::class)->parse('class="my-4"'),
+        ),
+    ]);
+});
+
 test('parses named slots', function () {
     $input = '<x-card><x-slot name="footer" class="p-2">Footer</x-slot></x-card>';
 
-    expect(app(Parser::class)->parse($input))->toEqual([
+    expect(app(Parser::class)->parse($input)->nodes)->toEqual([
         new ComponentNode(
             name: 'card',
             prefix: 'x-',
@@ -46,7 +62,7 @@ test('parses named slots', function () {
 test('parses named slots with short syntax', function () {
     $input = '<x-card><x-slot:footer class="p-2">Footer</x-slot></x-card>';
 
-    expect(app(Parser::class)->parse($input))->toEqual([
+    expect(app(Parser::class)->parse($input)->nodes)->toEqual([
         new ComponentNode(
             name: 'card',
             prefix: 'x-',
@@ -68,7 +84,7 @@ test('parses named slots with short syntax', function () {
 test('parses named slots with short syntax and name in close tag', function () {
     $input = '<x-card><x-slot:footer class="p-2">Footer</x-slot:footer></x-card>';
 
-    expect(app(Parser::class)->parse($input))->toEqual([
+    expect(app(Parser::class)->parse($input)->nodes)->toEqual([
         new ComponentNode(
             name: 'card',
             prefix: 'x-',
@@ -91,7 +107,7 @@ test('parses named slots with short syntax and name in close tag', function () {
 test('parses explicit default slot', function () {
     $input = '<x-card><x-slot class="p-2">Body</x-slot></x-card>';
 
-    expect(app(Parser::class)->parse($input))->toEqual([
+    expect(app(Parser::class)->parse($input)->nodes)->toEqual([
         new ComponentNode(
             name: 'card',
             prefix: 'x-',
@@ -110,7 +126,7 @@ test('parses explicit default slot', function () {
 });
 
 test('parses component prefixes', function ($input, $prefix, $name) {
-    expect(app(Parser::class)->parse($input))->toEqual([
+    expect(app(Parser::class)->parse($input)->nodes)->toEqual([
         new ComponentNode($name, $prefix),
     ]);
 })->with([
@@ -121,7 +137,7 @@ test('parses component prefixes', function ($input, $prefix, $name) {
 ]);
 
 test('preprocesses attributes using Laravel pipeline', function ($input, $expected) {
-    $result = app(Parser::class)->parse($input);
+    $result = app(Parser::class)->parse($input)->nodes;
 
     expect($result[0]->render())->toBe($expected);
 })->with([
@@ -146,7 +162,27 @@ test('preprocesses attributes using Laravel pipeline', function ($input, $expect
 test('parses directives', function () {
     $input = '@csrf';
 
-    expect(app(Parser::class)->parse($input))->toEqual([
+    expect(app(Parser::class)->parse($input)->nodes)->toEqual([
         new DirectiveNode('csrf', $input),
+    ]);
+});
+
+test('parses PHP and verbatim blocks', function () {
+    $input = '<x-card> <?php echo "body"; ?> @verbatim <x-button /> @endverbatim @php echo "footer"; @endphp </x-card>';
+
+    expect(app(Parser::class)->parse($input)->nodes)->toEqual([
+        new ComponentNode(
+            name: 'card',
+            prefix: 'x-',
+            children: [
+                new TextNode(' '),
+                new PhpBlockNode('<?php echo "body"; ?>'),
+                new TextNode(' '),
+                new VerbatimBlockNode('@verbatim <x-button /> @endverbatim'),
+                new TextNode(' '),
+                new PhpBlockNode('@php echo "footer"; @endphp'),
+                new TextNode(' '),
+            ],
+        ),
     ]);
 });

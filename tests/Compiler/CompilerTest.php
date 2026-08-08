@@ -9,7 +9,7 @@ use Livewire\Blaze\Support\Utils;
 test('compiles self-closing components', function () {
     $input = '<x-input type="text" :disabled="$disabled" />';
 
-    $node = app(Parser::class)->parse($input)[0];
+    $node = app(Parser::class)->parse($input)->nodes[0];
     $compiled = app(Compiler::class)->compile($node);
 
     $path = fixture_path('views/components/input.blade.php');
@@ -37,7 +37,7 @@ test('compiles components', function () {
         BLADE
     ;
 
-    $node = app(Parser::class)->parse($input)[0];
+    $node = app(Parser::class)->parse($input)->nodes[0];
     $compiled = app(Compiler::class)->compile($node);
 
     $path = fixture_path('views/components/card.blade.php');
@@ -66,7 +66,7 @@ test('compiles components', function () {
 test('compiles delegate components', function () {
     $input = '<flux:delegate-component component="card" />';
 
-    $node = app(Parser::class)->parse($input)[0];
+    $node = app(Parser::class)->parse($input)->nodes[0];
     $compiled = app(Compiler::class)->compile($node);
 
     expect($compiled->render())->toEqualCollapsingWhitespace(join('', [
@@ -88,7 +88,7 @@ test('does not compile components with blaze directive override set to false', f
 
     app(Config::class)->add(fixture_path('views/components'));
 
-    $node = app(Parser::class)->parse($input)[0];
+    $node = app(Parser::class)->parse($input)->nodes[0];
     $compiled = app(Compiler::class)->compile($node);
 
     expect($compiled)->toBeInstanceOf(ComponentNode::class);

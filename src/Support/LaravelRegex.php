@@ -13,6 +13,8 @@ namespace Livewire\Blaze\Support;
  * @see vendor/laravel/framework/src/Illuminate/View/Compilers/ComponentTagCompiler.php
  * @see vendor/laravel/framework/src/Illuminate/View/Compilers/BladeCompiler.php
  * @see vendor/laravel/framework/src/Illuminate/View/Compilers/Concerns/CompilesComments.php
+ * 
+ * TODO: check if we use all of these
  */
 class LaravelRegex
 {
@@ -80,4 +82,48 @@ class LaravelRegex
      * @see BladeCompiler::compileStatements() — /\B@(@?\w+(?:::\w+)?)([ \t]*)(\( ( [\S\s]*? ) \))?/x
      */
     const BLADE_STATEMENT = '/^@(@?\w+(?:::\w+)?)([ \t]*)(\( ( [\S\s]*? ) \))?/x';
+
+    /**
+     * Pattern for matching component tag attributes.
+     *
+     * @see ComponentTagCompiler::compileOpeningTags()     — (?<attributes>...)
+     * @see ComponentTagCompiler::compileSelfClosingTags() — (?<attributes>...)
+     */
+    const ATTRIBUTES = "(?<attributes>
+        (?:
+            \s+
+            (?:
+                (?:
+                    @(?:class)(\( (?: (?>[^()]+) | (?-1) )* \))
+                )
+                |
+                (?:
+                    @(?:style)(\( (?: (?>[^()]+) | (?-1) )* \))
+                )
+                |
+                (?:
+                    \{\{\s*\\\$attributes(?:[^}]+?)?\s*\}\}
+                )
+                |
+                (?:
+                    (\:\\\$)(\w+)
+                )
+                |
+                (?:
+                    [\w\-:.@%]+
+                    (
+                        =
+                        (?:
+                            \\\"[^\\\"]*\\\"
+                            |
+                            \'[^\']*\'
+                            |
+                            [^\'\\\"=<>]+
+                        )
+                    )?
+                )
+            )
+        )*
+        \s*
+    )";
 }

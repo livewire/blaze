@@ -4,9 +4,11 @@ namespace Livewire\Blaze\Compiler;
 
 use Livewire\Blaze\BladeService;
 use Livewire\Blaze\BlazeManager;
-use Livewire\Blaze\Compiler\DirectiveCompiler;
 use Livewire\Blaze\Support\Utils;
-use Illuminate\Support\Arr;
+use Livewire\Blaze\Parser\Nodes\DirectiveNode;
+use Livewire\Blaze\Parser\Nodes\PhpBlockNode;
+use Livewire\Blaze\Parser\Walker;
+use Livewire\Blaze\Compiler\UseExtractor;
 
 /**
  * Compiles Blaze component templates into PHP function definitions.
@@ -29,120 +31,109 @@ class Wrapper
     /**
      * Compile a component template into a function definition.
      *
-     * @param  string  $compiled  The compiled template (after TagCompiler processing)
+     * @param  array<\Livewire\Blaze\Parser\Nodes\Node>  $ast  The template AST
      * @param  string  $path  The component file path
-     * @param  string|null  $source  The original source template (for detecting $slot usage)
      */
-    public function wrap(string $compiled, string $path, ?string $source = null): string
+    public function wrap(array $ast, string $path): array
     {
-        $source ??= $compiled;
         $name = ($this->manager->isFolding() ? '__' : '_') . Utils::hash($path);
-
-        $sourceUsesThis = str_contains($source, '$this') || str_contains($compiled, '@entangle') || str_contains($compiled, '@script') || str_contains($compiled, '@assets');
-
-        $compiled = $this->blade->compileUseStatements($compiled);
-        $compiled = $this->blade->restoreRawBlocks($compiled);
-        $compiled = $this->blade->storeVerbatimBlocks($compiled);
-
+        $sourceUsesThis = false;
         $imports = '';
-        
-        $compiled = $this->useExtractor->extract($compiled, function ($statement) use (&$imports) {
-            $imports .= $statement . "\n";
-        });
 
-        $compiled = $this->blade->preStoreUncompiledBlocks($compiled);
+        $ast = Walker::walk(
+            nodes: $ast,
+            preCallback: function ($node) use (&$sourceUsesThis) {
+                if (! $sourceUsesThis && ($node->usesVariable('$this') || $node->isDirective(['entangle', 'script', 'assets']))) {
+                    $sourceUsesThis = true;
+                }
 
-        $output = '';
+                if ($node instanceof DirectiveNode && $node->name === 'use') { // TODO: we should use ->is('use') for directives to cover for case insensitivty
+                    return new PhpBlockNode($this->blade->compileUseStatements($node->expression));
+                }
 
-        $output .= '<'.'?php' . "\n";
-        $output .= $imports;
-        $output .= 'if (!function_exists(\''.$name.'\')):'."\n";
-        $output .= 'function '.$name.'($__blaze, $__data = [], $__slots = [], $__bound = [], $__keys = [], $__this = null) {'."\n";
+                return $node;
+            },
+            postCallback: function ($node) use (&$imports) {
+                if ($node instanceof PhpBlockNode) {
+                    return new PhpBlockNode(
+                        $this->useExtractor->extract($node->content, function ($statement) use (&$imports) {
+                            $imports .= $statement . "\n";
+                        })
+                    );
+                }
 
-        if ($sourceUsesThis) {
-            $output .= '$__blazeFn = function () use ($__blaze, $__data, $__slots, $__bound, $__keys) {'."\n";
-        }
+                if ($node instanceof DirectiveNode && $node->name === 'props') {
+                    return new PhpBlockNode($this->propsCompiler->compile($node->expression));
+                }
 
-        $output .= $this->globalVariables($source, $compiled);
-        $output .= 'if (($__data[\'attributes\'] ?? null) instanceof \Illuminate\View\ComponentAttributeBag) { $__data = $__data + $__data[\'attributes\']->all(); unset($__data[\'attributes\']); }'."\n";
-        $output .= 'extract($__slots, EXTR_SKIP); unset($__slots);'."\n";
-        $output .= 'extract($__data, EXTR_SKIP);'."\n";
-        $output .= '$attributes = \\Livewire\\Blaze\\Runtime\\BlazeAttributeBag::make($__data, $__bound, $__keys);'."\n";
-        $output .= 'unset($__data, $__bound, $__keys);'."\n";
-        $output .= 'ob_start();' . "\n";
-        $output .= '?>' . "\n";
+                if ($node instanceof DirectiveNode && $node->name === 'aware') {
+                    return new PhpBlockNode($this->awareCompiler->compile($node->expression));
+                }
 
-        $compiled = DirectiveCompiler::make()
-            ->directive('props', $this->propsCompiler->compile(...))
-            ->directive('aware', $this->awareCompiler->compile(...))
-            ->compile($compiled);
+                return $node;
+            }
+        );
 
-        $compiled = $this->blade->restoreRawBlocks($compiled);
+        $opening = '<'.'?php'."\n";
+        $opening .= $imports;
+        $opening .= 'if (!function_exists(\''.$name.'\')):'."\n";
+        $opening .= 'function '.$name.'($__blaze, $__data = [], $__slots = [], $__bound = [], $__keys = [], $__this = null) {'."\n";
+        $opening .= $sourceUsesThis ? '$__blazeFn = function () use ($__blaze, $__data, $__slots, $__bound, $__keys) {'."\n" : '';
+        $opening .= $this->globalVariables($ast)."\n";
+        $opening .= 'if (($__data[\'attributes\'] ?? null) instanceof \Illuminate\View\ComponentAttributeBag) { $__data = $__data + $__data[\'attributes\']->all(); unset($__data[\'attributes\']); }'."\n";
+        $opening .= 'extract($__slots, EXTR_SKIP); unset($__slots);'."\n";
+        $opening .= 'extract($__data, EXTR_SKIP);'."\n";
+        $opening .= '$attributes = \\Livewire\\Blaze\\Runtime\\BlazeAttributeBag::make($__data, $__bound, $__keys);'."\n";
+        $opening .= 'unset($__data, $__bound, $__keys);'."\n";
+        $opening .= 'ob_start();' . "\n";
+        $opening .= '?>' . "\n";
 
-        $output .= $compiled;
+        $closing = '<?php'."\n";
+        $closing .= 'echo '.($this->manager->isFolding() ? '$__blaze->processPassthroughContent(\'ltrim\', ltrim(ob_get_clean()));' : 'ltrim(ob_get_clean());')."\n";
+        $closing .= $sourceUsesThis ? '}; if ($__this !== null) { $__blazeFn->call($__this); } else { $__blazeFn(); }'."\n" : '';
+        $closing .= '} endif; ?>';
 
-        $output .= '<?php' . "\n";
-
-        $contentHandler = $this->manager->isFolding() ? '$__blaze->processPassthroughContent(\'ltrim\', ltrim(ob_get_clean()))' : 'ltrim(ob_get_clean())';
-
-        $output .= 'echo ' . $contentHandler . ';' . "\n";
-
-        if ($sourceUsesThis) {
-            $output .= '}; if ($__this !== null) { $__blazeFn->call($__this); } else { $__blazeFn(); }'."\n";
-        }
-
-        $output .= '} endif; ?>';
-
-        return $output;
+        return [
+            new PhpBlockNode($opening),
+            ...$ast,
+            new PhpBlockNode($closing),
+        ];
     }
     
-    protected function globalVariables(string $source, string $compiled): string
+    protected function globalVariables(array $ast): string
     {
-        $output = '';
+        $variables = [
+            '$__env' => '$__env = $__blaze->env;',
+        ];
 
-        $output .= '$__env = $__blaze->env;' . "\n";
+        $hasEchoHandlers = $this->blade->hasEchoHandlers();
 
-        if ($this->hasEchoHandlers() && ($this->hasEchoSyntax($source) || $this->hasEchoSyntax($compiled))) {
-            $output .= '$__bladeCompiler = app(\'blade.compiler\');' . "\n";
-        }
-
-        $output .= implode("\n", array_filter(Arr::map([
-            [['$app'], '$app = $__blaze->app;'],
-            [['$errors', '@error'], '$errors = $__blaze->errors;'],
-            [['$__livewire', '@entangle', '@this'], '$__livewire = $__env->shared(\'__livewire\');'],
-            [['@this'], '$_instance = $__livewire;'],
-            [['$slot'], '$__slots[\'slot\'] ??= new \Illuminate\View\ComponentSlot(\'\');'],
-        ], function ($data) use ($source, $compiled) {
-            [$patterns, $variable] = $data;
-
-            foreach ($patterns as $pattern) {
-                if (str_contains($source, $pattern) || str_contains($compiled, $pattern)) {
-                    return $variable;
-                }
+        foreach (Walker::iterate($ast) as $node) {
+            if (! isset($variables['$app']) && $node->usesVariable('$app')) {
+                $variables['$app'] = '$app = $__blaze->app;';
             }
 
-            return null;
-        }))) . "\n";
+            if (! isset($variables['$errors']) && ($node->usesVariable('$errors') || $node->isDirective('error'))) {
+                $variables['$errors'] = '$errors = $__blaze->errors;';
+            }
 
-        return $output;
-    }
+            if (! isset($variables['$__livewire']) && ($node->usesVariable('$__livewire') || $node->isDirective('entangle') || $node->isDirective('this'))) {
+                $variables['$__livewire'] = '$__livewire = $__env->shared(\'__livewire\');';
+            }
 
-    /**
-     * Check if the Blade compiler has any echo handlers registered.
-     */
-    protected function hasEchoHandlers(): bool
-    {
-        $compiler = $this->blade->compiler;
-        $reflection = new \ReflectionProperty($compiler, 'echoHandlers');
+            if (! isset($variables['$_instance']) && $node->isDirective('this')) {
+                $variables['$_instance'] = '$_instance = $__livewire;';
+            }
 
-        return ! empty($reflection->getValue($compiler));
-    }
+            if (! isset($variables['$slot']) && $node->usesVariable('$slot')) {
+                $variables['$slot'] = '$__slots[\'slot\'] ??= new \Illuminate\View\ComponentSlot(\'\');';
+            }
 
-    /**
-     * Check if the source contains Blade echo syntax.
-     */
-    protected function hasEchoSyntax(string $source): bool
-    {
-        return preg_match('/\{\{.+?\}\}|\{!!.+?!!\}/s', $source) === 1;
+            if (! isset($variables['$__bladeCompiler']) && $hasEchoHandlers && $node->usesEchoSyntax()) {
+                $variables['$__bladeCompiler'] = '$__bladeCompiler = app(\'blade.compiler\');';
+            }
+        }
+
+        return join("\n", $variables);
     }
 }

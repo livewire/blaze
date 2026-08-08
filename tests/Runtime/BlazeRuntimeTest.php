@@ -1,6 +1,19 @@
 <?php
 
 use Livewire\Blaze\Runtime\BlazeRuntime;
+use Livewire\Blaze\Support\ComponentRepository;
+
+it('resolve returns hash and requires blaze function', function () {
+    $source = app(ComponentRepository::class)->get('input');
+
+    expect(app(BlazeRuntime::class)->resolve('input'))->toBe($source->hash);
+
+    expect(function_exists('_' . $source->hash))->toBeTrue();
+});
+
+it('resolve returns false when component doesnt exist', function () {
+    expect(app(BlazeRuntime::class)->resolve('nonexistent'))->toBeFalse();
+});
 
 it('processPassthroughContent', function ($input, $results) {
     $input = str_replace('[UNBLAZE]', '[STARTCOMPILEDUNBLAZE:XXX][ENDCOMPILEDUNBLAZE:XXX]', $input);

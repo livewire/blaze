@@ -11,6 +11,13 @@ use PhpParser\Parser;
  */
 class UseExtractor
 {
+    protected Parser $parser;
+
+    public function __construct()
+    {
+        $this->parser = app(Parser::class);
+    }
+
     /**
      * Extract use statements from <?php ?> blocks in the compiled template.
      *
@@ -25,7 +32,7 @@ class UseExtractor
             $block = '<?php' . $inner;
 
             try {
-                $ast = app(Parser::class)->parse($block);
+                $ast = $this->parser->parse($block);
             } catch (\Throwable) {
                 return $match[0];
             }

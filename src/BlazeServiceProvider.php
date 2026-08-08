@@ -12,6 +12,7 @@ use Illuminate\Support\Facades\Blade;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\View;
 use Livewire\Blaze\Memoizer\Memo;
+use Livewire\Blaze\Support\ComponentRepository;
 
 class BlazeServiceProvider extends ServiceProvider
 {

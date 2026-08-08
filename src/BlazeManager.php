@@ -5,23 +5,25 @@ namespace Livewire\Blaze;
 use Illuminate\Support\Facades\Event;
 use Illuminate\View\Compilers\BladeCompiler;
 use Illuminate\View\Engines\CompilerEngine;
+use Illuminate\View\View;
 use Livewire\Blaze\Compiler\Wrapper;
 use Livewire\Blaze\Compiler\Compiler;
 use Livewire\Blaze\Compiler\Profiler;
-use Livewire\Blaze\Memoizer\Memo;
 use Livewire\Blaze\Runtime\BlazeRuntime;
-use Livewire\Blaze\Directive\BlazeDirective;
 use Livewire\Blaze\Events\ComponentFolded;
 use Livewire\Blaze\Folder\Folder;
 use Livewire\Blaze\Memoizer\Memoizer;
 use Livewire\Blaze\Parser\Nodes\ComponentNode;
+use Livewire\Blaze\Parser\Nodes\DirectiveNode;
 use Livewire\Blaze\Parser\Parser;
 use Livewire\Blaze\Parser\Tokenizer;
 use Livewire\Blaze\Parser\Walker;
-use Livewire\Blaze\Support\Directives;
-use Livewire\Blaze\Support\ComponentSource;
 use Livewire\Blaze\Parser\Nodes\SlotNode;
 use Livewire\Blaze\Support\AttributeParser;
+use Livewire\Blaze\Support\ComponentRepository;
+use Livewire\Blaze\Parser\Nodes\Node;
+use Livewire\Blaze\Parser\Nodes\TextNode;
+use Illuminate\View\Factory;
 
 class BlazeManager
 {
@@ -35,28 +37,29 @@ class BlazeManager
     protected $expiredMemo = [];
 
     protected Parser $parser;
-    protected Walker $walker;
     protected Compiler $compiler;
     protected Folder $folder;
     protected Memoizer $memoizer;
     protected Wrapper $wrapper;
     protected Profiler $instrumenter;
     protected BladeRenderer $renderer;
+    protected ComponentRepository $components;
 
     public function __construct(
         protected Config $config,
         protected BladeCompiler $bladeCompiler,
         protected BlazeRuntime $runtime,
         protected BladeService $blade,
+        protected Factory $factory,
     ) {
-        $this->renderer = new BladeRenderer($bladeCompiler, app('view'), $this->runtime, $this);
+        $this->renderer = new BladeRenderer($bladeCompiler, $factory, $this->runtime, $this);
         $this->parser = new Parser(new Tokenizer($this->blade), new AttributeParser($this->blade));
-        $this->walker = new Walker;
-        $this->compiler = new Compiler($config, $this->blade, $this);
-        $this->folder = new Folder($config, $this->blade, $this->renderer, $this);
-        $this->memoizer = new Memoizer($config, $this->compiler, $this->blade, $this);
+        $this->components = new ComponentRepository($this->blade, $this->parser);
+        $this->compiler = new Compiler($config, $this->blade, $this, $this->components);
+        $this->folder = new Folder($config, $this->blade, $this->renderer, $this, $this->components);
+        $this->memoizer = new Memoizer($config, $this->compiler, $this->blade, $this, $this->components);
         $this->wrapper = new Wrapper($this->blade, $this);
-        $this->instrumenter = new Profiler($config, $this->blade);
+        $this->instrumenter = new Profiler($config, $this->blade, $this, $this->components);
 
         Event::listen(ComponentFolded::class, function (ComponentFolded $event) {
             $this->foldedEvents[] = $event;
@@ -66,18 +69,14 @@ class BlazeManager
     /**
      * Compile a Blade template through the full Blaze pipeline.
      */
-    public function compile(string $template, ?string $path = null): string
+    public function compile(string $source, ?string $path = null): string
     {
-        $source = $template;
-
-        $clean = $template;
-        $clean = $this->blade->preStoreUncompiledBlocks($clean);
-        $clean = $this->blade->compileComments($clean);
-
         $dataStack = [];
 
-        $ast = $this->walker->walk(
-            nodes: $this->parser->parse($clean),
+        $template = $this->parser->parse($source, $path);
+
+        $ast = Walker::walk(
+            nodes: $template->nodes,
             preCallback: function ($node) use (&$dataStack) {
                 if ($node instanceof ComponentNode && $node->children) {
                     $dataStack[] = $node->attributes;
@@ -117,15 +116,68 @@ class BlazeManager
 
         $output = $this->render($ast);
 
-        $directives = new Directives($source);
-
-        if ($path && ($directives->blaze() || $this->config->shouldCompile($path))) {
-            $output = $this->wrapper->wrap($output, $path, $source);
+        if ($path && ($template->directives->blaze() || $this->config->shouldCompile($path))) {
+            $output = $this->render($this->wrapper->wrap($ast, $path));
         } elseif ($this->isDebugging() && ! $this->isFolding() && $path) {
             $output = $this->instrumenter->profileView($output, $path, $source);
         }
 
-        $output = $this->blade->restoreRawBlocks($output);
+        return $output;
+    }
+
+    /**
+     * Compile for folding context - only tag compiler and component compiler.
+     * No folding or memoization to avoid infinite recursion.
+     */
+    public function compileForFolding(string $source, ?string $path = null): string
+    {
+        $template = $this->parser->parse($source, $path);
+
+        $currentUnblazeToken = null;
+
+        $ast = Walker::walk(
+            nodes: $template->nodes,
+            preCallback: function (Node $node) use (&$currentUnblazeToken) {
+                if ($node instanceof DirectiveNode && $node->name === 'unblaze') {
+                    $currentUnblazeToken = str()->random(10);
+                    $tag = '[STARTCOMPILEDUNBLAZE:' . $currentUnblazeToken . ']';
+                    $content = '<?php \Livewire\Blaze\Unblaze::storeScope("' . $currentUnblazeToken . '", ' . $node->expression . '); ?>';
+
+                    return new TextNode($tag . $content);
+                }
+
+                if ($node instanceof DirectiveNode && $node->name === 'endunblaze' && $currentUnblazeToken) {
+                    $tag = '[ENDCOMPILEDUNBLAZE:' . $currentUnblazeToken . ']';
+
+                    $currentUnblazeToken = null;
+
+                    return new TextNode($tag);
+                }
+
+                if ($currentUnblazeToken) {
+                    Unblaze::storeReplacement($currentUnblazeToken, $node->render());
+
+                    return new TextNode('');
+                }
+            },
+            postCallback: function ($node) {
+                return $this->compiler->compile($node);
+            },
+        );
+
+        $output = $this->render($ast);
+
+        if (! $path) {
+            return $output;
+        }
+
+        $shouldWrap = $this->config->shouldFold($path)
+            || $this->config->shouldMemoize($path)
+            || $this->config->shouldCompile($path);
+
+        if ($template->directives->blaze() || $shouldWrap) {
+            $output = $this->render($this->wrapper->wrap($ast, $path));
+        }
 
         return $output;
     }
@@ -133,13 +185,12 @@ class BlazeManager
     /**
      * Compile a template within an @unblaze block (no folding, no wrapping).
      */
-    public function compileForUnblaze(string $template): string
+    public function compileForUnblaze(string $source): string
     {
-        $template = $this->blade->preStoreUncompiledBlocks($template);
-        $template = $this->blade->compileComments($template);
+        $template = $this->parser->parse($source);
 
-        $ast = $this->walker->walk(
-            nodes: $this->parser->parse($template),
+        $ast = Walker::walk(
+            nodes: $template->nodes,
             preCallback: fn ($node) => $node,
             postCallback: function ($node) {
                 $wasComponent = $node instanceof ComponentNode;
@@ -156,13 +207,7 @@ class BlazeManager
             },
         );
 
-        $output = $this->render($ast);
-
-        // We should not restore raw blocks here. Doing so would preemptively
-        // flush all raw blocks stored in the original template and they
-        // wouldn't be restored in the parent compile() method.
-
-        return $output;
+        return $this->render($ast);
     }
 
     /**
@@ -172,16 +217,12 @@ class BlazeManager
      * calls, but does NOT fold, memoize, or compile — Blade handles that.
      * Also injects view-level timers for non-wrapped views.
      */
-    public function compileForDebug(string $template, ?string $path = null): string
+    public function compileForDebug(string $source, ?string $path = null): string
     {
-        $source = $template;
+        $template = $this->parser->parse($source, $path);
 
-        $clean = $template;
-        $clean = $this->blade->preStoreUncompiledBlocks($clean);
-        $clean = $this->blade->compileComments($clean);
-
-        $ast = $this->walker->walk(
-            nodes: $this->parser->parse($clean),
+        $ast = Walker::walk(
+            nodes: $template->nodes,
             preCallback: fn ($node) => $node,
             postCallback: function ($node) {
                 if (! ($node instanceof ComponentNode)) {
@@ -196,47 +237,6 @@ class BlazeManager
 
         if ($path) {
             $output = $this->instrumenter->profileView($output, $path, $source);
-        }
-
-        $output = $this->blade->restoreRawBlocks($output);
-
-        return $output;
-    }
-
-    /**
-     * Compile for folding context - only tag compiler and component compiler.
-     * No folding or memoization to avoid infinite recursion.
-     */
-    public function compileForFolding(string $template, ?string $path = null): string
-    {
-        $source = $template;
-
-        $template = $this->blade->preStoreUncompiledBlocks($template);
-        $template = $this->blade->compileComments($template);
-
-        $ast = $this->walker->walk(
-            nodes: $this->parser->parse($template),
-            preCallback: fn ($node) => $node,
-            postCallback: function ($node) {
-                return $this->compiler->compile($node);
-            },
-        );
-
-        $output = $this->render($ast);
-
-        $output = $this->blade->restoreRawBlocks($output);
-
-        if (! $path) {
-            return $output;
-        }
-
-        $directives = new Directives($source);
-        $shouldWrap = $this->config->shouldFold($path)
-            || $this->config->shouldMemoize($path)
-            || $this->config->shouldCompile($path);
-
-        if ($directives->blaze() || $shouldWrap) {
-            $output = $this->wrapper->wrap($output, $path, $source);
         }
 
         return $output;
@@ -257,11 +257,11 @@ class BlazeManager
     /**
      * Run a compilation callback and prepend front matter from any folded components.
      */
-    public function collectAndAppendFrontMatter($template, $callback)
+    public function collectAndAppendFrontMatter(string $source, callable $callback)
     {
         $this->flushFoldedEvents();
 
-        $output = $callback($template);
+        $output = $callback($source);
 
         $frontmatter = (new FrontMatter)->compileFromEvents(
             $this->flushFoldedEvents()
@@ -273,7 +273,7 @@ class BlazeManager
     /**
      * Check if a view's compiled output contains stale folded component references.
      */
-    public function viewContainsExpiredFrontMatter($view): bool
+    public function viewContainsExpiredFrontMatter(View $view): bool
     {
         $engine = $view->getEngine();
         $path = $view->getPath();
@@ -404,13 +404,13 @@ class BlazeManager
     {
         foreach ($node->children as $child) {
             if ($child instanceof ComponentNode) {
-                $source = ComponentSource::for($this->blade->componentNameToPath($child->name));
+                $component = $this->components->get($child->name);
 
                 if (str_ends_with($child->name, 'delegate-component')) {
                     return true;
                 }
 
-                if ($source->directives->has('aware')) {
+                if ($component->template->directives->has('aware')) {
                     return true;
                 }
 

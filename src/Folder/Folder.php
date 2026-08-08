@@ -18,6 +18,7 @@ use Livewire\Blaze\Config;
 use Livewire\Blaze\Parser\Nodes\DirectiveNode;
 use Livewire\Blaze\Support\DirectiveStack;
 use Throwable;
+use Livewire\Blaze\Support\ComponentRepository;
 
 /**
  * Determines whether a component should be folded and orchestrates the folding process.
@@ -29,6 +30,7 @@ class Folder
         protected BladeService $blade,
         protected BladeRenderer $renderer,
         protected BlazeManager $manager,
+        protected ComponentRepository $components,
     ) {
     }
 
@@ -41,33 +43,31 @@ class Folder
             return $node;
         }
 
-        $component = $node;
+        $component = $this->components->get($node->name);
 
-        $source = ComponentSource::for($this->blade->componentNameToPath($component->name));
-
-        if (! $source->exists()) {
-            return $component;
+        if (! $component) {
+            return $node;
         }
 
-        if (! $this->shouldFold($source)) {
-            return $component;
+        if (! $this->shouldFold($component)) {
+            return $node;
         }
 
-        if (! $this->isSafeToFold($source, $component)) {
-            return $component;
+        if (! $this->isSafeToFold($component, $node)) {
+            return $node;
         }
 
-        $this->checkProblematicPatterns($source);
+        $this->checkProblematicPatterns($component);
 
         try {
-            $foldable = new Foldable($node, $source, $this->renderer, $this->blade);
+            $foldable = new Foldable($node, $component, $this->renderer, $this->blade);
 
             $html = $foldable->fold();
 
             Event::dispatch(new ComponentFolded(
-                name: $component->name,
-                path: $source->path,
-                filemtime: filemtime($source->path),
+                name: $node->name,
+                path: $component->path,
+                filemtime: filemtime($component->path),
             ));
 
             return new TextNode('<?php ob_start(); ?>' . $html . '<?php echo ltrim(ob_get_clean()); ?>');
@@ -85,7 +85,7 @@ class Folder
      */
     protected function shouldFold(ComponentSource $source): bool
     {
-        $shouldFold = $source->directives->blaze('fold');
+        $shouldFold = $source->template->directives->blaze('fold');
 
         if ($this->config && is_null($shouldFold)) {
             return $this->config->shouldFold($source->path);
@@ -105,7 +105,7 @@ class Folder
 
         $dynamicAttributes = array_filter($node->attributes, fn ($attribute) => ! $attribute->isStaticValue());
 
-        foreach ($source->directives->aware() as $prop) {
+        foreach ($source->template->directives->aware() as $prop) {
             if (! isset($node->attributes[$prop])
                 && isset($node->parentsAttributes[$prop])
                 && ! $node->parentsAttributes[$prop]->isStaticValue()
@@ -126,11 +126,11 @@ class Folder
             }
         }
 
-        $props = $source->directives->props();
-        $aware = $source->directives->aware();
+        $props = $source->template->directives->props();
+        $aware = $source->template->directives->aware();
 
-        $safe = Arr::wrap($source->directives->blaze('safe'));
-        $unsafe = Arr::wrap($source->directives->blaze('unsafe'));
+        $safe = Arr::wrap($source->template->directives->blaze('safe'));
+        $unsafe = Arr::wrap($source->template->directives->blaze('unsafe'));
 
         if (in_array('*', $safe)) {
             return true;
@@ -216,8 +216,11 @@ class Folder
      */
     protected function checkProblematicPatterns(ComponentSource $source): void
     {
+        // TODO: Refactor to AST
+        $content = file_get_contents($source->path);
+
         // @unblaze blocks can contain dynamic content and are excluded from validation
-        $sourceWithoutUnblaze = preg_replace('/@unblaze.*?@endunblaze/s', '', $source->content());
+        $sourceWithoutUnblaze = preg_replace('/@unblaze.*?@endunblaze/s', '', $content);
 
         $problematicPatterns = [
             '@once' => 'forOnce',
