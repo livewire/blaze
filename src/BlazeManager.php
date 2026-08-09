@@ -410,7 +410,6 @@ class BlazeManager
                     return true;
                 }
 
-                // TODO: Not having this condition threw for class-based component like <x-turnstile>, that should be tested somehow
                 if (! $component) {
                     return false;
                 }
