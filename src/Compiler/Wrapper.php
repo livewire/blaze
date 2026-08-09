@@ -47,7 +47,7 @@ class Wrapper
                     $sourceUsesThis = true;
                 }
 
-                if ($node instanceof DirectiveNode && $node->name === 'use') { // TODO: we should use ->is('use') for directives to cover for case insensitivty
+                if ($node instanceof DirectiveNode && $node->is('use')) {
                     return new PhpBlockNode($this->blade->compileUseStatements($node->expression));
                 }
 
@@ -62,11 +62,11 @@ class Wrapper
                     );
                 }
 
-                if ($node instanceof DirectiveNode && $node->name === 'props') {
+                if ($node instanceof DirectiveNode && $node->is('props')) {
                     return new PhpBlockNode($this->propsCompiler->compile($node->expression));
                 }
 
-                if ($node instanceof DirectiveNode && $node->name === 'aware') {
+                if ($node instanceof DirectiveNode && $node->is('aware')) {
                     return new PhpBlockNode($this->awareCompiler->compile($node->expression));
                 }
 

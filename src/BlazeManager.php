@@ -138,7 +138,7 @@ class BlazeManager
         $ast = Walker::walk(
             nodes: $template->nodes,
             preCallback: function (Node $node) use (&$currentUnblazeToken) {
-                if ($node instanceof DirectiveNode && $node->name === 'unblaze') {
+                if ($node instanceof DirectiveNode && $node->is('unblaze')) {
                     $currentUnblazeToken = str()->random(10);
                     $tag = '[STARTCOMPILEDUNBLAZE:' . $currentUnblazeToken . ']';
                     $content = '<?php \Livewire\Blaze\Unblaze::storeScope("' . $currentUnblazeToken . '", ' . $node->expression . '); ?>';
@@ -146,7 +146,7 @@ class BlazeManager
                     return new TextNode($tag . $content);
                 }
 
-                if ($node instanceof DirectiveNode && $node->name === 'endunblaze' && $currentUnblazeToken) {
+                if ($node instanceof DirectiveNode && $node->is('endunblaze') && $currentUnblazeToken) {
                     $tag = '[ENDCOMPILEDUNBLAZE:' . $currentUnblazeToken . ']';
 
                     $currentUnblazeToken = null;
