@@ -6,6 +6,7 @@ use Illuminate\Support\Str;
 use Livewire\Blaze\BladeService;
 use Livewire\Blaze\Parser\Tokens\TagCloseToken;
 use Livewire\Blaze\Parser\Tokens\DirectiveToken;
+use Livewire\Blaze\Parser\Tokens\EchoToken;
 use Livewire\Blaze\Parser\Tokens\TagOpenToken;
 use Livewire\Blaze\Parser\Tokens\PhpBlockToken;
 use Livewire\Blaze\Parser\Tokens\TextToken;
@@ -115,6 +116,20 @@ class Tokenizer
             return;
         }
 
+        if ($this->current() === '{' && $match = $this->matchEcho()) {
+            if ($this->position > 0 && $this->content[$this->position - 1] === '@') {
+                $this->advance(strlen($match['original']));
+
+                return;
+            }
+
+            $this->flushBuffer();
+            $this->advance(strlen($match['original']));
+            $this->emitToken(new EchoToken($match['expression'], $match['original']));
+
+            return;
+        }
+
         if ($this->current() === '@' && $match = $this->matchDirective()) {
             $this->flushBuffer();
 
@@ -149,7 +164,28 @@ class Tokenizer
             return;
         }
 
-        $this->advanceUntilNext('<@');
+        $this->advanceUntilNext('<@{');
+    }
+
+    /**
+     * Match an executable Blade echo at the current position.
+     */
+    protected function matchEcho(): ?array
+    {
+        $remaining = $this->remaining();
+
+        foreach (['/^{!!\s*(.+?)\s*!!}/s', '/^{{{\s*(.+?)\s*}}}/s', '/^{{\s*(.+?)\s*}}/s'] as $pattern) {
+            if (! preg_match($pattern, $remaining, $matches)) {
+                continue;
+            }
+
+            return [
+                'expression' => $matches[1],
+                'original' => $matches[0],
+            ];
+        }
+
+        return null;
     }
 
     /**

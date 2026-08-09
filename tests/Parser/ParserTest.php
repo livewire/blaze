@@ -3,6 +3,7 @@
 use Livewire\Blaze\Parser\Parser;
 use Livewire\Blaze\Parser\Nodes\ComponentNode;
 use Livewire\Blaze\Parser\Nodes\DirectiveNode;
+use Livewire\Blaze\Parser\Nodes\EchoNode;
 use Livewire\Blaze\Parser\Nodes\PhpBlockNode;
 use Livewire\Blaze\Parser\Nodes\SlotNode;
 use Livewire\Blaze\Parser\Nodes\TextNode;
@@ -184,5 +185,15 @@ test('parses PHP and verbatim blocks', function () {
                 new TextNode(' '),
             ],
         ),
+    ]);
+});
+
+test('parses echo expressions as nodes', function () {
+    $input = 'Price: {{ $price }} and $plainText';
+
+    expect(app(Parser::class)->parse($input)->nodes)->toEqual([
+        new TextNode('Price: '),
+        new EchoNode('$price', '{{ $price }}'),
+        new TextNode(' and $plainText'),
     ]);
 });

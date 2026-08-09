@@ -6,6 +6,7 @@ use Livewire\Blaze\BladeService;
 use Livewire\Blaze\BlazeManager;
 use Livewire\Blaze\Support\Utils;
 use Livewire\Blaze\Parser\Nodes\DirectiveNode;
+use Livewire\Blaze\Parser\Nodes\EchoNode;
 use Livewire\Blaze\Parser\Nodes\PhpBlockNode;
 use Livewire\Blaze\Parser\Walker;
 use Livewire\Blaze\Compiler\UseExtractor;
@@ -129,7 +130,7 @@ class Wrapper
                 $variables['$slot'] = '$__slots[\'slot\'] ??= new \Illuminate\View\ComponentSlot(\'\');';
             }
 
-            if (! isset($variables['$__bladeCompiler']) && $hasEchoHandlers && $node->usesEchoSyntax()) {
+            if (! isset($variables['$__bladeCompiler']) && $hasEchoHandlers && $node instanceof EchoNode) {
                 $variables['$__bladeCompiler'] = '$__bladeCompiler = app(\'blade.compiler\');';
             }
         }

@@ -14,11 +14,14 @@ abstract class Node
 
     public function containsPhp(string $php): bool
     {
-        // TODO: for TextNode we should check variables inside {{  }}
-        if ($this instanceof PhpBlockNode || $this instanceof TextNode) {
+        if ($this instanceof PhpBlockNode) {
             if (str_contains($this->content, $php)) {
                 return true;
             }
+        }
+
+        if ($this instanceof EchoNode) {
+            return str_contains($this->expression, $php);
         }
 
         if ($this instanceof ComponentNode || $this instanceof SlotNode) {
@@ -29,23 +32,6 @@ abstract class Node
 
         if ($this instanceof DirectiveNode) {
             if (str_contains($this->expression, $php)) {
-                return true;
-            }
-        }
-
-        return false;
-    }
-
-    public function usesEchoSyntax(): bool
-    {
-        if ($this instanceof TextNode) {
-            if (preg_match('/\{\{.+?\}\}|\{!!.+?!!\}/s', $this->content) === 1) {
-                return true;
-            }
-        }
-
-        if ($this instanceof ComponentNode || $this instanceof SlotNode) {
-            if (preg_match('/\{\{.+?\}\}|\{!!.+?!!\}/s', $this->attributeString) === 1) {
                 return true;
             }
         }

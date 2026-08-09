@@ -4,6 +4,7 @@ use Livewire\Blaze\Parser\Tokenizer;
 use Livewire\Blaze\Parser\Tokens\TagOpenToken;
 use Livewire\Blaze\Parser\Tokens\TextToken;
 use Livewire\Blaze\Parser\Tokens\DirectiveToken;
+use Livewire\Blaze\Parser\Tokens\EchoToken;
 use Livewire\Blaze\Parser\Tokens\TagCloseToken;
 use Livewire\Blaze\Parser\Tokens\PhpBlockToken;
 
@@ -279,5 +280,30 @@ test('handles comments', function () {
 
     expect($result)->toEqual([
         new TagOpenToken(prefix: 'x-', name: 'button', attributes: ' ', original: '<x-button />', selfClosing: true),
+    ]);
+});
+
+test('tokenizes Blade echo expressions', function () {
+    $input = 'Hello {{ $name }} {!! $html !!} {{{ $legacy }}}';
+
+    $result = app(Tokenizer::class)->tokenize($input);
+
+    expect($result)->toEqual([
+        new TextToken('Hello '),
+        new EchoToken('$name', '{{ $name }}'),
+        new TextToken(' '),
+        new EchoToken('$html', '{!! $html !!}'),
+        new TextToken(' '),
+        new EchoToken('$legacy', '{{{ $legacy }}}'),
+    ]);
+});
+
+test('preserves escaped Blade echo expressions as text', function () {
+    $input = '@{{ $name }} @{!! $html !!} @{{{ $legacy }}}';
+
+    $result = app(Tokenizer::class)->tokenize($input);
+
+    expect($result)->toEqual([
+        new TextToken($input),
     ]);
 });

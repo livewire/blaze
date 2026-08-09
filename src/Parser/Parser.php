@@ -4,12 +4,14 @@ namespace Livewire\Blaze\Parser;
 
 use Livewire\Blaze\Parser\Nodes\ComponentNode;
 use Livewire\Blaze\Parser\Nodes\DirectiveNode;
+use Livewire\Blaze\Parser\Nodes\EchoNode;
 use Livewire\Blaze\Parser\Nodes\PhpBlockNode;
 use Livewire\Blaze\Parser\Nodes\SlotNode;
 use Livewire\Blaze\Parser\Nodes\TextNode;
 use Livewire\Blaze\Parser\Nodes\VerbatimBlockNode;
 use Livewire\Blaze\Parser\Tokens\TagCloseToken;
 use Livewire\Blaze\Parser\Tokens\DirectiveToken;
+use Livewire\Blaze\Parser\Tokens\EchoToken;
 use Livewire\Blaze\Parser\Tokens\TagOpenToken;
 use Livewire\Blaze\Parser\Tokens\PhpBlockToken;
 use Livewire\Blaze\Parser\Tokens\TextToken;
@@ -47,6 +49,7 @@ class Parser
                 TagOpenToken::class => $this->handleOpeningTag($token, $stack),
                 TagCloseToken::class => $this->handleClosingTag($token, $stack),
                 DirectiveToken::class => $this->handleDirective($token, $stack),
+                EchoToken::class => $this->handleEcho($token, $stack),
                 TextToken::class => $this->handleText($token, $stack),
                 PhpBlockToken::class => $this->handlePhpBlock($token, $stack),
                 VerbatimBlockToken::class => $this->handleVerbatimBlock($token, $stack),
@@ -144,6 +147,14 @@ class Parser
         );
 
         $stack->addToRoot($node);
+    }
+
+    protected function handleEcho(EchoToken $token, ParseStack $stack): void
+    {
+        $stack->addToRoot(new EchoNode(
+            expression: $token->expression,
+            original: $token->original,
+        ));
     }
 
     /**
