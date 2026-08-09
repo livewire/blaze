@@ -10,6 +10,7 @@ use Illuminate\View\Factory;
 use Livewire\Blaze\Parser\Attribute;
 use ReflectionClass;
 
+// TODO: we should cache the reflection
 class BladeService
 {
     protected ComponentTagCompiler $tagCompiler;
