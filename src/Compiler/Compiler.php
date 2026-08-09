@@ -4,9 +4,9 @@ namespace Livewire\Blaze\Compiler;
 
 use Livewire\Blaze\BladeService;
 use Livewire\Blaze\BlazeManager;
+use Livewire\Blaze\Parser\Nodes\CompiledBlockNode;
 use Livewire\Blaze\Parser\Nodes\ComponentNode;
 use Livewire\Blaze\Parser\Nodes\SlotNode;
-use Livewire\Blaze\Parser\Nodes\TextNode;
 use Livewire\Blaze\Parser\Nodes\Node;
 use Livewire\Blaze\Config;
 use Livewire\Blaze\Support\ComponentRepository;
@@ -39,7 +39,7 @@ class Compiler
         }
 
         if ($node->name === 'flux::delegate-component') {
-            return new TextNode($this->compileDelegateComponentTag($node));
+            return new CompiledBlockNode($this->compileDelegateComponentTag($node));
         }
 
         $component = $this->components->get($node->name);
@@ -56,7 +56,7 @@ class Compiler
             return $node;
         }
 
-        return new TextNode($this->compileComponentTag($node, $component));
+        return new CompiledBlockNode($this->compileComponentTag($node, $component));
     }
 
     /**

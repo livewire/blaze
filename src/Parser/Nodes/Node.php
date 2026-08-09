@@ -14,7 +14,7 @@ abstract class Node
 
     public function containsPhp(string $php): bool
     {
-        if ($this instanceof PhpBlockNode) {
+        if ($this instanceof PhpBlockNode || $this instanceof CompiledBlockNode) {
             if (str_contains($this->content, $php)) {
                 return true;
             }

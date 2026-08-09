@@ -5,10 +5,10 @@ namespace Livewire\Blaze\Folder;
 use Illuminate\Support\Facades\Event;
 use Livewire\Blaze\Events\ComponentFolded;
 use Livewire\Blaze\Exceptions\InvalidBlazeFoldUsageException;
+use Livewire\Blaze\Parser\Nodes\CompiledBlockNode;
 use Livewire\Blaze\Parser\Nodes\ComponentNode;
 use Livewire\Blaze\Parser\Nodes\Node;
 use Livewire\Blaze\Parser\Nodes\SlotNode;
-use Livewire\Blaze\Parser\Nodes\TextNode;
 use Livewire\Blaze\Support\ComponentSource;
 use Livewire\Blaze\BladeRenderer;
 use Livewire\Blaze\BladeService;
@@ -71,7 +71,7 @@ class Folder
                 filemtime: filemtime($component->path),
             ));
 
-            return new TextNode('<?php ob_start(); ?>' . $html . '<?php echo ltrim(ob_get_clean()); ?>');
+            return new CompiledBlockNode('<?php ob_start(); ?>' . $html . '<?php echo ltrim(ob_get_clean()); ?>');
         } catch (Throwable $th) {
             if ($this->manager->shouldThrow()) {
                 throw $th;

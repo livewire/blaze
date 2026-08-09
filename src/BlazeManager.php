@@ -13,6 +13,7 @@ use Livewire\Blaze\Runtime\BlazeRuntime;
 use Livewire\Blaze\Events\ComponentFolded;
 use Livewire\Blaze\Folder\Folder;
 use Livewire\Blaze\Memoizer\Memoizer;
+use Livewire\Blaze\Parser\Nodes\CompiledBlockNode;
 use Livewire\Blaze\Parser\Nodes\ComponentNode;
 use Livewire\Blaze\Parser\Nodes\DirectiveNode;
 use Livewire\Blaze\Parser\Parser;
@@ -143,7 +144,7 @@ class BlazeManager
                     $tag = '[STARTCOMPILEDUNBLAZE:' . $currentUnblazeToken . ']';
                     $content = '<?php \Livewire\Blaze\Unblaze::storeScope("' . $currentUnblazeToken . '", ' . $node->expression . '); ?>';
 
-                    return new TextNode($tag . $content);
+                    return new CompiledBlockNode($tag . $content);
                 }
 
                 if ($node instanceof DirectiveNode && $node->is('endunblaze') && $currentUnblazeToken) {

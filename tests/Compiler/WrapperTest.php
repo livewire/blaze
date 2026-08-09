@@ -17,7 +17,6 @@ test('wraps component templates into function definitions', function () {
     expect($wrapped)->toEqualCollapsingWhitespace(join('', [
         '<?php if (!function_exists(\'_'. $hash .'\')): function _'. $hash .'($__blaze, $__data = [], $__slots = [], $__bound = [], $__keys = [], $__this = null) { ',
         '$__env = $__blaze->env; ',
-        '$__slots[\'slot\'] ??= new \Illuminate\View\ComponentSlot(\'\'); ',
         'if (($__data[\'attributes\'] ?? null) instanceof \Illuminate\View\ComponentAttributeBag) { $__data = $__data + $__data[\'attributes\']->all(); unset($__data[\'attributes\']); } ',
         'extract($__slots, EXTR_SKIP); unset($__slots); ',
         'extract($__data, EXTR_SKIP); ',
@@ -45,7 +44,6 @@ test('compiles aware props', function () {
     expect($wrapped)->toEqualCollapsingWhitespace(join('', [
         '<?php if (!function_exists(\'_'. $hash .'\')): function _'. $hash .'($__blaze, $__data = [], $__slots = [], $__bound = [], $__keys = [], $__this = null) { ',
         '$__env = $__blaze->env; ',
-        '$__slots[\'slot\'] ??= new \Illuminate\View\ComponentSlot(\'\'); ',
         'if (($__data[\'attributes\'] ?? null) instanceof \Illuminate\View\ComponentAttributeBag) { $__data = $__data + $__data[\'attributes\']->all(); unset($__data[\'attributes\']); } ',
         'extract($__slots, EXTR_SKIP); unset($__slots); ',
         'extract($__data, EXTR_SKIP); ',

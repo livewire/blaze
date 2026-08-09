@@ -3,7 +3,7 @@
 use Livewire\Blaze\Config;
 use Livewire\Blaze\Parser\Parser;
 use Livewire\Blaze\Folder\Folder;
-use Livewire\Blaze\Parser\Nodes\TextNode;
+use Livewire\Blaze\Parser\Nodes\CompiledBlockNode;
 use Livewire\Blaze\Parser\Nodes\ComponentNode;
 use Livewire\Blaze\Exceptions\InvalidBlazeFoldUsageException;
 use Livewire\Blaze\Support\AttributeParser;
@@ -14,7 +14,7 @@ test('folds components with static attributes', function () {
     $node = app(Parser::class)->parse($input)->nodes[0];
     $folded = app(Folder::class)->fold($node);
 
-    expect($folded)->toBeInstanceOf(TextNode::class);
+    expect($folded)->toBeInstanceOf(CompiledBlockNode::class);
 });
 
 test('does not fold components with dynamic prop attributes', function () {
@@ -32,7 +32,7 @@ test('folds components with dynamic non-prop attributes', function () {
     $node = app(Parser::class)->parse($input)->nodes[0];
     $folded = app(Folder::class)->fold($node);
 
-    expect($folded)->toBeInstanceOf(TextNode::class);
+    expect($folded)->toBeInstanceOf(CompiledBlockNode::class);
 });
 
 test('folds components with dynamic prop attributes with boolean values', function ($value) {
@@ -41,7 +41,7 @@ test('folds components with dynamic prop attributes with boolean values', functi
     $node = app(Parser::class)->parse($input)->nodes[0];
     $folded = app(Folder::class)->fold($node);
 
-    expect($folded)->toBeInstanceOf(TextNode::class);
+    expect($folded)->toBeInstanceOf(CompiledBlockNode::class);
 })->with(['true', 'false']);
 
 test('folds components with dynamic prop attributes with null value', function () {
@@ -50,7 +50,7 @@ test('folds components with dynamic prop attributes with null value', function (
     $node = app(Parser::class)->parse($input)->nodes[0];
     $folded = app(Folder::class)->fold($node);
 
-    expect($folded)->toBeInstanceOf(TextNode::class);
+    expect($folded)->toBeInstanceOf(CompiledBlockNode::class);
 });
 
 test('fold components with dynamic prop attributes marked as safe', function () {
@@ -59,7 +59,7 @@ test('fold components with dynamic prop attributes marked as safe', function () 
     $node = app(Parser::class)->parse($input)->nodes[0];
     $folded = app(Folder::class)->fold($node);
 
-    expect($folded)->toBeInstanceOf(TextNode::class);
+    expect($folded)->toBeInstanceOf(CompiledBlockNode::class);
 });
 
 test('does not fold components with dynamic non-prop attributes marked as unsafe', function () {
@@ -86,7 +86,7 @@ test('folds components with slots', function () {
     $node = app(Parser::class)->parse($input)->nodes[0];
     $folded = app(Folder::class)->fold($node);
 
-    expect($folded)->toBeInstanceOf(TextNode::class);
+    expect($folded)->toBeInstanceOf(CompiledBlockNode::class);
 });
 
 test('does not fold components with slots marked as unsafe', function () {
@@ -113,7 +113,7 @@ test('folds components with dynamic prop attributes with safe wildcard', functio
     $node = app(Parser::class)->parse($input)->nodes[0];
     $folded = app(Folder::class)->fold($node);
 
-    expect($folded)->toBeInstanceOf(TextNode::class);
+    expect($folded)->toBeInstanceOf(CompiledBlockNode::class);
 });
 
 test('does not fold components with dynamic non-prop attributes with unsafe wildcard', function () {
@@ -131,7 +131,7 @@ test('folds components without static attributes with unsafe wildcard', function
     $node = app(Parser::class)->parse($input)->nodes[0];
     $folded = app(Folder::class)->fold($node);
 
-    expect($folded)->toBeInstanceOf(TextNode::class);
+    expect($folded)->toBeInstanceOf(CompiledBlockNode::class);
 });
 
 test('does not fold components with slots with unsafe wildcard', function () {
@@ -167,7 +167,7 @@ test('folds components with named only slots with unsafe slot keyword', function
     $node = app(Parser::class)->parse($input)->nodes[0];
     $folded = app(Folder::class)->fold($node);
 
-    expect($folded)->toBeInstanceOf(TextNode::class);
+    expect($folded)->toBeInstanceOf(CompiledBlockNode::class);
 });
 
 test('folds components with named only slots and whitespace with unsafe slot keyword', function () {
@@ -178,7 +178,7 @@ test('folds components with named only slots and whitespace with unsafe slot key
     $node = app(Parser::class)->parse($input)->nodes[0];
     $folded = app(Folder::class)->fold($node);
 
-    expect($folded)->toBeInstanceOf(TextNode::class);
+    expect($folded)->toBeInstanceOf(CompiledBlockNode::class);
 });
 
 test('does not fold components with dynamic non-prop attributes with unsafe attributes keyword', function () {
@@ -196,7 +196,7 @@ test('folds components with static non-prop attributes with unsafe attributes ke
     $node = app(Parser::class)->parse($input)->nodes[0];
     $folded = app(Folder::class)->fold($node);
 
-    expect($folded)->toBeInstanceOf(TextNode::class);
+    expect($folded)->toBeInstanceOf(CompiledBlockNode::class);
 });
 
 test('does not fold components with dynamic aware prop from parent', function () {
@@ -222,7 +222,7 @@ test('folds components with aware prop overridden by direct attribute', function
 
     $folded = app(Folder::class)->fold($node);
 
-    expect($folded)->toBeInstanceOf(TextNode::class);
+    expect($folded)->toBeInstanceOf(CompiledBlockNode::class);
 });
 
 test('folds components with static aware prop from parent', function () {
@@ -235,7 +235,7 @@ test('folds components with static aware prop from parent', function () {
 
     $folded = app(Folder::class)->fold($node);
 
-    expect($folded)->toBeInstanceOf(TextNode::class);
+    expect($folded)->toBeInstanceOf(CompiledBlockNode::class);
 });
 
 test('does not fold components with no blaze directive', function () {
@@ -266,7 +266,7 @@ test('folds components with no blaze directive if enabled in config', function (
     $node = app(Parser::class)->parse($input)->nodes[0];
     $folded = app(Folder::class)->fold($node);
 
-    expect($folded)->toBeInstanceOf(TextNode::class);
+    expect($folded)->toBeInstanceOf(CompiledBlockNode::class);
 });
 
 test('folds components with blaze directive even if disabled in config', function () {
@@ -277,7 +277,7 @@ test('folds components with blaze directive even if disabled in config', functio
     $node = app(Parser::class)->parse($input)->nodes[0];
     $folded = app(Folder::class)->fold($node);
 
-    expect($folded)->toBeInstanceOf(TextNode::class);
+    expect($folded)->toBeInstanceOf(CompiledBlockNode::class);
 });
 
 test('throws exception for components with problematic patterns', function (string $component) {
@@ -304,7 +304,7 @@ test('folds components with nonclosing directives', function () {
     $node = app(Parser::class)->parse($input)->nodes[0];
     $result = app(Folder::class)->fold($node);
 
-    expect($result)->toBeInstanceOf(TextNode::class);
+    expect($result)->toBeInstanceOf(CompiledBlockNode::class);
 });
 
 test('folds components with closing directives outside slot', function () {
@@ -313,7 +313,7 @@ test('folds components with closing directives outside slot', function () {
     $node = app(Parser::class)->parse($input)->nodes[0];
     $result = app(Folder::class)->fold($node);
 
-    expect($result)->toBeInstanceOf(TextNode::class);
+    expect($result)->toBeInstanceOf(CompiledBlockNode::class);
 });
 
 test('folds components with non-closing directive before slot followed by closing directive', function () {
@@ -322,5 +322,5 @@ test('folds components with non-closing directive before slot followed by closin
     $node = app(Parser::class)->parse($input)->nodes[0];
     $result = app(Folder::class)->fold($node);
 
-    expect($result)->toBeInstanceOf(TextNode::class);
+    expect($result)->toBeInstanceOf(CompiledBlockNode::class);
 });

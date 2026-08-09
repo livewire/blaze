@@ -5,9 +5,9 @@ namespace Livewire\Blaze\Compiler;
 use Livewire\Blaze\BladeService;
 use Livewire\Blaze\BlazeManager;
 use Livewire\Blaze\Config;
+use Livewire\Blaze\Parser\Nodes\CompiledBlockNode;
 use Livewire\Blaze\Parser\Nodes\ComponentNode;
 use Livewire\Blaze\Parser\Nodes\Node;
-use Livewire\Blaze\Parser\Nodes\TextNode;
 use Livewire\Blaze\Support\ComponentRepository;
 
 /**
@@ -51,7 +51,7 @@ class Profiler
             .$output
             .'<'.'?php $__blaze->debugger->stopTimer(\''.$escapedName.'\'); ?>';
 
-        return new TextNode($wrapped);
+        return new CompiledBlockNode($wrapped);
     }
 
     /**

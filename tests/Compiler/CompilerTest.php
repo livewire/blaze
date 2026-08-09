@@ -3,6 +3,7 @@
 use Livewire\Blaze\Parser\Parser;
 use Livewire\Blaze\Compiler\Compiler;
 use Livewire\Blaze\Config;
+use Livewire\Blaze\Parser\Nodes\CompiledBlockNode;
 use Livewire\Blaze\Parser\Nodes\ComponentNode;
 use Livewire\Blaze\Support\Utils;
 
@@ -11,6 +12,8 @@ test('compiles self-closing components', function () {
 
     $node = app(Parser::class)->parse($input)->nodes[0];
     $compiled = app(Compiler::class)->compile($node);
+
+    expect($compiled)->toBeInstanceOf(CompiledBlockNode::class);
 
     $path = fixture_path('views/components/input.blade.php');
     $hash = Utils::hash($path);
@@ -40,6 +43,8 @@ test('compiles components', function () {
     $node = app(Parser::class)->parse($input)->nodes[0];
     $compiled = app(Compiler::class)->compile($node);
 
+    expect($compiled)->toBeInstanceOf(CompiledBlockNode::class);
+
     $path = fixture_path('views/components/card.blade.php');
     $hash = Utils::hash($path);
 
@@ -68,6 +73,8 @@ test('compiles delegate components', function () {
 
     $node = app(Parser::class)->parse($input)->nodes[0];
     $compiled = app(Compiler::class)->compile($node);
+
+    expect($compiled)->toBeInstanceOf(CompiledBlockNode::class);
 
     expect($compiled->render())->toEqualCollapsingWhitespace(join('', [
         '<?php $__resolved = $__blaze->resolve(\'flux::\' . card); ?> ',

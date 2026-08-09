@@ -4,8 +4,8 @@ namespace Livewire\Blaze\Memoizer;
 
 use Livewire\Blaze\BladeService;
 use Livewire\Blaze\BlazeManager;
+use Livewire\Blaze\Parser\Nodes\CompiledBlockNode;
 use Livewire\Blaze\Parser\Nodes\ComponentNode;
-use Livewire\Blaze\Parser\Nodes\TextNode;
 use Livewire\Blaze\Parser\Nodes\Node;
 use Livewire\Blaze\Config;
 use Livewire\Blaze\Compiler\Compiler;
@@ -66,7 +66,7 @@ class Memoizer
         $output .= '<' . '?php echo $blaze_memoized_html; ?>';
         $output .= '<' . '?php endif; ?>';
 
-        return new TextNode($output);
+        return new CompiledBlockNode($output);
     }
 
     /**
