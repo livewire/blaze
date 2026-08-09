@@ -1,5 +1,6 @@
 <?php
 
+use Illuminate\Support\Arr;
 use Livewire\Blaze\Support\AttributeParser;
 
 test('getStaticValue returns constatnts for dynamic constant values', function () {
@@ -28,3 +29,15 @@ test('getStaticValue throws for dynamic attributes', function () {
 
     $attribute->getStaticValue();
 })->throws(LogicException::class);
+
+test('renders attributes', function ($source, $expected) {
+    $attribute = Arr::first(app(AttributeParser::class)->parse($source));
+
+    expect($attribute->render())->toBe($expected);
+})->with([
+    'static' => ['foo="bar"', 'foo="bar"'],
+    'bound' => [':foo="$bar"', ':foo="$bar"'],
+    'short bound' => [':$foo', ':foo="$foo"'],
+    'valueless' => ['disabled', 'disabled'],
+    'single quotes' => ["foo='bar'", "foo='bar'"],
+]);

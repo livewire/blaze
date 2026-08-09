@@ -107,6 +107,24 @@ test('does not fold components with dynamic slot attributes', function () {
     expect($folded)->toBeInstanceOf(ComponentNode::class);
 });
 
+test('does not fold components with dynamic slot names', function () {
+    $input = '<x-foldable.card><x-slot :name="$name">Content</x-slot></x-foldable.card>';
+
+    $node = app(Parser::class)->parse($input)->nodes[0];
+    $folded = app(Folder::class)->fold($node);
+
+    expect($folded)->toBeInstanceOf(ComponentNode::class);
+});
+
+test('does not fold components with slot names containing Blade echoes', function () {
+    $input = '<x-foldable.card><x-slot name="{{ $name }}">Content</x-slot></x-foldable.card>';
+
+    $node = app(Parser::class)->parse($input)->nodes[0];
+    $folded = app(Folder::class)->fold($node);
+
+    expect($folded)->toBeInstanceOf(ComponentNode::class);
+});
+
 test('folds components with dynamic prop attributes with safe wildcard', function () {
     $input = '<x-foldable.input-safe :type="$type" :disabled="$disabled" />';
     

@@ -60,6 +60,19 @@ test('parses named slots', function () {
     ]);
 });
 
+test('parses slot name attributes separately', function () {
+    $input = '<x-card><x-slot :name="$name" class="p-2">Footer</x-slot></x-card>';
+
+    $slot = app(Parser::class)->parse($input)->nodes[0]->children[0];
+
+    expect($slot)
+        ->name->toBe('$name')
+        ->attributeString->toBe('class="p-2"')
+        ->nameAttribute->dynamic->toBeTrue()
+        ->nameAttribute->prefix->toBe(':')
+        ->attributes->not->toHaveKey('name');
+});
+
 test('parses named slots with short syntax', function () {
     $input = '<x-card><x-slot:footer class="p-2">Footer</x-slot></x-card>';
 

@@ -114,13 +114,14 @@ class Parser
 
         $attributeString = $token->attributes;
         $attributes = $this->attributes->parse($token->attributes);
+        $nameAttribute = null;
 
         $name = $short ? substr($token->name, strlen('slot:')) : ($attributes['name'] ?? 'slot');
 
         if (! $short && isset($attributes['name'])) {
-            // TODO: We should be able to handle dynamic slot names...
+            $nameAttribute = $attributes['name']->dynamic ? $attributes['name'] : null;
             $name = $attributes['name']->value;
-            $attributeString = preg_replace('/(?:^|\s+)name\s*=\s*(["\']).*?\1/', '', $token->attributes, 1);
+            $attributeString = preg_replace('/(?:^|\s+):?name\s*=\s*(?:"[^"]*"|\'[^\']*\'|[^\s>]+)/', '', $token->attributes, 1);
 
             unset($attributes['name']);
         }
@@ -133,6 +134,7 @@ class Parser
             prefix: $token->prefix . 'slot',
             closeHasName: false,
             attributes: $attributes,
+            nameAttribute: $nameAttribute,
         );
 
         $stack->pushContainer($node);

@@ -18,7 +18,13 @@ class SlotNode extends Node
         public bool $closeHasName = false,
         /** @var Attribute[] */
         public array $attributes = [],
+        public ?Attribute $nameAttribute = null,
     ) {
+    }
+
+    public function hasDynamicName(): bool
+    {
+        return $this->nameAttribute?->dynamic === true;
     }
 
     /** {@inheritdoc} */
@@ -47,7 +53,9 @@ class SlotNode extends Node
 
         $output = "<{$this->prefix}";
 
-        if (! empty($this->name)) {
+        if ($this->nameAttribute) {
+            $output .= ' ' . $this->nameAttribute->render();
+        } elseif (! empty($this->name)) {
             $output .= ' name="' . $this->name . '"';
         }
 

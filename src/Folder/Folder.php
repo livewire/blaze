@@ -121,7 +121,7 @@ class Folder
 
         foreach ($node->children as $child) {
             if ($child instanceof SlotNode) {
-                if ($this->slotHasDynamicAttributes($child)) {
+                if ($child->hasDynamicName() || $this->slotHasDynamicAttributes($child)) {
                     return false;
                 }
             }

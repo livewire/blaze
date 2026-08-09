@@ -68,6 +68,24 @@ test('compiles components', function () {
     ]));
 });
 
+test('does not compile components with dynamic slot names', function () {
+    $input = '<x-card><x-slot :name="$name">Footer</x-slot></x-card>';
+    $node = app(Parser::class)->parse($input)->nodes[0];
+
+    expect(app(Compiler::class)->compile($node))
+        ->toBe($node)
+        ->and($node->render())->toBe($input);
+});
+
+test('does not compile components with slot names containing Blade echoes', function () {
+    $input = '<x-card><x-slot name="{{ $name }}">Footer</x-slot></x-card>';
+    $node = app(Parser::class)->parse($input)->nodes[0];
+
+    expect(app(Compiler::class)->compile($node))
+        ->toBe($node)
+        ->and($node->render())->toBe($input);
+});
+
 test('compiles delegate components', function () {
     $input = '<flux:delegate-component component="card" />';
 

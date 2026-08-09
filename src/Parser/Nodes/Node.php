@@ -28,6 +28,10 @@ abstract class Node
             if (str_contains($this->attributeString, $php)) {
                 return true;
             }
+
+            if ($this instanceof SlotNode && $this->hasDynamicName() && str_contains($this->name, $php)) {
+                return true;
+            }
         }
 
         if ($this instanceof DirectiveNode) {
