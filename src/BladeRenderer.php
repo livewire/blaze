@@ -11,9 +11,9 @@ use Livewire\Blaze\Parser\Attribute;
 use Livewire\Blaze\Parser\Nodes\ComponentNode;
 use Livewire\Blaze\Parser\Nodes\SlotNode;
 use Livewire\Blaze\Runtime\BlazeRuntime;
+use Livewire\Blaze\Support\ComponentSource;
 use Livewire\Blaze\Support\Utils;
 use ReflectionClass;
-use Livewire\Blaze\Support\ComponentSource;
 
 /**
  * Handles isolated Blade rendering used during compile-time folding.
