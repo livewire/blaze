@@ -43,7 +43,7 @@ class Wrapper
         $ast = Walker::walk(
             nodes: $ast,
             preCallback: function ($node) use (&$sourceUsesThis) {
-                if (! $sourceUsesThis && ($node->usesVariable('$this') || $node->isDirective(['entangle', 'script', 'assets']))) {
+                if (! $sourceUsesThis && ($node->containsPhp('$this') || $node->isDirective(['entangle', 'script', 'assets']))) {
                     $sourceUsesThis = true;
                 }
 
@@ -109,15 +109,15 @@ class Wrapper
         $hasEchoHandlers = $this->blade->hasEchoHandlers();
 
         foreach (Walker::iterate($ast) as $node) {
-            if (! isset($variables['$app']) && $node->usesVariable('$app')) {
+            if (! isset($variables['$app']) && $node->containsPhp('$app')) {
                 $variables['$app'] = '$app = $__blaze->app;';
             }
 
-            if (! isset($variables['$errors']) && ($node->usesVariable('$errors') || $node->isDirective('error'))) {
+            if (! isset($variables['$errors']) && ($node->containsPhp('$errors') || $node->isDirective('error'))) {
                 $variables['$errors'] = '$errors = $__blaze->errors;';
             }
 
-            if (! isset($variables['$__livewire']) && ($node->usesVariable('$__livewire') || $node->isDirective('entangle') || $node->isDirective('this'))) {
+            if (! isset($variables['$__livewire']) && ($node->containsPhp('$__livewire') || $node->isDirective('entangle') || $node->isDirective('this'))) {
                 $variables['$__livewire'] = '$__livewire = $__env->shared(\'__livewire\');';
             }
 
@@ -125,7 +125,7 @@ class Wrapper
                 $variables['$_instance'] = '$_instance = $__livewire;';
             }
 
-            if (! isset($variables['$slot']) && $node->usesVariable('$slot')) {
+            if (! isset($variables['$slot']) && $node->containsPhp('$slot')) {
                 $variables['$slot'] = '$__slots[\'slot\'] ??= new \Illuminate\View\ComponentSlot(\'\');';
             }
 

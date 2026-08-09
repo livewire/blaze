@@ -12,23 +12,23 @@ abstract class Node
      */
     abstract public function render(): string;
 
-    public function usesVariable(string $variable): bool
+    public function containsPhp(string $php): bool
     {
         // TODO: for TextNode we should check variables inside {{  }}
         if ($this instanceof PhpBlockNode || $this instanceof TextNode) {
-            if (str_contains($this->content, $variable)) {
+            if (str_contains($this->content, $php)) {
                 return true;
             }
         }
 
         if ($this instanceof ComponentNode || $this instanceof SlotNode) {
-            if (str_contains($this->attributeString, $variable)) {
+            if (str_contains($this->attributeString, $php)) {
                 return true;
             }
         }
 
         if ($this instanceof DirectiveNode) {
-            if (str_contains($this->expression, $variable)) {
+            if (str_contains($this->expression, $php)) {
                 return true;
             }
         }

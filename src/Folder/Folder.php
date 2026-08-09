@@ -16,6 +16,7 @@ use Livewire\Blaze\BlazeManager;
 use Illuminate\Support\Arr;
 use Livewire\Blaze\Config;
 use Livewire\Blaze\Parser\Nodes\DirectiveNode;
+use Livewire\Blaze\Parser\Walker;
 use Livewire\Blaze\Support\DirectiveStack;
 use Throwable;
 use Livewire\Blaze\Support\ComponentRepository;
@@ -216,26 +217,55 @@ class Folder
      */
     protected function checkProblematicPatterns(ComponentSource $source): void
     {
-        // TODO: Refactor to AST
-        $content = file_get_contents($source->path);
+        $insideUnblaze = false;
 
-        // @unblaze blocks can contain dynamic content and are excluded from validation
-        $sourceWithoutUnblaze = preg_replace('/@unblaze.*?@endunblaze/s', '', $content);
+        foreach (Walker::iterate($source->template->nodes) as $node) {
+            if ($node->isDirective('unblaze')) {
+                $insideUnblaze = true;
 
-        $problematicPatterns = [
-            '@once' => 'forOnce',
-            '\\$errors' => 'forErrors',
-            'session\\(' => 'forSession',
-            '@error\\(' => 'forError',
-            '@csrf' => 'forCsrf',
-            'auth\\(\\)' => 'forAuth',
-            'request\\(\\)' => 'forRequest',
-            'old\\(' => 'forOld',
-        ];
+                continue;
+            }
 
-        foreach ($problematicPatterns as $pattern => $factoryMethod) {
-            if (preg_match('/'.$pattern.'/', $sourceWithoutUnblaze)) {
-                throw InvalidBlazeFoldUsageException::{$factoryMethod}($source->path);
+            if ($node->isDirective('endunblaze')) {
+                $insideUnblaze = false;
+
+                continue;
+            }
+
+            if ($insideUnblaze) {
+                continue;
+            }
+
+            if ($node->isDirective('once')) {
+                throw InvalidBlazeFoldUsageException::forOnce($source->path);
+            }
+
+            if ($node->containsPhp('$errors')) {
+                throw InvalidBlazeFoldUsageException::forErrors($source->path);
+            }
+
+            if ($node->containsPhp('session(')) {
+                throw InvalidBlazeFoldUsageException::forSession($source->path);
+            }
+
+            if ($node->isDirective('error')) {
+                throw InvalidBlazeFoldUsageException::forError($source->path);
+            }
+
+            if ($node->isDirective('csrf')) {
+                throw InvalidBlazeFoldUsageException::forCsrf($source->path);
+            }
+
+            if ($node->containsPhp('auth()')) {
+                throw InvalidBlazeFoldUsageException::forAuth($source->path);
+            }
+
+            if ($node->containsPhp('request()')) {
+                throw InvalidBlazeFoldUsageException::forRequest($source->path);
+            }
+
+            if ($node->containsPhp('old(')) {
+                throw InvalidBlazeFoldUsageException::forOld($source->path);
             }
         }
     }
