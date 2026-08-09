@@ -10,10 +10,12 @@ use Illuminate\View\Factory;
 use Livewire\Blaze\Parser\Attribute;
 use ReflectionClass;
 
-// TODO: we should cache the reflection
 class BladeService
 {
     protected ComponentTagCompiler $tagCompiler;
+    
+    protected ReflectionClass $compilerReflection;
+    protected ReflectionClass $tagCompilerReflection;
 
     protected ?array $customConditions = null;
 
@@ -26,6 +28,9 @@ class BladeService
             $compiler->getClassComponentNamespaces(),
             $compiler,
         );
+
+        $this->compilerReflection = new ReflectionClass($this->compiler);
+        $this->tagCompilerReflection = new ReflectionClass($this->tagCompiler);
     }
 
     /**
@@ -53,8 +58,7 @@ class BladeService
      */
     public function compileComments(string $input): string
     {
-        $reflection = new \ReflectionClass($this->compiler);
-        $compileComments = $reflection->getMethod('compileComments');
+        $compileComments = $this->compilerReflection->getMethod('compileComments');
 
         return $compileComments->invoke($this->compiler, $input);
     }
@@ -64,8 +68,7 @@ class BladeService
      */
     public function hasEvenNumberOfParentheses(string $expression): bool
     {
-        $reflection = new ReflectionClass($this->compiler);
-        $method = $reflection->getMethod('hasEvenNumberOfParentheses');
+        $method = $this->compilerReflection->getMethod('hasEvenNumberOfParentheses');
 
         return $method->invoke($this->compiler, $expression);
     }
@@ -99,8 +102,7 @@ class BladeService
 
     public function compileUseStatements(string $expression): string
     {
-        $reflection = new \ReflectionClass($this->compiler);
-        $method = $reflection->getMethod('compileUse');
+        $method = $this->compilerReflection->getMethod('compileUse');
 
         return $method->invoke($this->compiler, $expression);
     }
@@ -114,8 +116,7 @@ class BladeService
             return $this->customConditions;
         }
 
-        $reflection = new ReflectionClass($this->compiler);
-        $conditions = $reflection->getProperty('conditions')->getValue($this->compiler);
+        $conditions = $this->compilerReflection->getProperty('conditions')->getValue($this->compiler);
 
         return $this->customConditions = collect($conditions)->keys()->all();
     }
@@ -145,8 +146,7 @@ class BladeService
      */
     public function compileAttributeEchos(string $input): string
     {
-        $reflection = new \ReflectionClass($this->tagCompiler);
-        $method = $reflection->getMethod('compileAttributeEchos');
+        $method = $this->tagCompilerReflection->getMethod('compileAttributeEchos');
 
         return Str::unwrap("'".$method->invoke($this->tagCompiler, $input)."'", "''.", ".''");
     }
@@ -209,8 +209,7 @@ class BladeService
     */
     public function hasEchoHandlers(): bool
     {
-        $reflection = new ReflectionClass($this->compiler);
-        $handlers = $reflection->getProperty('echoHandlers')->getValue($this->compiler);
+        $handlers = $this->compilerReflection->getProperty('echoHandlers')->getValue($this->compiler);
 
         return ! empty($handlers);
     }
@@ -245,16 +244,14 @@ class BladeService
 
     protected function guessAnonymousComponentUsingNamespaces(Factory $viewFactory, string $component): string|null
     {
-        $reflection = new \ReflectionClass($this->tagCompiler);
-        $method = $reflection->getMethod('guessAnonymousComponentUsingNamespaces');
+        $method = $this->tagCompilerReflection->getMethod('guessAnonymousComponentUsingNamespaces');
 
         return $method->invoke($this->tagCompiler, $viewFactory, $component);
     }
 
     protected function guessAnonymousComponentUsingPaths(Factory $viewFactory, string $component): string|null
     {
-        $reflection = new \ReflectionClass($this->tagCompiler);
-        $method = $reflection->getMethod('guessAnonymousComponentUsingPaths');
+        $method = $this->tagCompilerReflection->getMethod('guessAnonymousComponentUsingPaths');
 
         return $method->invoke($this->tagCompiler, $viewFactory, $component);
     }
