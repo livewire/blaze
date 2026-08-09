@@ -10,7 +10,6 @@ use Illuminate\Support\Str;
  */
 class Unblaze
 {
-    // TODO: these should be cleared at some point during rendering
     static $unblazeScopes = [];
     static $unblazeReplacements = [];
 
