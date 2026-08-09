@@ -12,28 +12,9 @@ namespace Livewire\Blaze\Support;
  *
  * @see vendor/laravel/framework/src/Illuminate/View/Compilers/ComponentTagCompiler.php
  * @see vendor/laravel/framework/src/Illuminate/View/Compilers/BladeCompiler.php
- * @see vendor/laravel/framework/src/Illuminate/View/Compilers/Concerns/CompilesComments.php
- * 
- * TODO: check if we use all of these
  */
 class LaravelRegex
 {
-    /**
-     * Pattern for matching a component tag name at the current position.
-     *
-     * @see ComponentTagCompiler::compileOpeningTags()     — x[-\:]([\w\-\:\.]*)
-     * @see ComponentTagCompiler::compileSelfClosingTags() — x[-\:]([\w\-\:\.]*)
-     * @see ComponentTagCompiler::compileClosingTags()     — x[-\:][\w\-\:\.]*
-     */
-    const TAG_NAME = '/^[\w\-\:\.]*/';
-
-    /**
-     * Pattern for matching a slot inline name (e.g., <x-slot:header>).
-     *
-     * @see ComponentTagCompiler::compileSlots() — line 522, (?:\:(?<inlineName>\w+(?:-\w+)*))?
-     */
-    const SLOT_INLINE_NAME = '/^\w+(?:-\w+)*/';
-
     /**
      * Pattern for matching individual attributes after preprocessing.
      *
@@ -54,27 +35,6 @@ class LaravelRegex
             )
         )?
     /x';
-
-    /**
-     * Pattern for matching Blade comments ({{-- ... --}}).
-     *
-     * @see CompilesComments::compileComments() — sprintf('/%s--(.*?)--%s/s', contentTags)
-     */
-    const BLADE_COMMENT = '/\{\{--(.*?)--\}\}/s';
-
-    /**
-     * Pattern for matching @verbatim...@endverbatim blocks.
-     *
-     * @see BladeCompiler::storeVerbatimBlocks() — /(?<!@)@verbatim(\s*)(.*?)@endverbatim/s
-     */
-    const VERBATIM_BLOCK = '/(?<!@)@verbatim(\s*)(.*?)@endverbatim/s';
-
-    /**
-     * Pattern for matching @php...@endphp blocks.
-     *
-     * @see BladeCompiler::storePhpBlocks() — /(?<!@)@php(.*?)@endphp/s
-     */
-    const PHP_BLOCK = '/(?<!@)@php(.*?)@endphp/s';
 
     /**
      * Pattern for matching Blade statements that start with "@".
