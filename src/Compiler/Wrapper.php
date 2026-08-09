@@ -105,6 +105,7 @@ class Wrapper
     {
         $variables = [
             '$__env' => '$__env = $__blaze->env;',
+            '$slot' => '$__slots[\'slot\'] ??= new \Illuminate\View\ComponentSlot(\'\');',
         ];
 
         $hasEchoHandlers = $this->blade->hasEchoHandlers();
@@ -124,10 +125,6 @@ class Wrapper
 
             if (! isset($variables['$_instance']) && $node->isDirective('this')) {
                 $variables['$_instance'] = '$_instance = $__livewire;';
-            }
-
-            if (! isset($variables['$slot']) && $node->containsPhp('$slot')) {
-                $variables['$slot'] = '$__slots[\'slot\'] ??= new \Illuminate\View\ComponentSlot(\'\');';
             }
 
             if (! isset($variables['$__bladeCompiler']) && $hasEchoHandlers && $node instanceof EchoNode) {
