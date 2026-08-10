@@ -12,6 +12,7 @@ use Illuminate\Support\Facades\Blade;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\View;
 use Livewire\Blaze\Memoizer\Memo;
+use Livewire\Blaze\Parser\Parser;
 use Livewire\Blaze\Support\ComponentRepository;
 
 class BlazeServiceProvider extends ServiceProvider
@@ -26,6 +27,8 @@ class BlazeServiceProvider extends ServiceProvider
         $this->app->singleton(Debugger::class);
         $this->app->singleton(Profiler::class);
         $this->app->singleton(BlazeManager::class);
+        $this->app->singleton(ComponentRepository::class);
+        $this->app->singleton(Parser::class);
 
         $this->app->singleton(\PhpParser\Parser::class, function () {
             return (new \PhpParser\ParserFactory)->createForNewestSupportedVersion();
@@ -194,12 +197,16 @@ class BlazeServiceProvider extends ServiceProvider
             $runtime = $app->make(BlazeRuntime::class);
             $manager = $app->make(BlazeManager::class);
             $debugger = $app->make(Debugger::class);
+            $parser = $app->make(Parser::class);
+            $components = $app->make(ComponentRepository::class);
 
             $runtime->setApplication($app);
 
             $runtime->flushState();
             $manager->flushState();
             $debugger->flushState();
+            $parser->flushState();
+            $components->flushState();
 
             Unblaze::flushState();
             Memo::flushState();

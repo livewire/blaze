@@ -31,4 +31,9 @@ class ComponentRepository
 
         return $this->components[$name] = new ComponentSource($name, $path, $ast);
     }
+
+    public function flushState(): void
+    {
+        $this->components = [];
+    }
 }

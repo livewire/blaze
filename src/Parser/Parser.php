@@ -188,4 +188,9 @@ class Parser
 
         $stack->addToRoot($node);
     }
+
+    public function flushState(): void
+    {
+        $this->templates = [];
+    }
 }

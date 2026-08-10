@@ -37,14 +37,12 @@ class BlazeManager
     protected $foldedEvents = [];
     protected $expiredMemo = [];
 
-    protected Parser $parser;
     protected Compiler $compiler;
     protected Folder $folder;
     protected Memoizer $memoizer;
     protected Wrapper $wrapper;
     protected Profiler $instrumenter;
     protected BladeRenderer $renderer;
-    protected ComponentRepository $components;
 
     public function __construct(
         protected Config $config,
@@ -52,9 +50,10 @@ class BlazeManager
         protected BlazeRuntime $runtime,
         protected BladeService $blade,
         protected Factory $factory,
+        protected ComponentRepository $components,
+        protected Parser $parser,
     ) {
         $this->renderer = new BladeRenderer($bladeCompiler, $factory, $this->runtime, $this);
-        $this->parser = new Parser(new Tokenizer($this->blade), new AttributeParser($this->blade));
         $this->components = new ComponentRepository($this->blade, $this->parser);
         $this->compiler = new Compiler($config, $this->blade, $this, $this->components);
         $this->folder = new Folder($config, $this->blade, $this->renderer, $this, $this->components);
