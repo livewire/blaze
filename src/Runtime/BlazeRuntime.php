@@ -73,7 +73,7 @@ class BlazeRuntime
 
         $compiled = $this->getCompiledPath().'/'.$component->hash.'.php';
 
-        if (! isset($this->required[$component->path])) {
+        if (! isset($this->required[$compiled])) {
             $this->ensureRequired($component->path, $compiled);
         }
 

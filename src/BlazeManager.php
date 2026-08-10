@@ -54,7 +54,6 @@ class BlazeManager
         protected Parser $parser,
     ) {
         $this->renderer = new BladeRenderer($bladeCompiler, $factory, $this->runtime, $this);
-        $this->components = new ComponentRepository($this->blade, $this->parser);
         $this->compiler = new Compiler($config, $this->blade, $this, $this->components);
         $this->folder = new Folder($config, $this->blade, $this->renderer, $this, $this->components);
         $this->memoizer = new Memoizer($config, $this->compiler, $this->blade, $this, $this->components);
