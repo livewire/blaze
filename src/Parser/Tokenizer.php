@@ -88,9 +88,11 @@ class Tokenizer
 
                 $this->flushBuffer(PhpBlockToken::class);
             } else {
-                $this->emitToken(new DirectiveToken($match['name'], $match['original']));
+                $original = rtrim($match['original']);
 
-                $this->rewind($offset + strlen($match['original']));
+                $this->emitToken(new DirectiveToken($match['name'], $original));
+
+                $this->rewind($offset + strlen($original));
             }
 
             return;
@@ -268,7 +270,7 @@ class Tokenizer
                 'original' => $matches[0],
                 'prefix' => $matches[1],
                 'name' => $matches[2],
-                'attributes' => $matches['attributes'],
+                'attributes' => ltrim($matches['attributes']),
                 'selfClosing' => $matches['selfClosing'] === '/',
             ];
         }

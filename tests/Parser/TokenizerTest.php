@@ -24,7 +24,7 @@ test('tokenizes tags', function () {
     $result = app(Tokenizer::class)->tokenize($input);
 
     expect($result)->toEqual([
-        new TagOpenToken(prefix: 'x-', name: 'button', attributes: ' type="button"', original: '<x-button type="button">', selfClosing: false),
+        new TagOpenToken(prefix: 'x-', name: 'button', attributes: 'type="button"', original: '<x-button type="button">', selfClosing: false),
         new TagCloseToken(prefix: 'x-', name: 'button', original: '</x-button>'),
     ]);
 });
@@ -35,7 +35,7 @@ test('tokenizes self-closing tags', function () {
     $result = app(Tokenizer::class)->tokenize($input);
 
     expect($result)->toEqual([
-        new TagOpenToken(prefix: 'x-', name: 'button', attributes: ' type="button" ', original: '<x-button type="button" />', selfClosing: true),
+        new TagOpenToken(prefix: 'x-', name: 'button', attributes: 'type="button" ', original: '<x-button type="button" />', selfClosing: true),
     ]);
 });
 
@@ -45,7 +45,7 @@ test('tokenizes flux tags', function () {
     $result = app(Tokenizer::class)->tokenize($input);
 
     expect($result)->toEqual([
-        new TagOpenToken(prefix: 'flux:', name: 'button', attributes: ' type="button"', original: '<flux:button type="button">', selfClosing: false),
+        new TagOpenToken(prefix: 'flux:', name: 'button', attributes: 'type="button"', original: '<flux:button type="button">', selfClosing: false),
         new TagCloseToken(prefix: 'flux:', name: 'button', original: '</flux:button>'),
     ]);
 });
@@ -119,11 +119,11 @@ test('handles unclosed Blade php blocks', function () {
     $input = '@php $value = "<x-button />";';
 
     expect(app(Tokenizer::class)->tokenize($input))->toEqual([
-        new DirectiveToken(name: 'php', original: '@php '), // <-- TODO: weird whitespace
-        new TextToken(content: '$value = "'),
+        new DirectiveToken(name: 'php', original: '@php'),
+        new TextToken(content: ' $value = "'),
         new TagOpenToken(
             prefix: 'x-', name: 'button',
-            attributes: ' ', // <-- TODO: weird whitespace
+            attributes: '',
             original: '<x-button />',
             selfClosing: true,
         ),
@@ -279,7 +279,7 @@ test('handles comments', function () {
     $result = app(Tokenizer::class)->tokenize($input);
 
     expect($result)->toEqual([
-        new TagOpenToken(prefix: 'x-', name: 'button', attributes: ' ', original: '<x-button />', selfClosing: true),
+        new TagOpenToken(prefix: 'x-', name: 'button', attributes: '', original: '<x-button />', selfClosing: true),
     ]);
 });
 
