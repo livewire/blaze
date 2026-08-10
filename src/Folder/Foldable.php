@@ -23,6 +23,9 @@ class Foldable
     protected array $slotByPlaceholder = [];
     protected int $placeholderIndex = 0;
 
+    /** @var array<string, Attribute> Inherited @aware values, kept out of the component's own bag. */
+    protected array $awareAttributes = [];
+
     protected ComponentNode $renderable;
     protected string $html;
 
@@ -52,7 +55,7 @@ class Foldable
         $this->setupSlots();
         $this->mergeAwareProps();
 
-        $this->html = $this->renderer->render($this->renderable, $this->source);
+        $this->html = $this->renderer->render($this->renderable, $this->source, $this->awareAttributes);
         
         $this->processUncompiledAttributes();
         $this->restorePlaceholders();
@@ -165,14 +168,14 @@ class Foldable
 
                     $this->attributeByPlaceholder[$placeholder] = $attribute;
 
-                    $this->renderable->attributes[$prop] = new Attribute(
+                    $this->awareAttributes[$prop] = new Attribute(
                         name: $prop,
                         value: $placeholder,
                         propName: $prop,
                         dynamic: false,
                     );
                 } else {
-                    $this->renderable->attributes[$prop] = new Attribute(
+                    $this->awareAttributes[$prop] = new Attribute(
                         name: $attribute->name,
                         value: $attribute->value,
                         propName: $attribute->propName,
@@ -187,7 +190,7 @@ class Foldable
                 // skip adding the attribute. This lets @aware and @props handle defaults
                 // at runtime, matching the non-folded behavior. Adding an attribute with
                 // null value would render as prop="" in HTML, corrupting null to empty string.
-                $this->renderable->attributes[$prop] = new Attribute(
+                $this->awareAttributes[$prop] = new Attribute(
                     name: $prop,
                     value: $default,
                     propName: $prop,

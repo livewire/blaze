@@ -52,6 +52,20 @@ test('foldable aware default', fn () => compare(<<<'BLADE'
     BLADE
 ));
 
+test('foldable aware read back off the attribute bag', fn () => compare(<<<'BLADE'
+    <x-foldable.wrapper type="number">
+        <x-foldable.input-aware-bag />
+    </x-foldable.wrapper>
+    BLADE
+));
+
+test('foldable aware written on the tag itself', fn () => compare(<<<'BLADE'
+    <x-foldable.wrapper type="number">
+        <x-foldable.input-aware-bag type="email" />
+    </x-foldable.wrapper>
+    BLADE
+));
+
 test('foldable boolean attributes', fn () => compare(<<<'BLADE'
     <x-foldable.input :readonly="$readonly" />
     BLADE,

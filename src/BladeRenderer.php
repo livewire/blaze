@@ -39,7 +39,7 @@ class BladeRenderer
     /**
      * Render a Blade template string in isolation by freezing and restoring compiler state.
      */
-    public function render(ComponentNode $component, ComponentSource $source): string
+    public function render(ComponentNode $component, ComponentSource $source, array $aware = []): string
     {
         $temporaryCachePath = $this->getTemporaryCachePath();
 
@@ -112,6 +112,15 @@ class BladeRenderer
                 return [$slot->name => new ComponentSlot($slot->content())];
             });
 
+            $awareData = Arr::mapWithKeys($aware, function (Attribute $attribute) {
+                return [$attribute->name => $attribute->getStaticValue()];
+            });
+
+            // Inherited @aware values reach the component the way they do at render --
+            // through the data stack, under the component's own frame -- rather than by
+            // being merged into its attribute bag. A component that asks whether a key
+            // was written on its tag then gets the same answer folded and unfolded.
+            $this->runtime->pushData($awareData);
             $this->runtime->pushData($attributes);
             $this->runtime->pushSlots($slots);
 
@@ -131,6 +140,7 @@ class BladeRenderer
                 ob_end_clean();
             }
 
+            $this->runtime->popData();
             $this->runtime->popData();
             $this->manager->stopFolding();
 
