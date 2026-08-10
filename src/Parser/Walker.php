@@ -18,6 +18,8 @@ class Walker
         $result = [];
 
         foreach ($nodes as $node) {
+            $node = clone $node;
+
             $node = $preCallback($node) ?? $node;
 
             if (($node instanceof ComponentNode || $node instanceof SlotNode) && !empty($node->children)) {
