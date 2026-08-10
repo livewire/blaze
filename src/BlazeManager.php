@@ -410,11 +410,7 @@ class BlazeManager
                     return true;
                 }
 
-                if (! $component) {
-                    return false;
-                }
-
-                if ($component->template->directives->has('aware')) {
+                if ($component?->template->directives->has('aware')) {
                     return true;
                 }
 
