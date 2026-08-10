@@ -2,7 +2,7 @@
 
 namespace Livewire\Blaze\Parser\Nodes;
 
-class DirectiveNode extends TextNode
+class DirectiveNode extends Node
 {
     public function __construct(
         public string $name,
