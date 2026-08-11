@@ -39,7 +39,7 @@ class BladeRenderer
     /**
      * Render a Blade template string in isolation by freezing and restoring compiler state.
      */
-    public function render(ComponentNode $component, ComponentSource $source): string
+    public function render(ComponentNode $component, string $path): string
     {
         $temporaryCachePath = $this->getTemporaryCachePath();
 
@@ -93,16 +93,20 @@ class BladeRenderer
         ]);
 
         $obLevel = ob_get_level();
-        $hash = Utils::hash($source->path);
-        $path = $temporaryCachePath . '/' . $hash . '.php';
+        $hash = Utils::hash($path);
+        $compiled = $temporaryCachePath . '/' . $hash . '.php';
         $fn = '__' . $hash;
 
         $this->manager->startFolding();
 
         try {
-            if (! file_exists($path)) {
-                $this->blade->compile($source->path);
+            if (! file_exists($compiled)) {
+                $this->blade->compile($path);
             }
+
+            $awareData = Arr::mapWithKeys($component->parentsAttributes, function (Attribute $attribute) {
+                return [$attribute->name => $attribute->getStaticValue()];
+            });
 
             $attributes = Arr::mapWithKeys($component->attributes, function (Attribute $attribute) {
                 return [$attribute->name => $attribute->getStaticValue()];
@@ -112,12 +116,13 @@ class BladeRenderer
                 return [$slot->name => new ComponentSlot($slot->content())];
             });
 
+            $this->runtime->pushData($awareData);
             $this->runtime->pushData($attributes);
             $this->runtime->pushSlots($slots);
 
             ob_start();
 
-            require_once $path;
+            require_once $compiled;
 
             $fn(
                 __blaze: $this->runtime,
@@ -131,6 +136,7 @@ class BladeRenderer
                 ob_end_clean();
             }
 
+            $this->runtime->popData();
             $this->runtime->popData();
             $this->manager->stopFolding();
 

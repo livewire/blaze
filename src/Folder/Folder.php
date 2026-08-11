@@ -60,7 +60,7 @@ class Folder
         $this->checkProblematicPatterns($source);
 
         try {
-            $foldable = new Foldable($node, $source, $this->renderer, $this->blade);
+            $foldable = new Foldable($node, $source->path, $this->renderer, $this->blade);
 
             $html = $foldable->fold();
 

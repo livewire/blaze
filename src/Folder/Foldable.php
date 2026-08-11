@@ -28,7 +28,7 @@ class Foldable
 
     public function __construct(
         protected ComponentNode $node,
-        protected ComponentSource $source,
+        protected string $path,
         protected BladeRenderer $renderer,
         protected BladeService $blade,
     ) {
@@ -42,17 +42,13 @@ class Foldable
         $this->renderable = new ComponentNode(
             name: $this->node->name,
             prefix: $this->node->prefix,
-            attributeString: '',
-            children: [],
             selfClosing: $this->node->selfClosing,
-            parentsAttributes: $this->node->parentsAttributes,
         );
 
         $this->setupAttributes();
         $this->setupSlots();
-        $this->mergeAwareProps();
 
-        $this->html = $this->renderer->render($this->renderable, $this->source);
+        $this->html = $this->renderer->render($this->renderable, $this->path);
         
         $this->processUncompiledAttributes();
         $this->restorePlaceholders();
@@ -62,28 +58,40 @@ class Foldable
     }
 
     /**
-     * Replace dynamic attributes with placeholders, keep static ones as-is.
+     * Prepare component and inherited attributes for isolated rendering.
      */
     protected function setupAttributes(): void
     {
         foreach ($this->node->attributes as $key => $attribute) {
-            if (! $attribute->isStaticValue()) {
-                $placeholder = 'BLAZE_PLACEHOLDER_' . $this->placeholderIndex++ . '_';
-
-                $this->attributeByPlaceholder[$placeholder] = $attribute;
-
-                $this->renderable->attributes[$key] = new Attribute(
-                    name: $attribute->name,
-                    value: $placeholder,
-                    propName: $attribute->propName,
-                    prefix: '',
-                    dynamic: false,
-                    quotes: '"',
-                );
-            } else {
-                $this->renderable->attributes[$key] = clone $attribute;
-            }
+            $this->renderable->attributes[$key] = $this->prepareAttribute($attribute);
         }
+
+        foreach ($this->node->parentsAttributes as $key => $attribute) {
+            $this->renderable->parentsAttributes[$key] = $this->prepareAttribute($attribute);
+        }
+    }
+
+    /**
+     * Replace a dynamic attribute with a static placeholder for isolated rendering.
+     */
+    protected function prepareAttribute(Attribute $attribute): Attribute
+    {
+        if ($attribute->isStaticValue()) {
+            return clone $attribute;
+        }
+
+        $placeholder = 'BLAZE_PLACEHOLDER_' . $this->placeholderIndex++ . '_';
+
+        $this->attributeByPlaceholder[$placeholder] = $attribute;
+
+        return new Attribute(
+            name: $attribute->name,
+            value: $placeholder,
+            propName: $attribute->propName,
+            prefix: '',
+            dynamic: false,
+            quotes: '"',
+        );
     }
 
     /**
@@ -138,63 +146,6 @@ class Foldable
         }
 
         $this->renderable->children = $slots;
-    }
-
-    /**
-     * Merge @aware-declared props from parent attributes into the renderable node.
-     */
-    protected function mergeAwareProps(): void
-    {
-        $aware = $this->source->directives->array('aware') ?? [];
-        
-        foreach ($aware as $prop => $default) {
-            if (is_int($prop)) {
-                $prop = $default;
-                $default = null;
-            }
-
-            if (isset($this->renderable->attributes[$prop])) {
-                continue;
-            }
-            
-            if (isset($this->node->parentsAttributes[$prop])) {
-                $attribute = $this->node->parentsAttributes[$prop];
-
-                if (! $attribute->isStaticValue()) {
-                    $placeholder = 'BLAZE_PLACEHOLDER_' . $this->placeholderIndex++ . '_';
-
-                    $this->attributeByPlaceholder[$placeholder] = $attribute;
-
-                    $this->renderable->attributes[$prop] = new Attribute(
-                        name: $prop,
-                        value: $placeholder,
-                        propName: $prop,
-                        dynamic: false,
-                    );
-                } else {
-                    $this->renderable->attributes[$prop] = new Attribute(
-                        name: $attribute->name,
-                        value: $attribute->value,
-                        propName: $attribute->propName,
-                        dynamic: $attribute->dynamic,
-                        quotes: $attribute->quotes,
-                        prefix: $attribute->prefix,
-                    );
-                }
-            } else if ($default !== null) {
-                // TODO: test this, we might not need to add the default attributes because they will be added inside the component?
-                // When the value is null and no parent provides a value, we intentionally
-                // skip adding the attribute. This lets @aware and @props handle defaults
-                // at runtime, matching the non-folded behavior. Adding an attribute with
-                // null value would render as prop="" in HTML, corrupting null to empty string.
-                $this->renderable->attributes[$prop] = new Attribute(
-                    name: $prop,
-                    value: $default,
-                    propName: $prop,
-                    dynamic: false,
-                );
-            }
-        }
     }
 
     /**
