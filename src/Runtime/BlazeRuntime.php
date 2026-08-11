@@ -18,13 +18,19 @@ use Livewire\Blaze\Debugger\Debugger;
  */
 class BlazeRuntime
 {
+    public bool $folding = false;
+
     // Lazily cached from config('view.compiled') on first access via __get.
     // This ensures parallel-testing per-worker path overrides are respected.
     protected ?string $compiledPath = null;
 
     protected array $paths = [];
-    protected array $required = [];
     protected array $blazed = [];
+
+    /**
+     * @deprecated Kept for compatibility with previously compiled views. No longer used by the compiler.
+     */
+    protected array $required = [];
 
     protected array $dataStack = [];
     protected array $slotsStack = [];
@@ -39,7 +45,19 @@ class BlazeRuntime
     }
 
     /**
+     * Compile a component if needed.
+     */
+    public function compile(string $path, string $compiledPath): void
+    {
+        if (! file_exists($compiledPath) || filemtime($path) > filemtime($compiledPath)) {
+            $this->compiler->compile($path);
+        }
+    }
+
+    /**
      * Compile a component if its source is newer than the cached output.
+     *
+     * @deprecated Kept for compatibility with previously compiled views. No longer emitted by the compiler.
      */
     public function ensureRequired(string $path, string $compiledPath): void
     {
@@ -47,9 +65,13 @@ class BlazeRuntime
             return;
         }
 
-        if (! file_exists($compiledPath) || filemtime($path) > filemtime($compiledPath)) {
-            $this->compiler->compile($path);
+        if (function_exists(($this->folding ? '__' : '_') . basename($compiledPath, '.php'))) {
+            $this->required[$compiledPath] = true;
+
+            return;
         }
+
+        $this->compile($path, $compiledPath);
 
         require $compiledPath;
 
@@ -78,8 +100,10 @@ class BlazeRuntime
         $hash = Utils::hash($path);
         $compiled = $this->getCompiledPath().'/'.$hash.'.php';
 
-        if (! isset($this->required[$path])) {
-            $this->ensureRequired($path, $compiled);
+        if (! function_exists(($this->folding ? '__' : '_') . basename($compiled, '.php'))) {
+            $this->compile($path, $compiled);
+
+            require $compiled;
         }
 
         return $hash;
