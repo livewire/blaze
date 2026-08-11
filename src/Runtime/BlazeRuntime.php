@@ -40,17 +40,7 @@ class BlazeRuntime
     }
 
     /**
-     * Compile a component if needed.
-     */
-    public function compile(string $path, string $compiledPath): void
-    {
-        if (! file_exists($compiledPath) || filemtime($path) > filemtime($compiledPath)) {
-            $this->compiler->compile($path);
-        }
-    }
-
-    /**
-     * Compile and require a component if its source is newer than the cached output.
+     * Compile and require a component if needed.
      *
      * @deprecated Kept for compatibility with previously compiled views. No longer emitted by the compiler.
      */
@@ -60,7 +50,9 @@ class BlazeRuntime
             return;
         }
 
-        $this->compile($path, $compiledPath);
+        if (! file_exists($compiledPath) || filemtime($path) > filemtime($compiledPath)) {
+            $this->compiler->compile($path);
+        }
 
         require $compiledPath;
     }
@@ -86,13 +78,16 @@ class BlazeRuntime
 
         $hash = Utils::hash($path);
         $compiled = $this->getCompiledPath().'/'.$hash.'.php';
-        $functionName = ($this->folding ? '__' : '_') . $hash;
 
-        if (! function_exists($functionName)) {
-            $this->compile($path, $compiled);
-
-            require $compiled;
+        if (function_exists(($this->folding ? '__' : '_') . basename($compiled, '.php'))) {
+            return $hash;
         }
+
+        if (! file_exists($compiled) || filemtime($path) > filemtime($compiled)) {
+            $this->compiler->compile($path);
+        }
+
+        require $compiled;
 
         return $hash;
     }
