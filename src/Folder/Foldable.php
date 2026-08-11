@@ -88,9 +88,7 @@ class Foldable
             name: $attribute->name,
             value: $placeholder,
             propName: $attribute->propName,
-            prefix: '',
             dynamic: false,
-            quotes: '"',
         );
     }
 
