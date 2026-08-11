@@ -1,3 +1,0 @@
-@blaze
-
-<x-input-aware />
