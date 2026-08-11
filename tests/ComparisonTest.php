@@ -33,8 +33,8 @@ test('aware default', fn () => compare(<<<'BLADE'
     BLADE
 ));
 
-test('aware nested', fn () => compare(<<<'BLADE'
-    <x-nested-aware type="number" />
+test('nested aware', fn () => compare(<<<'BLADE'
+    <x-nested-input-aware type="number" />
     BLADE
 ));
 

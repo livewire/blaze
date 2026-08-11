@@ -1,8 +1,9 @@
 <?php
 
-namespace Livewire\Blaze;
+namespace Livewire\Blaze\Debugger;
 
 use Illuminate\Support\Facades\File;
+use Livewire\Blaze\BladeService;
 
 class Debugger
 {

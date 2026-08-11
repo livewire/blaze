@@ -4,7 +4,7 @@ namespace Livewire\Blaze\Commands;
 
 use Carbon\Carbon;
 use Illuminate\Console\Command;
-use Livewire\Blaze\DebuggerStore;
+use Livewire\Blaze\Debugger\DebuggerStore;
 
 class TraceListCommand extends Command
 {
