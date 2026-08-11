@@ -11,7 +11,7 @@ use Illuminate\View\Compilers\Compiler;
 use Livewire\Blaze\BladeService;
 use Livewire\Blaze\Support\Directives;
 use Livewire\Blaze\Support\Utils;
-use Livewire\Blaze\Debugger;
+use Livewire\Blaze\Debugger\Debugger;
 
 /**
  * Runtime context shared with all Blaze-compiled components via $__blaze.

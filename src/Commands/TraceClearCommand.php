@@ -3,7 +3,7 @@
 namespace Livewire\Blaze\Commands;
 
 use Illuminate\Console\Command;
-use Livewire\Blaze\DebuggerStore;
+use Livewire\Blaze\Debugger\DebuggerStore;
 
 class TraceClearCommand extends Command
 {
