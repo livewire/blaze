@@ -151,7 +151,6 @@ test('foldable conditional slots', fn () => compare(<<<'BLADE'
     BLADE
 ));
 
-
 test('foldable aware without props', fn () => compare(<<<'BLADE'
     <x-foldable.input-aware-no-props type="number" />
     BLADE
