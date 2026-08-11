@@ -25,8 +25,12 @@ class BlazeRuntime
     protected ?string $compiledPath = null;
 
     protected array $paths = [];
-    protected array $required = [];
     protected array $blazed = [];
+
+    /**
+     * @deprecated Kept for compatibility with previously compiled views. No longer used by the compiler.
+     */
+    protected array $required = [];
 
     protected array $dataStack = [];
     protected array $slotsStack = [];
