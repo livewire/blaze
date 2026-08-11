@@ -103,6 +103,12 @@ class Folder
             return false;
         }
 
+        if (isset($node->parentsAttributes['attributes'])
+            && ! $node->parentsAttributes['attributes']->isStaticValue()
+        ) {
+            return false;
+        }
+
         $dynamicAttributes = array_filter($node->attributes, fn ($attribute) => ! $attribute->isStaticValue());
 
         foreach ($source->directives->aware() as $prop) {
