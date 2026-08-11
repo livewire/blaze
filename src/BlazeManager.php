@@ -339,6 +339,7 @@ class BlazeManager
     public function startFolding(): void
     {
         $this->folding = true;
+        $this->runtime->folding = true;
     }
 
     /**
@@ -347,6 +348,7 @@ class BlazeManager
     public function stopFolding(): void
     {
         $this->folding = false;
+        $this->runtime->folding = false;
     }
 
     /**

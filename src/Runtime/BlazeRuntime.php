@@ -18,6 +18,11 @@ use Livewire\Blaze\Debugger;
  */
 class BlazeRuntime
 {
+    /**
+     * @deprecated Kept for compatibility with previously compiled views. No longer used by the compiler.
+     */
+    public bool $folding = false;
+
     // Lazily cached from config('view.compiled') on first access via __get.
     // This ensures parallel-testing per-worker path overrides are respected.
     protected ?string $compiledPath = null;
@@ -48,23 +53,19 @@ class BlazeRuntime
     }
 
     /**
-     * Compile and require a component if needed.
-     * 
-     * @deprecated This method is no longer used internally
+     * Compile and require a component if its source is newer than the cached output.
+     *
+     * @deprecated Kept for compatibility with previously compiled views. No longer emitted by the compiler.
      */
     public function ensureRequired(string $path, string $compiledPath): void
     {
-        if (isset($this->required[$compiledPath])) {
+        if (function_exists(($this->folding ? '__' : '_') . basename($compiledPath, '.php'))) {
             return;
         }
 
-        if (! file_exists($compiledPath) || filemtime($path) > filemtime($compiledPath)) {
-            $this->compiler->compile($path);
-        }
+        $this->compile($path, $compiledPath);
 
         require $compiledPath;
-
-        $this->required[$compiledPath] = true;
     }
 
     /**
@@ -88,9 +89,13 @@ class BlazeRuntime
 
         $hash = Utils::hash($path);
         $compiled = $this->getCompiledPath().'/'.$hash.'.php';
-        $functionName = '_'.$hash;
+        $functionName = ($this->folding ? '__' : '_') . $hash;
 
-        $this->ensureRequired($path, $compiled, $functionName);
+        if (function_exists($functionName)) {
+            $this->compile($path, $compiled);
+
+            require $compiled;
+        }
 
         return $hash;
     }

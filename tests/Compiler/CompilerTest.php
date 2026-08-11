@@ -44,7 +44,7 @@ test('compiles components', function () {
     $hash = Utils::hash($path);
 
     expect($compiled->render())->toEqualCollapsingWhitespace(join('', [
-        '<?php $__blaze->ensureRequired(\''. $path .'\', $__blaze->compiledPath.\'/'. $hash .'.php\', \'_'. $hash .'\'); ?> ',
+        '<?php if (!function_exists(\'_'. $hash .'\')) { $__blaze->compile(\''. $path .'\', $__blaze->compiledPath.\'/'. $hash .'.php\'); require $__blaze->compiledPath.\'/'. $hash .'.php\'; } ?> ',
         '<?php if (isset($__slots'. $hash .')) { $__slotsStack'. $hash .'[] = $__slots'. $hash .'; } ?> ',
         '<?php if (isset($__attrs'. $hash .')) { $__attrsStack'. $hash .'[] = $__attrs'. $hash .'; } ?> ',
         '<?php $__attrs'. $hash .' = [\'class\' => \'mt-8\']; ?> ',
