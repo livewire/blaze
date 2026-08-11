@@ -80,6 +80,20 @@ test('does not fold components with attribute spread', function () {
     expect($folded)->toBeInstanceOf(ComponentNode::class);
 });
 
+test('does not fold components with attribute spread from parent', function () {
+    $input = '<x-foldable.input />';
+
+    $node = app(Parser::class)->parse($input)[0];
+    
+    $node->setParentsAttributes(
+        app(AttributeParser::class)->parse(':attributes="$attributes"')
+    );
+
+    $folded = app(Folder::class)->fold($node);
+
+    expect($folded)->toBeInstanceOf(ComponentNode::class);
+});
+
 test('folds components with slots', function () {
     $input = '<x-foldable.card><x-slot:header>Header</x-slot:header>Body</x-foldable.card>';
     

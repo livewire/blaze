@@ -1,5 +1,7 @@
 @blaze(fold: true)
 
-@aware(['type' => 'text'])
+@aware(['type'])
 
-<input type="{{ $type }}" >
+@props(['type' => 'text'])
+
+<input {{ $attributes }} type="{{ $type }}" >
