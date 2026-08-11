@@ -138,7 +138,7 @@ class Parser
         $node = new DirectiveNode(
             name: $token->name,
             original: $token->original,
-            arguments: $token->arguments,
+            expression: $token->expression,
         );
 
         $stack->addToRoot($node);

@@ -79,7 +79,7 @@ test('tokenizes directives with parameters', function () {
     $result = app(Tokenizer::class)->tokenize($input);
 
     expect($result)->toEqual([
-        new DirectiveToken(name: 'dd', original: $input, arguments: '$foo')
+        new DirectiveToken(name: 'dd', original: $input, expression: '$foo')
     ]);
 });
 
@@ -175,6 +175,16 @@ test('handles escaped directives', function () {
     ]);
 });
 
+test('does not tokenize directives preceded by a word character', function () {
+    $input = 'foo@if($bar)';
+
+    $result = app(Tokenizer::class)->tokenize($input);
+
+    expect($result)->toEqual([
+        new TextToken(content: $input),
+    ]);
+});
+
 test('does not skip invalid directive prefixes', function () {
     $input = '@- @if($foo)';
 
@@ -182,7 +192,7 @@ test('does not skip invalid directive prefixes', function () {
 
     expect($result)->toEqual([
         new TextToken(content: '@- '),
-        new DirectiveToken(name: 'if', original: '@if($foo)', arguments: '$foo'),
+        new DirectiveToken(name: 'if', original: '@if($foo)', expression: '$foo'),
     ]);
 });
 
@@ -192,7 +202,7 @@ test('handles directives with whitespace', function () {
     $result = app(Tokenizer::class)->tokenize($input);
 
     expect($result)->toEqual([
-        new DirectiveToken(name: 'if', original: $input, arguments: '$foo')
+        new DirectiveToken(name: 'if', original: $input, expression: '$foo')
     ]);
 });
 
@@ -202,7 +212,7 @@ test('handles namespaced directives', function () {
     $result = app(Tokenizer::class)->tokenize($input);
 
     expect($result)->toEqual([
-        new DirectiveToken(name: 'Foo::bar', original: $input, arguments: '$foo')
+        new DirectiveToken(name: 'Foo::bar', original: $input, expression: '$foo')
     ]);
 });
 
@@ -212,7 +222,7 @@ test('handles directives with nested parentheses', function () {
     $result = app(Tokenizer::class)->tokenize($input);
 
     expect($result)->toEqual([
-        new DirectiveToken(name: 'include', original: $input, arguments: "'foo', ['((a)' => '((a)']"),
+        new DirectiveToken(name: 'include', original: $input, expression: "'foo', ['((a)' => '((a)']"),
     ]);
 });
 
@@ -241,7 +251,7 @@ test('handles Laravel directive parenthesis cases', function (string $input, arr
     $result = app(Tokenizer::class)->tokenize($input);
 
     expect($result)->toEqual([
-        new DirectiveToken(name: $expected[0], original: $input, arguments: $expected[1] ?? null)
+        new DirectiveToken(name: $expected[0], original: $input, expression: $expected[1] ?? null)
     ]);
 })->with([
     'nested function calls' => [
@@ -280,7 +290,7 @@ test('handles parantheses after a directive', function () {
     $result = app(Tokenizer::class)->tokenize($input);
 
     expect($result)->toEqual([
-        new DirectiveToken(name: 'unset', original: '@unset ($unset)', arguments: '$unset'),
+        new DirectiveToken(name: 'unset', original: '@unset ($unset)', expression: '$unset'),
         new TextToken(content: '))'),
     ]);
 });

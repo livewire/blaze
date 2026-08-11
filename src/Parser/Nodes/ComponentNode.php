@@ -54,15 +54,7 @@ class ComponentNode extends Node
         $output = "<{$this->prefix}{$name}";
 
         foreach ($this->attributes as $attribute) {
-            if ($attribute->valueless) {
-                $output .= ' '.$attribute->name;
-            } else {
-                $output .= ' '.$attribute->prefix.$attribute->name;
-                
-                if ($attribute->prefix !== ':$') {
-                    $output .= '='.$attribute->quotes.$attribute->value.$attribute->quotes;
-                }
-            }
+            $output .= ' ' . $attribute->render();
         }
 
         if ($this->selfClosing) {

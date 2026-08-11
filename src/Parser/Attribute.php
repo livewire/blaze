@@ -26,6 +26,21 @@ class Attribute
         return $this->prefix === ':' || $this->prefix === ':$';
     }
 
+    public function render(): string
+    {
+        if ($this->valueless) {
+            return $this->name;
+        }
+
+        $output = $this->prefix . $this->name;
+
+        if ($this->prefix !== ':$') {
+            $output .= '=' . $this->quotes . $this->value . $this->quotes;
+        }
+
+        return $output;
+    }
+
     /**
      * Check if the attribute value can be resolved at compile time.
      */

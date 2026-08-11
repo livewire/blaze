@@ -128,31 +128,31 @@ class BenchmarkVarianceCommand extends BenchmarkCommand
 
     protected function displayVarianceResults(array $snapshot, array $allRuns, float $avgRunDuration, float $totalDuration): void
     {
-        $snapshotImprovement = $this->improvement($snapshot);
+        $snapshotChange = $this->change($snapshot);
 
         $bladeChanges = collect($allRuns)->map(fn ($run) => $this->percentChange($snapshot['blade_ms'], $run['blade_ms']));
         $blazeChanges = collect($allRuns)->map(fn ($run) => $this->percentChange($snapshot['blaze_ms'], $run['blaze_ms']));
-        $improvementChanges = collect($allRuns)->map(fn ($run) => round($this->improvement($run) - $snapshotImprovement, 1));
+        $changes = collect($allRuns)->map(fn ($run) => round($this->change($run) - $snapshotChange, 1));
 
-        $headers = ['', 'Blade', 'Blaze', 'Improvement'];
+        $headers = ['', 'Blade', 'Blaze', 'Change'];
         $rows = [
             [
                 'Snapshot',
                 $this->formatTime($snapshot['blade_ms']),
                 $this->formatTime($snapshot['blaze_ms']),
-                $snapshotImprovement.'%',
+                $snapshotChange.'%',
             ],
             [
                 'Variance',
                 $this->formatVarianceRange($bladeChanges->min(), $bladeChanges->max()),
                 $this->formatVarianceRange($blazeChanges->min(), $blazeChanges->max()),
-                $this->formatVarianceRange($improvementChanges->min(), $improvementChanges->max()),
+                $this->formatVarianceRange($changes->min(), $changes->max()),
             ],
             [
                 'Std Dev',
                 '±'.$this->stddev($bladeChanges).'%',
                 '±'.$this->stddev($blazeChanges).'%',
-                '±'.$this->stddev($improvementChanges).'%',
+                '±'.$this->stddev($changes).'%',
             ],
         ];
 
@@ -168,31 +168,31 @@ class BenchmarkVarianceCommand extends BenchmarkCommand
 
     protected function outputVarianceMarkdown(array $snapshot, array $allRuns, float $avgRunDuration, float $totalDuration): void
     {
-        $snapshotImprovement = $this->improvement($snapshot);
+        $snapshotChange = $this->change($snapshot);
 
         $bladeChanges = collect($allRuns)->map(fn ($run) => $this->percentChange($snapshot['blade_ms'], $run['blade_ms']));
         $blazeChanges = collect($allRuns)->map(fn ($run) => $this->percentChange($snapshot['blaze_ms'], $run['blaze_ms']));
-        $improvementChanges = collect($allRuns)->map(fn ($run) => round($this->improvement($run) - $snapshotImprovement, 1));
+        $changes = collect($allRuns)->map(fn ($run) => round($this->change($run) - $snapshotChange, 1));
 
-        $headers = ['', 'Blade', 'Blaze', 'Improvement'];
+        $headers = ['', 'Blade', 'Blaze', 'Change'];
         $rows = [
             [
                 'Snapshot',
                 $this->formatTime($snapshot['blade_ms']),
                 $this->formatTime($snapshot['blaze_ms']),
-                $snapshotImprovement.'%',
+                $snapshotChange.'%',
             ],
             [
                 'Variance',
                 $this->formatVarianceRange($bladeChanges->min(), $bladeChanges->max()),
                 $this->formatVarianceRange($blazeChanges->min(), $blazeChanges->max()),
-                $this->formatVarianceRange($improvementChanges->min(), $improvementChanges->max()),
+                $this->formatVarianceRange($changes->min(), $changes->max()),
             ],
             [
                 'Std Dev',
                 '±'.$this->stddev($bladeChanges).'%',
                 '±'.$this->stddev($blazeChanges).'%',
-                '±'.$this->stddev($improvementChanges).'%',
+                '±'.$this->stddev($changes).'%',
             ],
         ];
 
@@ -230,7 +230,7 @@ class BenchmarkVarianceCommand extends BenchmarkCommand
             'benchmarks' => collect($results)->map(fn ($result) => [
                 'blade_ms' => $result['blade_ms'],
                 'blaze_ms' => $result['blaze_ms'],
-                'improvement' => $this->improvement($result),
+                'change' => $this->change($result),
             ])->all(),
         ];
 
@@ -242,11 +242,11 @@ class BenchmarkVarianceCommand extends BenchmarkCommand
 
     protected function outputJson(array $snapshot, array $allRuns, float $avgRunDuration, float $totalDuration): void
     {
-        $snapshotImprovement = $this->improvement($snapshot);
+        $snapshotChange = $this->change($snapshot);
 
         $bladeChanges = collect($allRuns)->map(fn ($run) => $this->percentChange($snapshot['blade_ms'], $run['blade_ms']));
         $blazeChanges = collect($allRuns)->map(fn ($run) => $this->percentChange($snapshot['blaze_ms'], $run['blaze_ms']));
-        $improvementChanges = collect($allRuns)->map(fn ($run) => round($this->improvement($run) - $snapshotImprovement, 1));
+        $changes = collect($allRuns)->map(fn ($run) => round($this->change($run) - $snapshotChange, 1));
 
         $this->output->writeln(json_encode([
             'iterations' => $this->iterations,
@@ -258,12 +258,12 @@ class BenchmarkVarianceCommand extends BenchmarkCommand
             'snapshot' => [
                 'blade_ms' => $snapshot['blade_ms'],
                 'blaze_ms' => $snapshot['blaze_ms'],
-                'improvement' => $snapshotImprovement,
+                'change' => $snapshotChange,
             ],
             'variance' => [
                 'blade' => ['min' => $bladeChanges->min(), 'max' => $bladeChanges->max(), 'stddev' => $this->stddev($bladeChanges)],
                 'blaze' => ['min' => $blazeChanges->min(), 'max' => $blazeChanges->max(), 'stddev' => $this->stddev($blazeChanges)],
-                'improvement' => ['min' => $improvementChanges->min(), 'max' => $improvementChanges->max(), 'stddev' => $this->stddev($improvementChanges)],
+                'change' => ['min' => $changes->min(), 'max' => $changes->max(), 'stddev' => $this->stddev($changes)],
             ],
         ], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
     }
