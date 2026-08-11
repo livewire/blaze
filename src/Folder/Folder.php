@@ -103,9 +103,7 @@ class Folder
             return false;
         }
 
-        if (isset($node->parentsAttributes['attributes'])
-            && ! $node->parentsAttributes['attributes']->isStaticValue()
-        ) {
+        if (array_key_exists('attributes', $node->parentsAttributes)) {
             return false;
         }
 
