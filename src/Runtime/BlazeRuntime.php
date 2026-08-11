@@ -86,9 +86,8 @@ class BlazeRuntime
 
         $hash = Utils::hash($path);
         $compiled = $this->getCompiledPath().'/'.$hash.'.php';
-        $functionName = ($this->folding ? '__' : '_') . $hash;
 
-        if (! function_exists($functionName)) {
+        if (! function_exists(($this->folding ? '__' : '_') . basename($compiled, '.php'))) {
             $this->compile($path, $compiled);
 
             require $compiled;
