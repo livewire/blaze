@@ -9,6 +9,7 @@ use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Process;
 use Illuminate\Support\Facades\View;
 use Illuminate\Support\Str;
+use Livewire\Blaze\Blaze;
 
 class BenchmarkCommand extends Command
 {
@@ -77,6 +78,11 @@ class BenchmarkCommand extends Command
     protected function runBenchmark(): array
     {
         $benchmarkName = $this->argument('benchmark');
+
+        if ($benchmarkName === 'compilation') {
+            return $this->runCompilationBenchmark();
+        }
+
         $bladeView = "bench.blade.{$benchmarkName}";
         $blazeView = "bench.blaze.{$benchmarkName}";
         $showProgress = ! $this->option('ci') && ! $this->option('json');
@@ -141,6 +147,37 @@ class BenchmarkCommand extends Command
         return [
             'blade_ms' => round(collect($bladeTimes)->median(), 2),
             'blaze_ms' => round(collect($blazeTimes)->median(), 2),
+        ];
+    }
+
+    protected function runCompilationBenchmark(): array
+    {
+        for ($w = 0; $w < $this->warmupRounds; $w++) {
+            $this->measureCompilation(false);
+            $this->measureCompilation(true);
+        }
+
+        $bladeTimes = [];
+        $blazeTimes = [];
+
+        for ($r = 0; $r < $this->rounds; $r++) {
+            if ($r % 2 === 0) {
+                $bladeTimes[] = $this->measureCompilation(false);
+                $blazeTimes[] = $this->measureCompilation(true);
+            } else {
+                $blazeTimes[] = $this->measureCompilation(true);
+                $bladeTimes[] = $this->measureCompilation(false);
+            }
+        }
+
+        $keptRounds = $this->nonOutlierIndices(collect($bladeTimes))
+            ->intersect($this->nonOutlierIndices(collect($blazeTimes)))
+            ->values();
+        $this->filteredRounds = $this->rounds - $keptRounds->count();
+
+        return [
+            'blade_ms' => round($keptRounds->map(fn ($r) => $bladeTimes[$r])->median(), 2),
+            'blaze_ms' => round($keptRounds->map(fn ($r) => $blazeTimes[$r])->median(), 2),
         ];
     }
 
@@ -246,20 +283,20 @@ class BenchmarkCommand extends Command
     {
         $snapshot = $this->option('snapshot') ? null : $this->loadSnapshot();
 
-        $headers = ['Blade', 'Blaze', 'Improvement'];
+        $headers = ['Blade', 'Blaze', 'Change'];
 
         $rows = collect($results)->map(function ($result, $name) use ($snapshot) {
             $blade = $this->formatTime($result['blade_ms']);
             $blaze = $this->formatTime($result['blaze_ms']);
-            $improvement = $this->improvement($result).'%';
+            $change = $this->change($result).'%';
 
             if ($prev = $snapshot['benchmarks'][$name] ?? null) {
                 $blade .= ' '.$this->formatChange($prev['blade_ms'], $result['blade_ms']);
                 $blaze .= ' '.$this->formatChange($prev['blaze_ms'], $result['blaze_ms']);
-                $improvement .= ' '.$this->formatImprovementChange($prev['improvement'], $this->improvement($result));
+                $change .= ' '.$this->formatChangeDelta($prev['change'], $this->change($result));
             }
 
-            return [$blade, $blaze, $improvement];
+            return [$blade, $blaze, $change];
         })->values()->all();
 
         return [$headers, $rows, $snapshot];
@@ -333,13 +370,13 @@ class BenchmarkCommand extends Command
 
         foreach ($allAttempts as $i => $attempt) {
             $isOutlier = ! $keptIndices->contains($i);
-            $improvement = $this->improvement($attempt);
+            $change = $this->change($attempt);
             $line = sprintf(
                 '  Attempt %d:  Blade %s  Blaze %s  (%s%%)',
                 $i + 1,
                 $this->formatTime($attempt['blade_ms']),
                 $this->formatTime($attempt['blaze_ms']),
-                $improvement
+                $change
             );
 
             $isOutlier
@@ -374,7 +411,7 @@ class BenchmarkCommand extends Command
         $snapshot = $this->option('snapshot') ? null : $this->loadSnapshot();
         $snapshotData = $snapshot['benchmarks'][$benchmarkName] ?? null;
 
-        $headers = ['Attempt', 'Blade', 'Blaze', 'Improvement'];
+        $headers = ['Attempt', 'Blade', 'Blaze', 'Change'];
 
         $rows = [];
 
@@ -386,7 +423,7 @@ class BenchmarkCommand extends Command
                 '`#'.($i + 1).'`'.($isOutlier ? ' \*' : ''),
                 $this->formatTime($attempt['blade_ms']),
                 $this->formatTime($attempt['blaze_ms']),
-                $this->improvement($attempt).'%',
+                $this->change($attempt).'%',
             ];
         }
 
@@ -396,22 +433,22 @@ class BenchmarkCommand extends Command
                 'Snapshot',
                 $this->formatTime($snapshotData['blade_ms']),
                 $this->formatTime($snapshotData['blaze_ms']),
-                $snapshotData['improvement'].'%',
+                $snapshotData['change'].'%',
             ];
         }
 
         // Result row (median with comparison deltas when snapshot exists).
         $blade = $this->formatTime($medianResult['blade_ms']);
         $blaze = $this->formatTime($medianResult['blaze_ms']);
-        $improvement = $this->improvement($medianResult).'%';
+        $change = $this->change($medianResult).'%';
 
         if ($snapshotData) {
             $blade .= ' '.$this->formatChange($snapshotData['blade_ms'], $medianResult['blade_ms']);
             $blaze .= ' '.$this->formatChange($snapshotData['blaze_ms'], $medianResult['blaze_ms']);
-            $improvement .= ' '.$this->formatImprovementChange($snapshotData['improvement'], $this->improvement($medianResult));
+            $change .= ' '.$this->formatChangeDelta($snapshotData['change'], $this->change($medianResult));
         }
 
-        $rows[] = ['**Result**', "**{$blade}**", "**{$blaze}**", "**{$improvement}**"];
+        $rows[] = ['**Result**', "**{$blade}**", "**{$blaze}**", "**{$change}**"];
 
         $allRows = collect([$headers, ...$rows]);
         $widths = collect($headers)->keys()->map(
@@ -456,7 +493,7 @@ class BenchmarkCommand extends Command
             'attempts_detail' => collect($allAttempts)->map(fn ($attempt, $i) => [
                 'blade_ms' => $attempt['blade_ms'],
                 'blaze_ms' => $attempt['blaze_ms'],
-                'improvement' => $this->improvement($attempt),
+                'change' => $this->change($attempt),
                 'outlier' => ! $keptIndices->contains($i),
             ])->values()->all(),
             'benchmarks' => $results,
@@ -471,7 +508,7 @@ class BenchmarkCommand extends Command
             'benchmarks' => collect($results)->map(fn ($result) => [
                 'blade_ms' => $result['blade_ms'],
                 'blaze_ms' => $result['blaze_ms'],
-                'improvement' => $this->improvement($result),
+                'change' => $this->change($result),
             ])->all(),
         ];
 
@@ -501,7 +538,7 @@ class BenchmarkCommand extends Command
         return dirname(__DIR__, 4).'/benchmark-snapshot.json';
     }
 
-    protected function improvement(array $result): float
+    protected function change(array $result): float
     {
         return $result['blade_ms'] > 0
             ? round((1 - $result['blaze_ms'] / $result['blade_ms']) * 100, 1)
@@ -525,7 +562,7 @@ class BenchmarkCommand extends Command
         return "({$sign}".round($change, 1).'%)';
     }
 
-    protected function formatImprovementChange(float $old, float $new, float $threshold = 0.2): string
+    protected function formatChangeDelta(float $old, float $new, float $threshold = 0.2): string
     {
         $delta = round($new - $old, 1);
 
@@ -573,6 +610,28 @@ class BenchmarkCommand extends Command
 
         $start = hrtime(true);
         $this->renderView($view);
+
+        return (hrtime(true) - $start) / 1_000_000;
+    }
+
+    protected function measureCompilation(bool $blaze): float
+    {
+        $blaze ? Blaze::enable() : Blaze::disable();
+
+        Artisan::call('view:clear');
+
+        $compiler = app('blade.compiler');
+        $views = File::allFiles(resource_path('views'));
+
+        gc_collect_cycles();
+
+        $start = hrtime(true);
+
+        foreach ($views as $view) {
+            if ($view->getExtension() === 'php' && str_ends_with($view->getFilename(), '.blade.php')) {
+                $compiler->compile($view->getPathname());
+            }
+        }
 
         return (hrtime(true) - $start) / 1_000_000;
     }

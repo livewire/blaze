@@ -63,7 +63,7 @@ class Compiler
     protected function shouldCompile(ComponentSource $source): bool
     {
         if ($source->directives->blaze()) {
-            return true;
+            return $source->directives->blaze('compile') ?? true;
         }
 
         return $this->config->shouldCompile($source->path)
@@ -162,11 +162,12 @@ class Compiler
         $functionName = '(\'' . ($this->manager->isFolding() ? '__' : '_') . '\' . $__resolved)';
         
         $output = '<' . '?php $__resolved = $__blaze->resolve(' . $componentName . '); ?>' . "\n";
-        $output .= '<' . '?php $__blaze->pushData($attributes->all()); ?>' . "\n";
+        $output .= '<' . '?php $__delegatedData = $__blaze->unescapeAttributes($attributes->getAttributes()); ?>' . "\n";
+        $output .= '<' . '?php $__blaze->pushData($__delegatedData); ?>' . "\n";
         $output .= '<' . '?php if ($__resolved !== false): ?>' . "\n";
 
         if ($node->selfClosing) {
-            $output .= '<' . '?php ' . $functionName . '($__blaze, $attributes->all(), $__blaze->mergedComponentSlots(), [], [], $__this ?? (isset($this) ? $this : null)); ?>' . "\n";
+            $output .= '<' . '?php ' . $functionName . '($__blaze, $__delegatedData, $__blaze->mergedComponentSlots(), [], [], $__this ?? (isset($this) ? $this : null)); ?>' . "\n";
         } else {
             $hash = Utils::hash($componentName);
             $slotsVariableName = '$__slots' . $hash;
@@ -175,7 +176,7 @@ class Compiler
             $output .= '<' . '?php ' . $slotsVariableName . ' = []; ?>' . "\n";
             $output .= $this->slotCompiler->compile($slotsVariableName, $node->children);
             $output .= '<' . '?php ' . $slotsVariableName . ' = array_merge($__blaze->mergedComponentSlots(), ' . $slotsVariableName . '); ?>' . "\n";
-            $output .= '<' . '?php ' . $functionName . '($__blaze, $attributes->all(), ' . $slotsVariableName . ', [], [], $__this ?? (isset($this) ? $this : null)); ?>' . "\n";
+            $output .= '<' . '?php ' . $functionName . '($__blaze, $__delegatedData, ' . $slotsVariableName . ', [], [], $__this ?? (isset($this) ? $this : null)); ?>' . "\n";
             $output .= '<' . '?php if (! empty(' . $slotsStackName . ')) { ' . $slotsVariableName . ' = array_pop(' . $slotsStackName . '); } ?>' . "\n";
         }
 
@@ -184,7 +185,7 @@ class Compiler
         $output .= '<' . '?php endif; ?>' . "\n";
 
         $output .= '<' . '?php $__blaze->popData(); ?>' . "\n";
-        $output .= '<' . '?php unset($__resolved) ?>';
+        $output .= '<' . '?php unset($__resolved, $__delegatedData) ?>';
 
         return $output;
     }

@@ -15,7 +15,17 @@ class Utils
      */
     public static function parseBlazeDirective(string $expression): array
     {
-        return BlazeDirective::parseParameters($expression);
+        $params = BlazeDirective::parseParameters($expression);
+
+        if (data_get($params, 'compile', true) === false && data_get($params, 'memo', false) === true) {
+            throw new \InvalidArgumentException('Cannot set `memo: true` with `compile: false` in @blaze directive.');
+        }
+
+        if (data_get($params, 'compile', true) === false && data_get($params, 'fold', false) === true) {
+            throw new \InvalidArgumentException('Cannot set `fold: true` with `compile: false` in @blaze directive.');
+        }
+
+        return $params;
     }
 
     /**

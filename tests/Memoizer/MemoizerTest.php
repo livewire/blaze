@@ -65,3 +65,14 @@ test('memoizes components without blaze directive if enabled in config', functio
 
     expect($memoized)->toBeInstanceOf(TextNode::class);
 });
+
+test('does not memoize components with blaze directive override set to false', function () {
+    $input = '<x-memoizable.memo-false />';
+
+    app(Config::class)->add(fixture_path('views/components/memoizable'), memo: true);
+
+    $node = app(Parser::class)->parse($input)[0];
+    $compiled = app(Memoizer::class)->memoize($node);
+
+    expect($compiled)->toBeInstanceOf(ComponentNode::class);
+});

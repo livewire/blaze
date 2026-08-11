@@ -144,6 +144,20 @@ class BlazeRuntime
     }
 
     /**
+    * Revert escaping of data passed through attributes.
+    */
+    public function unescapeAttributes($data): array
+    {
+        $result = [];
+
+        foreach ($data as $key => $value) {
+            $result[$key] = is_string($value) ? htmlspecialchars_decode($value, ENT_QUOTES) : $value;
+        }
+
+        return $result;
+    }
+
+    /**
      * Push component data onto the stack for @aware lookups.
      */
     public function pushData(array $data): void

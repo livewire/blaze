@@ -121,3 +121,12 @@ test('context', fn () => compare(<<<'BLADE'
     </flux:context>
     BLADE
 ));
+
+test('select listbox with dynamic indicator', fn () => compare(<<<'BLADE'
+    <flux:select variant="listbox" :indicator="'checkbox'">
+        <flux:select.option>Photography</flux:select.option>
+        <flux:select.option>Design services</flux:select.option>
+        <flux:select.option>Web development</flux:select.option>
+    </flux:select>
+    BLADE
+));

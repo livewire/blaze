@@ -2,6 +2,7 @@
 
 use Livewire\Blaze\Parser\Parser;
 use Livewire\Blaze\Parser\Nodes\ComponentNode;
+use Livewire\Blaze\Parser\Nodes\DirectiveNode;
 use Livewire\Blaze\Parser\Nodes\SlotNode;
 use Livewire\Blaze\Parser\Nodes\TextNode;
 use Livewire\Blaze\Support\AttributeParser;
@@ -16,7 +17,7 @@ test('parses self-closing components', function () {
             prefix: 'x-',
             selfClosing: true,
             attributeString: 'class="my-4"',
-            attributes: AttributeParser::parse('class="my-4"'),
+            attributes: app(AttributeParser::class)->parse('class="my-4"'),
         ),
     ]);
 });
@@ -35,7 +36,7 @@ test('parses named slots', function () {
                     children: [
                         new TextNode('Footer'),
                     ],
-                    attributes: AttributeParser::parse('class="p-2"'),
+                    attributes: app(AttributeParser::class)->parse('class="p-2"'),
                 )
             ]
         ),
@@ -57,7 +58,7 @@ test('parses named slots with short syntax', function () {
                     children: [
                         new TextNode('Footer'),
                     ],
-                    attributes: AttributeParser::parse('class="p-2"'),
+                    attributes: app(AttributeParser::class)->parse('class="p-2"'),
                 )
             ]
         ),
@@ -80,7 +81,7 @@ test('parses named slots with short syntax and name in close tag', function () {
                     children: [
                         new TextNode('Footer'),
                     ],
-                    attributes: AttributeParser::parse('class="p-2"'),
+                    attributes: app(AttributeParser::class)->parse('class="p-2"'),
                 )
             ]
         ),
@@ -101,7 +102,7 @@ test('parses explicit default slot', function () {
                     children: [
                         new TextNode('Body'),
                     ],
-                    attributes: AttributeParser::parse('class="p-2"'),
+                    attributes: app(AttributeParser::class)->parse('class="p-2"'),
                 )
             ]
         ),
@@ -141,3 +142,11 @@ test('preprocesses attributes using Laravel pipeline', function ($input, $expect
         '<x-button :style="\Illuminate\Support\Arr::toCssStyles([\'color\' => \'red\'])" />',
     ],
 ]);
+
+test('parses directives', function () {
+    $input = '@csrf';
+
+    expect(app(Parser::class)->parse($input))->toEqual([
+        new DirectiveNode('csrf', $input),
+    ]);
+});

@@ -2,6 +2,8 @@
 
 use Livewire\Blaze\Parser\Parser;
 use Livewire\Blaze\Compiler\Compiler;
+use Livewire\Blaze\Config;
+use Livewire\Blaze\Parser\Nodes\ComponentNode;
 use Livewire\Blaze\Support\Utils;
 
 test('compiles self-closing components', function () {
@@ -48,9 +50,11 @@ test('compiles components', function () {
         '<?php $__attrs'. $hash .' = [\'class\' => \'mt-8\']; ?> ',
         '<?php $__slots'. $hash .' = []; ?> ',
         '<?php $__blaze->pushData($__attrs'. $hash .'); ?> ',
-        '<?php ob_start(); ?> Body <?php $__slots'. $hash .'[\'slot\'] = new \Illuminate\View\ComponentSlot(trim(ob_get_clean()), []); ?> ',
+        '<?php ob_start(); ?> ',
         '<?php ob_start(); ?> Header <?php $__slots'. $hash .'[\'header\'] = new \Illuminate\View\ComponentSlot(trim(ob_get_clean()), [\'class\' => \'p-2\']); ?> ',
+        'Body ',
         '<?php ob_start(); ?> Footer <?php $__slots'. $hash .'[\'footer\'] = new \Illuminate\View\ComponentSlot(trim(ob_get_clean()), [\'class\' => \'mt-4\']); ?> ',
+        '<?php $__slots'. $hash .'[\'slot\'] = new \Illuminate\View\ComponentSlot(trim(ob_get_clean()), []); ?> ',
         '<?php $__blaze->pushSlots($__slots'. $hash .'); ?> ',
         '<?php _'. $hash .'($__blaze, $__attrs'. $hash .', $__slots'. $hash .', [], [], $__this ?? (isset($this) ? $this : null)); ?> ',
         '<?php if (! empty($__slotsStack'. $hash .')) { $__slots'. $hash .' = array_pop($__slotsStack'. $hash .'); } ?> ',
@@ -67,13 +71,25 @@ test('compiles delegate components', function () {
 
     expect($compiled->render())->toEqualCollapsingWhitespace(join('', [
         '<?php $__resolved = $__blaze->resolve(\'flux::\' . card); ?> ',
-        '<?php $__blaze->pushData($attributes->all()); ?> ',
+        '<?php $__delegatedData = $__blaze->unescapeAttributes($attributes->getAttributes()); ?> ',
+        '<?php $__blaze->pushData($__delegatedData); ?> ',
         '<?php if ($__resolved !== false): ?> ',
-        '<?php (\'_\' . $__resolved)($__blaze, $attributes->all(), $__blaze->mergedComponentSlots(), [], [], $__this ?? (isset($this) ? $this : null)); ?> ',
+        '<?php (\'_\' . $__resolved)($__blaze, $__delegatedData, $__blaze->mergedComponentSlots(), [], [], $__this ?? (isset($this) ? $this : null)); ?> ',
         '<?php else: ?> ',
         '<flux:delegate-component component="card" /> ',
         '<?php endif; ?> ',
         '<?php $__blaze->popData(); ?> ',
-        '<?php unset($__resolved) ?>',
+        '<?php unset($__resolved, $__delegatedData) ?>',
     ]));
+});
+
+test('does not compile components with blaze directive override set to false', function () {
+    $input = '<x-compile-false />';
+
+    app(Config::class)->add(fixture_path('views/components'));
+
+    $node = app(Parser::class)->parse($input)[0];
+    $compiled = app(Compiler::class)->compile($node);
+
+    expect($compiled)->toBeInstanceOf(ComponentNode::class);
 });

@@ -4,9 +4,11 @@ namespace Livewire\Blaze\Parser;
 
 use Livewire\Blaze\BladeService;
 use Livewire\Blaze\Parser\Nodes\ComponentNode;
+use Livewire\Blaze\Parser\Nodes\DirectiveNode;
 use Livewire\Blaze\Parser\Nodes\SlotNode;
 use Livewire\Blaze\Parser\Nodes\TextNode;
 use Livewire\Blaze\Parser\Tokenizer;
+use Livewire\Blaze\Parser\Tokens\DirectiveToken;
 use Livewire\Blaze\Parser\Tokens\SlotCloseToken;
 use Livewire\Blaze\Parser\Tokens\SlotOpenToken;
 use Livewire\Blaze\Parser\Tokens\TagCloseToken;
@@ -22,7 +24,7 @@ class Parser
 {
     public function __construct(
         protected Tokenizer $tokenizer,
-        protected BladeService $blade,
+        protected AttributeParser $attributes,
     ) {
     }
 
@@ -42,6 +44,7 @@ class Parser
                 TagCloseToken::class => $this->handleTagClose($token, $stack),
                 SlotOpenToken::class => $this->handleSlotOpen($token, $stack),
                 SlotCloseToken::class => $this->handleSlotClose($token, $stack),
+                DirectiveToken::class => $this->handleDirective($token, $stack),
                 TextToken::class => $this->handleText($token, $stack),
                 default => throw new \RuntimeException('Unknown token type: ' . get_class($token))
             };
@@ -63,9 +66,7 @@ class Parser
             attributeString: $attributeString,
             children: [],
             selfClosing: false,
-            attributes: AttributeParser::parse(
-                $this->blade->preprocessAttributeString($attributeString)
-            ),
+            attributes: $this->attributes->parse($attributeString),
         );
 
         $stack->pushContainer($node);
@@ -84,9 +85,7 @@ class Parser
             attributeString: $attributeString,
             children: [],
             selfClosing: true,
-            attributes: AttributeParser::parse(
-                $this->blade->preprocessAttributeString($attributeString)
-            ),
+            attributes: $this->attributes->parse($attributeString),
         );
 
         $stack->addToRoot($node);
@@ -114,9 +113,7 @@ class Parser
             children: [],
             prefix: $token->prefix,
             closeHasName: false,
-            attributes: AttributeParser::parse(
-                $this->blade->preprocessAttributeString($attributeString)
-            ),
+            attributes: $this->attributes->parse($attributeString),
         );
 
         $stack->pushContainer($node);
@@ -134,6 +131,17 @@ class Parser
                 $closed->closeHasName = true;
             }
         }
+    }
+
+    protected function handleDirective(DirectiveToken $token, ParseStack $stack): void
+    {
+        $node = new DirectiveNode(
+            name: $token->name,
+            original: $token->original,
+            expression: $token->expression,
+        );
+
+        $stack->addToRoot($node);
     }
 
     /**

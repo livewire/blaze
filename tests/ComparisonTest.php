@@ -45,6 +45,18 @@ test('foldable aware', fn () => compare(<<<'BLADE'
     BLADE
 ));
 
+test('nested foldable aware', fn () => compare(<<<'BLADE'
+    <x-foldable.nested-input-aware type="number" />
+    BLADE
+));
+
+test('foldable child with unsafe aware prop', fn () => compare(<<<'BLADE'
+    <x-foldable.wrapper :type="'number'">
+        <x-foldable.input-aware-unsafe />
+    </x-foldable.wrapper>
+    BLADE,
+));
+
 test('foldable aware default', fn () => compare(<<<'BLADE'
     <x-foldable.input-aware />
     BLADE
@@ -54,6 +66,13 @@ test('foldable boolean attributes', fn () => compare(<<<'BLADE'
     <x-foldable.input :readonly="$readonly" />
     BLADE,
     ['readonly' => false],
+));
+
+test('foldable literal string attributes matching PHP constants', fn () => compare(<<<'BLADE'
+    <x-foldable.input value="true" />
+    <x-foldable.input value="false" />
+    <x-foldable.input value="null" />
+    BLADE
 ));
 
 test('same component in a slot doesnt affect parents attributes', fn () => compare(<<<'BLADE'
@@ -112,5 +131,32 @@ test('deeply nested same component with different components interleaved', fn ()
             </x-card>
         </x-wrapper>
     </x-card>
+    BLADE
+));
+
+test('conditional slots', fn () => compare(<<<'BLADE'
+    <x-card>
+        @if(false)
+        <x-slot:header>
+            Header
+        </x-slot:header>
+        @endif
+    </x-card>
+    BLADE
+));
+
+test('foldable conditional slots', fn () => compare(<<<'BLADE'
+    <x-foldable.card>
+        @if(false)
+        <x-slot:header>
+            Header
+        </x-slot:header>
+        @endif
+    </x-foldable.card>
+    BLADE
+));
+
+test('foldable aware without props', fn () => compare(<<<'BLADE'
+    <x-foldable.input-aware-no-props type="number" />
     BLADE
 ));

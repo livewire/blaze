@@ -27,12 +27,14 @@ class TraceListCommand extends Command
 
         $this->table(
             ['ID', 'URL', 'Mode', 'Render Time', 'Recorded'],
-            collect($traces)->map(fn (array $trace) => [
-                $trace['id'],
-                $trace['url'] ?? '-',
-                $trace['mode'] ?? '-',
-                $this->formatMs($trace['renderTime'] ?? 0),
-                $trace['timestamp'] ? Carbon::parse($trace['timestamp'])->diffForHumans(short: true) : '-',
+            collect($traces)
+                ->sortByDesc(fn (array $trace) => $trace['renderTime'] ?? 0)
+                ->map(fn (array $trace) => [
+                    $trace['id'],
+                    $trace['url'] ?? '-',
+                    $trace['mode'] ?? '-',
+                    $this->formatMs($trace['renderTime'] ?? 0),
+                    $trace['timestamp'] ? Carbon::parse($trace['timestamp'])->diffForHumans(short: true) : '-',
             ])->all(),
         );
 

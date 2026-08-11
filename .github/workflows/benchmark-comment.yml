@@ -30,7 +30,7 @@ jobs:
           echo "heading=$(sed -n '2p' benchmark-result.md)" >> "$GITHUB_OUTPUT"
           tail -n +2 benchmark-result.md > benchmark-comment.md
           echo "" >> benchmark-comment.md
-          echo "<sub>To run a specific benchmark, comment <code>/benchmark &lt;name&gt;</code> where name is one of: <code>attributes</code>, <code>aware</code>, <code>class</code>, <code>default</code>, <code>forwarding</code>, <code>merge</code>, <code>named-slots</code>, <code>no-attributes</code>, <code>slot</code></sub>" >> benchmark-comment.md
+          echo "<sub>To run a specific benchmark, comment <code>/benchmark &lt;name&gt;</code><br><code>attributes</code>, <code>aware</code>, <code>class</code>, <code>default</code>, <code>forwarding</code>, <code>merge</code>, <code>named-slots</code>, <code>no-attributes</code>, <code>slot</code>, <code>compilation</code></sub>" >> benchmark-comment.md
 
       - name: Find existing comment
         uses: peter-evans/find-comment@v3

@@ -28,10 +28,16 @@ class FrontMatter
     }
 
     /**
-     * Check if any folded component referenced in the source has been modified.
+     * Check if any folded component referenced in the compiled file has been modified.
      */
-    public function sourceContainsExpiredFoldedDependencies(string $source): bool
+    public function containsExpiredFoldedDependencies(string $path): bool
     {
+        $source = @file_get_contents($path);
+        
+        if ($source === false) {
+            return false;
+        }
+
         $foldedComponents = $this->parseFromTemplate($source);
 
         if (empty($foldedComponents)) {

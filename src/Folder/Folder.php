@@ -15,6 +15,8 @@ use Livewire\Blaze\BladeService;
 use Livewire\Blaze\BlazeManager;
 use Illuminate\Support\Arr;
 use Livewire\Blaze\Config;
+use Livewire\Blaze\Parser\Nodes\DirectiveNode;
+use Livewire\Blaze\Support\DirectiveStack;
 use Throwable;
 
 /**
@@ -58,7 +60,7 @@ class Folder
         $this->checkProblematicPatterns($source);
 
         try {
-            $foldable = new Foldable($node, $source, $this->renderer, $this->blade);
+            $foldable = new Foldable($node, $source->path, $this->renderer, $this->blade);
 
             $html = $foldable->fold();
 
@@ -97,7 +99,24 @@ class Folder
      */
     protected function isSafeToFold(ComponentSource $source, ComponentNode $node): bool
     {
+        if ($this->slotsAreWrappedInDirective($node)) {
+            return false;
+        }
+
+        if (array_key_exists('attributes', $node->parentsAttributes)) {
+            return false;
+        }
+
         $dynamicAttributes = array_filter($node->attributes, fn ($attribute) => ! $attribute->isStaticValue());
+
+        foreach ($source->directives->aware() as $prop) {
+            if (! isset($node->attributes[$prop])
+                && isset($node->parentsAttributes[$prop])
+                && ! $node->parentsAttributes[$prop]->isStaticValue()
+            ) {
+                $dynamicAttributes[$prop] = $node->parentsAttributes[$prop];
+            }
+        }
 
         if (array_key_exists('attributes', $dynamicAttributes)) {
             return false;
@@ -112,6 +131,8 @@ class Folder
         }
 
         $props = $source->directives->props();
+        $aware = $source->directives->aware();
+
         $safe = Arr::wrap($source->directives->blaze('safe'));
         $unsafe = Arr::wrap($source->directives->blaze('unsafe'));
 
@@ -141,7 +162,7 @@ class Folder
             $unsafe = array_merge($unsafe, array_diff(array_keys($node->attributes), $props));
         }
 
-        $unsafe = array_diff(array_merge($props, $unsafe), $safe);
+        $unsafe = array_diff(array_merge($props, $aware, $unsafe), $safe);
 
         foreach ($dynamicAttributes as $attribute) {
             if (in_array($attribute->propName, $unsafe)) {
@@ -158,6 +179,26 @@ class Folder
         }
 
         return true;
+    }
+
+    /**
+     * Check if a slot is wrapped in a directive.
+     */
+    protected function slotsAreWrappedInDirective(ComponentNode $node): bool
+    {
+        $stack = DirectiveStack::make($this->blade->customConditions());
+
+        foreach ($node->children as $child) {
+            if ($child instanceof DirectiveNode) {
+                $stack->add($child->name);
+            }
+
+            if ($child instanceof SlotNode && $stack->open()) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /**

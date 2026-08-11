@@ -28,7 +28,7 @@ class ParseStack
             if ($current instanceof ComponentNode || $current instanceof SlotNode) {
                 $current->children[] = $node;
             } else {
-            $this->ast[] = $node;
+                $this->ast[] = $node;
             }
         }
     }
