@@ -33,6 +33,11 @@ test('aware default', fn () => compare(<<<'BLADE'
     BLADE
 ));
 
+test('nested aware', fn () => compare(<<<'BLADE'
+    <x-nested-input-aware type="number" />
+    BLADE
+));
+
 test('foldable aware', fn () => compare(<<<'BLADE'
     <x-foldable.wrapper type="number">
         <x-foldable.input-aware />
