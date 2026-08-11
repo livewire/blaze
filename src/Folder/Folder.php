@@ -61,7 +61,7 @@ class Folder
         $this->checkProblematicPatterns($component);
 
         try {
-            $foldable = new Foldable($node, $component, $this->renderer, $this->blade);
+            $foldable = new Foldable($node, $component->path, $this->renderer, $this->blade);
 
             $html = $foldable->fold();
 
@@ -101,6 +101,10 @@ class Folder
     protected function isSafeToFold(ComponentSource $source, ComponentNode $node): bool
     {
         if ($this->slotsAreWrappedInDirective($node)) {
+            return false;
+        }
+
+        if (array_key_exists('attributes', $node->parentsAttributes)) {
             return false;
         }
 

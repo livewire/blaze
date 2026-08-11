@@ -40,6 +40,11 @@ test('foldable aware', fn () => compare(<<<'BLADE'
     BLADE
 ));
 
+test('nested foldable aware', fn () => compare(<<<'BLADE'
+    <x-foldable.nested-input-aware type="number" />
+    BLADE
+));
+
 test('foldable child with unsafe aware prop', fn () => compare(<<<'BLADE'
     <x-foldable.wrapper :type="'number'">
         <x-foldable.input-aware-unsafe />
@@ -143,5 +148,10 @@ test('foldable conditional slots', fn () => compare(<<<'BLADE'
         </x-slot:header>
         @endif
     </x-foldable.card>
+    BLADE
+));
+
+test('foldable aware without props', fn () => compare(<<<'BLADE'
+    <x-foldable.input-aware-no-props type="number" />
     BLADE
 ));

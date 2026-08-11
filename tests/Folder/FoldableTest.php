@@ -1,29 +1,210 @@
 <?php
 
-use Illuminate\Support\Facades\Artisan;
 use Livewire\Blaze\BladeRenderer;
 use Livewire\Blaze\BladeService;
 use Livewire\Blaze\Folder\Foldable;
-use Livewire\Blaze\Parser\Attribute;
+use Livewire\Blaze\Parser\Nodes\ComponentNode;
 use Livewire\Blaze\Parser\Parser;
-use Livewire\Blaze\Support\ComponentRepository;
+use Livewire\Blaze\Support\AttributeParser;
 
-beforeEach(fn () => Artisan::call('view:clear'));
+use function Pest\Laravel\mock;
 
-test('folds dynamic attributes', function () {
-    $input = '<x-foldable.input :type="$type" />';
+test('replaces and restores bound attributes', function () {
+    $node = app(Parser::class)->parse('<x-input :type="$type" />')[0];
 
-    $node = app(Parser::class)->parse($input)->nodes[0];
-    $foldable = new Foldable($node, app(ComponentRepository::class)->get('foldable.input'), app(BladeRenderer::class), app(BladeService::class));
+    mock(BladeRenderer::class)
+        ->expects('render')
+        ->once()->withArgs(function (ComponentNode $node) {
+            expect($node->render())->toBe('<x-input type="BLAZE_PLACEHOLDER_0_" />');
 
-    expect($foldable->fold())->toEqualCollapsingWhitespace(
-        '<input type="{{ $type }}" >'
+            return true;
+        })
+        ->andReturn('<input type="BLAZE_PLACEHOLDER_0_" >');
+
+    $output = (new Foldable($node, '', app(BladeRenderer::class), app(BladeService::class)))->fold();
+
+    expect($output)->toEqualCollapsingWhitespace('<input type="{{ $type }}" >');
+});
+
+test('preserves bound attributes with static constant values', function (string $value) {
+    $node = app(Parser::class)->parse('<x-input :disabled="' . $value . '" />')[0];
+
+    mock(BladeRenderer::class)
+        ->expects('render')
+        ->once()->withArgs(function (ComponentNode $node) use ($value) {
+            expect($node->render())->toBe('<x-input :disabled="' . $value . '" />');
+
+            return true;
+        })
+        ->andReturn('');
+
+    (new Foldable($node, '', app(BladeRenderer::class), app(BladeService::class)))->fold();
+})->with(['false', 'true', 'null']);
+
+test('replaces parents attributes', function () {
+    $node = app(Parser::class)->parse('<x-input />')[0];
+
+    $node->setParentsAttributes(
+        app(AttributeParser::class)->parse(':type="$type"')
+    );
+
+    mock(BladeRenderer::class)
+        ->expects('render')
+        ->once()->withArgs(function (ComponentNode $node) {
+            expect($node->render())->toBe('<x-input />');
+            expect($node->parentsAttributes['type']->render())->toBe('type="BLAZE_PLACEHOLDER_0_"');
+
+            return true;
+        })
+        ->andReturn('<input type="BLAZE_PLACEHOLDER_0_">');
+
+    $output = (new Foldable($node, '', app(BladeRenderer::class), app(BladeService::class)))->fold();
+
+    expect($output)->toEqualCollapsingWhitespace('<input type="{{ $type }}">');
+});
+
+test('restores every occurrence of a dynamic attribute placeholder', function () {
+    $node = app(Parser::class)->parse('<x-button wire:click="save({{ $id }})" />')[0];
+
+    mock(BladeRenderer::class)
+        ->expects('render')
+        ->once()->withArgs(function (ComponentNode $node) {
+            expect($node->render())->toBe('<x-button wire:click="BLAZE_PLACEHOLDER_0_" />');
+
+            return true;
+        })
+        ->andReturn('<button wire:target="BLAZE_PLACEHOLDER_0_" wire:click="BLAZE_PLACEHOLDER_0_"></button>');
+
+    $output = (new Foldable($node, '', app(BladeRenderer::class), app(BladeService::class)))->fold();
+
+    expect($output)->toEqualCollapsingWhitespace(
+        '<button wire:target="save({{ $id }})" wire:click="save({{ $id }})"></button>'
     );
 });
 
-test('folds slots', function () {
+test('restores bound attributes inside php blocks as raw expressions', function () {
+    $node = app(Parser::class)->parse('<x-input :type="$type" />')[0];
+
+    mock(BladeRenderer::class)
+        ->expects('render')
+        ->once()->withArgs(function (ComponentNode $node) {
+            expect($node->render())->toBe('<x-input type="BLAZE_PLACEHOLDER_0_" />');
+
+            return true;
+        })
+        ->andReturn("<?php echo strtoupper('BLAZE_PLACEHOLDER_0_'); ?>");
+
+    $output = (new Foldable($node, '', app(BladeRenderer::class), app(BladeService::class)))->fold();
+
+    expect($output)->toBe('<?php echo strtoupper($type); ?>');
+});
+
+test('compiles echo attributes restored inside php blocks', function () {
+    $node = app(Parser::class)->parse('<x-layout theme="dark-{{ $variant }}" />')[0];
+
+    mock(BladeRenderer::class)
+        ->expects('render')
+        ->once()->withArgs(function (ComponentNode $node) {
+            expect($node->render())->toBe('<x-layout theme="BLAZE_PLACEHOLDER_0_" />');
+
+            return true;
+        })
+        ->andReturn("<?php echo 'BLAZE_PLACEHOLDER_0_'; ?>");
+
+    $output = (new Foldable($node, '', app(BladeRenderer::class), app(BladeService::class)))->fold();
+
+    expect($output)->toBe("<?php echo 'dark-'.e(\$variant); ?>");
+});
+
+test('compiles bound attributes passed through attribute bag', function () {
+    $node = app(Parser::class)->parse('<x-input :required="$required" />')[0];
+
+    mock(BladeRenderer::class)
+        ->expects('render')
+        ->once()->withArgs(function (ComponentNode $node) {
+            expect($node->render())->toBe('<x-input required="BLAZE_PLACEHOLDER_0_" />');
+
+            return true;
+        })
+        ->andReturn('<input [BLAZE_ATTR:BLAZE_PLACEHOLDER_0_:required] type="text" >');
+
+    $output = (new Foldable($node, '', app(BladeRenderer::class), app(BladeService::class)))->fold();
+
+    expect($output)->toEqualCollapsingWhitespace(
+        sprintf('<input %s type="text" >', join('', [
+            '<?php if (($__blazeAttr = $required) !== false && !is_null($__blazeAttr)): ?>',
+            'required="<?php echo e($__blazeAttr === true ? \'required\' : $__blazeAttr); ?>"',
+            '<?php endif; unset($__blazeAttr); ?>',
+        ]))
+    );
+});
+
+test('restores unbound attributes passed through attribute bag', function () {
+    $node = app(Parser::class)->parse('<x-button wire:click="save({{ $id }})" />')[0];
+
+    mock(BladeRenderer::class)
+        ->expects('render')
+        ->once()->withArgs(function (ComponentNode $node) {
+            expect($node->render())->toBe('<x-button wire:click="BLAZE_PLACEHOLDER_0_" />');
+
+            return true;
+        })
+        ->andReturn('<button [BLAZE_ATTR:BLAZE_PLACEHOLDER_0_:wire:click]></button>');
+
+    $output = (new Foldable($node, '', app(BladeRenderer::class), app(BladeService::class)))->fold();
+
+    expect($output)->toBe('<button wire:click="save({{ $id }})"></button>');
+});
+
+test('uses empty strings for true x-data and wire: attributes passed through attribute bag', function (string $attribute) {
+    $node = app(Parser::class)->parse('<x-input :'.$attribute.'="$value" />')[0];
+
+    mock(BladeRenderer::class)
+        ->expects('render')
+        ->once()->withArgs(function (ComponentNode $node) use ($attribute) {
+            expect($node->render())->toBe('<x-input '.$attribute.'="BLAZE_PLACEHOLDER_0_" />');
+
+            return true;
+        })
+        ->andReturn('<input [BLAZE_ATTR:BLAZE_PLACEHOLDER_0_:'.$attribute.']>');
+
+    $output = (new Foldable($node, '', app(BladeRenderer::class), app(BladeService::class)))->fold();
+
+    expect($output)->toBe(implode('', [
+        '<input ',
+        '<?php if (($__blazeAttr = $value) !== false && !is_null($__blazeAttr)): ?>',
+        $attribute.'="<?php echo e($__blazeAttr === true ? \'\' : $__blazeAttr); ?>"',
+        '<?php endif; unset($__blazeAttr); ?>',
+        '>',
+    ]));
+})->with(['x-data', 'wire:loading']);
+
+test('handles newlines consumed by attribute php blocks', function () {
+    $node = app(Parser::class)->parse('<x-input :required="$required" />')[0];
+
+    mock(BladeRenderer::class)
+        ->expects('render')
+        ->once()->withArgs(function (ComponentNode $node) {
+            expect($node->render())->toBe('<x-input required="BLAZE_PLACEHOLDER_0_" />');
+
+            return true;
+        })
+        ->andReturn("<input\n[BLAZE_ATTR:BLAZE_PLACEHOLDER_0_:required]\n>");
+
+    $output = (new Foldable($node, '', app(BladeRenderer::class), app(BladeService::class)))->fold();
+
+    expect($output)->toBe(implode('', [
+        "<input\n",
+        '<?php if (($__blazeAttr = $required) !== false && !is_null($__blazeAttr)): ?>',
+        'required="<?php echo e($__blazeAttr === true ? \'required\' : $__blazeAttr); ?>"',
+        '<?php endif; unset($__blazeAttr); ?>',
+        "\n\n>",
+    ]));
+});
+
+test('restores named and default slots after rendering', function () {
     $input = <<<'BLADE'
-        <x-foldable.card>
+        <x-card>
             Before
             <x-slot:header>
                 {{ $title }}
@@ -34,13 +215,38 @@ test('folds slots', function () {
             </x-slot:footer>
             After
         </x-card>
-        BLADE
-    ;
+        BLADE;
 
-    $node = app(Parser::class)->parse($input)->nodes[0];
-    $foldable = new Foldable($node, app(ComponentRepository::class)->get('foldable.card'), app(BladeRenderer::class), app(BladeService::class));
+    $node = app(Parser::class)->parse($input)[0];
 
-    expect($foldable->fold())->toEqualCollapsingWhitespace(<<<'HTML'
+    mock(BladeRenderer::class)
+        ->expects('render')
+        ->once()->withArgs(function (ComponentNode $node) {
+            expect($node->render())->toBe(join('', [
+                '<x-card>',
+                    '<x-slot:header>BLAZE_PLACEHOLDER_0_</x-slot:header>',
+                    '<x-slot:footer>BLAZE_PLACEHOLDER_1_</x-slot:footer>',
+                    '<x-slot name="slot">BLAZE_PLACEHOLDER_2_</x-slot>',
+                '</x-card>',
+                ])
+            );
+
+            return true;
+        })
+        ->andReturn(<<<'HTML'
+            <div>
+                BLAZE_PLACEHOLDER_0_
+                <hr>
+                BLAZE_PLACEHOLDER_2_
+                <hr>
+                BLAZE_PLACEHOLDER_1_
+            </div>
+            HTML
+        );
+
+    $output = (new Foldable($node, '', app(BladeRenderer::class), app(BladeService::class)))->fold();
+
+    expect($output)->toEqualCollapsingWhitespace(<<<'HTML'
         <div>
             <?php ob_start(); ?> {{ $title }} <?php echo trim(ob_get_clean()); ?>
             <hr>
@@ -52,135 +258,147 @@ test('folds slots', function () {
     );
 });
 
-test('preserves dynamic attributes with static false', function () {
-    $input = '<x-foldable.input :disabled="false" />';
+test('does not synthesize a default slot when one is explicit', function () {
+    $input = <<<'BLADE'
+        <x-card>
+            Ignored loose content
+            <x-slot name="slot">Explicit content</x-slot>
+        </x-card>
+        BLADE;
 
-    $node = app(Parser::class)->parse($input)->nodes[0];
-    $foldable = new Foldable($node, app(ComponentRepository::class)->get('foldable.input'), app(BladeRenderer::class), app(BladeService::class));
+    $node = app(Parser::class)->parse($input)[0];
 
-    expect($foldable->fold())->toEqualCollapsingWhitespace(
-        '<input type="text" >'
-    );
+    mock(BladeRenderer::class)
+        ->expects('render')
+        ->once()->withArgs(function (ComponentNode $node) {
+            expect($node->render())->toBe('<x-card><x-slot name="slot">BLAZE_PLACEHOLDER_0_</x-slot></x-card>');
+
+            return true;
+        })
+        ->andReturn('<div>BLAZE_PLACEHOLDER_0_</div>');
+
+    $output = (new Foldable($node, '', app(BladeRenderer::class), app(BladeService::class)))->fold();
+
+    expect($output)->toBe('<div><?php ob_start(); ?>Explicit content<?php echo trim(ob_get_clean()); ?></div>');
 });
 
-test('preserves dynamic attributes with static null', function () {
-    $input = '<x-foldable.input :disabled="null" />';
+test('handles newlines consumed by slot php blocks', function () {
+    $node = app(Parser::class)->parse('<x-card>Content</x-card>')[0];
 
-    $node = app(Parser::class)->parse($input)->nodes[0];
-    $foldable = new Foldable($node, app(ComponentRepository::class)->get('foldable.input'), app(BladeRenderer::class), app(BladeService::class));
+    mock(BladeRenderer::class)
+        ->expects('render')
+        ->once()->withArgs(function (ComponentNode $node) {
+            expect($node->render())->toBe('<x-card><x-slot name="slot">BLAZE_PLACEHOLDER_0_</x-slot></x-card>');
 
-    expect($foldable->fold())->toEqualCollapsingWhitespace(
-        '<input type="text" >'
-    );
-});
+            return true;
+        })
+        ->andReturn("<div>BLAZE_PLACEHOLDER_0_\n</div>");
 
-test('merges aware props from parent attributes', function () {
-    $input = '<x-foldable.input-aware />';
+    $output = (new Foldable($node, '', app(BladeRenderer::class), app(BladeService::class)))->fold();
 
-    $node = app(Parser::class)->parse($input)->nodes[0];
-    $foldable = new Foldable($node, app(ComponentRepository::class)->get('foldable.input-aware'), app(BladeRenderer::class), app(BladeService::class));
-
-    $node->setParentsAttributes([
-        'type' => new Attribute(
-            name: 'type',
-            value: 'number',
-            propName: 'type',
-            dynamic: false
-        ),
-    ]);
-
-    expect($foldable->fold())->toEqualCollapsingWhitespace(
-        '<input type="number" >'
-    );
-});
-
-test('merges dynamic aware props from parent attributes', function () {
-    $input = '<x-foldable.input-aware />';
-
-    $node = app(Parser::class)->parse($input)->nodes[0];
-    $node->setParentsAttributes([
-        'type' => new Attribute(
-            name: 'type',
-            value: '$type',
-            propName: 'type',
-            dynamic: true,
-            prefix: ':',
-            quotes: '"',
-        ),
-    ]);
-
-    $foldable = new Foldable($node, app(ComponentRepository::class)->get('foldable.input-aware'), app(BladeRenderer::class), app(BladeService::class));
-
-    expect($foldable->fold())->toEqualCollapsingWhitespace(
-        '<input type="{{ $type }}" >'
-    );
-});
-
-test('folds dynamic attributes passed through attribute bag', function () {
-    $input = '<x-foldable.input :readonly="$readonly" />';
-
-    $node = app(Parser::class)->parse($input)->nodes[0];
-    $foldable = new Foldable($node, app(ComponentRepository::class)->get('foldable.input'), app(BladeRenderer::class), app(BladeService::class));
-
-    expect($foldable->fold())->toEqualCollapsingWhitespace(
-        sprintf('<input %s type="text" >', join('', [
-            '<?php if (($__blazeAttr = $readonly) !== false && !is_null($__blazeAttr)): ?>',
-            'readonly="<?php echo e($__blazeAttr === true ? \'readonly\' : $__blazeAttr); ?>"',
-            '<?php endif; unset($__blazeAttr); ?>',
-        ]))
-    );
-});
-
-test('folds dynamic attributes reused under a different key', function () {
-    $input = '<x-foldable.button wire:click="save({{ $id }})" />';
-    $node = app(Parser::class)->parse($input)->nodes[0];
-    $foldable = new Foldable($node, app(ComponentRepository::class)->get('foldable.button'), app(BladeRenderer::class), app(BladeService::class));
-    expect($foldable->fold())->toEqualCollapsingWhitespace(
-        '<button wire:target="save({{ $id }})" wire:click="save({{ $id }})" type="button"></button>'
-    );
+    expect($output)->toBe("<div><?php ob_start(); ?>Content<?php echo trim(ob_get_clean()); ?>\n\n</div>");
 });
 
 test('wraps output with aware macros if descendants use aware', function () {
-    $input = '<x-foldable.wrapper name="John"><x-aware-descendant /></x-foldable.wrapper>';
+    $node = app(Parser::class)->parse('<x-layout theme="dark" />')[0];
 
-    $node = app(Parser::class)->parse($input)->nodes[0];
     $node->hasAwareDescendants = true;
 
-    $foldable = new Foldable($node, app(ComponentRepository::class)->get('foldable.wrapper'), app(BladeRenderer::class), app(BladeService::class));
+    mock(BladeRenderer::class)
+        ->expects('render')
+        ->once()->withArgs(function (ComponentNode $node) {
+            expect($node->render())->toBe('<x-layout theme="dark" />');
 
-    expect($foldable->fold())->toEqualCollapsingWhitespace(join('', [
-        '<?php $__blaze->pushData([\'name\' => \'John\']); $__env->pushConsumableComponentData([\'name\' => \'John\']); ?>',
-        '<div> <?php ob_start(); ?><x-aware-descendant /><?php echo trim(ob_get_clean()); ?> </div>',
+            return true;
+        })
+        ->andReturn('<div></div>');
+
+    $output = (new Foldable($node, '', app(BladeRenderer::class), app(BladeService::class)))->fold();
+
+    expect($output)->toEqualCollapsingWhitespace(join('', [
+        '<?php $__blaze->pushData([\'theme\' => \'dark\']); $__env->pushConsumableComponentData([\'theme\' => \'dark\']); ?>',
+        '<div></div>',
         '<?php $__blaze->popData(); $__env->popConsumableComponentData(); ?>',
     ]));
 });
 
 test('compiles dynamic attributes in aware macros', function () {
-    $input = '<x-foldable.wrapper :name="$name"><x-aware-descendant /></x-foldable.wrapper>';
+    $node = app(Parser::class)->parse('<x-layout :theme="$theme" />')[0];
 
-    $node = app(Parser::class)->parse($input)->nodes[0];
     $node->hasAwareDescendants = true;
 
-    $foldable = new Foldable($node, app(ComponentRepository::class)->get('foldable.wrapper'), app(BladeRenderer::class), app(BladeService::class));
+    mock(BladeRenderer::class)
+        ->expects('render')
+        ->once()->withArgs(function (ComponentNode $node) {
+            expect($node->render())->toBe('<x-layout theme="BLAZE_PLACEHOLDER_0_" />');
 
-    expect($foldable->fold())->toEqualCollapsingWhitespace(join('', [
-        '<?php $__blaze->pushData([\'name\' => $name]); $__env->pushConsumableComponentData([\'name\' => $name]); ?>',
-        '<div> <?php ob_start(); ?><x-aware-descendant /><?php echo trim(ob_get_clean()); ?> </div>',
+            return true;
+        })
+        ->andReturn('<div></div>');
+
+    $output = (new Foldable($node, '', app(BladeRenderer::class), app(BladeService::class)))->fold();
+
+    expect($output)->toEqualCollapsingWhitespace(join('', [
+        '<?php $__blaze->pushData([\'theme\' => $theme]); $__env->pushConsumableComponentData([\'theme\' => $theme]); ?>',
+        '<div></div>',
         '<?php $__blaze->popData(); $__env->popConsumableComponentData(); ?>',
     ]));
 });
 
 test('compiles echo attributes in aware macros', function () {
-    $input = '<x-foldable.wrapper name="Mr. {{ $name }}"><x-aware-descendant /></x-foldable.wrapper>';
-
-    $node = app(Parser::class)->parse($input)->nodes[0];
+    $node = app(Parser::class)->parse('<x-layout theme="dark-{{ $variant }}" />')[0];
     $node->hasAwareDescendants = true;
 
-    $foldable = new Foldable($node, app(ComponentRepository::class)->get('foldable.wrapper'), app(BladeRenderer::class), app(BladeService::class));
+    mock(BladeRenderer::class)
+        ->expects('render')
+        ->once()->withArgs(function (ComponentNode $node) {
+            expect($node->render())->toBe('<x-layout theme="BLAZE_PLACEHOLDER_0_" />');
 
-    expect($foldable->fold())->toEqualCollapsingWhitespace(join('', [
-        '<?php $__blaze->pushData([\'name\' => \'Mr. \'.e($name)]); $__env->pushConsumableComponentData([\'name\' => \'Mr. \'.e($name)]); ?>',
-        '<div> <?php ob_start(); ?><x-aware-descendant /><?php echo trim(ob_get_clean()); ?> </div>',
+            return true;
+        })
+        ->andReturn('<div></div>');
+
+    $output = (new Foldable($node, '', app(BladeRenderer::class), app(BladeService::class)))->fold();
+
+    expect($output)->toEqualCollapsingWhitespace(join('', [
+        '<?php $__blaze->pushData([\'theme\' => \'dark-\'.e($variant)]); $__env->pushConsumableComponentData([\'theme\' => \'dark-\'.e($variant)]); ?>',
+        '<div></div>',
         '<?php $__blaze->popData(); $__env->popConsumableComponentData(); ?>',
     ]));
+});
+
+test('does not add aware macros to components without attributes', function () {
+    $node = app(Parser::class)->parse('<x-layout />')[0];
+    $node->hasAwareDescendants = true;
+
+    mock(BladeRenderer::class)
+        ->expects('render')
+        ->once()->withArgs(function (ComponentNode $node) {
+            expect($node->render())->toBe('<x-layout />');
+
+            return true;
+        })
+        ->andReturn('<div></div>');
+
+    expect((new Foldable($node, '', app(BladeRenderer::class), app(BladeService::class)))->fold())
+        ->toBe('<div></div>');
+});
+
+test('does not add aware macros for inherited attributes only', function () {
+    $node = app(Parser::class)->parse('<x-layout />')[0];
+    $node->hasAwareDescendants = true;
+    $node->setParentsAttributes(app(AttributeParser::class)->parse('theme="dark"'));
+
+    mock(BladeRenderer::class)
+        ->expects('render')
+        ->once()->withArgs(function (ComponentNode $node) {
+            expect($node->render())->toBe('<x-layout />');
+            expect($node->parentsAttributes['theme']->render())->toBe('theme="dark"');
+
+            return true;
+        })
+        ->andReturn('<div></div>');
+
+    expect((new Foldable($node, '', app(BladeRenderer::class), app(BladeService::class)))->fold())
+        ->toBe('<div></div>');
 });
