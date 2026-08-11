@@ -2,7 +2,6 @@
 
 use Illuminate\Support\Arr;
 use Livewire\Blaze\Support\AttributeParser;
-use Illuminate\Support\Arr;
 
 test('getStaticValue returns constatnts for dynamic constant values', function () {
     $attribute = app(AttributeParser::class)->parse(':foo="true"')['foo'];
