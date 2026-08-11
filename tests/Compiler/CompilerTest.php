@@ -14,7 +14,7 @@ test('compiles self-closing components', function () {
     $hash = Utils::hash($path);
 
     expect($compiled->render())->toEqualCollapsingWhitespace(join('', [
-        '<?php $__blaze->ensureRequired(\''. $path .'\', $__blaze->compiledPath.\'/'. $hash .'.php\', \'_'. $hash .'\'); ?> ',
+        '<?php if (!function_exists(\'_'. $hash .'\')) { $__blaze->compile(\''. $path .'\', $__blaze->compiledPath.\'/'. $hash .'.php\'); require $__blaze->compiledPath.\'/'. $hash .'.php\'; } ?> ',
         '<?php $__blaze->pushData([\'type\' => \'text\',\'disabled\' => $disabled]); ?> ',
         '<?php _'. $hash .'($__blaze, [\'type\' => \'text\',\'disabled\' => $disabled], [], [\'disabled\'], [], $__this ?? (isset($this) ? $this : null)); ?> ',
         '<?php $__blaze->popData(); ?>',

@@ -38,11 +38,23 @@ class BlazeRuntime
     }
 
     /**
-     * Compile and require a component if its function is not yet defined.
+     * Compile a component if needed.
      */
-    public function ensureRequired(string $path, string $compiledPath, string $functionName): void
+    public function compile(string $path, string $compiledPath): void
     {
-        if (function_exists($functionName)) {
+        if (! file_exists($compiledPath) || filemtime($path) > filemtime($compiledPath)) {
+            $this->compiler->compile($path);
+        }
+    }
+
+    /**
+     * Compile and require a component if needed.
+     * 
+     * @deprecated This method is no longer used internally
+     */
+    public function ensureRequired(string $path, string $compiledPath): void
+    {
+        if (isset($this->required[$compiledPath])) {
             return;
         }
 
@@ -51,6 +63,8 @@ class BlazeRuntime
         }
 
         require $compiledPath;
+
+        $this->required[$compiledPath] = true;
     }
 
     /**
