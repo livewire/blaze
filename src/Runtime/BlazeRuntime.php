@@ -25,6 +25,7 @@ class BlazeRuntime
     protected ?string $compiledPath = null;
 
     protected array $paths = [];
+    protected array $required = [];
     protected array $blazed = [];
 
     protected array $dataStack = [];
@@ -50,19 +51,27 @@ class BlazeRuntime
     }
 
     /**
-     * Compile and require a component if its source is newer than the cached output.
+     * Compile a component if its source is newer than the cached output.
      *
      * @deprecated Kept for compatibility with previously compiled views. No longer emitted by the compiler.
      */
     public function ensureRequired(string $path, string $compiledPath): void
     {
+        if (isset($this->required[$compiledPath])) {
+            return;
+        }
+
         if (function_exists(($this->folding ? '__' : '_') . basename($compiledPath, '.php'))) {
+            $this->required[$compiledPath] = true;
+
             return;
         }
 
         $this->compile($path, $compiledPath);
 
         require $compiledPath;
+
+        $this->required[$compiledPath] = true;
     }
 
     /**
