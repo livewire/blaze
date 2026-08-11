@@ -18,9 +18,6 @@ use Livewire\Blaze\Debugger;
  */
 class BlazeRuntime
 {
-    /**
-     * @deprecated Kept for compatibility with previously compiled views. No longer used by the compiler.
-     */
     public bool $folding = false;
 
     // Lazily cached from config('view.compiled') on first access via __get.
@@ -91,7 +88,7 @@ class BlazeRuntime
         $compiled = $this->getCompiledPath().'/'.$hash.'.php';
         $functionName = ($this->folding ? '__' : '_') . $hash;
 
-        if (function_exists($functionName)) {
+        if (! function_exists($functionName)) {
             $this->compile($path, $compiled);
 
             require $compiled;
