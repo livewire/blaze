@@ -40,6 +40,11 @@ test('foldable aware', fn () => compare(<<<'BLADE'
     BLADE
 ));
 
+test('nested foldable aware', fn () => compare(<<<'BLADE'
+    <x-foldable.nested-input-aware type="number" />
+    BLADE
+));
+
 test('foldable child with unsafe aware prop', fn () => compare(<<<'BLADE'
     <x-foldable.wrapper :type="'number'">
         <x-foldable.input-aware-unsafe />
