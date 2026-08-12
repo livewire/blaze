@@ -101,7 +101,7 @@ class BladeRenderer
         $this->manager->startFolding();
 
         try {
-            if (! file_exists($compiled)) {
+            if (! file_exists($compiled) || filemtime($path) > filemtime($compiled)) {
                 $this->blade->compile($path);
             }
 
