@@ -1,12 +1,16 @@
 <?php
 
 use Illuminate\Support\Facades\File;
+use Illuminate\View\Compilers\BladeCompiler;
 use Livewire\Blaze\BladeRenderer;
+use Livewire\Blaze\BlazeManager;
 use Livewire\Blaze\Parser\Parser;
 use Livewire\Blaze\Support\AttributeParser;
 use Livewire\Blaze\Support\Utils;
 
-afterEach(fn () => app(BladeRenderer::class)->deleteTemporaryCacheDirectory());
+use function Livewire\invade;
+
+beforeEach(fn () => app(BladeRenderer::class)->deleteTemporaryCacheDirectory());
 
 test('compiles component source into the temporary cache', function () {
     $path = fixture_path('views/components/foldable/input.blade.php');
@@ -58,14 +62,40 @@ test('processes unblaze blocks', function () {
     ])));
 });
 
-test('deletes the temporary cache directory', function () {
-    $node = app(Parser::class)->parse('<x-foldable.input />')[0];
+test('recompiles stale cache of folded components', function () {
+    $dir = sys_get_temp_dir().'/blaze-'.uniqid();
+    $path = $dir.'/button.blade.php';
 
-    app(BladeRenderer::class)->render($node, fixture_path('views/components/foldable/input.blade.php'));
+    try {
+        File::ensureDirectoryExists($dir);
+        File::put($path, '@blaze(fold: true) stale');
 
-    expect(File::isDirectory(config('view.compiled').'/blaze'))->toBeTrue();
+        $blaze = app(BlazeManager::class);
+        $renderer = app(BladeRenderer::class);
+        $blade = app(BladeCompiler::class);
+        $bladeCachePath = invade($blade)->cachePath;
 
-    app(BladeRenderer::class)->deleteTemporaryCacheDirectory();
+        // We can't use the renderer here because it would `require` the file
+        // and register a global function, which would produce stale output
+        // even after recompiling. So instead we'll simulate folding and
+        // we will only compile the file in the blaze cache directory
+        invade($blade)->cachePath = $renderer->getTemporaryCachePath();
 
-    expect(File::isDirectory(config('view.compiled').'/blaze'))->toBeFalse();
+        $blaze->startFolding();
+        $blade->compile($path);
+        $blaze->stopFolding();
+
+        invade($blade)->cachePath = $bladeCachePath;
+
+        // Now change the source and ensure the renderer output is fresh
+        File::put($path, '@blaze(fold: true) fresh');
+
+        touch($path, time() + 2);
+
+        $node = app(Parser::class)->parse('<x-button />')[0];
+
+        expect($renderer->render($node, $path))->toContain('fresh');
+    } finally {
+        File::deleteDirectory($dir);
+    }
 });
