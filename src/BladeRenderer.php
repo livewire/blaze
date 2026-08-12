@@ -6,7 +6,6 @@ use Illuminate\Contracts\View\Factory;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\File;
 use Illuminate\View\Compilers\BladeCompiler;
-use Illuminate\View\Component;
 use Illuminate\View\ComponentSlot;
 use Livewire\Blaze\Parser\Attribute;
 use Livewire\Blaze\Parser\Nodes\ComponentNode;
@@ -70,13 +69,7 @@ class BladeRenderer
             'footer' => [],
             'prepareStringsForCompilationUsing' => [
                 function ($input) {
-                    if (Unblaze::hasUnblaze($input)) {
-                        $input = Unblaze::processUnblazeDirectives($input);
-                    };
-
-                    $input = $this->manager->compileForFolding($input, $this->blade->getPath());
-
-                    return $input;
+                    return $this->manager->compileForFolding($input, $this->blade->getPath());
                 },
             ],
             'path' => null,

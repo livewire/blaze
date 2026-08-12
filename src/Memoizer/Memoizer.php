@@ -4,12 +4,12 @@ namespace Livewire\Blaze\Memoizer;
 
 use Livewire\Blaze\BladeService;
 use Livewire\Blaze\BlazeManager;
+use Livewire\Blaze\Parser\Nodes\CompiledBlockNode;
 use Livewire\Blaze\Parser\Nodes\ComponentNode;
-use Livewire\Blaze\Parser\Nodes\TextNode;
 use Livewire\Blaze\Parser\Nodes\Node;
 use Livewire\Blaze\Config;
-use Livewire\Blaze\Support\ComponentSource;
 use Livewire\Blaze\Compiler\Compiler;
+use Livewire\Blaze\Support\ComponentRepository;
 
 /**
  * Wraps compiled component output with runtime memoization logic.
@@ -21,6 +21,7 @@ class Memoizer
         protected Compiler $compiler,
         protected BladeService $blade,
         protected BlazeManager $manager,
+        protected ComponentRepository $components,
     ) {
     }
 
@@ -65,7 +66,7 @@ class Memoizer
         $output .= '<' . '?php echo $blaze_memoized_html; ?>';
         $output .= '<' . '?php endif; ?>';
 
-        return new TextNode($output);
+        return new CompiledBlockNode($output);
     }
 
     /**
@@ -77,13 +78,13 @@ class Memoizer
             return false;
         }
 
-        $source = ComponentSource::for($this->blade->componentNameToPath($node->name));
+        $source = $this->components->get($node->name);
 
-        if (! $source->exists()) {
+        if (! $source) {
             return false;
         }
 
-        if (! is_null($memo = $source->directives->blaze('memo'))) {
+        if (! is_null($memo = $source->template->directives->blaze('memo'))) {
             return $memo;
         }
 

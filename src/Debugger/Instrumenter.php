@@ -3,11 +3,12 @@
 namespace Livewire\Blaze\Debugger;
 
 use Livewire\Blaze\BladeService;
+use Livewire\Blaze\BlazeManager;
 use Livewire\Blaze\Config;
+use Livewire\Blaze\Parser\Nodes\CompiledBlockNode;
 use Livewire\Blaze\Parser\Nodes\ComponentNode;
 use Livewire\Blaze\Parser\Nodes\Node;
-use Livewire\Blaze\Parser\Nodes\TextNode;
-use Livewire\Blaze\Support\ComponentSource;
+use Livewire\Blaze\Support\ComponentRepository;
 
 /**
  * Wraps every component's compiled output with profiler timer calls.
@@ -23,6 +24,8 @@ class Instrumenter
     public function __construct(
         protected Config $config,
         protected BladeService $blade,
+        protected BlazeManager $manager,
+        protected ComponentRepository $components,
     ) {
     }
 
@@ -31,14 +34,14 @@ class Instrumenter
      */
     public function profile(Node $node, string $componentName, ?string $strategy = null): Node
     {
-        $source = ComponentSource::for($this->blade->componentNameToPath($componentName));
+        $source = $this->components->get($componentName);
 
         if ($strategy === null) {
             $isBlade = $node instanceof ComponentNode;
             $strategy = $isBlade ? 'blade' : 'compiled';
         }
 
-        $file = $source->exists() ? $this->relativePath($source->path) : null;
+        $file = $source ? $this->relativePath($source->path) : null;
 
         $output = $node->render();
         $escapedName = addslashes($componentName);
@@ -48,21 +51,7 @@ class Instrumenter
             .$output
             .'<'.'?php $__blaze->debugger->stopTimer(\''.$escapedName.'\'); ?>';
 
-        return new TextNode($wrapped);
-    }
-
-    /**
-     * Determine the optimization strategy configured for a Blaze component.
-     */
-    protected function resolveStrategy(ComponentSource $source): string
-    {
-        if (! $source->exists()) {
-            return 'compiled';
-        }
-
-        $memo = $source->directives->blaze('memo') ?? $this->config->shouldMemoize($source->path);
-
-        return 'compiled';
+        return new CompiledBlockNode($wrapped);
     }
 
     /**

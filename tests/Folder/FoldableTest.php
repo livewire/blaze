@@ -10,7 +10,7 @@ use Livewire\Blaze\Support\AttributeParser;
 use function Pest\Laravel\mock;
 
 test('replaces and restores bound attributes', function () {
-    $node = app(Parser::class)->parse('<x-input :type="$type" />')[0];
+    $node = app(Parser::class)->parse('<x-input :type="$type" />')->nodes[0];
 
     mock(BladeRenderer::class)
         ->expects('render')
@@ -27,7 +27,7 @@ test('replaces and restores bound attributes', function () {
 });
 
 test('preserves bound attributes with static constant values', function (string $value) {
-    $node = app(Parser::class)->parse('<x-input :disabled="' . $value . '" />')[0];
+    $node = app(Parser::class)->parse('<x-input :disabled="' . $value . '" />')->nodes[0];
 
     mock(BladeRenderer::class)
         ->expects('render')
@@ -42,7 +42,7 @@ test('preserves bound attributes with static constant values', function (string 
 })->with(['false', 'true', 'null']);
 
 test('replaces parents attributes', function () {
-    $node = app(Parser::class)->parse('<x-input />')[0];
+    $node = app(Parser::class)->parse('<x-input />')->nodes[0];
 
     $node->setParentsAttributes(
         app(AttributeParser::class)->parse(':type="$type"')
@@ -64,7 +64,7 @@ test('replaces parents attributes', function () {
 });
 
 test('restores every occurrence of a dynamic attribute placeholder', function () {
-    $node = app(Parser::class)->parse('<x-button wire:click="save({{ $id }})" />')[0];
+    $node = app(Parser::class)->parse('<x-button wire:click="save({{ $id }})" />')->nodes[0];
 
     mock(BladeRenderer::class)
         ->expects('render')
@@ -83,7 +83,7 @@ test('restores every occurrence of a dynamic attribute placeholder', function ()
 });
 
 test('restores bound attributes inside php blocks as raw expressions', function () {
-    $node = app(Parser::class)->parse('<x-input :type="$type" />')[0];
+    $node = app(Parser::class)->parse('<x-input :type="$type" />')->nodes[0];
 
     mock(BladeRenderer::class)
         ->expects('render')
@@ -100,7 +100,7 @@ test('restores bound attributes inside php blocks as raw expressions', function 
 });
 
 test('compiles echo attributes restored inside php blocks', function () {
-    $node = app(Parser::class)->parse('<x-layout theme="dark-{{ $variant }}" />')[0];
+    $node = app(Parser::class)->parse('<x-layout theme="dark-{{ $variant }}" />')->nodes[0];
 
     mock(BladeRenderer::class)
         ->expects('render')
@@ -117,7 +117,7 @@ test('compiles echo attributes restored inside php blocks', function () {
 });
 
 test('compiles bound attributes passed through attribute bag', function () {
-    $node = app(Parser::class)->parse('<x-input :required="$required" />')[0];
+    $node = app(Parser::class)->parse('<x-input :required="$required" />')->nodes[0];
 
     mock(BladeRenderer::class)
         ->expects('render')
@@ -140,7 +140,7 @@ test('compiles bound attributes passed through attribute bag', function () {
 });
 
 test('restores unbound attributes passed through attribute bag', function () {
-    $node = app(Parser::class)->parse('<x-button wire:click="save({{ $id }})" />')[0];
+    $node = app(Parser::class)->parse('<x-button wire:click="save({{ $id }})" />')->nodes[0];
 
     mock(BladeRenderer::class)
         ->expects('render')
@@ -157,7 +157,7 @@ test('restores unbound attributes passed through attribute bag', function () {
 });
 
 test('uses empty strings for true x-data and wire: attributes passed through attribute bag', function (string $attribute) {
-    $node = app(Parser::class)->parse('<x-input :'.$attribute.'="$value" />')[0];
+    $node = app(Parser::class)->parse('<x-input :'.$attribute.'="$value" />')->nodes[0];
 
     mock(BladeRenderer::class)
         ->expects('render')
@@ -180,7 +180,7 @@ test('uses empty strings for true x-data and wire: attributes passed through att
 })->with(['x-data', 'wire:loading']);
 
 test('handles newlines consumed by attribute php blocks', function () {
-    $node = app(Parser::class)->parse('<x-input :required="$required" />')[0];
+    $node = app(Parser::class)->parse('<x-input :required="$required" />')->nodes[0];
 
     mock(BladeRenderer::class)
         ->expects('render')
@@ -217,7 +217,7 @@ test('restores named and default slots after rendering', function () {
         </x-card>
         BLADE;
 
-    $node = app(Parser::class)->parse($input)[0];
+    $node = app(Parser::class)->parse($input)->nodes[0];
 
     mock(BladeRenderer::class)
         ->expects('render')
@@ -266,7 +266,7 @@ test('does not synthesize a default slot when one is explicit', function () {
         </x-card>
         BLADE;
 
-    $node = app(Parser::class)->parse($input)[0];
+    $node = app(Parser::class)->parse($input)->nodes[0];
 
     mock(BladeRenderer::class)
         ->expects('render')
@@ -283,7 +283,7 @@ test('does not synthesize a default slot when one is explicit', function () {
 });
 
 test('handles newlines consumed by slot php blocks', function () {
-    $node = app(Parser::class)->parse('<x-card>Content</x-card>')[0];
+    $node = app(Parser::class)->parse('<x-card>Content</x-card>')->nodes[0];
 
     mock(BladeRenderer::class)
         ->expects('render')
@@ -300,7 +300,7 @@ test('handles newlines consumed by slot php blocks', function () {
 });
 
 test('wraps output with aware macros if descendants use aware', function () {
-    $node = app(Parser::class)->parse('<x-layout theme="dark" />')[0];
+    $node = app(Parser::class)->parse('<x-layout theme="dark" />')->nodes[0];
 
     $node->hasAwareDescendants = true;
 
@@ -323,7 +323,7 @@ test('wraps output with aware macros if descendants use aware', function () {
 });
 
 test('compiles dynamic attributes in aware macros', function () {
-    $node = app(Parser::class)->parse('<x-layout :theme="$theme" />')[0];
+    $node = app(Parser::class)->parse('<x-layout :theme="$theme" />')->nodes[0];
 
     $node->hasAwareDescendants = true;
 
@@ -346,7 +346,7 @@ test('compiles dynamic attributes in aware macros', function () {
 });
 
 test('compiles echo attributes in aware macros', function () {
-    $node = app(Parser::class)->parse('<x-layout theme="dark-{{ $variant }}" />')[0];
+    $node = app(Parser::class)->parse('<x-layout theme="dark-{{ $variant }}" />')->nodes[0];
     $node->hasAwareDescendants = true;
 
     mock(BladeRenderer::class)
@@ -368,7 +368,7 @@ test('compiles echo attributes in aware macros', function () {
 });
 
 test('does not add aware macros to components without attributes', function () {
-    $node = app(Parser::class)->parse('<x-layout />')[0];
+    $node = app(Parser::class)->parse('<x-layout />')->nodes[0];
     $node->hasAwareDescendants = true;
 
     mock(BladeRenderer::class)
@@ -385,7 +385,7 @@ test('does not add aware macros to components without attributes', function () {
 });
 
 test('does not add aware macros for inherited attributes only', function () {
-    $node = app(Parser::class)->parse('<x-layout />')[0];
+    $node = app(Parser::class)->parse('<x-layout />')->nodes[0];
     $node->hasAwareDescendants = true;
     $node->setParentsAttributes(app(AttributeParser::class)->parse('theme="dark"'));
 

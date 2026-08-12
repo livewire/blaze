@@ -15,4 +15,9 @@ class DirectiveNode extends Node
     {
         return $this->original;
     }
+    
+    public function is(string $name): bool
+    {
+        return strtolower($this->name) === strtolower($name);
+    }
 }

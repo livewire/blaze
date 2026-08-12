@@ -7,11 +7,10 @@ use Illuminate\Foundation\Application;
 use Illuminate\Support\Str;
 use Illuminate\Support\ViewErrorBag;
 use Illuminate\View\Compilers\BladeCompiler;
-use Illuminate\View\Compilers\Compiler;
 use Livewire\Blaze\BladeService;
-use Livewire\Blaze\Support\Directives;
-use Livewire\Blaze\Support\Utils;
 use Livewire\Blaze\Debugger\Debugger;
+use Livewire\Blaze\Support\ComponentRepository;
+use Livewire\Blaze\Support\ComponentSource;
 
 /**
  * Runtime context shared with all Blaze-compiled components via $__blaze.
@@ -41,6 +40,7 @@ class BlazeRuntime
         public Debugger $debugger,
         protected BladeCompiler $compiler,
         protected BladeService $blade,
+        protected ComponentRepository $components,
     ) {
     }
 
@@ -85,54 +85,37 @@ class BlazeRuntime
      * (no @blaze directive and not configured for compilation), so the
      * caller can fall back to standard Blade rendering.
      */
-    public function resolve(string $component): string|false
+    public function resolve(string $name): string|false
     {
-        if (isset($this->paths[$component])) {
-            $path = $this->paths[$component];
-        } else {
-            $path = $this->paths[$component] = $this->blade->componentNameToPath($component);
-        }
+        $component = $this->components->get($name);
 
-        if (! $this->isBlazeComponent($path)) {
+        if (! $component || ! $this->isBlazeComponent($component)) {
             return false;
         }
 
-        $hash = Utils::hash($path);
-        $compiled = $this->getCompiledPath().'/'.$hash.'.php';
+        $compiled = $this->getCompiledPath().'/'.$component->hash.'.php';
 
-        if (! function_exists(($this->folding ? '__' : '_') . basename($compiled, '.php'))) {
-            $this->compile($path, $compiled);
-
-            require $compiled;
+        if (! isset($this->required[$compiled])) {
+            $this->ensureRequired($component->path, $compiled);
         }
 
-        return $hash;
+        return $component->hash;
     }
 
     /**
      * Check if a component file is a Blaze component.
      */
-    protected function isBlazeComponent(string $path): bool
+    protected function isBlazeComponent(ComponentSource $component): bool
     {
-        if (isset($this->blazed[$path])) {
-            return $this->blazed[$path];
-        }
-
-        if (! file_exists($path)) {
-            return $this->blazed[$path] = false;
-        }
-
-        $directives = new Directives(file_get_contents($path));
-
-        if ($directives->blaze()) {
-            return $this->blazed[$path] = true;
+        if ($component->template->directives->blaze()) {
+            return $this->blazed[$component->path] = true;
         }
 
         $config = app('blaze.config');
 
-        return $this->blazed[$path] = $config->shouldCompile($path)
-            || $config->shouldMemoize($path)
-            || $config->shouldFold($path);
+        return $this->blazed[$component->path] = $config->shouldCompile($component->path)
+            || $config->shouldMemoize($component->path)
+            || $config->shouldFold($component->path);
     }
 
     /**

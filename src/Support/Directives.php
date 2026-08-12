@@ -2,27 +2,24 @@
 
 namespace Livewire\Blaze\Support;
 
+use Illuminate\Support\Arr;
 use Livewire\Blaze\Compiler\ArrayParser;
-use Livewire\Blaze\Compiler\DirectiveCompiler;
 
 /**
  * Extracts and queries Blade directives from component source content.
  */
 class Directives
 {
-    /** @var array<string, string|null> */
-    protected array $parsed;
+    /** @var array<string,\Livewire\Blaze\Parser\Nodes\DirectiveNode> */
+    protected array $directives;
 
-    protected string $content;
+    protected array $props;
+    protected array $aware;
+    protected array $blaze;
 
-    public function __construct(string $content)
+    public function __construct(array $nodes)
     {
-        $this->content = $content;
-        $this->content = preg_replace(LaravelRegex::BLADE_COMMENT, '', $this->content);
-        $this->content = preg_replace(LaravelRegex::VERBATIM_BLOCK, '', $this->content);
-        $this->content = preg_replace(LaravelRegex::PHP_BLOCK, '', $this->content);
-
-        $this->parsed = $this->parseKnownDirectives();
+        $this->directives = Arr::keyBy($nodes, 'name');
     }
 
     /**
@@ -30,9 +27,7 @@ class Directives
      */
     public function has(string $name): bool
     {
-        $this->resolveIfNeeded($name);
-
-        return $this->parsed[$name] !== null;
+        return isset($this->directives[$name]);
     }
 
     /**
@@ -40,9 +35,7 @@ class Directives
      */
     public function get(string $name): ?string
     {
-        $this->resolveIfNeeded($name);
-
-        return $this->parsed[$name];
+        return isset($this->directives[$name]) ? ($this->directives[$name]?->expression ?? '') : null;
     }
 
     /**
@@ -64,11 +57,15 @@ class Directives
      */
     public function props(): array
     {
-        if ($definition = $this->array('props')) {
-            return collect($definition)->map(fn ($value, $key) => is_int($key) ? $value : $key)->values()->all();
+        if (isset($this->props)) {
+            return $this->props;
         }
 
-        return [];
+        if ($definition = $this->array('props')) {
+            return $this->props = collect($definition)->map(fn ($value, $key) => is_int($key) ? $value : $key)->values()->all();
+        }
+
+        return $this->props = [];
     }
 
     /**
@@ -78,11 +75,15 @@ class Directives
      */
     public function aware(): array
     {
-        if ($definition = $this->array('aware')) {
-            return collect($definition)->map(fn ($value, $key) => is_int($key) ? $value : $key)->values()->all();
+        if (isset($this->aware)) {
+            return $this->aware;
         }
 
-        return [];
+        if ($definition = $this->array('aware')) {
+            return $this->aware = collect($definition)->map(fn ($value, $key) => is_int($key) ? $value : $key)->values()->all();
+        }
+
+        return $this->aware = [];
     }
 
     /**
@@ -94,55 +95,14 @@ class Directives
             return $this->has('blaze');
         }
 
+        if (isset($this->blaze) && array_key_exists($param, $this->blaze)) {
+            return $this->blaze[$param];
+        }
+
         if ($expression = $this->get('blaze')) {
-            return Utils::parseBlazeDirective($expression)[$param] ?? null;
+            return $this->blaze[$param] = Utils::parseBlazeDirective($expression)[$param] ?? null;
         }
 
-        return null;
-    }
-
-    /**
-     * If a directive hasn't been resolved yet, do a one-off compile
-     * for it and cache the result (or null if absent).
-     */
-    protected function resolveIfNeeded(string $name): void
-    {
-        if (array_key_exists($name, $this->parsed)) {
-            return;
-        }
-
-        $result = null;
-
-        DirectiveCompiler::make()->directive($name, function ($expression) use (&$result) {
-            $result = $expression;
-
-            return '';
-        })->compile($this->content);
-
-        $this->parsed[$name] = $result;
-    }
-
-    /**
-     * Extract all known Blaze directives in a single DirectiveCompiler pass.
-     */
-    protected function parseKnownDirectives(): array
-    {
-        $directives = [];
-
-        $capture = function (string $name) use (&$directives) {
-            return function ($expression) use ($name, &$directives) {
-                $directives[$name] = $expression;
-
-                return '';
-            };
-        };
-
-        DirectiveCompiler::make()
-            ->directive('blaze', $capture('blaze'))
-            ->directive('props', $capture('props'))
-            ->directive('aware', $capture('aware'))
-            ->compile($this->content);
-
-        return $directives;
+        return $this->blaze[$param] = null;
     }
 }

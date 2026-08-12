@@ -23,22 +23,6 @@ class ComponentNode extends Node
     }
 
     /**
-     * Resolve the slot name, handling both short (<x-slot:name>) and standard syntax.
-     */
-    protected function resolveSlotName(SlotNode $slot): string
-    {
-        if (! empty($slot->name)) {
-            return $slot->name;
-        }
-
-        if (preg_match('/(?:^|\s)name\s*=\s*["\']([^"\']+)["\']/', $slot->attributeString, $matches)) {
-            return $matches[1];
-        }
-
-        return 'slot';
-    }
-
-    /**
      * Set the accumulated parent component attributes for @aware resolution.
      */
     public function setParentsAttributes(array $parentsAttributes): void

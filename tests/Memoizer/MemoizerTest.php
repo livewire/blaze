@@ -4,13 +4,13 @@ use Livewire\Blaze\Memoizer\Memoizer;
 use Livewire\Blaze\Parser\Parser;
 use Livewire\Blaze\Support\Utils;
 use Livewire\Blaze\Parser\Nodes\ComponentNode;
-use Livewire\Blaze\Parser\Nodes\TextNode;
+use Livewire\Blaze\Parser\Nodes\CompiledBlockNode;
 use Livewire\Blaze\Config;
 
 test('memoizes self-closing components', function () {
     $input = '<x-memoizable.avatar :src="$user->avatar" />';
 
-    $node = app(Parser::class)->parse($input)[0];
+    $node = app(Parser::class)->parse($input)->nodes[0];
     $memoized = app(Memoizer::class)->memoize($node);
 
     $path = fixture_path('views/components/memoizable/avatar.blade.php');
@@ -35,7 +35,7 @@ test('memoizes self-closing components', function () {
 test('handles echo attributes', function () {
     $input = '<x-memoizable.avatar src="https://avatars.com/{{ $user->username }}" />';
 
-    $node = app(Parser::class)->parse($input)[0];
+    $node = app(Parser::class)->parse($input)->nodes[0];
     $memoized = app(Memoizer::class)->memoize($node);
 
     expect($memoized->render())->toContain('[\'src\' => \'https://avatars.com/\'.e($user->username)]');
@@ -49,7 +49,7 @@ test('does not memoize non-self-closing components', function () {
         BLADE
     ;
 
-    $node = app(Parser::class)->parse($input)[0];
+    $node = app(Parser::class)->parse($input)->nodes[0];
     $memoized = app(Memoizer::class)->memoize($node);
 
     expect($memoized)->toBeInstanceOf(ComponentNode::class);
@@ -60,10 +60,10 @@ test('memoizes components without blaze directive if enabled in config', functio
 
     app(Config::class)->add(fixture_path('views/components/memoizable'), memo: true);
 
-    $node = app(Parser::class)->parse($input)[0];
+    $node = app(Parser::class)->parse($input)->nodes[0];
     $memoized = app(Memoizer::class)->memoize($node);
 
-    expect($memoized)->toBeInstanceOf(TextNode::class);
+    expect($memoized)->toBeInstanceOf(CompiledBlockNode::class);
 });
 
 test('does not memoize components with blaze directive override set to false', function () {
@@ -71,7 +71,7 @@ test('does not memoize components with blaze directive override set to false', f
 
     app(Config::class)->add(fixture_path('views/components/memoizable'), memo: true);
 
-    $node = app(Parser::class)->parse($input)[0];
+    $node = app(Parser::class)->parse($input)->nodes[0];
     $compiled = app(Memoizer::class)->memoize($node);
 
     expect($compiled)->toBeInstanceOf(ComponentNode::class);

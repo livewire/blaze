@@ -4,11 +4,12 @@ namespace Livewire\Blaze\Compiler;
 
 use Livewire\Blaze\BladeService;
 use Livewire\Blaze\BlazeManager;
+use Livewire\Blaze\Parser\Nodes\CompiledBlockNode;
 use Livewire\Blaze\Parser\Nodes\ComponentNode;
 use Livewire\Blaze\Parser\Nodes\SlotNode;
-use Livewire\Blaze\Parser\Nodes\TextNode;
 use Livewire\Blaze\Parser\Nodes\Node;
 use Livewire\Blaze\Config;
+use Livewire\Blaze\Support\ComponentRepository;
 use Livewire\Blaze\Support\ComponentSource;
 use Livewire\Blaze\Support\Utils;
 
@@ -23,6 +24,7 @@ class Compiler
         protected Config $config,
         protected BladeService $blade,
         protected BlazeManager $manager,
+        protected ComponentRepository $components,
     ) {
         $this->slotCompiler = new SlotCompiler($manager, $blade);
     }
@@ -37,16 +39,16 @@ class Compiler
         }
 
         if ($node->name === 'flux::delegate-component') {
-            return new TextNode($this->compileDelegateComponentTag($node));
+            return new CompiledBlockNode($this->compileDelegateComponentTag($node));
         }
 
-        $source = ComponentSource::for($this->blade->componentNameToPath($node->name));
+        $component = $this->components->get($node->name);
 
-        if (! $source->exists()) {
+        if (! $component) {
             return $node;
         }
         
-        if (! $this->shouldCompile($source)) {
+        if (! $this->shouldCompile($component)) {
             return $node;
         }
 
@@ -54,7 +56,7 @@ class Compiler
             return $node;
         }
 
-        return new TextNode($this->compileComponentTag($node, $source));
+        return new CompiledBlockNode($this->compileComponentTag($node, $component));
     }
 
     /**
@@ -62,8 +64,8 @@ class Compiler
      */
     protected function shouldCompile(ComponentSource $source): bool
     {
-        if ($source->directives->blaze()) {
-            return $source->directives->blaze('compile') ?? true;
+        if ($source->template->directives->blaze()) {
+            return $source->template->directives->blaze('compile') ?? true;
         }
 
         return $this->config->shouldCompile($source->path)
@@ -73,13 +75,11 @@ class Compiler
 
     /**
      * Check if any slot has a dynamic name (:name="$var").
-     * 
-     * TODO: Is this even real? Does Laravel support this?
      */
     protected function hasDynamicSlotNames(ComponentNode $node): bool
     {
         foreach ($node->children as $child) {
-            if ($child instanceof SlotNode && str_starts_with($child->name, '$')) { // TODO: Double check this
+            if ($child instanceof SlotNode && $child->hasDynamicName()) {
                 return true;
             }
         }
@@ -92,7 +92,7 @@ class Compiler
      */
     protected function compileComponentTag(ComponentNode $node, ComponentSource $source): string
     {
-        $hash = Utils::hash($source->path);
+        $hash = $source->hash;
         $functionName = ($this->manager->isFolding() ? '__' : '_') . $hash;
         [$attributesArrayString, $boundKeysArrayString, $originalKeysArrayString] = $this->compileAttributes($node);
 

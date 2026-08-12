@@ -5,10 +5,10 @@ namespace Livewire\Blaze\Folder;
 use Illuminate\Support\Facades\Event;
 use Livewire\Blaze\Events\ComponentFolded;
 use Livewire\Blaze\Exceptions\InvalidBlazeFoldUsageException;
+use Livewire\Blaze\Parser\Nodes\CompiledBlockNode;
 use Livewire\Blaze\Parser\Nodes\ComponentNode;
 use Livewire\Blaze\Parser\Nodes\Node;
 use Livewire\Blaze\Parser\Nodes\SlotNode;
-use Livewire\Blaze\Parser\Nodes\TextNode;
 use Livewire\Blaze\Support\ComponentSource;
 use Livewire\Blaze\BladeRenderer;
 use Livewire\Blaze\BladeService;
@@ -16,8 +16,10 @@ use Livewire\Blaze\BlazeManager;
 use Illuminate\Support\Arr;
 use Livewire\Blaze\Config;
 use Livewire\Blaze\Parser\Nodes\DirectiveNode;
+use Livewire\Blaze\Parser\Walker;
 use Livewire\Blaze\Support\DirectiveStack;
 use Throwable;
+use Livewire\Blaze\Support\ComponentRepository;
 
 /**
  * Determines whether a component should be folded and orchestrates the folding process.
@@ -29,6 +31,7 @@ class Folder
         protected BladeService $blade,
         protected BladeRenderer $renderer,
         protected BlazeManager $manager,
+        protected ComponentRepository $components,
     ) {
     }
 
@@ -41,36 +44,34 @@ class Folder
             return $node;
         }
 
-        $component = $node;
+        $component = $this->components->get($node->name);
 
-        $source = ComponentSource::for($this->blade->componentNameToPath($component->name));
-
-        if (! $source->exists()) {
-            return $component;
+        if (! $component) {
+            return $node;
         }
 
-        if (! $this->shouldFold($source)) {
-            return $component;
+        if (! $this->shouldFold($component)) {
+            return $node;
         }
 
-        if (! $this->isSafeToFold($source, $component)) {
-            return $component;
+        if (! $this->isSafeToFold($component, $node)) {
+            return $node;
         }
 
-        $this->checkProblematicPatterns($source);
+        $this->checkProblematicPatterns($component);
 
         try {
-            $foldable = new Foldable($node, $source->path, $this->renderer, $this->blade);
+            $foldable = new Foldable($node, $component->path, $this->renderer, $this->blade);
 
             $html = $foldable->fold();
 
             Event::dispatch(new ComponentFolded(
-                name: $component->name,
-                path: $source->path,
-                filemtime: filemtime($source->path),
+                name: $node->name,
+                path: $component->path,
+                filemtime: filemtime($component->path),
             ));
 
-            return new TextNode('<?php ob_start(); ?>' . $html . '<?php echo ltrim(ob_get_clean()); ?>');
+            return new CompiledBlockNode('<?php ob_start(); ?>' . $html . '<?php echo ltrim(ob_get_clean()); ?>');
         } catch (Throwable $th) {
             if ($this->manager->shouldThrow()) {
                 throw $th;
@@ -85,7 +86,7 @@ class Folder
      */
     protected function shouldFold(ComponentSource $source): bool
     {
-        $shouldFold = $source->directives->blaze('fold');
+        $shouldFold = $source->template->directives->blaze('fold');
 
         if ($this->config && is_null($shouldFold)) {
             return $this->config->shouldFold($source->path);
@@ -109,7 +110,7 @@ class Folder
 
         $dynamicAttributes = array_filter($node->attributes, fn ($attribute) => ! $attribute->isStaticValue());
 
-        foreach ($source->directives->aware() as $prop) {
+        foreach ($source->template->directives->aware() as $prop) {
             if (! isset($node->attributes[$prop])
                 && isset($node->parentsAttributes[$prop])
                 && ! $node->parentsAttributes[$prop]->isStaticValue()
@@ -124,17 +125,17 @@ class Folder
 
         foreach ($node->children as $child) {
             if ($child instanceof SlotNode) {
-                if ($this->slotHasDynamicAttributes($child)) {
+                if ($child->hasDynamicName() || $this->slotHasDynamicAttributes($child)) {
                     return false;
                 }
             }
         }
 
-        $props = $source->directives->props();
-        $aware = $source->directives->aware();
+        $props = $source->template->directives->props();
+        $aware = $source->template->directives->aware();
 
-        $safe = Arr::wrap($source->directives->blaze('safe'));
-        $unsafe = Arr::wrap($source->directives->blaze('unsafe'));
+        $safe = Arr::wrap($source->template->directives->blaze('safe'));
+        $unsafe = Arr::wrap($source->template->directives->blaze('unsafe'));
 
         if (in_array('*', $safe)) {
             return true;
@@ -220,23 +221,55 @@ class Folder
      */
     protected function checkProblematicPatterns(ComponentSource $source): void
     {
-        // @unblaze blocks can contain dynamic content and are excluded from validation
-        $sourceWithoutUnblaze = preg_replace('/@unblaze.*?@endunblaze/s', '', $source->content());
+        $insideUnblaze = false;
 
-        $problematicPatterns = [
-            '@once' => 'forOnce',
-            '\\$errors' => 'forErrors',
-            'session\\(' => 'forSession',
-            '@error\\(' => 'forError',
-            '@csrf' => 'forCsrf',
-            'auth\\(\\)' => 'forAuth',
-            'request\\(\\)' => 'forRequest',
-            'old\\(' => 'forOld',
-        ];
+        foreach (Walker::iterate($source->template->nodes) as $node) {
+            if ($node->isDirective('unblaze')) {
+                $insideUnblaze = true;
 
-        foreach ($problematicPatterns as $pattern => $factoryMethod) {
-            if (preg_match('/'.$pattern.'/', $sourceWithoutUnblaze)) {
-                throw InvalidBlazeFoldUsageException::{$factoryMethod}($source->path);
+                continue;
+            }
+
+            if ($node->isDirective('endunblaze')) {
+                $insideUnblaze = false;
+
+                continue;
+            }
+
+            if ($insideUnblaze) {
+                continue;
+            }
+
+            if ($node->isDirective('once')) {
+                throw InvalidBlazeFoldUsageException::forOnce($source->path);
+            }
+
+            if ($node->containsPhp('$errors')) {
+                throw InvalidBlazeFoldUsageException::forErrors($source->path);
+            }
+
+            if ($node->containsPhp('session(')) {
+                throw InvalidBlazeFoldUsageException::forSession($source->path);
+            }
+
+            if ($node->isDirective('error')) {
+                throw InvalidBlazeFoldUsageException::forError($source->path);
+            }
+
+            if ($node->isDirective('csrf')) {
+                throw InvalidBlazeFoldUsageException::forCsrf($source->path);
+            }
+
+            if ($node->containsPhp('auth()')) {
+                throw InvalidBlazeFoldUsageException::forAuth($source->path);
+            }
+
+            if ($node->containsPhp('request()')) {
+                throw InvalidBlazeFoldUsageException::forRequest($source->path);
+            }
+
+            if ($node->containsPhp('old(')) {
+                throw InvalidBlazeFoldUsageException::forOld($source->path);
             }
         }
     }

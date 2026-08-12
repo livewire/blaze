@@ -10,7 +10,7 @@ afterEach(fn () => app(BladeRenderer::class)->deleteTemporaryCacheDirectory());
 
 test('compiles component source into the temporary cache', function () {
     $path = fixture_path('views/components/foldable/input.blade.php');
-    $node = app(Parser::class)->parse('<x-foldable.input />')[0];
+    $node = app(Parser::class)->parse('<x-foldable.input />')->nodes[0];
 
     app(BladeRenderer::class)->render($node, $path);
 
@@ -18,7 +18,7 @@ test('compiles component source into the temporary cache', function () {
 });
 
 test('makes attributes available to aware props', function () {
-    $node = app(Parser::class)->parse('<x-foldable.input-aware type="number" />')[0];
+    $node = app(Parser::class)->parse('<x-foldable.input-aware type="number" />')->nodes[0];
 
     $output = app(BladeRenderer::class)->render($node, fixture_path('views/components/foldable/input-aware.blade.php'));
 
@@ -26,7 +26,7 @@ test('makes attributes available to aware props', function () {
 });
 
 test('makes slots available to aware props', function () {
-    $node = app(Parser::class)->parse('<x-foldable.input-aware><x-slot:type>number</x-slot:type></x-foldable.input-aware>')[0];
+    $node = app(Parser::class)->parse('<x-foldable.input-aware><x-slot:type>number</x-slot:type></x-foldable.input-aware>')->nodes[0];
 
     $output = app(BladeRenderer::class)->render($node, fixture_path('views/components/foldable/input-aware.blade.php'));
 
@@ -34,7 +34,7 @@ test('makes slots available to aware props', function () {
 });
 
 test('makes parents attributes available to aware props', function () {
-    $node = app(Parser::class)->parse('<x-foldable.input-aware />')[0];
+    $node = app(Parser::class)->parse('<x-foldable.input-aware />')->nodes[0];
 
     $node->setParentsAttributes(
         app(AttributeParser::class)->parse('type="number"')
@@ -46,7 +46,7 @@ test('makes parents attributes available to aware props', function () {
 });
 
 test('processes unblaze blocks', function () {
-    $node = app(Parser::class)->parse('<x-foldable.input-unblaze name="address" />')[0];
+    $node = app(Parser::class)->parse('<x-foldable.input-unblaze name="address" />')->nodes[0];
 
     $output = app(BladeRenderer::class)->render($node, fixture_path('views/components/foldable/input-unblaze.blade.php'));
 
@@ -59,7 +59,7 @@ test('processes unblaze blocks', function () {
 });
 
 test('deletes the temporary cache directory', function () {
-    $node = app(Parser::class)->parse('<x-foldable.input />')[0];
+    $node = app(Parser::class)->parse('<x-foldable.input />')->nodes[0];
 
     app(BladeRenderer::class)->render($node, fixture_path('views/components/foldable/input.blade.php'));
 

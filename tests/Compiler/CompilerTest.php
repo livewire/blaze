@@ -3,14 +3,17 @@
 use Livewire\Blaze\Parser\Parser;
 use Livewire\Blaze\Compiler\Compiler;
 use Livewire\Blaze\Config;
+use Livewire\Blaze\Parser\Nodes\CompiledBlockNode;
 use Livewire\Blaze\Parser\Nodes\ComponentNode;
 use Livewire\Blaze\Support\Utils;
 
 test('compiles self-closing components', function () {
     $input = '<x-input type="text" :disabled="$disabled" />';
 
-    $node = app(Parser::class)->parse($input)[0];
+    $node = app(Parser::class)->parse($input)->nodes[0];
     $compiled = app(Compiler::class)->compile($node);
+
+    expect($compiled)->toBeInstanceOf(CompiledBlockNode::class);
 
     $path = fixture_path('views/components/input.blade.php');
     $hash = Utils::hash($path);
@@ -37,8 +40,10 @@ test('compiles components', function () {
         BLADE
     ;
 
-    $node = app(Parser::class)->parse($input)[0];
+    $node = app(Parser::class)->parse($input)->nodes[0];
     $compiled = app(Compiler::class)->compile($node);
+
+    expect($compiled)->toBeInstanceOf(CompiledBlockNode::class);
 
     $path = fixture_path('views/components/card.blade.php');
     $hash = Utils::hash($path);
@@ -63,11 +68,31 @@ test('compiles components', function () {
     ]));
 });
 
+test('does not compile components with dynamic slot names', function () {
+    $input = '<x-card><x-slot :name="$name">Footer</x-slot></x-card>';
+    $node = app(Parser::class)->parse($input)->nodes[0];
+
+    expect(app(Compiler::class)->compile($node))
+        ->toBe($node)
+        ->and($node->render())->toBe($input);
+});
+
+test('does not compile components with slot names containing Blade echoes', function () {
+    $input = '<x-card><x-slot name="{{ $name }}">Footer</x-slot></x-card>';
+    $node = app(Parser::class)->parse($input)->nodes[0];
+
+    expect(app(Compiler::class)->compile($node))
+        ->toBe($node)
+        ->and($node->render())->toBe($input);
+});
+
 test('compiles delegate components', function () {
     $input = '<flux:delegate-component component="card" />';
 
-    $node = app(Parser::class)->parse($input)[0];
+    $node = app(Parser::class)->parse($input)->nodes[0];
     $compiled = app(Compiler::class)->compile($node);
+
+    expect($compiled)->toBeInstanceOf(CompiledBlockNode::class);
 
     expect($compiled->render())->toEqualCollapsingWhitespace(join('', [
         '<?php $__resolved = $__blaze->resolve(\'flux::\' . card); ?> ',
@@ -88,7 +113,7 @@ test('does not compile components with blaze directive override set to false', f
 
     app(Config::class)->add(fixture_path('views/components'));
 
-    $node = app(Parser::class)->parse($input)[0];
+    $node = app(Parser::class)->parse($input)->nodes[0];
     $compiled = app(Compiler::class)->compile($node);
 
     expect($compiled)->toBeInstanceOf(ComponentNode::class);

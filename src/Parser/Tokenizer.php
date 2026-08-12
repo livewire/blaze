@@ -4,18 +4,18 @@ namespace Livewire\Blaze\Parser;
 
 use Illuminate\Support\Str;
 use Livewire\Blaze\BladeService;
-use Livewire\Blaze\Parser\Tokens\DirectiveToken;
-use Livewire\Blaze\Parser\Tokens\TagSelfCloseToken;
-use Livewire\Blaze\Parser\Tokens\SlotCloseToken;
-use Livewire\Blaze\Parser\Tokens\SlotOpenToken;
 use Livewire\Blaze\Parser\Tokens\TagCloseToken;
+use Livewire\Blaze\Parser\Tokens\DirectiveToken;
+use Livewire\Blaze\Parser\Tokens\EchoToken;
 use Livewire\Blaze\Parser\Tokens\TagOpenToken;
+use Livewire\Blaze\Parser\Tokens\PhpBlockToken;
 use Livewire\Blaze\Parser\Tokens\TextToken;
 use Livewire\Blaze\Parser\Tokens\Token;
+use Livewire\Blaze\Parser\Tokens\VerbatimBlockToken;
 use Livewire\Blaze\Support\LaravelRegex;
 
 /**
- * Finite state machine that lexes Blade templates into component/slot/text tokens.
+ * Lexes Blade templates into tags, directives, PHP blocks, verbatim blocks, and text tokens.
  */
 class Tokenizer
 {
@@ -24,38 +24,11 @@ class Tokenizer
     ) {
     }
 
-    protected array $prefixes = [
-        'flux:' => [
-            'namespace' => 'flux::',
-            'slot' => 'x-slot',
-        ],
-        'x:' => [
-            'namespace' => '',
-            'slot' => 'x-slot',
-        ],
-        'x-' => [
-            'namespace' => '',
-            'slot' => 'x-slot',
-        ],
-    ];
-
-    protected string $content = '';
-
-    protected int $position = 0;
-
-    protected int $length = 0;
-
     protected array $tokens = [];
-
     protected string $buffer = '';
-
-    protected ?Token $currentToken = null;
-
-    protected array $tagStack = [];
-
-    protected string $currentPrefix = '';
-
-    protected string $currentSlotPrefix = '';
+    protected string $content;
+    protected int $position;
+    protected int $length;
 
     /**
      * Tokenize a Blade template into an array of tokens.
@@ -64,309 +37,157 @@ class Tokenizer
     {
         $this->tokens = [];
         $this->buffer = '';
-        $this->currentToken = null;
-        $this->tagStack = [];
-        $this->currentPrefix = '';
-        $this->currentSlotPrefix = '';
-
-        $state = TokenizerState::TEXT;
 
         foreach (token_get_all($template) as $token) {
             if (is_array($token) && $token[0] === T_INLINE_HTML) {
-                $this->position = 0;
-                $this->content = $token[1];
-                $this->length = strlen($token[1]);
+                $this->flushBuffer(PhpBlockToken::class);
+                $this->tokenizeString($token[1]);
 
-                while (!$this->isAtEnd()) {
-                    $state = match ($state) {
-                        TokenizerState::TEXT => $this->handleTextState(),
-                        TokenizerState::TAG_OPEN => $this->handleTagOpenState(),
-                        TokenizerState::TAG_CLOSE => $this->handleTagCloseState(),
-                        TokenizerState::SLOT_OPEN => $this->handleSlotOpenState(),
-                        TokenizerState::SLOT_CLOSE => $this->handleSlotCloseState(),
-                        TokenizerState::SHORT_SLOT => $this->handleShortSlotState(),
-                        TokenizerState::DIRECTIVE => $this->handleDirectiveState(),
-                        default => throw new \RuntimeException("Unknown state: $state"),
-                    };
-                }
-            } else {
-                // If we hit a non-HTML code inside a tag token, we should discard that token
-                // and consider everything buffered so far as plain text.
-                $this->currentToken = null;
-
-                $state = TokenizerState::TEXT;
-
-                $this->buffer .= is_array($token) ? $token[1] : $token;
+                continue;
             }
+
+            $this->buffer .= is_array($token) ? $token[1] : $token;
         }
 
-        $this->flushBuffer();
+        $this->flushBuffer(PhpBlockToken::class);
 
         return $this->tokens;
     }
 
     /**
-     * Process text state, detecting component/slot tag boundaries.
+     * Tokenize a string of inline HTML content.
      */
-    protected function handleTextState(): TokenizerState
+    protected function tokenizeString(string $content): void
     {
-        $char = $this->current();
+        $this->buffer = '';
+        $this->position = 0;
+        $this->content = $this->blade->compileComments($content);
+        $this->length = strlen($this->content);
 
-        if ($char === '<') {
-            $this->flushBuffer();
-
-            if ($slotInfo = $this->matchSlotOpen()) {
-                $this->currentSlotPrefix = $slotInfo['prefix'];
-
-                if ($slotInfo['isShort']) {
-                    $this->currentToken = new SlotOpenToken(slotStyle: 'short', prefix: $slotInfo['prefix']);
-
-                    return TokenizerState::SHORT_SLOT;
-                } else {
-                    $this->currentToken = new SlotOpenToken(slotStyle: 'standard', prefix: $slotInfo['prefix']);
-
-                    return TokenizerState::SLOT_OPEN;
-                }
-            }
-
-            if ($slotInfo = $this->matchSlotClose()) {
-                $this->currentToken = new SlotCloseToken();
-
-                $this->currentSlotPrefix = $slotInfo['prefix'];
-
-                if ($this->current() === ':') {
-                    $this->advance();
-                }
-
-                return TokenizerState::SLOT_CLOSE;
-            }
-
-            if ($prefixInfo = $this->matchComponentOpen()) {
-                $this->currentPrefix = $prefixInfo['prefix'];
-
-                $this->currentToken = new TagOpenToken(
-                    name: '',
-                    prefix: $prefixInfo['prefix'],
-                    namespace: $prefixInfo['namespace']
-                );
-
-                return TokenizerState::TAG_OPEN;
-            }
-
-            if ($this->peek(1) === '/' && ($prefixInfo = $this->matchComponentClose())) {
-                $this->currentPrefix = $prefixInfo['prefix'];
-
-                $this->currentToken = new TagCloseToken(
-                    name: '',
-                    prefix: $prefixInfo['prefix'],
-                    namespace: $prefixInfo['namespace']
-                );
-
-                return TokenizerState::TAG_CLOSE;
-            }
+        while (! $this->isAtEnd()) {
+            $this->process();
         }
 
-        if ($char === '@') {
-            // Skip escaped directives like `@@if`
-            if ($this->peek(1) === '@') {
-                $this->advance(2);
+        $this->flushBuffer();
+    }
 
-                return TokenizerState::TEXT;
-            }
-
-            // Skip @ preceded by a word char like `info@example`
-            if ($this->position > 0 && preg_match('/\w/', $this->content[$this->position - 1])) {
-                $this->advance();
-
-                return TokenizerState::TEXT;
-            }
+    /**
+     * Process the token starting at the current position.
+     */
+    protected function process(): void
+    {
+        if ($this->startsWith('@php') && ($match = $this->matchDirective()) && ! $match['expression']) {
+            $offset = $this->position;
 
             $this->flushBuffer();
 
-            $this->currentToken = new DirectiveToken(name: '', original: '');
+            $this->advance(strlen('@php'));
 
-            return TokenizerState::DIRECTIVE;
-        }
+            if ($this->advanceUntil('@endphp', fn () => $this->matchDirective())) {
+                $this->advance(strlen('@endphp'));
 
-        $this->advance();
+                $this->flushBuffer(PhpBlockToken::class);
+            } else {
+                $original = rtrim($match['original']);
 
-        return TokenizerState::TEXT;
-    }
+                $this->emitToken(new DirectiveToken($match['name'], $original));
 
-    /**
-     * Process tag open state, extracting the component name and attributes.
-     */
-    protected function handleTagOpenState(): TokenizerState
-    {
-        if ($name = $this->matchTagName()) {
-            $this->currentToken->name = $name;
-
-            $this->tagStack[] = $name;
-
-            $this->advance(strlen($name));
-
-            $this->collectAttributes();
-
-            if ($this->current() === '/' && $this->peek() === '>') {
-                $this->currentToken = new TagSelfCloseToken(
-                    name: $this->currentToken->name,
-                    prefix: $this->currentToken->prefix,
-                    namespace: $this->currentToken->namespace,
-                    attributes: $this->currentToken->attributes,
-                );
-
-                array_pop($this->tagStack);
-
-                $this->advance(2);
-
-                $this->emitToken();
-
-                return TokenizerState::TEXT;
+                $this->rewind($offset + strlen($original));
             }
 
-            if ($this->current() === '>') {
-                $this->advance();
+            return;
+        }
 
-                $this->emitToken();
+        if ($this->startsWith('@verbatim') && ($match = $this->matchDirective()) && ! $match['expression']) {
+            $offset = $this->position;
 
-                return TokenizerState::TEXT;
+            $this->flushBuffer();
+
+            $this->advance(strlen('@verbatim'));
+
+            if ($this->advanceUntil('@endverbatim', fn () => $this->matchDirective())) {
+                $this->advance(strlen('@endverbatim'));
+
+                $this->flushBuffer(VerbatimBlockToken::class);
+            } else {
+                $this->emitToken(new DirectiveToken($match['name'], $match['original']));
+
+                $this->rewind($offset + strlen($match['original']));
             }
+
+            return;
         }
 
-        $this->advance();
+        if ($this->current() === '{' && $match = $this->matchEcho()) {
+            if ($this->position > 0 && $this->content[$this->position - 1] === '@') {
+                $this->advance(strlen($match['original']));
 
-        return TokenizerState::TAG_OPEN;
-    }
-
-    /**
-     * Process closing tag state, extracting the component name.
-     */
-    protected function handleTagCloseState(): TokenizerState
-    {
-        if ($name = $this->matchTagName()) {
-            $this->currentToken->name = $name;
-
-            array_pop($this->tagStack);
-
-            $this->advance(strlen($name));
-        }
-
-        if ($this->current() === '>') {
-            $this->advance();
-
-            $this->emitToken();
-
-            return TokenizerState::TEXT;
-        }
-
-        $this->advance();
-
-        return TokenizerState::TAG_CLOSE;
-    }
-
-    /**
-     * Process standard slot tag state.
-     */
-    protected function handleSlotOpenState(): TokenizerState
-    {
-        $this->collectAttributes();
-
-        // Extract and remove the name attribute from the collected attributes.
-        foreach ($this->currentToken->attributes as $i => $attr) {
-            if (preg_match('/^name="([^"]+)"$/', $attr, $matches)) {
-                $this->currentToken->name = $matches[1];
-
-                unset($this->currentToken->attributes[$i]);
-
-                $this->currentToken->attributes = array_values($this->currentToken->attributes);
-
-                break;
+                return;
             }
+
+            $this->flushBuffer();
+            $this->advance(strlen($match['original']));
+            $this->emitToken(new EchoToken($match['expression'], $match['original']));
+
+            return;
         }
 
-        if ($this->current() === '>') {
-            $this->advance();
+        if ($this->current() === '@' && $match = $this->matchDirective()) {
+            $this->flushBuffer();
 
-            $this->emitToken();
+            $this->advance(strlen($match['original']));
 
-            return TokenizerState::TEXT;
+            $this->emitToken(new DirectiveToken(
+                name: $match['name'],
+                original: $match['original'],
+                expression: $match['expression'],
+            ));
+
+            return;
         }
 
-        $this->advance();
+        if ($this->current() === '<' && $match = $this->matchOpeningTag()) {
+            $this->flushBuffer();
 
-        return TokenizerState::SLOT_OPEN;
+            $this->advance(strlen($match['original']));
+
+            $this->emitToken(new TagOpenToken($match['prefix'], $match['name'], $match['attributes'], $match['original'], $match['selfClosing']));
+
+            return;
+        }
+
+        if ($this->current() === '<' && $this->peek() === '/' && $match = $this->matchClosingTag()) {
+            $this->flushBuffer();
+
+            $this->advance(strlen($match['original']));
+
+            $this->emitToken(new TagCloseToken($match['prefix'], $match['name'], $match['original']));
+
+            return;
+        }
+
+        $this->advanceUntilNext('<@{');
     }
 
     /**
-     * Process closing slot tag state.
+     * Match an executable Blade echo at the current position.
      */
-    protected function handleSlotCloseState(): TokenizerState
+    protected function matchEcho(): ?array
     {
-        if ($name = $this->matchSlotName()) {
-            $this->currentToken->name = $name;
+        $remaining = $this->remaining();
 
-            $this->advance(strlen($name));
-        }
-
-        if ($this->current() === '>') {
-            $this->advance();
-
-            $this->emitToken();
-
-            return TokenizerState::TEXT;
-        }
-
-        $this->advance();
-
-        return TokenizerState::SLOT_CLOSE;
-    }
-
-    /**
-     * Process short slot syntax state (<x-slot:name>).
-     */
-    protected function handleShortSlotState(): TokenizerState
-    {
-        if ($name = $this->matchSlotName()) {
-            $this->currentToken->name = $name;
-
-            $this->advance(strlen($name));
-
-            $this->collectAttributes();
-
-            if ($this->current() === '>') {
-                $this->advance();
-
-                $this->emitToken();
-
-                return TokenizerState::TEXT;
+        foreach (['/^{!!\s*(.+?)\s*!!}/s', '/^{{{\s*(.+?)\s*}}}/s', '/^{{\s*(.+?)\s*}}/s'] as $pattern) {
+            if (! preg_match($pattern, $remaining, $matches)) {
+                continue;
             }
+
+            return [
+                'expression' => $matches[1],
+                'original' => $matches[0],
+            ];
         }
 
-        $this->advance();
-
-        return TokenizerState::SHORT_SLOT;
-    }
-
-    /**
-     * Process directive state, extracting the directive name and expression.
-     */
-    protected function handleDirectiveState(): TokenizerState
-    {
-        if (! $match = $this->matchDirective()) {
-            $this->advance();
-
-            return TokenizerState::TEXT;
-        }
-
-        $this->advance(strlen($match['original']));
-
-        $this->currentToken->name = $match['name'];
-        $this->currentToken->original = $match['original'];
-        $this->currentToken->expression = $match['expression'];
-
-        $this->emitToken();
-
-        return TokenizerState::TEXT;
+        return null;
     }
 
     /**
@@ -374,6 +195,18 @@ class Tokenizer
      */
     protected function matchDirective(): ?array
     {
+        // Skip escaped directives like `@@if`
+        if ($this->peek(1) === '@') {
+            $this->advance(2);
+
+            return null;
+        }
+
+        // Skip @ preceded by a word char like `info@example`
+        if ($this->position > 0 && preg_match('/\w/', $this->content[$this->position - 1])) {
+            return null;
+        }
+
         /**
          * The following code matches the parenthesis handling in Blade as closely as possible.
          *
@@ -411,7 +244,7 @@ class Tokenizer
             $match[4] = $match[4].$rest;
         }
 
-        // No closing parenthesis found
+        // Reject matches that do not begin at the current position.
         if (! Str::startsWith($template, $match[0])) {
             return null;
         }
@@ -424,178 +257,45 @@ class Tokenizer
     }
 
     /**
-     * Collect all attributes on the current token, splitting on unquoted/unbracketed whitespace.
-     * Stops at > or /> without consuming them.
+     * Match an opening or self-closing component tag at the current position.
      */
-    protected function collectAttributes(): void
+    protected function matchOpeningTag(): array|null
     {
-        $attrString = '';
-        $inSingleQuote = false;
-        $inDoubleQuote = false;
-        $braceCount = 0;
-        $bracketCount = 0;
-        $parenCount = 0;
+        $pattern = "/^<\s*(x[-:]|flux:)([\w\-:.]*)". LaravelRegex::ATTRIBUTES ."(?<![=\-])(?<selfClosing>\/?)>/x";
 
-        while (!$this->isAtEnd()) {
-            $char = $this->current();
+        preg_match($pattern, $this->remaining(), $matches);
 
-            $prevChar = $this->position > 0 ? $this->content[$this->position - 1] : '';
-
-            if ($char === '"' && !$inSingleQuote && $prevChar !== '\\') {
-                $inDoubleQuote = !$inDoubleQuote;
-            } elseif ($char === "'" && !$inDoubleQuote && $prevChar !== '\\') {
-                $inSingleQuote = !$inSingleQuote;
-            }
-
-            if (!$inSingleQuote && !$inDoubleQuote) {
-                match($char) {
-                    '{' => $braceCount++,
-                    '}' => $braceCount--,
-                    '[' => $bracketCount++,
-                    ']' => $bracketCount--,
-                    '(' => $parenCount++,
-                    ')' => $parenCount--,
-                    default => null
-                };
-            }
-
-            $isNested = $inSingleQuote || $inDoubleQuote
-                || $braceCount > 0 || $bracketCount > 0 || $parenCount > 0;
-
-            // Tag end — flush and stop (don't consume).
-            if (($char === '>' || ($char === '/' && $this->peek() === '>')) && !$isNested) {
-                break;
-            }
-
-            // Space outside nesting — flush current attribute and skip.
-            if ($char === ' ' && !$isNested) {
-                if ($attrString !== '') {
-                    $this->currentToken->attributes[] = $attrString;
-
-                    $attrString = '';
-                }
-
-                $this->advance();
-
-                continue;
-            }
-
-            $attrString .= $char;
-
-            $this->advance();
-        }
-
-        if ($attrString !== '') {
-            $this->currentToken->attributes[] = $attrString;
-        }
-    }
-
-    /**
-     * Try to match a slot opening tag at the current position.
-     */
-    protected function matchSlotOpen(): ?array
-    {
-        foreach ($this->prefixes as $prefix => $config) {
-            $slotPrefix = $config['slot'];
-
-            if ($this->match('<\s*' . $slotPrefix . ':')) {
-                return ['prefix' => $slotPrefix, 'isShort' => true];
-            }
-
-            if ($this->match('<\s*' . $slotPrefix . '(?!:)')) {
-                return ['prefix' => $slotPrefix, 'isShort' => false];
-            }
+        if ($matches) {
+            return [
+                'original' => $matches[0],
+                'prefix' => $matches[1],
+                'name' => $matches[2],
+                'attributes' => ltrim($matches['attributes']),
+                'selfClosing' => $matches['selfClosing'] === '/',
+            ];
         }
 
         return null;
     }
 
     /**
-     * Try to match a slot closing tag at the current position.
+     * Match a closing component tag at the current position.
      */
-    protected function matchSlotClose(): ?array
+    protected function matchClosingTag(): array|null
     {
-        foreach ($this->prefixes as $prefix => $config) {
-            $slotPrefix = $config['slot'];
+        $pattern = "/^<\/\s*(x[-:]|flux:)([\w\-\:\.]*)\s*>/x";
 
-            if ($this->match('<\/\s*' . $slotPrefix)) {
-                return ['prefix' => $slotPrefix];
-            }
+        preg_match($pattern, $this->remaining(), $matches);
+
+        if ($matches) {
+            return [
+                'original' => $matches[0],
+                'prefix' => $matches[1],
+                'name' => $matches[2],
+            ];
         }
 
         return null;
-    }
-
-    /**
-     * Try to match a component opening tag at the current position.
-     */
-    protected function matchComponentOpen(): ?array
-    {
-        foreach ($this->prefixes as $prefix => $config) {
-            if ($this->match('<\s*' . $prefix)) {
-                return [
-                    'prefix' => $prefix,
-                    'namespace' => $config['namespace'] ?? '',
-                ];
-            }
-        }
-
-        return null;
-    }
-
-    /**
-     * Try to match a component closing tag at the current position.
-     */
-    protected function matchComponentClose(): ?array
-    {
-        foreach ($this->prefixes as $prefix => $config) {
-            if ($this->match('<\/\s*' . $prefix)) {
-                return [
-                    'prefix' => $prefix,
-                    'namespace' => $config['namespace'] ?? '',
-                ];
-            }
-        }
-
-        return null;
-    }
-
-    /**
-     * Match a tag name at the current position.
-     */
-    protected function matchTagName(): ?string
-    {
-        if (preg_match(LaravelRegex::TAG_NAME, $this->remaining(), $matches)) {
-            return $matches[0];
-        }
-
-        return null;
-    }
-
-    /**
-     * Match a slot name (alphanumeric, hyphens) at the current position.
-     */
-    protected function matchSlotName(): ?string
-    {
-        if (preg_match(LaravelRegex::SLOT_INLINE_NAME, $this->remaining(), $matches)) {
-            return $matches[0];
-        }
-
-        return null;
-    }
-
-    /**
-     * Match a pattern at the current position and advance past it.
-     */
-    protected function match(string $pattern): bool
-    {
-        if (preg_match('/^' . $pattern . '/', $this->remaining(), $matches)) {
-            $this->advance(strlen($matches[0]));
-
-            return true;
-        }
-
-        return false;
     }
 
     /**
@@ -604,6 +304,14 @@ class Tokenizer
     protected function current(): string
     {
         return $this->isAtEnd() ? '' : $this->content[$this->position];
+    }
+
+    /**
+     * Get the remaining content from the current position.
+     */
+    protected function remaining(): string
+    {
+        return substr($this->content, $this->position);
     }
 
     /**
@@ -617,14 +325,6 @@ class Tokenizer
     }
 
     /**
-     * Get the remaining content from the current position.
-     */
-    protected function remaining(): string
-    {
-        return substr($this->content, $this->position);
-    }
-
-    /**
      * Advance the position by a number of characters.
      */
     protected function advance(int $count = 1): void
@@ -632,6 +332,38 @@ class Tokenizer
         $this->buffer .= substr($this->content, $this->position, $count);
 
         $this->position += $count;
+    }
+
+    /**
+     * Advance until a matching string satisfying the optional condition is found.
+     */
+    protected function advanceUntil(string $str, ?callable $condition = null): bool
+    {
+        while (! $this->isAtEnd()) {
+            $this->advanceUntilNext($str[0]);
+
+            if ($this->startsWith($str) && (is_null($condition) || $condition())) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * Advance through the next occurrence of any of the given characters.
+     */
+    protected function advanceUntilNext(string $characters): void
+    {
+        $this->advance(strcspn($this->content, $characters, $this->position + 1) + 1);
+    }
+
+    /**
+     * Determine whether the remaining content starts with the given string.
+     */
+    protected function startsWith(string $str): bool
+    {
+        return substr_compare($this->content, $str, $this->position, strlen($str)) === 0;
     }
 
     /**
@@ -645,20 +377,29 @@ class Tokenizer
     /**
      * Emit the current token and discard the raw buffer.
      */
-    protected function emitToken(): void
+    protected function emitToken(Token $token): void
     {
-        $this->tokens[] = $this->currentToken;
+        $this->tokens[] = $token;
 
         $this->buffer = '';
     }
 
     /**
-     * Emit any accumulated text buffer as a TextToken.
+     * Move to a position and discard the accumulated buffer.
      */
-    protected function flushBuffer(): void
+    protected function rewind(int $position): void
+    {
+        $this->position = $position;
+        $this->buffer = '';
+    }
+
+    /**
+     * Emit any accumulated buffer as a given token.
+     */
+    protected function flushBuffer(string $class = TextToken::class): void
     {
         if ($this->buffer !== '') {
-            $this->tokens[] = new TextToken($this->buffer);
+            $this->tokens[] = new $class($this->buffer);
 
             $this->buffer = '';
         }

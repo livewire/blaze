@@ -7,14 +7,15 @@ use Illuminate\Support\Str;
 use Illuminate\View\Compilers\BladeCompiler;
 use Illuminate\View\Compilers\ComponentTagCompiler;
 use Illuminate\View\Factory;
-use Livewire\Blaze\Compiler\DirectiveCompiler;
 use Livewire\Blaze\Parser\Attribute;
-use Livewire\Blaze\Support\LaravelRegex;
 use ReflectionClass;
 
 class BladeService
 {
     protected ComponentTagCompiler $tagCompiler;
+    
+    protected ReflectionClass $compilerReflection;
+    protected ReflectionClass $tagCompilerReflection;
 
     protected ?array $customConditions = null;
 
@@ -27,6 +28,9 @@ class BladeService
             $compiler->getClassComponentNamespaces(),
             $compiler,
         );
+
+        $this->compilerReflection = new ReflectionClass($this->compiler);
+        $this->tagCompilerReflection = new ReflectionClass($this->tagCompiler);
     }
 
     /**
@@ -50,76 +54,11 @@ class BladeService
     }
 
     /**
-     * Invoke the Blade compiler's storeUncompiledBlocks via reflection.
-     */
-    public function preStoreUncompiledBlocks(string $input): string
-    {
-        $output = $input;
-
-        $output = $this->storeVerbatimBlocks($output);
-        $output = $this->storePhpBlocks($output);
-        
-        return $output;
-    }
-
-    /**
-     * Store only @verbatim blocks as raw block placeholders.
-     */
-    public function storeVerbatimBlocks(string $input): string
-    {
-        return $this->storeRawBlock(LaravelRegex::VERBATIM_BLOCK, $input);
-    }
-
-    /**
-     * Store only @verbatim blocks as raw block placeholders.
-     */
-    public function storePhpBlocks(string $input): string
-    {
-        return $this->storeRawBlock(LaravelRegex::PHP_BLOCK, $input);
-    }
-
-    /**
-     * Store a raw block placeholder via the Blade compiler.
-     */
-    protected function storeRawBlock(string $pattern, string $content): string
-    {
-        $reflection = new \ReflectionClass($this->compiler);
-        $method = $reflection->getMethod('storeRawBlock');
-
-        return preg_replace_callback($pattern, function ($matches) use ($method) {
-            return $method->invoke($this->compiler, $matches[0]);
-        }, $content);
-    }
-
-    /**
-     * Restore raw block placeholders to their original content.
-     */
-    public function restoreRawBlocks(string $input): string
-    {
-        $reflection = new \ReflectionClass($this->compiler);
-        $method = $reflection->getMethod('restoreRawContent');
-
-        return $method->invoke($this->compiler, $input);
-    }
-
-    /**
-     * Restore raw block placeholders to their original content.
-     */
-    public function restorePhpBlocks(string $input): string
-    {
-        $reflection = new \ReflectionClass($this->compiler);
-        $method = $reflection->getMethod('restorePhpBlocks');
-
-        return $method->invoke($this->compiler, $input);
-    }
-
-    /**
      * Invoke the Blade compiler's compileComments via reflection.
      */
     public function compileComments(string $input): string
     {
-        $reflection = new \ReflectionClass($this->compiler);
-        $compileComments = $reflection->getMethod('compileComments');
+        $compileComments = $this->compilerReflection->getMethod('compileComments');
 
         return $compileComments->invoke($this->compiler, $input);
     }
@@ -129,8 +68,7 @@ class BladeService
      */
     public function hasEvenNumberOfParentheses(string $expression): bool
     {
-        $reflection = new ReflectionClass($this->compiler);
-        $method = $reflection->getMethod('hasEvenNumberOfParentheses');
+        $method = $this->compilerReflection->getMethod('hasEvenNumberOfParentheses');
 
         return $method->invoke($this->compiler, $expression);
     }
@@ -162,14 +100,11 @@ class BladeService
         })->call($this->tagCompiler, $attributeString);
     }
 
-    public function compileUseStatements(string $input): string
+    public function compileUseStatements(string $expression): string
     {
-        return DirectiveCompiler::make()->directive('use', function ($expression) {
-            $reflection = new \ReflectionClass($this->compiler);
-            $method = $reflection->getMethod('compileUse');
+        $method = $this->compilerReflection->getMethod('compileUse');
 
-            return $method->invoke($this->compiler, $expression);
-        })->compile($input);
+        return $method->invoke($this->compiler, $expression);
     }
 
     /**
@@ -181,8 +116,7 @@ class BladeService
             return $this->customConditions;
         }
 
-        $reflection = new ReflectionClass($this->compiler);
-        $conditions = $reflection->getProperty('conditions')->getValue($this->compiler);
+        $conditions = $this->compilerReflection->getProperty('conditions')->getValue($this->compiler);
 
         return $this->customConditions = collect($conditions)->keys()->all();
     }
@@ -212,8 +146,7 @@ class BladeService
      */
     public function compileAttributeEchos(string $input): string
     {
-        $reflection = new \ReflectionClass($this->tagCompiler);
-        $method = $reflection->getMethod('compileAttributeEchos');
+        $method = $this->tagCompilerReflection->getMethod('compileAttributeEchos');
 
         return Str::unwrap("'".$method->invoke($this->tagCompiler, $input)."'", "''.", ".''");
     }
@@ -272,6 +205,16 @@ class BladeService
     }
 
     /**
+    * Check if the Blade compiler has any echo handlers registered.
+    */
+    public function hasEchoHandlers(): bool
+    {
+        $handlers = $this->compilerReflection->getProperty('echoHandlers')->getValue($this->compiler);
+
+        return ! empty($handlers);
+    }
+
+    /**
      * Determine if a component resolves to a class rather than a blade view.
      *
      * @see ComponentTagCompiler::componentClass()
@@ -301,16 +244,14 @@ class BladeService
 
     protected function guessAnonymousComponentUsingNamespaces(Factory $viewFactory, string $component): string|null
     {
-        $reflection = new \ReflectionClass($this->tagCompiler);
-        $method = $reflection->getMethod('guessAnonymousComponentUsingNamespaces');
+        $method = $this->tagCompilerReflection->getMethod('guessAnonymousComponentUsingNamespaces');
 
         return $method->invoke($this->tagCompiler, $viewFactory, $component);
     }
 
     protected function guessAnonymousComponentUsingPaths(Factory $viewFactory, string $component): string|null
     {
-        $reflection = new \ReflectionClass($this->tagCompiler);
-        $method = $reflection->getMethod('guessAnonymousComponentUsingPaths');
+        $method = $this->tagCompilerReflection->getMethod('guessAnonymousComponentUsingPaths');
 
         return $method->invoke($this->tagCompiler, $viewFactory, $component);
     }
