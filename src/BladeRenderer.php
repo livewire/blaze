@@ -83,6 +83,7 @@ class BladeRenderer
             'compiledPath' => $temporaryCachePath,
             'dataStack' => [],
             'slotsStack' => [],
+            'folding' => true,
         ]);
 
         $obLevel = ob_get_level();

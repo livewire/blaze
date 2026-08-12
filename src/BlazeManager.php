@@ -8,7 +8,7 @@ use Illuminate\View\Engines\CompilerEngine;
 use Illuminate\View\View;
 use Livewire\Blaze\Compiler\Wrapper;
 use Livewire\Blaze\Compiler\Compiler;
-use Livewire\Blaze\Compiler\Profiler;
+use Livewire\Blaze\Debugger\Instrumenter;
 use Livewire\Blaze\Runtime\BlazeRuntime;
 use Livewire\Blaze\Events\ComponentFolded;
 use Livewire\Blaze\Folder\Folder;
@@ -41,7 +41,7 @@ class BlazeManager
     protected Folder $folder;
     protected Memoizer $memoizer;
     protected Wrapper $wrapper;
-    protected Profiler $instrumenter;
+    protected Instrumenter $instrumenter;
     protected BladeRenderer $renderer;
 
     public function __construct(
@@ -58,7 +58,7 @@ class BlazeManager
         $this->folder = new Folder($config, $this->blade, $this->renderer, $this, $this->components);
         $this->memoizer = new Memoizer($config, $this->compiler, $this->blade, $this, $this->components);
         $this->wrapper = new Wrapper($this->blade, $this);
-        $this->instrumenter = new Profiler($config, $this->blade, $this, $this->components);
+        $this->instrumenter = new Instrumenter($config, $this->blade, $this, $this->components);
 
         Event::listen(ComponentFolded::class, function (ComponentFolded $event) {
             $this->foldedEvents[] = $event;

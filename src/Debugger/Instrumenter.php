@@ -1,6 +1,6 @@
 <?php
 
-namespace Livewire\Blaze\Compiler;
+namespace Livewire\Blaze\Debugger;
 
 use Livewire\Blaze\BladeService;
 use Livewire\Blaze\BlazeManager;
@@ -19,7 +19,7 @@ use Livewire\Blaze\Support\ComponentRepository;
  * popData. This gives us unified timing for both Blaze-compiled
  * and standard Blade components.
  */
-class Profiler
+class Instrumenter
 {
     public function __construct(
         protected Config $config,

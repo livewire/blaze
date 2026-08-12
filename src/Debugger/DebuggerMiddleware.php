@@ -1,6 +1,6 @@
 <?php
 
-namespace Livewire\Blaze;
+namespace Livewire\Blaze\Debugger;
 
 use Closure;
 use Illuminate\Contracts\Http\Kernel;
@@ -32,7 +32,7 @@ class DebuggerMiddleware
         })->middleware('web');
 
         Route::get('/_blaze/profiler', function () {
-            $html = file_get_contents(__DIR__.'/Profiler/profiler.html');
+            $html = file_get_contents(__DIR__.'/profiler.html');
             return response($html)->header('Content-Type', 'text/html');
         })->middleware('web');
 

@@ -1,6 +1,6 @@
 <?php
 
-namespace Livewire\Blaze;
+namespace Livewire\Blaze\Debugger;
 
 use Carbon\Carbon;
 use Illuminate\Support\Facades\File;
