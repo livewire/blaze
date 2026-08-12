@@ -83,7 +83,7 @@ test('does not fold components with attribute spread', function () {
 test('does not fold components with attribute spread from parent', function () {
     $input = '<x-foldable.input />';
 
-    $node = app(Parser::class)->parse($input)[0];
+    $node = app(Parser::class)->parse($input)->nodes[0];
     
     $node->setParentsAttributes(
         app(AttributeParser::class)->parse(':attributes="$attributes"')
