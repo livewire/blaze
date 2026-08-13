@@ -160,3 +160,8 @@ test('foldable aware without props', fn () => compare(<<<'BLADE'
     <x-foldable.input-aware-no-props type="number" />
     BLADE
 ));
+
+test('duplicate attribute', fn () => compare(<<<'BLADE'
+    <x-input type="email" type="number" />
+    BLADE
+));
