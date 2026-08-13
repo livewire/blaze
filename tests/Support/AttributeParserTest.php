@@ -72,9 +72,9 @@ test('parses kebab case attributes', function () {
         ->propName->toBe('fooBar');
 });
 
-test('keeps first attribute when multiple camelize to same key', function () {
+test('keeps last attribute when multiple camelize to same key', function () {
     $attrs = app(AttributeParser::class)->parse('foo-bar="first" foo_bar="second"');
 
     expect($attrs)->toHaveCount(1)->toHaveKey('fooBar');
-    expect($attrs['fooBar']->value)->toBe('first');
+    expect($attrs['fooBar']->value)->toBe('second');
 });
