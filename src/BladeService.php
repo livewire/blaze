@@ -2,6 +2,8 @@
 
 namespace Livewire\Blaze;
 
+use Closure;
+use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Str;
 use Illuminate\View\Compilers\BladeCompiler;
@@ -11,12 +13,15 @@ use Livewire\Blaze\Compiler\DirectiveCompiler;
 use Livewire\Blaze\Parser\Attribute;
 use Livewire\Blaze\Support\LaravelRegex;
 use ReflectionClass;
+use ReflectionFunction;
 
 class BladeService
 {
     protected ComponentTagCompiler $tagCompiler;
 
     protected ?array $customConditions = null;
+
+    protected ?array $precompilersForFolding = null;
 
     public function __construct(
         public BladeCompiler $compiler,
@@ -47,6 +52,33 @@ class BladeService
                 return $callback($input, $this->compiler->getPath());
             });
         });
+    }
+
+    /**
+     * Get the Blade precompilers that should run during isolated folding.
+     */
+    public function precompilersForFolding(): array
+    {
+        return $this->precompilersForFolding ??= Arr::where(
+            (new ReflectionClass($this->compiler))->getProperty('precompilers')->getValue($this->compiler),
+            function ($precompiler) {
+                if ($precompiler instanceof \Livewire\Mechanisms\CompileLivewireTags\LivewireTagPrecompiler) {
+                    return false;
+                }
+
+                if (! $precompiler instanceof Closure) {
+                    return true;
+                }
+
+                $scope = (new ReflectionFunction($precompiler))->getClosureScopeClass()?->getName();
+
+                return ! in_array($scope, [
+                    \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::class,
+                    \Livewire\Features\SupportMorphAwareBladeCompilation\SupportMorphAwareBladeCompilation::class,
+                    \Livewire\Mechanisms\ExtendBlade\ExtendBlade::class,
+                ], true);
+            },
+        );
     }
 
     /**
