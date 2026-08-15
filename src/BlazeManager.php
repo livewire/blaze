@@ -49,7 +49,7 @@ class BlazeManager
         protected BlazeRuntime $runtime,
         protected BladeService $blade,
     ) {
-        $this->renderer = new BladeRenderer($bladeCompiler, app('view'), $this->runtime, $this);
+        $this->renderer = new BladeRenderer($this->blade, app('view'), $this->runtime, $this);
         $this->parser = new Parser(new Tokenizer($this->blade), new AttributeParser($this->blade));
         $this->walker = new Walker;
         $this->compiler = new Compiler($config, $this->blade, $this);

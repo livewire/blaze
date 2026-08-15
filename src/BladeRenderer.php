@@ -5,14 +5,12 @@ namespace Livewire\Blaze;
 use Illuminate\Contracts\View\Factory;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\File;
-use Illuminate\View\Compilers\BladeCompiler;
 use Illuminate\View\Component;
 use Illuminate\View\ComponentSlot;
 use Livewire\Blaze\Parser\Attribute;
 use Livewire\Blaze\Parser\Nodes\ComponentNode;
 use Livewire\Blaze\Parser\Nodes\SlotNode;
 use Livewire\Blaze\Runtime\BlazeRuntime;
-use Livewire\Blaze\Support\ComponentSource;
 use Livewire\Blaze\Support\Utils;
 use ReflectionClass;
 
@@ -22,7 +20,7 @@ use ReflectionClass;
 class BladeRenderer
 {
     public function __construct(
-        protected BladeCompiler $blade,
+        protected BladeService $blade,
         protected Factory $factory,
         protected BlazeRuntime $runtime,
         protected BlazeManager $manager,
@@ -64,17 +62,18 @@ class BladeRenderer
             'translationReplacements' => [],
         ]);
 
-        $restoreCompiler = $this->freezeObjectProperties($this->blade, [
+        $restoreCompiler = $this->freezeObjectProperties($this->blade->compiler, [
             'cachePath' => $temporaryCachePath,
             'rawBlocks' => [],
             'footer' => [],
+            'precompilers' => $this->blade->precompilersForFolding(),
             'prepareStringsForCompilationUsing' => [
                 function ($input) {
                     if (Unblaze::hasUnblaze($input)) {
                         $input = Unblaze::processUnblazeDirectives($input);
                     };
 
-                    $input = $this->manager->compileForFolding($input, $this->blade->getPath());
+                    $input = $this->manager->compileForFolding($input, $this->blade->compiler->getPath());
 
                     return $input;
                 },
@@ -102,7 +101,7 @@ class BladeRenderer
 
         try {
             if (! file_exists($compiled) || filemtime($path) > filemtime($compiled)) {
-                $this->blade->compile($path);
+                $this->blade->compiler->compile($path);
             }
 
             $awareData = Arr::mapWithKeys($component->parentsAttributes, function (Attribute $attribute) {
