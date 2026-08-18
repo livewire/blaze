@@ -99,3 +99,48 @@ test('recompiles stale cache of folded components', function () {
         File::deleteDirectory($dir);
     }
 });
+
+test('recompiles stale cache when source and compiled timestamps are equal', function () {
+    $dir = sys_get_temp_dir().'/blaze-'.uniqid();
+    $path = $dir.'/button.blade.php';
+
+    try {
+        File::ensureDirectoryExists($dir);
+        File::put($path, '@blaze(fold: true) stale');
+
+        $blaze = app(BlazeManager::class);
+        $renderer = app(BladeRenderer::class);
+        $blade = app(BladeCompiler::class);
+        $bladeCachePath = invade($blade)->cachePath;
+
+        // We can't use the renderer here because it would `require` the file
+        // and register a global function, which would produce stale output
+        // even after recompiling. So instead we'll simulate folding and
+        // we will only compile the file in the blaze cache directory
+        invade($blade)->cachePath = $renderer->getTemporaryCachePath();
+
+        $blaze->startFolding();
+        $blade->compile($path);
+        $blaze->stopFolding();
+
+        invade($blade)->cachePath = $bladeCachePath;
+
+        // Now change the source and give it the same timestamp as the compiled file
+        $compiled = $renderer->getTemporaryCachePath().'/'.Utils::hash($path).'.php';
+        $timestamp = now()->addSecond()->timestamp;
+
+        File::put($path, '@blaze(fold: true) fresh');
+
+        touch($path, $timestamp);
+        touch($compiled, $timestamp);
+        clearstatcache(true);
+
+        expect(File::lastModified($path))->toBe(File::lastModified($compiled));
+
+        $node = app(Parser::class)->parse('<x-button />')[0];
+
+        expect($renderer->render($node, $path))->toContain('fresh');
+    } finally {
+        File::deleteDirectory($dir);
+    }
+});

@@ -49,7 +49,7 @@ class BlazeRuntime
      */
     public function compile(string $path, string $compiledPath): void
     {
-        if (! file_exists($compiledPath) || filemtime($path) > filemtime($compiledPath)) {
+        if (! file_exists($compiledPath) || filemtime($path) >= filemtime($compiledPath)) {
             $this->compiler->compile($path);
         }
     }
