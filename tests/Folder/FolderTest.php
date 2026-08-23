@@ -301,7 +301,7 @@ test('throws exception for components with problematic patterns', function (stri
 
     expect(fn () => app(Folder::class)->fold($node))
         ->toThrow(InvalidBlazeFoldUsageException::class);
-})->with(['errors', 'session', 'error', 'csrf', 'auth', 'request', 'old', 'once']);
+})->with(['errors', 'session', 'error', 'csrf', 'auth', 'request', 'old', 'once', 'livewire', 'livewire-directive']);
 
 test('does not fold components with slots wrapped in directives', function () {
     $input = '<x-foldable.card>@if(false)<x-slot:header>Header</x-slot:header>@endif</x-foldable.card>';

@@ -232,6 +232,8 @@ class Folder
             'auth\\(\\)' => 'forAuth',
             'request\\(\\)' => 'forRequest',
             'old\\(' => 'forOld',
+            '<livewire:' => 'forLivewire',
+            '@livewire' => 'forLivewire',
         ];
 
         foreach ($problematicPatterns as $pattern => $factoryMethod) {
