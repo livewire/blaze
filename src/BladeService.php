@@ -2,8 +2,6 @@
 
 namespace Livewire\Blaze;
 
-use Closure;
-use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Str;
 use Illuminate\View\Compilers\BladeCompiler;
@@ -12,19 +10,13 @@ use Illuminate\View\Factory;
 use Livewire\Blaze\Compiler\DirectiveCompiler;
 use Livewire\Blaze\Parser\Attribute;
 use Livewire\Blaze\Support\LaravelRegex;
-use Livewire\Mechanisms\ExtendBlade\ExtendBlade;
 use ReflectionClass;
-use ReflectionFunction;
-
-use function Livewire\invade;
 
 class BladeService
 {
     protected ComponentTagCompiler $tagCompiler;
 
     protected ?array $customConditions = null;
-
-    protected ?array $precompilersForFolding = null;
 
     public function __construct(
         public BladeCompiler $compiler,
@@ -54,44 +46,6 @@ class BladeService
             $this->compiler->prepareStringsForCompilationUsing(function ($input) use ($callback) {
                 return $callback($input, $this->compiler->getPath());
             });
-        });
-    }
-
-    /**
-     * Get the Blade precompilers that should run during isolated folding.
-     */
-    public function precompilersForFolding(): array
-    {
-        if (isset($this->precompilersForFolding)) {
-            return $this->precompilersForFolding;
-        }
-
-        $precompilers = (new ReflectionClass($this->compiler))->getProperty('precompilers')->getValue($this->compiler);
-
-        if (! class_exists(\Livewire\Livewire::class)) {
-            return $this->precompilersForFolding = $precompilers;
-        }
-
-        $livewireOnlyPrecompilers = invade(app(ExtendBlade::class))->precompilers;
-
-        return $this->precompilersForFolding = Arr::where($precompilers, function ($precompiler) use ($livewireOnlyPrecompilers) {
-            if ($precompiler instanceof \Livewire\Mechanisms\CompileLivewireTags\LivewireTagPrecompiler) {
-                return false;
-            }
-
-            if (in_array($precompiler, $livewireOnlyPrecompilers, true)) {
-                return false;
-            }
-
-            if (! $precompiler instanceof Closure) {
-                return true;
-            }
-
-            return ! in_array((new ReflectionFunction($precompiler))->getClosureScopeClass()?->getName(), [
-                \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::class,
-                \Livewire\Features\SupportMorphAwareBladeCompilation\SupportMorphAwareBladeCompilation::class,
-                \Livewire\Mechanisms\ExtendBlade\ExtendBlade::class,
-            ], true);
         });
     }
 

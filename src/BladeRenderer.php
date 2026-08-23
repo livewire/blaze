@@ -2,9 +2,11 @@
 
 namespace Livewire\Blaze;
 
+use Closure;
 use Illuminate\Contracts\View\Factory;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\File;
+use Illuminate\View\Compilers\BladeCompiler;
 use Illuminate\View\Component;
 use Illuminate\View\ComponentSlot;
 use Livewire\Blaze\Parser\Attribute;
@@ -12,7 +14,11 @@ use Livewire\Blaze\Parser\Nodes\ComponentNode;
 use Livewire\Blaze\Parser\Nodes\SlotNode;
 use Livewire\Blaze\Runtime\BlazeRuntime;
 use Livewire\Blaze\Support\Utils;
+use Livewire\Mechanisms\ExtendBlade\ExtendBlade;
 use ReflectionClass;
+use ReflectionFunction;
+
+use function Livewire\invade;
 
 /**
  * Handles isolated Blade rendering used during compile-time folding.
@@ -20,7 +26,7 @@ use ReflectionClass;
 class BladeRenderer
 {
     public function __construct(
-        protected BladeService $blade,
+        protected BladeCompiler $blade,
         protected Factory $factory,
         protected BlazeRuntime $runtime,
         protected BlazeManager $manager,
@@ -62,18 +68,18 @@ class BladeRenderer
             'translationReplacements' => [],
         ]);
 
-        $restoreCompiler = $this->freezeObjectProperties($this->blade->compiler, [
+        $restoreCompiler = $this->freezeObjectProperties($this->blade, [
             'cachePath' => $temporaryCachePath,
             'rawBlocks' => [],
             'footer' => [],
-            'precompilers' => $this->blade->precompilersForFolding(),
+            'precompilers' => fn (array $precompilers) => $this->precompilersForFolding($precompilers),
             'prepareStringsForCompilationUsing' => [
                 function ($input) {
                     if (Unblaze::hasUnblaze($input)) {
                         $input = Unblaze::processUnblazeDirectives($input);
                     };
 
-                    $input = $this->manager->compileForFolding($input, $this->blade->compiler->getPath());
+                    $input = $this->manager->compileForFolding($input, $this->blade->getPath());
 
                     return $input;
                 },
@@ -101,7 +107,7 @@ class BladeRenderer
 
         try {
             if (! file_exists($compiled) || filemtime($path) > filemtime($compiled)) {
-                $this->blade->compiler->compile($path);
+                $this->blade->compile($path);
             }
 
             $awareData = Arr::mapWithKeys($component->parentsAttributes, function (Attribute $attribute) {
@@ -172,10 +178,12 @@ class BladeRenderer
 
             $property = $reflection->getProperty($name);
 
-            $frozen[$name] = $property->getValue(is_object($object) ? $object : null);
+            $currentValue = $property->getValue(is_object($object) ? $object : null);
+
+            $frozen[$name] = $currentValue;
 
             if (! is_numeric($key)) {
-                $property->setValue($object, $value);
+                $property->setValue($object, $value instanceof Closure ? $value($currentValue) : $value);
             }
         }
 
@@ -185,5 +193,37 @@ class BladeRenderer
                 $property->setValue($object, $value);
             }
         };
+    }
+
+    /**
+     * Get the Blade precompilers that should run during isolated folding.
+     */
+    protected function precompilersForFolding(array $precompilers): array
+    {
+        if (! class_exists(\Livewire\Livewire::class)) {
+            return $precompilers;
+        }
+
+        $livewireOnlyPrecompilers = invade(app(ExtendBlade::class))->precompilers;
+
+        return Arr::where($precompilers, function ($precompiler) use ($livewireOnlyPrecompilers) {
+            if ($precompiler instanceof \Livewire\Mechanisms\CompileLivewireTags\LivewireTagPrecompiler) {
+                return false;
+            }
+
+            if (in_array($precompiler, $livewireOnlyPrecompilers, true)) {
+                return false;
+            }
+
+            if (! $precompiler instanceof Closure) {
+                return true;
+            }
+
+            return ! in_array((new ReflectionFunction($precompiler))->getClosureScopeClass()?->getName(), [
+                \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::class,
+                \Livewire\Features\SupportMorphAwareBladeCompilation\SupportMorphAwareBladeCompilation::class,
+                ExtendBlade::class,
+            ], true);
+        });
     }
 }
