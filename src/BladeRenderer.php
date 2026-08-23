@@ -71,16 +71,6 @@ class BladeRenderer
             'cachePath' => $temporaryCachePath,
             'rawBlocks' => [],
             'footer' => [],
-            'precompilers' => fn (array $precompilers) => [
-                ...$this->withoutLivewirePrecompilers($precompilers),
-                function (string $input) use ($path) {
-                    if (preg_match('~<\s*livewire[-:]|(?<![@\w])@livewire\b(?=\s*\()~', $input)) {
-                        throw InvalidBlazeFoldUsageException::forLivewire($path);
-                    }
-
-                    return $input;
-                }
-             ],
             'prepareStringsForCompilationUsing' => [
                 function ($input) {
                     if (Unblaze::hasUnblaze($input)) {
@@ -92,6 +82,16 @@ class BladeRenderer
                     return $input;
                 },
             ],
+            'precompilers' => fn (array $precompilers) => [
+                ...$this->withoutLivewirePrecompilers($precompilers),
+                function (string $input) use ($path) {
+                    if (preg_match('~<\s*livewire[-:]|(?<![@\w])@livewire\b(?=\s*\()~', $input)) {
+                        throw InvalidBlazeFoldUsageException::forLivewire($path);
+                    }
+
+                    return $input;
+                }
+             ],
             'path' => null,
             'forElseCounter' => 0,
             'firstCaseInSwitch' => true,
