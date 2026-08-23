@@ -2,19 +2,22 @@
 
 namespace Livewire\Blaze;
 
+use Closure;
 use Illuminate\Contracts\View\Factory;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\File;
 use Illuminate\View\Compilers\BladeCompiler;
-use Illuminate\View\Component;
 use Illuminate\View\ComponentSlot;
+use Livewire\Blaze\Exceptions\InvalidBlazeFoldUsageException;
 use Livewire\Blaze\Parser\Attribute;
 use Livewire\Blaze\Parser\Nodes\ComponentNode;
 use Livewire\Blaze\Parser\Nodes\SlotNode;
 use Livewire\Blaze\Runtime\BlazeRuntime;
-use Livewire\Blaze\Support\ComponentSource;
 use Livewire\Blaze\Support\Utils;
 use ReflectionClass;
+use ReflectionFunction;
+
+use function Livewire\invade;
 
 /**
  * Handles isolated Blade rendering used during compile-time folding.
@@ -79,6 +82,16 @@ class BladeRenderer
                     return $input;
                 },
             ],
+            'precompilers' => fn (array $precompilers) => [
+                ...$this->withoutLivewirePrecompilers($precompilers),
+                function (string $input) use ($path) {
+                    if (preg_match('~<\s*livewire[-:]|(?<![@\w])@livewire\b(?=\s*\()~', $input)) {
+                        throw InvalidBlazeFoldUsageException::forLivewire($path);
+                    }
+
+                    return $input;
+                }
+             ],
             'path' => null,
             'forElseCounter' => 0,
             'firstCaseInSwitch' => true,
@@ -173,10 +186,12 @@ class BladeRenderer
 
             $property = $reflection->getProperty($name);
 
-            $frozen[$name] = $property->getValue(is_object($object) ? $object : null);
+            $currentValue = $property->getValue(is_object($object) ? $object : null);
+
+            $frozen[$name] = $currentValue;
 
             if (! is_numeric($key)) {
-                $property->setValue($object, $value);
+                $property->setValue($object, $value instanceof Closure ? $value($currentValue) : $value);
             }
         }
 
@@ -186,5 +201,40 @@ class BladeRenderer
                 $property->setValue($object, $value);
             }
         };
+    }
+
+    /**
+     * Filter out Livewire-specific precompilers.
+     */
+    protected function withoutLivewirePrecompilers(array $precompilers): array
+    {
+        if (! class_exists(\Livewire\Livewire::class)) {
+            return $precompilers;
+        }
+
+        $livewireOnlyPrecompilers = class_exists(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::class)
+            ? invade(app(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::class))->precompilers
+            : [];
+
+        return Arr::where($precompilers, function ($precompiler) use ($livewireOnlyPrecompilers) {
+            if ($precompiler instanceof \Livewire\Mechanisms\CompileLivewireTags\LivewireTagPrecompiler) {
+                return false;
+            }
+
+            if (in_array($precompiler, $livewireOnlyPrecompilers, true)) {
+                return false;
+            }
+
+            if ($precompiler instanceof Closure && in_array((new ReflectionFunction($precompiler))->getClosureScopeClass()?->getName(), [
+                \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::class,
+                \Livewire\Features\SupportMorphAwareBladeCompilation\SupportMorphAwareBladeCompilation::class,
+                \Livewire\Mechanisms\ExtendBlade\ExtendBlade::class,
+                \Livewire\LivewireServiceProvider::class,
+            ], true)) {
+                return false;
+            }
+
+            return true;
+        });
     }
 }

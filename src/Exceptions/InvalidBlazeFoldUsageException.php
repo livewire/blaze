@@ -127,4 +127,12 @@ class InvalidBlazeFoldUsageException extends \Exception
         );
     }
 
+    public static function forLivewire(string $componentPath): self
+    {
+        return new self(
+            $componentPath,
+            '<livewire:|@livewire',
+            'Components with livewire components should not use @blaze fold as Livewire components maintain runtime state'
+        );
+    }
 }
