@@ -202,7 +202,9 @@ class BladeRenderer
             return $precompilers;
         }
 
-        $livewireOnlyPrecompilers = invade(app(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::class))->precompilers;
+        $livewireOnlyPrecompilers = class_exists(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::class)
+            ? invade(app(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::class))->precompilers
+            : [];
 
         return Arr::where($precompilers, function ($precompiler) use ($livewireOnlyPrecompilers) {
             if ($precompiler instanceof \Livewire\Mechanisms\CompileLivewireTags\LivewireTagPrecompiler) {
@@ -213,16 +215,16 @@ class BladeRenderer
                 return false;
             }
 
-            if (! $precompiler instanceof Closure) {
-                return true;
-            }
-
-            return ! in_array((new ReflectionFunction($precompiler))->getClosureScopeClass()?->getName(), [
+            if ($precompiler instanceof Closure && in_array((new ReflectionFunction($precompiler))->getClosureScopeClass()?->getName(), [
                 \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::class,
                 \Livewire\Features\SupportMorphAwareBladeCompilation\SupportMorphAwareBladeCompilation::class,
                 \Livewire\Mechanisms\ExtendBlade\ExtendBlade::class,
                 \Livewire\LivewireServiceProvider::class,
-            ], true);
+            ], true)) {
+                return false;
+            }
+
+            return true;
         });
     }
 }
