@@ -12,8 +12,11 @@ use Illuminate\View\Factory;
 use Livewire\Blaze\Compiler\DirectiveCompiler;
 use Livewire\Blaze\Parser\Attribute;
 use Livewire\Blaze\Support\LaravelRegex;
+use Livewire\Mechanisms\ExtendBlade\ExtendBlade;
 use ReflectionClass;
 use ReflectionFunction;
+
+use function Livewire\invade;
 
 class BladeService
 {
@@ -59,26 +62,37 @@ class BladeService
      */
     public function precompilersForFolding(): array
     {
-        return $this->precompilersForFolding ??= Arr::where(
-            (new ReflectionClass($this->compiler))->getProperty('precompilers')->getValue($this->compiler),
-            function ($precompiler) {
-                if ($precompiler instanceof \Livewire\Mechanisms\CompileLivewireTags\LivewireTagPrecompiler) {
-                    return false;
-                }
+        if (isset($this->precompilersForFolding)) {
+            return $this->precompilersForFolding;
+        }
 
-                if (! $precompiler instanceof Closure) {
-                    return true;
-                }
+        $precompilers = (new ReflectionClass($this->compiler))->getProperty('precompilers')->getValue($this->compiler);
 
-                $scope = (new ReflectionFunction($precompiler))->getClosureScopeClass()?->getName();
+        if (! class_exists(\Livewire\Livewire::class)) {
+            return $this->precompilersForFolding = $precompilers;
+        }
 
-                return ! in_array($scope, [
-                    \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::class,
-                    \Livewire\Features\SupportMorphAwareBladeCompilation\SupportMorphAwareBladeCompilation::class,
-                    \Livewire\Mechanisms\ExtendBlade\ExtendBlade::class,
-                ], true);
-            },
-        );
+        $livewireOnlyPrecompilers = invade(app(ExtendBlade::class))->precompilers;
+
+        return $this->precompilersForFolding = Arr::where($precompilers, function ($precompiler) use ($livewireOnlyPrecompilers) {
+            if ($precompiler instanceof \Livewire\Mechanisms\CompileLivewireTags\LivewireTagPrecompiler) {
+                return false;
+            }
+
+            if (in_array($precompiler, $livewireOnlyPrecompilers, true)) {
+                return false;
+            }
+
+            if (! $precompiler instanceof Closure) {
+                return true;
+            }
+
+            return ! in_array((new ReflectionFunction($precompiler))->getClosureScopeClass()?->getName(), [
+                \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::class,
+                \Livewire\Features\SupportMorphAwareBladeCompilation\SupportMorphAwareBladeCompilation::class,
+                \Livewire\Mechanisms\ExtendBlade\ExtendBlade::class,
+            ], true);
+        });
     }
 
     /**
