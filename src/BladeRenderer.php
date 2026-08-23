@@ -17,8 +17,6 @@ use Livewire\Blaze\Support\Utils;
 use ReflectionClass;
 use ReflectionFunction;
 
-use function Livewire\invade;
-
 /**
  * Handles isolated Blade rendering used during compile-time folding.
  */
@@ -213,7 +211,7 @@ class BladeRenderer
         }
 
         $livewireOnlyPrecompilers = class_exists(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::class)
-            ? invade(app(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::class))->precompilers
+            ? \Livewire\invade(app(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::class))->precompilers
             : [];
 
         return Arr::where($precompilers, function ($precompiler) use ($livewireOnlyPrecompilers) {
