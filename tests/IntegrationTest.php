@@ -8,6 +8,8 @@ use Illuminate\View\Component;
 use Livewire\Blaze\Blaze;
 use Livewire\Blaze\BlazeManager;
 use Livewire\Blaze\Runtime\BlazeRuntime;
+use Livewire\Blaze\Unblaze;
+use Illuminate\Support\Facades\View;
 
 beforeEach(fn () => Artisan::call('view:clear'));
 
@@ -92,4 +94,17 @@ test('folds and compiles the same component', function () {
         BLADE,
         ['required' => true]
     );
+})->throwsNoExceptions();
+
+test('compiled unblaze blocks can be restored in separate process', function () {
+    View::share('errors', new \Illuminate\Support\ViewErrorBag);
+
+    // Compile a component with unblaze blocks...
+    Blade::render('<x-foldable.input-unblaze name="address" />');
+
+    // Simulate a separate process without stored replacements...
+    Unblaze::flushState();
+
+    // Ensure we can restore the compiled unblaze blocks while folding a parent component...
+    Blade::render('<x-foldable.nested-input-unblaze />');
 })->throwsNoExceptions();

@@ -17,13 +17,17 @@ class Unblaze
     /**
      * Store runtime scope data for an @unblaze token.
      */
-    public static function storeScope($token, $scope = [], $replacement = null)
+    public static function storeScope($token, $scope = [])
     {
         static::$unblazeScopes[$token] = $scope;
+    }
 
-        if ($replacement !== null) {
-            static::$unblazeReplacements[$token] = $replacement;
-        }
+    /**
+     * Store runtime scope data for an @unblaze token.
+     */
+    public static function storeReplacement(string $token, string $replacement)
+    {
+        static::$unblazeReplacements[$token] ??= base64_decode($replacement);
     }
 
     /**
@@ -63,7 +67,8 @@ class Unblaze
 
             return ''
                 . '[STARTCOMPILEDUNBLAZE:'.$token.']'
-                . '<'.'?php \Livewire\Blaze\Unblaze::storeScope("'.$token.'", '.$expression.', replacement: base64_decode("'.base64_encode($innerContent).'")) ?>'
+                . '<'.'?php \Livewire\Blaze\Unblaze::storeScope("'.$token.'", '.$expression.'); ?>'
+                . '<'.'?php \Livewire\Blaze\Unblaze::storeReplacement("'.$token.'", "'.base64_encode($innerContent).'"); ?>'
                 . '[ENDCOMPILEDUNBLAZE:'.$token.']';
         }, $result);
 

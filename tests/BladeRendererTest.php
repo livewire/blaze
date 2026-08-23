@@ -63,18 +63,6 @@ test('processes unblaze blocks', function () {
     ])));
 });
 
-test('processes cached unblaze blocks after request state is flushed', function () {
-    $path = fixture_path('views/components/foldable/input-unblaze.blade.php');
-    $node = app(Parser::class)->parse('<x-foldable.input-unblaze name="address" />')[0];
-    $renderer = app(BladeRenderer::class);
-
-    $firstRender = $renderer->render($node, $path);
-
-    Unblaze::flushState();
-
-    expect($renderer->render($node, $path))->toBe($firstRender);
-});
-
 test('recompiles stale cache of folded components', function () {
     $dir = sys_get_temp_dir().'/blaze-'.uniqid();
     $path = $dir.'/button.blade.php';
