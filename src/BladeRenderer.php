@@ -70,7 +70,7 @@ class BladeRenderer
             'cachePath' => $temporaryCachePath,
             'rawBlocks' => [],
             'footer' => [],
-            'precompilers' => fn (array $precompilers) => $this->precompilersForFolding($precompilers),
+            'precompilers' => fn (array $precompilers) => $this->withoutLivewirePrecompilers($precompilers),
             'prepareStringsForCompilationUsing' => [
                 function ($input) {
                     if (Unblaze::hasUnblaze($input)) {
@@ -194,9 +194,9 @@ class BladeRenderer
     }
 
     /**
-     * Get the Blade precompilers that should run during isolated folding.
+     * Filter out Livewire-specific precompilers.
      */
-    protected function precompilersForFolding(array $precompilers): array
+    protected function withoutLivewirePrecompilers(array $precompilers): array
     {
         if (! class_exists(\Livewire\Livewire::class)) {
             return $precompilers;
