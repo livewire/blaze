@@ -7,7 +7,6 @@ use Livewire\Blaze\BlazeManager;
 use Livewire\Blaze\Parser\Parser;
 use Livewire\Blaze\Support\AttributeParser;
 use Livewire\Blaze\Support\Utils;
-use Livewire\Blaze\Unblaze;
 
 use function Livewire\invade;
 
