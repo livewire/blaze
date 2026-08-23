@@ -221,6 +221,7 @@ class BladeRenderer
                 \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::class,
                 \Livewire\Features\SupportMorphAwareBladeCompilation\SupportMorphAwareBladeCompilation::class,
                 \Livewire\Mechanisms\ExtendBlade\ExtendBlade::class,
+                \Livewire\LivewireServiceProvider::class,
             ], true);
         });
     }
