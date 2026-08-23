@@ -7,14 +7,12 @@ use Illuminate\Contracts\View\Factory;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\File;
 use Illuminate\View\Compilers\BladeCompiler;
-use Illuminate\View\Component;
 use Illuminate\View\ComponentSlot;
 use Livewire\Blaze\Parser\Attribute;
 use Livewire\Blaze\Parser\Nodes\ComponentNode;
 use Livewire\Blaze\Parser\Nodes\SlotNode;
 use Livewire\Blaze\Runtime\BlazeRuntime;
 use Livewire\Blaze\Support\Utils;
-use Livewire\Mechanisms\ExtendBlade\ExtendBlade;
 use ReflectionClass;
 use ReflectionFunction;
 
@@ -204,7 +202,7 @@ class BladeRenderer
             return $precompilers;
         }
 
-        $livewireOnlyPrecompilers = invade(app(ExtendBlade::class))->precompilers;
+        $livewireOnlyPrecompilers = invade(app(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::class))->precompilers;
 
         return Arr::where($precompilers, function ($precompiler) use ($livewireOnlyPrecompilers) {
             if ($precompiler instanceof \Livewire\Mechanisms\CompileLivewireTags\LivewireTagPrecompiler) {
@@ -222,7 +220,7 @@ class BladeRenderer
             return ! in_array((new ReflectionFunction($precompiler))->getClosureScopeClass()?->getName(), [
                 \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::class,
                 \Livewire\Features\SupportMorphAwareBladeCompilation\SupportMorphAwareBladeCompilation::class,
-                ExtendBlade::class,
+                \Livewire\Mechanisms\ExtendBlade\ExtendBlade::class,
             ], true);
         });
     }
