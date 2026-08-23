@@ -8,6 +8,7 @@ use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\File;
 use Illuminate\View\Compilers\BladeCompiler;
 use Illuminate\View\ComponentSlot;
+use Livewire\Blaze\Exceptions\InvalidBlazeFoldUsageException;
 use Livewire\Blaze\Parser\Attribute;
 use Livewire\Blaze\Parser\Nodes\ComponentNode;
 use Livewire\Blaze\Parser\Nodes\SlotNode;
@@ -70,7 +71,16 @@ class BladeRenderer
             'cachePath' => $temporaryCachePath,
             'rawBlocks' => [],
             'footer' => [],
-            'precompilers' => fn (array $precompilers) => $this->withoutLivewirePrecompilers($precompilers),
+            'precompilers' => fn (array $precompilers) => [
+                ...$this->withoutLivewirePrecompilers($precompilers),
+                function (string $input) use ($path) {
+                    if (preg_match('~<\s*livewire[-:]|(?<![@\w])@livewire\b(?=\s*\()~', $input)) {
+                        throw InvalidBlazeFoldUsageException::forLivewire($path);
+                    }
+
+                    return $input;
+                }
+             ],
             'prepareStringsForCompilationUsing' => [
                 function ($input) {
                     if (Unblaze::hasUnblaze($input)) {
