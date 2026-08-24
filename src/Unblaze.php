@@ -23,6 +23,14 @@ class Unblaze
     }
 
     /**
+     * Store runtime replacement content for an @unblaze token.
+     */
+    public static function storeReplacement(string $token, string $replacement)
+    {
+        static::$unblazeReplacements[$token] ??= base64_decode($replacement);
+    }
+
+    /**
      * Check if a template contains @unblaze directives.
      */
     public static function hasUnblaze(string $template): bool
@@ -60,6 +68,7 @@ class Unblaze
             return ''
                 . '[STARTCOMPILEDUNBLAZE:'.$token.']'
                 . '<'.'?php \Livewire\Blaze\Unblaze::storeScope("'.$token.'", '.$expression.') ?>'
+                . '<'.'?php \Livewire\Blaze\Unblaze::storeReplacement("'.$token.'", "'.base64_encode($innerContent).'") ?>'
                 . '[ENDCOMPILEDUNBLAZE:'.$token.']';
         }, $result);
 
