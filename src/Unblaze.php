@@ -23,7 +23,7 @@ class Unblaze
     }
 
     /**
-     * Store runtime scope data for an @unblaze token.
+     * Store runtime replacement content for an @unblaze token.
      */
     public static function storeReplacement(string $token, string $replacement)
     {
