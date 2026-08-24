@@ -100,11 +100,13 @@ test('compiled unblaze blocks can be restored in separate process', function () 
     View::share('errors', new \Illuminate\Support\ViewErrorBag);
 
     // Compile a component with unblaze blocks...
-    Blade::render('<x-foldable.input-unblaze name="address" />');
+    $nested = Blade::render('<x-foldable.input-unblaze name="address" />');
 
     // Simulate a separate process without stored replacements...
     Unblaze::flushState();
 
     // Ensure we can restore the compiled unblaze blocks while folding a parent component...
-    Blade::render('<x-foldable.nested-input-unblaze />');
-})->throwsNoExceptions();
+    $wrapper = Blade::render('<x-foldable.nested-input-unblaze />');
+
+    expect($wrapper)->toContain($nested);
+});
