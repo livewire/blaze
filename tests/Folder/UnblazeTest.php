@@ -1,9 +1,13 @@
 <?php
 
+use Illuminate\Support\Facades\Artisan;
 use Livewire\Blaze\BladeRenderer;
 use Livewire\Blaze\BladeService;
 use Livewire\Blaze\Folder\Foldable;
 use Livewire\Blaze\Parser\Parser;
+use Livewire\Blaze\Unblaze;
+
+beforeEach(fn () => Artisan::call('view:clear'));
 
 test('compiles unblaze blocks', function () {
     $input = '<x-foldable.input-unblaze name="address" />';
@@ -51,4 +55,20 @@ test('folds dynamic attributes used inside unblaze directive', function () {
             '<?php if (isset($__scope)) { $scope = $__scope; unset($__scope); } ?>'
         ]))
     );
+});
+
+test('processes replacements in compiled files', function () {
+    $path = fixture_path('views/components/foldable/input-unblaze.blade.php');
+    $node = app(Parser::class)->parse('<x-foldable.input-unblaze name="address" />')[0];
+
+    // Force compilation and store replacements...
+    $before = app(BladeRenderer::class)->render($node, $path);
+
+    // Flush replacements to simulate a separate process...
+    Unblaze::flushState();
+
+    // Ensure we can restore replacements from the compiled file...
+    $after = app(BladeRenderer::class)->render($node, $path);
+
+    expect($before)->toBe($after);
 });
