@@ -120,8 +120,17 @@ class Foldable
             }
         }
 
+        $hasActualLooseContent = false;
+        foreach ($looseContent as $child) {
+            if (! $child instanceof TextNode || trim($child->content) !== '') {
+                $hasActualLooseContent = true;
+
+                break;
+            }
+        }
+
         // Synthesize a default slot from loose content when there's not an explicit one
-        if ($looseContent && ! isset($slots['slot'])) {
+        if ($hasActualLooseContent && ! isset($slots['slot'])) {
             $placeholder = 'BLAZE_PLACEHOLDER_' . $this->placeholderIndex++ . '_';
 
             $defaultSlot = new SlotNode(

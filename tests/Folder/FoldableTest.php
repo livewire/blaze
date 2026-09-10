@@ -402,3 +402,20 @@ test('does not add aware macros for inherited attributes only', function () {
     expect((new Foldable($node, '', app(BladeRenderer::class), app(BladeService::class)))->fold())
         ->toBe('<div></div>');
 });
+
+test('does not synthesize a default slot for whitespace-only loose content', function () {
+    $node = app(Parser::class)->parse('<x-card> </x-card>')[0];
+
+    mock(BladeRenderer::class)
+        ->expects('render')
+        ->once()->withArgs(function (ComponentNode $node) {
+            expect($node->render())->toBe('<x-card></x-card>');
+
+            return true;
+        })
+        ->andReturn('<div></div>');
+
+    $output = (new Foldable($node, '', app(BladeRenderer::class), app(BladeService::class)))->fold();
+
+    expect($output)->toBe('<div></div>');
+});
