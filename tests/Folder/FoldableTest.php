@@ -421,18 +421,18 @@ test('does not synthesize a default slot for whitespace-only loose content', fun
 });
 
 test('does not synthesize a placeholder for a whitespace-only explicit slot', function () {
-    $node = app(Parser::class)->parse('<x-button><x-slot:icon> </x-slot:icon>Save</x-button>')[0];
+    $node = app(Parser::class)->parse('<x-card><x-slot:footer> </x-slot></x-card>')[0];
 
     mock(BladeRenderer::class)
         ->expects('render')
         ->once()->withArgs(function (ComponentNode $node) {
-            expect($node->render())->toBe('<x-button>Save</x-button>');
+            expect($node->render())->toBe('<x-card></x-card>');
 
             return true;
         })
-        ->andReturn('<button></button>');
+        ->andReturn('<div></div>');
 
     $output = (new Foldable($node, '', app(BladeRenderer::class), app(BladeService::class)))->fold();
 
-    expect($output)->toBe('<button></button>');
+    expect($output)->toBe('<div></div>');
 });
