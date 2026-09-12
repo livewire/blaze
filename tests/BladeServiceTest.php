@@ -50,3 +50,21 @@ test('gets custom Blade conditions', function () {
 
     expect(app(BladeService::class)->customConditions())->toContain('disk');
 });
+
+test('isClassBasedComponentView detects app convention class component', function () {
+    expect(app(BladeService::class)->isClassBasedComponentView(
+        fixture_path('views/components/alert.blade.php')
+    ))->toBeTrue();
+});
+
+test('isClassBasedComponentView is false for anonymous components', function () {
+    expect(app(BladeService::class)->isClassBasedComponentView(
+        fixture_path('views/components/input.blade.php')
+    ))->toBeFalse();
+});
+
+test('isClassBasedComponentView handles nested names', function () {
+    expect(app(BladeService::class)->isClassBasedComponentView(
+        fixture_path('views/components/dummy/foo.blade.php')
+    ))->toBeFalse();
+});

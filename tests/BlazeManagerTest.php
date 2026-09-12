@@ -54,3 +54,11 @@ test('viewContainsExpiredFrontMatter returns false when view isnt compiled', fun
 
     expect($manager->viewContainsExpiredFrontMatter($view))->toBeFalse();
 });
+
+test('class-based component renders when its directory is optimized', function () {
+    Blaze::optimize()->in(fixture_path('views/components'));
+
+    // Alert maps to App\View\Components\Alert in workbench.
+    expect(trim(Blade::render('<x-alert message="hello" />')))
+        ->toBe('<div class="alert">hello</div>');
+});

@@ -272,6 +272,32 @@ class BladeService
     }
 
     /**
+     * Determine if view path is the conventional view for a class-based component.
+     */
+    public function isClassBasedComponentView(string $path): bool
+    {
+        $path = str_replace('\\', '/', $path);
+
+        if (! Str::contains($path, '/components/', ignoreCase: true)) {
+            return false;
+        }
+
+        $afterComponents = Str::afterLast($path, '/components/');
+
+        if (! Str::endsWith($afterComponents, '.blade.php')) {
+            return false;
+        }
+
+        $name = str_replace('/', '.', Str::beforeLast($afterComponents, '.blade.php'));
+
+        if ($name === '') {
+            return false;
+        }
+
+        return $this->hasClassBasedComponent($name);
+    }
+
+    /**
      * Determine if a component resolves to a class rather than a blade view.
      *
      * @see ComponentTagCompiler::componentClass()

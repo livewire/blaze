@@ -119,7 +119,11 @@ class BlazeManager
 
         $directives = new Directives($source);
 
-        if ($path && ($directives->blaze() || $this->config->shouldCompile($path))) {
+        $shouldWrap = $path
+            && ($directives->blaze() || $this->config->shouldCompile($path))
+            && ! $this->blade->isClassBasedComponentView($path);
+
+        if ($shouldWrap) {
             $output = $this->wrapper->wrap($output, $path, $source);
         } elseif ($this->isDebugging() && ! $this->isFolding() && $path) {
             $output = $this->instrumenter->profileView($output, $path, $source);
@@ -231,11 +235,13 @@ class BlazeManager
         }
 
         $directives = new Directives($source);
-        $shouldWrap = $this->config->shouldFold($path)
-            || $this->config->shouldMemoize($path)
-            || $this->config->shouldCompile($path);
+        $shouldWrap = ($directives->blaze()
+                || $this->config->shouldFold($path)
+                || $this->config->shouldMemoize($path)
+                || $this->config->shouldCompile($path))
+            && ! $this->blade->isClassBasedComponentView($path);
 
-        if ($directives->blaze() || $shouldWrap) {
+        if ($shouldWrap) {
             $output = $this->wrapper->wrap($output, $path, $source);
         }
 
