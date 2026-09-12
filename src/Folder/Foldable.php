@@ -102,7 +102,6 @@ class Foldable
 
         foreach ($this->node->children as $child) {
             if ($child instanceof SlotNode) {
-                // Skip whitespace-only explicit slots.
                 if (! $this->hasActualContent($child->children)) {
                     continue;
                 }
