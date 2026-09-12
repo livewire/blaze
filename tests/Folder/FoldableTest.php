@@ -426,7 +426,25 @@ test('does not synthesize a placeholder for a whitespace-only explicit slot', fu
     mock(BladeRenderer::class)
         ->expects('render')
         ->once()->withArgs(function (ComponentNode $node) {
-            expect($node->render())->toBe('<x-card></x-card>');
+            expect($node->render())->toBe('<x-card><x-slot:footer></x-slot></x-card>');
+
+            return true;
+        })
+        ->andReturn('<div></div>');
+
+    $output = (new Foldable($node, '', app(BladeRenderer::class), app(BladeService::class)))->fold();
+
+    expect($output)->toBe('<div></div>');
+});
+
+test('registers whitespace-only explicit slots as empty without placeholders', function () {
+    $node = app(Parser::class)->parse('<x-card><x-slot:footer> </x-slot></x-card>')[0];
+
+    mock(BladeRenderer::class)
+        ->expects('render')
+        ->once()->withArgs(function (ComponentNode $node) {
+            expect($node->children)->toHaveKey('footer');
+            expect($node->children['footer']->content())->toBe('');
 
             return true;
         })
