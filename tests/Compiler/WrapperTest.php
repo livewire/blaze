@@ -13,7 +13,9 @@ test('wraps component templates into function definitions', function () {
     $wrapped = app(Wrapper::class)->wrap($source, $path, $source);
 
     expect($wrapped)->toEqualCollapsingWhitespace(join('', [
-        '<?php if (!function_exists(\'_'. $hash .'\')): function _'. $hash .'($__blaze, $__data = [], $__slots = [], $__bound = [], $__keys = [], $__this = null) { ',
+        '<?php if (isset($__path) && $__path === __FILE__): ?> ',
+        $source,
+        '<?php elseif (!function_exists(\'_'. $hash .'\')): function _'. $hash .'($__blaze, $__data = [], $__slots = [], $__bound = [], $__keys = [], $__this = null) { ',
         '$__env = $__blaze->env; ',
         'if (($__data[\'attributes\'] ?? null) instanceof \Illuminate\View\ComponentAttributeBag) { $__data = $__data + $__data[\'attributes\']->all(); unset($__data[\'attributes\']); } ',
         'extract($__slots, EXTR_SKIP); unset($__slots); ',
@@ -39,7 +41,9 @@ test('compiles aware props', function () {
     $wrapped = app(Wrapper::class)->wrap($source, $path, $source);
 
     expect($wrapped)->toEqualCollapsingWhitespace(join('', [
-        '<?php if (!function_exists(\'_'. $hash .'\')): function _'. $hash .'($__blaze, $__data = [], $__slots = [], $__bound = [], $__keys = [], $__this = null) { ',
+        '<?php if (isset($__path) && $__path === __FILE__): ?> ',
+        $source,
+        '<?php elseif (!function_exists(\'_'. $hash .'\')): function _'. $hash .'($__blaze, $__data = [], $__slots = [], $__bound = [], $__keys = [], $__this = null) { ',
         '$__env = $__blaze->env; ',
         'if (($__data[\'attributes\'] ?? null) instanceof \Illuminate\View\ComponentAttributeBag) { $__data = $__data + $__data[\'attributes\']->all(); unset($__data[\'attributes\']); } ',
         'extract($__slots, EXTR_SKIP); unset($__slots); ',
@@ -99,7 +103,7 @@ test('hoists use statements to top of output', function ($statement) {
     // Replace raw @php blocks for placeholders. This normally happens in BlazeManager before the template gets to the Wrapper
     $source = app(BladeService::class)->preStoreUncompiledBlocks($statement);
 
-    expect(app(Wrapper::class)->wrap($source, '', $source))->toStartWith("<?php\nuse \App\Models\User");
+    expect(app(Wrapper::class)->wrap($source, '', $source))->toStartWith("<?php\nuse \App\Models\User;\n?>");
 })->with([
     ['@use(\'App\Models\User\')'],
     ['@php use \App\Models\User; @endphp'],

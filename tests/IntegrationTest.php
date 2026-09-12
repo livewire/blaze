@@ -36,6 +36,18 @@ test('renders components after clearing compiled views in the same process', fun
     view('mix')->render();
 })->throwsNoExceptions();
 
+test('renders components as views', function () {
+    Blaze::optimize()->in(fixture_path('views/components'));
+
+    expect(view('components.alert', ['message' => 'Hello world'])->render())->toBe('<div>Hello world</div>');
+});
+
+test('renders class based component', function () {
+    Blaze::optimize()->in(fixture_path('views/components'));
+
+    expect(Blade::render('<x-alert message="Hello world" />'))->toBe('<div>Hello world</div>');
+});
+
 test('supports php engine', function () {
     view('php-view')->render();
 })->throwsNoExceptions();

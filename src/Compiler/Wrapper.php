@@ -54,9 +54,10 @@ class Wrapper
 
         $output = '';
 
-        $output .= '<'.'?php' . "\n";
-        $output .= $imports;
-        $output .= 'if (!function_exists(\''.$name.'\')):'."\n";
+        $output .= $imports ? "<?php\n".$imports."?>\n" : '';
+        $output .= '<?php if (isset($__path) && $__path === __FILE__): ?>'."\n";
+        $output .= $compiled;
+        $output .= '<?php elseif (!function_exists(\''.$name.'\')):'."\n";
         $output .= 'function '.$name.'($__blaze, $__data = [], $__slots = [], $__bound = [], $__keys = [], $__this = null) {'."\n";
 
         if ($sourceUsesThis) {
@@ -77,8 +78,6 @@ class Wrapper
             ->directive('aware', $this->awareCompiler->compile(...))
             ->compile($compiled);
 
-        $compiled = $this->blade->restoreRawBlocks($compiled);
-
         $output .= $compiled;
 
         $output .= '<?php' . "\n";
@@ -93,7 +92,7 @@ class Wrapper
 
         $output .= '} endif; ?>';
 
-        return $output;
+        return $this->blade->restoreRawBlocks($output);
     }
     
     protected function globalVariables(string $source, string $compiled): string
