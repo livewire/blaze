@@ -278,11 +278,11 @@ class BladeService
     {
         $path = str_replace('\\', '/', $path);
 
-        if (! Str::contains($path, '/components/', ignoreCase: true)) {
+        if (! preg_match('#^(.*/components/)(.+)$#i', $path, $matches)) {
             return false;
         }
 
-        $afterComponents = Str::afterLast($path, '/components/');
+        $afterComponents = $matches[2];
 
         if (! Str::endsWith($afterComponents, '.blade.php')) {
             return false;
