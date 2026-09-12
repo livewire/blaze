@@ -114,7 +114,6 @@ Component-level `@blaze` directives override directory-level settings.
 
 Blaze supports all essential features and produces HTML output identical to Blade. While the focus is on maximizing performance with full compatibility, there are some limitations to be aware of:
 
-- **Class-based components** are not supported
 - **The `$component` variable** is not available
 - **View composers / creators / lifecycle events** do not fire
 - **Auto-injecting `View::share()` variables** is not supported
@@ -123,9 +122,6 @@ Blaze supports all essential features and produces HTML output identical to Blad
 - **Cross boundary `@aware`** between Blade and Blaze
 
     Both parent and child must use Blaze for values to propagate
-- **Rendering Blaze components using `view()`** will not work
-
-    Blaze components can only be rendered using the component tag
 
 # Optimization Strategies
 
