@@ -102,6 +102,10 @@ class Foldable
 
         foreach ($this->node->children as $child) {
             if ($child instanceof SlotNode) {
+                if (! $this->hasActualContent($child->children)) {
+                    continue;
+                }
+
                 $placeholder = 'BLAZE_PLACEHOLDER_' . $this->placeholderIndex++ . '_';
 
                 $this->slotByPlaceholder[$placeholder] = $child;
@@ -121,7 +125,7 @@ class Foldable
         }
 
         // Synthesize a default slot from loose content when there's not an explicit one
-        if ($looseContent && ! isset($slots['slot'])) {
+        if ($this->hasActualContent($looseContent) && ! isset($slots['slot'])) {
             $placeholder = 'BLAZE_PLACEHOLDER_' . $this->placeholderIndex++ . '_';
 
             $defaultSlot = new SlotNode(
@@ -144,6 +148,20 @@ class Foldable
         }
 
         $this->renderable->children = $slots;
+    }
+
+    /**
+    * Determine whether a list of nodes contains anything besides whitespace-only text.
+    */
+    protected function hasActualContent(array $nodes): bool
+    {
+        foreach ($nodes as $node) {
+            if (! $node instanceof TextNode || trim($node->content) !== '') {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /**
