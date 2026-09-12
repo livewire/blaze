@@ -420,13 +420,13 @@ test('does not synthesize a default slot for whitespace-only loose content', fun
     expect($output)->toBe('<div></div>');
 });
 
-test('does not synthesize a placeholder for a whitespace-only explicit slot', function () {
-    $node = app(Parser::class)->parse('<x-card><x-slot:footer> </x-slot></x-card>')[0];
+test('does not add a placeholder for a whitespace-only slot', function () {
+    $node = app(Parser::class)->parse('<x-card><x-slot:footer> </x-slot:footer></x-card>')[0];
 
     mock(BladeRenderer::class)
         ->expects('render')
         ->once()->withArgs(function (ComponentNode $node) {
-            expect($node->render())->toBe('<x-card></x-card>');
+            expect($node->render())->toBe('<x-card><x-slot:footer></x-slot:footer></x-card>');
 
             return true;
         })

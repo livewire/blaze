@@ -102,19 +102,21 @@ class Foldable
 
         foreach ($this->node->children as $child) {
             if ($child instanceof SlotNode) {
-                if (! $this->hasActualContent($child->children)) {
-                    continue;
+                $children = [];
+
+                if ($this->hasActualContent($child->children)) {
+                    $placeholder = 'BLAZE_PLACEHOLDER_' . $this->placeholderIndex++ . '_';
+    
+                    $this->slotByPlaceholder[$placeholder] = $child;
+
+                    $children = [new TextNode($placeholder)];
                 }
-
-                $placeholder = 'BLAZE_PLACEHOLDER_' . $this->placeholderIndex++ . '_';
-
-                $this->slotByPlaceholder[$placeholder] = $child;
 
                 $slots[$child->name] = new SlotNode(
                     name: $child->name,
                     attributeString: $child->attributeString,
                     slotStyle: $child->slotStyle,
-                    children: [new TextNode($placeholder)],
+                    children: $children,
                     prefix: $child->prefix,
                     closeHasName: $child->closeHasName,
                     attributes: $child->attributes,
