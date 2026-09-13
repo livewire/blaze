@@ -45,7 +45,7 @@ class Wrapper
         $compiled = $this->blade->storeVerbatimBlocks($compiled);
 
         $imports = '';
-        
+
         $compiled = $this->useExtractor->extract($compiled, function ($statement) use (&$imports) {
             $imports .= $statement . "\n";
         });
@@ -91,11 +91,30 @@ class Wrapper
             $output .= '}; if ($__this !== null) { $__blazeFn->call($__this); } else { $__blazeFn(); }'."\n";
         }
 
-        $output .= '} endif; ?>';
+        $output .= '} endif;'."\n";
+
+        $output .= $this->viewRenderTrigger($name);
+
+        return $this->blade->restoreRawBlocks($output);
+    }
+
+    /**
+     * When the compiled file is required via view() / PhpEngine, call the
+     * Blaze function so the template produces output.
+     */
+    protected function viewRenderTrigger(string $name): string
+    {
+        $output = 'if (isset($__path) && realpath($__path) === realpath(__FILE__)) {'."\n";
+        $output .= '$__blaze = $__blaze ?? app(\'blaze.runtime\');'."\n";
+        $output .= '$__viewData = $__data;'."\n";
+        $output .= 'unset($__viewData[\'__env\'], $__viewData[\'__blaze\'], $__viewData[\'app\'], $__viewData[\'errors\']);'."\n";
+        $output .= $name.'($__blaze, $__viewData, [], [], [], null);'."\n";
+        $output .= '}'."\n";
+        $output .= '?>';
 
         return $output;
     }
-    
+
     protected function globalVariables(string $source, string $compiled): string
     {
         $output = '';

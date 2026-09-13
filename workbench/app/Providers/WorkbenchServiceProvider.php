@@ -3,6 +3,7 @@
 namespace App\Providers;
 
 use Illuminate\Support\ServiceProvider;
+use Livewire\Blaze\Blaze;
 
 class WorkbenchServiceProvider extends ServiceProvider
 {
@@ -19,6 +20,6 @@ class WorkbenchServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-        //
+        Blaze::optimize()->in(resource_path('views/components/bench/blaze'));
     }
 }
