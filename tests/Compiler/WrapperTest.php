@@ -13,23 +13,23 @@ test('wraps component templates into function definitions', function () {
     $wrapped = app(Wrapper::class)->wrap($source, $path, $source);
 
     expect($wrapped)->toEqualCollapsingWhitespace(join('', [
-        '<?php if (!function_exists(\'_'. $hash .'\')): function _'. $hash .'($__blaze, $__data = [], $__slots = [], $__bound = [], $__keys = [], $__this = null, $__capture = true) { ',
+        '<?php if (!function_exists(\'_'. $hash .'\')): function _'. $hash .'($__blaze, $__data = [], $__slots = [], $__bound = [], $__keys = [], $__this = null) { ',
         '$__env = $__blaze->env; ',
         'if (($__data[\'attributes\'] ?? null) instanceof \Illuminate\View\ComponentAttributeBag) { $__data = $__data + $__data[\'attributes\']->all(); unset($__data[\'attributes\']); } ',
         'extract($__slots, EXTR_SKIP); unset($__slots); ',
         'extract($__data, EXTR_SKIP); ',
         '$attributes = \Livewire\Blaze\Runtime\BlazeAttributeBag::make($__data, $__bound, $__keys); ',
         'unset($__data, $__bound, $__keys); ',
-        'if ($__capture) { ob_start(); } ?> ',
+        'ob_start(); ?> ',
         '@blaze ',
         '<?php $__defaults = [\'type\' => \'text\', \'disabled\' => false]; ',
         '$type ??= $attributes[\'type\'] ?? $__defaults[\'type\']; unset($attributes[\'type\']); ',
         '$disabled ??= $attributes[\'disabled\'] ?? $__defaults[\'disabled\']; unset($attributes[\'disabled\']); ',
         'unset($__defaults); ?> ',
         '<input {{ $attributes }} type="{{ $type }}" @if ($disabled) disabled @endif >',
-        '<?php if ($__capture) { echo ltrim(ob_get_clean()); } } endif; ',
+        '<?php echo ltrim(ob_get_clean()); } endif; ',
         'if (isset($__path) && ($__path === __FILE__ || realpath($__path) === realpath(__FILE__))) { ',
-        '_'.$hash.'($__blaze, $__data, [], [], [], null, false); ',
+        '_'.$hash.'($__blaze, $__data, [], [], [], null); ',
         '} ?>',
     ]));
 });
@@ -42,14 +42,14 @@ test('compiles aware props', function () {
     $wrapped = app(Wrapper::class)->wrap($source, $path, $source);
 
     expect($wrapped)->toEqualCollapsingWhitespace(join('', [
-        '<?php if (!function_exists(\'_'. $hash .'\')): function _'. $hash .'($__blaze, $__data = [], $__slots = [], $__bound = [], $__keys = [], $__this = null, $__capture = true) { ',
+        '<?php if (!function_exists(\'_'. $hash .'\')): function _'. $hash .'($__blaze, $__data = [], $__slots = [], $__bound = [], $__keys = [], $__this = null) { ',
         '$__env = $__blaze->env; ',
         'if (($__data[\'attributes\'] ?? null) instanceof \Illuminate\View\ComponentAttributeBag) { $__data = $__data + $__data[\'attributes\']->all(); unset($__data[\'attributes\']); } ',
         'extract($__slots, EXTR_SKIP); unset($__slots); ',
         'extract($__data, EXTR_SKIP); ',
         '$attributes = \Livewire\Blaze\Runtime\BlazeAttributeBag::make($__data, $__bound, $__keys); ',
         'unset($__data, $__bound, $__keys); ',
-        'if ($__capture) { ob_start(); } ?> ',
+        'ob_start(); ?> ',
         '@blaze ',
         '<?php $__awareDefaults = [\'type\' => \'text\']; ',
         '$type = $__blaze->getConsumableData(\'type\', $__awareDefaults[\'type\']); ',
@@ -59,9 +59,9 @@ test('compiles aware props', function () {
         '$disabled ??= $attributes[\'disabled\'] ?? $__defaults[\'disabled\']; unset($attributes[\'disabled\']); ',
         'unset($__defaults); ?> ',
         '<input {{ $attributes }} type="{{ $type }}" @if ($disabled) disabled @endif >',
-        '<?php if ($__capture) { echo ltrim(ob_get_clean()); } } endif; ',
+        '<?php echo ltrim(ob_get_clean()); } endif; ',
         'if (isset($__path) && ($__path === __FILE__ || realpath($__path) === realpath(__FILE__))) { ',
-        '_'.$hash.'($__blaze, $__data, [], [], [], null, false); ',
+        '_'.$hash.'($__blaze, $__data, [], [], [], null); ',
         '} ?>',
     ]));
 });
@@ -72,7 +72,7 @@ test('extracts props when props are not defined', function () {
 
 test('wraps in self invoking closure', function ($source) {
     expect(app(Wrapper::class)->wrap($source, ''))->toContain(
-        '$__blazeFn = function () use ($__blaze, $__data, $__slots, $__bound, $__keys, $__capture) {',
+        '$__blazeFn = function () use ($__blaze, $__data, $__slots, $__bound, $__keys) {',
         'if ($__this !== null) { $__blazeFn->call($__this); } else { $__blazeFn(); }',
     );
 })->with([
@@ -132,7 +132,7 @@ test('wrap includes view-render trigger that calls the function', function () {
 
     expect($wrapped)
         ->toContain("if (isset(\$__path) && (\$__path === __FILE__ || realpath(\$__path) === realpath(__FILE__))")
-        ->toContain("_{$hash}(\$__blaze, \$__data, [], [], [], null, false)")
+        ->toContain("_{$hash}(\$__blaze, \$__data, [], [], [], null)")
         ->not->toContain('app(\'blaze.runtime\')')
         ->not->toContain('$__viewData')
         ->not->toContain('elseif (!function_exists');
@@ -146,7 +146,7 @@ test('view render trigger fast-paths equality and falls back to realpath for sym
 
     expect($wrapped)
         ->toContain('$__path === __FILE__ || realpath($__path) === realpath(__FILE__)')
-        ->toContain("_{$hash}(\$__blaze, \$__data, [], [], [], null, false)")
+        ->toContain("_{$hash}(\$__blaze, \$__data, [], [], [], null)")
         ->not->toContain('app(\'blaze.runtime\')')
         ->not->toContain('$__viewData');
 });
