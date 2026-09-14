@@ -5,6 +5,8 @@ namespace App\Providers;
 use Illuminate\Support\ServiceProvider;
 use Livewire\Blaze\Blaze;
 
+use function Orchestra\Testbench\workbench_path;
+
 class WorkbenchServiceProvider extends ServiceProvider
 {
     /**
@@ -20,6 +22,6 @@ class WorkbenchServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-        Blaze::optimize()->in(resource_path('views/components/bench/blaze'));
+        Blaze::optimize()->in(workbench_path('resources/views/components/bench/blaze'));
     }
 }
