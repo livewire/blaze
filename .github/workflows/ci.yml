@@ -55,7 +55,7 @@ jobs:
           CI: true
 
   benchmark:
-    needs: pest
+    # needs: pest
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
 
