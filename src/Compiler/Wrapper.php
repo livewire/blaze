@@ -104,11 +104,8 @@ class Wrapper
      */
     protected function viewRenderTrigger(string $name): string
     {
-        $output = 'if (isset($__path) && realpath($__path) === realpath(__FILE__)) {'."\n";
-        $output .= '$__blaze = $__blaze ?? app(\'blaze.runtime\');'."\n";
-        $output .= '$__viewData = $__data;'."\n";
-        $output .= 'unset($__viewData[\'__env\'], $__viewData[\'__blaze\'], $__viewData[\'app\'], $__viewData[\'errors\']);'."\n";
-        $output .= $name.'($__blaze, $__viewData, [], [], [], null);'."\n";
+        $output = 'if (isset($__path) && ($__path === __FILE__ || realpath($__path) === realpath(__FILE__))) {'."\n";
+        $output .= $name.'($__blaze, $__data, [], [], [], null);'."\n";
         $output .= '}'."\n";
         $output .= '?>';
 

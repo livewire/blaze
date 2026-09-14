@@ -28,11 +28,8 @@ test('wraps component templates into function definitions', function () {
         'unset($__defaults); ?> ',
         '<input {{ $attributes }} type="{{ $type }}" @if ($disabled) disabled @endif >',
         '<?php echo ltrim(ob_get_clean()); } endif; ',
-        'if (isset($__path) && realpath($__path) === realpath(__FILE__)) { ',
-        '$__blaze = $__blaze ?? app(\'blaze.runtime\'); ',
-        '$__viewData = $__data; ',
-        'unset($__viewData[\'__env\'], $__viewData[\'__blaze\'], $__viewData[\'app\'], $__viewData[\'errors\']); ',
-        '_'.$hash.'($__blaze, $__viewData, [], [], [], null); ',
+        'if (isset($__path) && ($__path === __FILE__ || realpath($__path) === realpath(__FILE__))) { ',
+        '_'.$hash.'($__blaze, $__data, [], [], [], null); ',
         '} ?>',
     ]));
 });
@@ -63,11 +60,8 @@ test('compiles aware props', function () {
         'unset($__defaults); ?> ',
         '<input {{ $attributes }} type="{{ $type }}" @if ($disabled) disabled @endif >',
         '<?php echo ltrim(ob_get_clean()); } endif; ',
-        'if (isset($__path) && realpath($__path) === realpath(__FILE__)) { ',
-        '$__blaze = $__blaze ?? app(\'blaze.runtime\'); ',
-        '$__viewData = $__data; ',
-        'unset($__viewData[\'__env\'], $__viewData[\'__blaze\'], $__viewData[\'app\'], $__viewData[\'errors\']); ',
-        '_'.$hash.'($__blaze, $__viewData, [], [], [], null); ',
+        'if (isset($__path) && ($__path === __FILE__ || realpath($__path) === realpath(__FILE__))) { ',
+        '_'.$hash.'($__blaze, $__data, [], [], [], null); ',
         '} ?>',
     ]));
 });
@@ -137,19 +131,22 @@ test('wrap includes view-render trigger that calls the function', function () {
     $wrapped = app(Wrapper::class)->wrap('<div></div>', $path);
 
     expect($wrapped)
-        ->toContain("if (isset(\$__path) && realpath(\$__path) === realpath(__FILE__))")
-        ->toContain("_{$hash}(\$__blaze, \$__viewData, [], [], [], null)")
+        ->toContain("if (isset(\$__path) && (\$__path === __FILE__ || realpath(\$__path) === realpath(__FILE__))")
+        ->toContain("_{$hash}(\$__blaze, \$__data, [], [], [], null)")
+        ->not->toContain('app(\'blaze.runtime\')')
+        ->not->toContain('$__viewData')
         ->not->toContain('elseif (!function_exists');
 });
 
-test('view render trigger uses realpath to handle symlinked compiled paths', function () {
+test('view render trigger fast-paths equality and falls back to realpath for symlinks', function () {
     $path = fixture_path('views/components/input.blade.php');
     $hash = Utils::hash($path);
 
     $wrapped = app(Wrapper::class)->wrap('<div></div>', $path);
 
     expect($wrapped)
-        ->toContain('realpath($__path) === realpath(__FILE__)')
-        ->not->toContain('isset($__path) && $__path === __FILE__')
-        ->toContain("_{$hash}(\$__blaze, \$__viewData, [], [], [], null)");
+        ->toContain('$__path === __FILE__ || realpath($__path) === realpath(__FILE__)')
+        ->toContain("_{$hash}(\$__blaze, \$__data, [], [], [], null)")
+        ->not->toContain('app(\'blaze.runtime\')')
+        ->not->toContain('$__viewData');
 });
