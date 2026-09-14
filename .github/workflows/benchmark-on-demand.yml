@@ -37,6 +37,7 @@ jobs:
           tools: composer:v2
           coverage: none
           extensions: mbstring, dom, curl, json, libxml, xml, xmlwriter, simplexml, tokenizer
+          ini-values: opcache.enable=1, opcache.enable_cli=1, opcache.file_update_protection=0, opcache.jit=disable
 
       - name: Install base dependencies
         run: composer install --prefer-dist --no-progress --no-interaction
