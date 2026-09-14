@@ -57,18 +57,22 @@ class Wrapper
         $output .= '<'.'?php' . "\n";
         $output .= $imports;
         $output .= 'if (!function_exists(\''.$name.'\')):'."\n";
-        $output .= 'function '.$name.'($__blaze, $__data = [], $__slots = [], $__bound = [], $__keys = [], $__this = null) {'."\n";
+        $output .= 'function '.$name.'($__blaze, $__data = [], $__slots = [], $__bound = [], $__keys = [], $__this = null, $__view = false) {'."\n";
 
         if ($sourceUsesThis) {
             $output .= '$__blazeFn = function () use ($__blaze, $__data, $__slots, $__bound, $__keys) {'."\n";
         }
 
+        $output .= 'if ($__view):'."\n";
+        $output .= 'extract($__data, EXTR_SKIP);'."\n";
+        $output .= 'else:'."\n";
         $output .= $this->globalVariables($source, $compiled);
         $output .= 'if (($__data[\'attributes\'] ?? null) instanceof \Illuminate\View\ComponentAttributeBag) { $__data = $__data + $__data[\'attributes\']->all(); unset($__data[\'attributes\']); }'."\n";
         $output .= 'extract($__slots, EXTR_SKIP); unset($__slots);'."\n";
         $output .= 'extract($__data, EXTR_SKIP);'."\n";
         $output .= '$attributes = \\Livewire\\Blaze\\Runtime\\BlazeAttributeBag::make($__data, $__bound, $__keys);'."\n";
         $output .= 'unset($__data, $__bound, $__keys);'."\n";
+        $output .= 'endif;'."\n";
         $output .= 'ob_start();' . "\n";
         $output .= '?>' . "\n";
 
@@ -105,7 +109,7 @@ class Wrapper
     protected function viewRenderTrigger(string $name): string
     {
         $output = 'if (isset($__path) && ($__path === __FILE__ || realpath($__path) === realpath(__FILE__))) {'."\n";
-        $output .= $name.'($__blaze, $__data, [], [], [], null);'."\n";
+        $output .= $name.'($__blaze, $__data, [], [], [], null, true);'."\n";
         $output .= '}'."\n";
         $output .= '?>';
 
