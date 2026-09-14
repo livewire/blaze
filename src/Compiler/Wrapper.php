@@ -57,10 +57,10 @@ class Wrapper
         $output .= '<'.'?php' . "\n";
         $output .= $imports;
         $output .= 'if (!function_exists(\''.$name.'\')):'."\n";
-        $output .= 'function '.$name.'($__blaze, $__data = [], $__slots = [], $__bound = [], $__keys = [], $__this = null, $__capture = true) {'."\n";
+        $output .= 'function '.$name.'($__blaze, $__data = [], $__slots = [], $__bound = [], $__keys = [], $__this = null) {'."\n";
 
         if ($sourceUsesThis) {
-            $output .= '$__blazeFn = function () use ($__blaze, $__data, $__slots, $__bound, $__keys, $__capture) {'."\n";
+            $output .= '$__blazeFn = function () use ($__blaze, $__data, $__slots, $__bound, $__keys) {'."\n";
         }
 
         $output .= $this->globalVariables($source, $compiled);
@@ -69,7 +69,7 @@ class Wrapper
         $output .= 'extract($__data, EXTR_SKIP);'."\n";
         $output .= '$attributes = \\Livewire\\Blaze\\Runtime\\BlazeAttributeBag::make($__data, $__bound, $__keys);'."\n";
         $output .= 'unset($__data, $__bound, $__keys);'."\n";
-        $output .= $this->manager->isFolding() ? 'ob_start();' . "\n" : 'if ($__capture) { ob_start(); }' . "\n";
+        $output .= 'ob_start();'."\n";
         $output .= '?>' . "\n";
 
         $compiled = DirectiveCompiler::make()
@@ -84,10 +84,9 @@ class Wrapper
         $output .= '<?php' . "\n";
 
         if ($this->manager->isFolding()) {
-            $contentHandler = '$__blaze->processPassthroughContent(\'ltrim\', ltrim(ob_get_clean()))';
-            $output .= 'echo ' . $contentHandler . ';' . "\n";
+            $output .= 'echo $__blaze->processPassthroughContent(\'ltrim\', ltrim(ob_get_clean()));'."\n";
         } else {
-            $output .= 'if ($__capture) { echo ltrim(ob_get_clean()); }' . "\n";
+            $output .= 'echo ltrim(ob_get_clean());'."\n";
         }
 
         if ($sourceUsesThis) {
@@ -96,7 +95,7 @@ class Wrapper
 
         $output .= '} endif;'."\n";
 
-        $output .= $this->viewRenderTrigger($name);
+        $output .= $this->viewRenderTrigger($name, $compiled);
 
         return $this->blade->restoreRawBlocks($output);
     }
@@ -105,10 +104,18 @@ class Wrapper
      * When the compiled file is required via view() / PhpEngine, call the
      * Blaze function so the template produces output.
      */
-    protected function viewRenderTrigger(string $name): string
+    protected function viewRenderTrigger(string $name, string $compiled): string
     {
         $output = 'if (isset($__path) && ($__path === __FILE__ || realpath($__path) === realpath(__FILE__))) {'."\n";
-        $output .= $name.'($__blaze, $__data, [], [], [], null, false);'."\n";
+        $output .= '$__env = $__blaze->env;'."\n";
+        $output .= 'if (!isset($attributes)) {'."\n";
+        $output .= '$attributes = \\Livewire\\Blaze\\Runtime\\BlazeAttributeBag::make($__data, [], []);'."\n";
+        $output .= '} elseif ($attributes instanceof \\Illuminate\\View\\ComponentAttributeBag && ! $attributes instanceof \\Livewire\\Blaze\\Runtime\\BlazeAttributeBag) {'."\n";
+        $output .= '$attributes = \\Livewire\\Blaze\\Runtime\\BlazeAttributeBag::make($attributes->all(), [], []);'."\n";
+        $output .= '}'."\n";
+        $output .= '?>' . "\n";
+        $output .= $compiled;
+        $output .= '<?php'."\n";
         $output .= '}'."\n";
         $output .= '?>';
 

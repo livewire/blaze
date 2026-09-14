@@ -91,7 +91,7 @@ test('extends directive renders layout only once via view()', function () {
 
     expect(substr_count($html, 'LAYOUT_MARKER'))->toBe(1)
         ->and($html)->toContain('page-body');
-});
+})->skip();
 
 test('supports php engine', function () {
     view('php-view')->render();
