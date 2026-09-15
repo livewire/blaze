@@ -39,7 +39,7 @@ class BlazeRuntime
         public Factory $env,
         public Application $app,
         public Debugger $debugger,
-        protected BladeCompiler $compiler,
+        public BladeCompiler $compiler,
         protected BladeService $blade,
     ) {
     }
@@ -239,6 +239,10 @@ class BlazeRuntime
             if (array_key_exists($key, $this->dataStack[$i])) {
                 return $this->dataStack[$i][$key];
             }
+        }
+
+        if ($this->dataStack === [] && method_exists($this->env, 'getConsumableComponentData')) {
+            return $this->env->getConsumableComponentData($key, $default);
         }
 
         return value($default);
