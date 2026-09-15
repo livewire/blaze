@@ -40,10 +40,6 @@ class Wrapper
 
         $sourceUsesThis = str_contains($source, '$this') || str_contains($compiled, '@entangle') || str_contains($compiled, '@script') || str_contains($compiled, '@assets');
 
-        $sourceUsesAware = str_contains($source, '@aware') || str_contains($compiled, '@aware');
-        $sourceUsesProps = str_contains($source, '@props') || str_contains($compiled, '@props');
-        $needsBladeCompiler = $this->hasEchoSyntax($source) || $this->hasEchoSyntax($compiled);
-
         $compiled = $this->blade->compileUseStatements($compiled);
         $compiled = $this->blade->restoreRawBlocks($compiled);
         $compiled = $this->blade->storeVerbatimBlocks($compiled);
@@ -55,22 +51,6 @@ class Wrapper
         });
 
         $compiled = $this->blade->preStoreUncompiledBlocks($compiled);
-
-        $compiled = DirectiveCompiler::make()
-            ->directive('props', $this->propsCompiler->compile(...))
-            ->directive('aware', $this->awareCompiler->compile(...))
-            ->compile($compiled);
-
-        $compiled = $this->blade->restoreRawBlocks($compiled);
-
-        $contentHandler = $this->manager->isFolding() ? '$__blaze->processPassthroughContent(\'ltrim\', ltrim(ob_get_clean()))' : 'ltrim(ob_get_clean())';
-
-        $viewSetup = '';
-        $viewSetup .= '$__env = $__blaze->env;' . "\n";
-
-        if ($needsBladeCompiler) {
-            $viewSetup .= '$__bladeCompiler = $__blaze->compiler;' . "\n";
-        }
 
         $output = '';
 
@@ -84,26 +64,7 @@ class Wrapper
         }
 
         $output .= 'if ($__view):'."\n";
-        $output .= '$__env = $__blaze->env;'."\n";
-
-        if ($needsBladeCompiler) {
-            $output .= '$__bladeCompiler = $__blaze->compiler;'."\n";
-        }
-
         $output .= 'extract($__data, EXTR_SKIP);'."\n";
-
-        if ($sourceUsesProps) {
-            $output .= 'if (isset($attributes) && $attributes instanceof \Illuminate\View\ComponentAttributeBag) {'."\n";
-            $output .= '$attributes = \Livewire\Blaze\Runtime\BlazeAttributeBag::make($attributes->all());'."\n";
-            $output .= '} else {'."\n";
-            $output .= '$attributes ??= \Livewire\Blaze\Runtime\BlazeAttributeBag::make([]);'."\n";
-            $output .= '}'."\n";
-        }
-
-        if ($sourceUsesAware) {
-            $output .= '$__blaze->pushData($__data);'."\n";
-        }
-
         $output .= 'else:'."\n";
         $output .= $this->globalVariables($source, $compiled);
         $output .= 'if (($__data[\'attributes\'] ?? null) instanceof \Illuminate\View\ComponentAttributeBag) { $__data = $__data + $__data[\'attributes\']->all(); unset($__data[\'attributes\']); }'."\n";
@@ -111,7 +72,7 @@ class Wrapper
         $output .= 'extract($__data, EXTR_SKIP);'."\n";
         $output .= '$attributes = \\Livewire\\Blaze\\Runtime\\BlazeAttributeBag::make($__data, $__bound, $__keys);'."\n";
         $output .= 'unset($__data, $__bound, $__keys);'."\n";
-        $output .= 'ob_start();'."\n";
+        $output .= 'ob_start();' . "\n";
         $output .= 'endif;'."\n";
         $output .= '?>' . "\n";
 
@@ -129,7 +90,6 @@ class Wrapper
         $contentHandler = $this->manager->isFolding() ? '$__blaze->processPassthroughContent(\'ltrim\', ltrim(ob_get_clean()))' : 'ltrim(ob_get_clean())';
 
         $output .= 'if (!$__view) { echo ' . $contentHandler . '; }'."\n";
-        $output .= 'if ($__view) { $__blaze->popData(); }'."\n";
 
         if ($sourceUsesThis) {
             $output .= '}; if ($__this !== null) { $__blazeFn->call($__this); } else { $__blazeFn(); }'."\n";
@@ -137,7 +97,7 @@ class Wrapper
 
         $output .= '} endif;'."\n";
         $output .= 'if (isset($__path) && ($__path === __FILE__ || realpath($__path) === __FILE__)) {'."\n";
-        $output .= $name.'($__blaze, $__data, [], [], [], $__this ?? null, true);'."\n";
+        $output .= $name.'($__blaze, $__data, [], [], [], null, true);'."\n";
         $output .= '}'."\n";
         $output .= '?>';
 
@@ -150,8 +110,8 @@ class Wrapper
 
         $output .= '$__env = $__blaze->env;' . "\n";
 
-        if ($this->hasEchoSyntax($source) || $this->hasEchoSyntax($compiled)) {
-            $output .= '$__bladeCompiler = $__blaze->compiler;' . "\n";
+        if ($this->hasEchoHandlers() && ($this->hasEchoSyntax($source) || $this->hasEchoSyntax($compiled))) {
+            $output .= '$__bladeCompiler = app(\'blade.compiler\');' . "\n";
         }
 
         $output .= implode("\n", array_filter(Arr::map([

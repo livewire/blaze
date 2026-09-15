@@ -14,16 +14,7 @@ test('wraps component templates into function definitions', function () {
 
     expect($wrapped)->toEqualCollapsingWhitespace(join('', [
         '<?php if (!function_exists(\'_'. $hash .'\')): function _'. $hash .'($__blaze, $__data = [], $__slots = [], $__bound = [], $__keys = [], $__this = null, $__view = false) { ',
-        'if ($__view): ',
-        '$__env = $__blaze->env; $__bladeCompiler = $__blaze->compiler; ',
-        'extract($__data, EXTR_SKIP); ',
-        'if (isset($attributes) && $attributes instanceof \Illuminate\View\ComponentAttributeBag) { ',
-        '$attributes = \Livewire\Blaze\Runtime\BlazeAttributeBag::make($attributes->all()); ',
-        '} else { ',
-        '$attributes ??= \Livewire\Blaze\Runtime\BlazeAttributeBag::make([]); ',
-        '} ',
-        'else: ',
-        '$__env = $__blaze->env; $__bladeCompiler = $__blaze->compiler; ',
+        'if ($__view): extract($__data, EXTR_SKIP); else: $__env = $__blaze->env; ',
         'if (($__data[\'attributes\'] ?? null) instanceof \Illuminate\View\ComponentAttributeBag) { $__data = $__data + $__data[\'attributes\']->all(); unset($__data[\'attributes\']); } ',
         'extract($__slots, EXTR_SKIP); unset($__slots); ',
         'extract($__data, EXTR_SKIP); ',
@@ -36,10 +27,9 @@ test('wraps component templates into function definitions', function () {
         '$disabled ??= $attributes[\'disabled\'] ?? $__defaults[\'disabled\']; unset($attributes[\'disabled\']); ',
         'unset($__defaults); ?> ',
         '<input {{ $attributes }} type="{{ $type }}" @if ($disabled) disabled @endif >',
-        '<?php if (!$__view) { echo ltrim(ob_get_clean()); } ',
-        'if ($__view) { $__blaze->popData(); } } endif; ',
+        '<?php if (!$__view) { echo ltrim(ob_get_clean()); } } endif; ',
         'if (isset($__path) && ($__path === __FILE__ || realpath($__path) === __FILE__)) { ',
-        '_'.$hash.'($__blaze, $__data, [], [], [], $__this ?? null, true); ',
+        '_'.$hash.'($__blaze, $__data, [], [], [], null, true); ',
         '} ?>',
     ]));
 });
@@ -53,17 +43,7 @@ test('compiles aware props', function () {
 
     expect($wrapped)->toEqualCollapsingWhitespace(join('', [
         '<?php if (!function_exists(\'_'. $hash .'\')): function _'. $hash .'($__blaze, $__data = [], $__slots = [], $__bound = [], $__keys = [], $__this = null, $__view = false) { ',
-        'if ($__view): ',
-        '$__env = $__blaze->env; $__bladeCompiler = $__blaze->compiler; ',
-        'extract($__data, EXTR_SKIP); ',
-        'if (isset($attributes) && $attributes instanceof \Illuminate\View\ComponentAttributeBag) { ',
-        '$attributes = \Livewire\Blaze\Runtime\BlazeAttributeBag::make($attributes->all()); ',
-        '} else { ',
-        '$attributes ??= \Livewire\Blaze\Runtime\BlazeAttributeBag::make([]); ',
-        '} ',
-        '$__blaze->pushData($__data); ',
-        'else: ',
-        '$__env = $__blaze->env; $__bladeCompiler = $__blaze->compiler; ',
+        'if ($__view): extract($__data, EXTR_SKIP); else: $__env = $__blaze->env; ',
         'if (($__data[\'attributes\'] ?? null) instanceof \Illuminate\View\ComponentAttributeBag) { $__data = $__data + $__data[\'attributes\']->all(); unset($__data[\'attributes\']); } ',
         'extract($__slots, EXTR_SKIP); unset($__slots); ',
         'extract($__data, EXTR_SKIP); ',
@@ -79,10 +59,9 @@ test('compiles aware props', function () {
         '$disabled ??= $attributes[\'disabled\'] ?? $__defaults[\'disabled\']; unset($attributes[\'disabled\']); ',
         'unset($__defaults); ?> ',
         '<input {{ $attributes }} type="{{ $type }}" @if ($disabled) disabled @endif >',
-        '<?php if (!$__view) { echo ltrim(ob_get_clean()); } ',
-        'if ($__view) { $__blaze->popData(); } } endif; ',
+        '<?php if (!$__view) { echo ltrim(ob_get_clean()); } } endif; ',
         'if (isset($__path) && ($__path === __FILE__ || realpath($__path) === __FILE__)) { ',
-        '_'.$hash.'($__blaze, $__data, [], [], [], $__this ?? null, true); ',
+        '_'.$hash.'($__blaze, $__data, [], [], [], null, true); ',
         '} ?>',
     ]));
 });
@@ -119,7 +98,7 @@ test('injects variables', function ($source, $expected) {
 test('injects echo handler', function () {
     Blade::stringable((new class {})::class, fn () => 'dummy');
 
-    expect(app(Wrapper::class)->wrap('{{ $a }}', ''))->toContain('$__bladeCompiler = $__blaze->compiler;');
+    expect(app(Wrapper::class)->wrap('{{ $a }}', ''))->toContain('$__bladeCompiler = app(\'blade.compiler\');');
 });
 
 test('hoists use statements to top of output', function ($statement) {
