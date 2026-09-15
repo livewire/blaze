@@ -1,4 +1,3 @@
-@blaze
 @props(['color' => 'gray'])
 
 <ul class="bg-{{ $color }}-100">
