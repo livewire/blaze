@@ -36,19 +36,16 @@ test('renders components after clearing compiled views in the same process', fun
     view('mix')->render();
 })->throwsNoExceptions();
 
-test('renders blaze-compiled component via view()', function () {
+test('renders components as views', function () {
     Blaze::optimize()->in(fixture_path('views/components'));
 
-    expect(view('components.alert', ['message' => 'Hello world'])->render())
-        ->toBe('<div>Hello world</div>');
+    expect(view('components.alert', ['message' => 'Hello world'])->render())->toBe('<div>Hello world</div>');
 });
 
-test('class-based component renders when its directory is optimized', function () {
+test('renders class based component', function () {
     Blaze::optimize()->in(fixture_path('views/components'));
 
-    // Alert is a real class-based component in the workbench
-    expect(trim(Blade::render('<x-alert message="hello" />')))
-        ->toBe('<div>hello</div>');
+    expect(Blade::render('<x-alert message="Hello world" />'))->toBe('<div>Hello world</div>');
 });
 
 test('supports php engine', function () {
