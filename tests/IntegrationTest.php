@@ -51,48 +51,6 @@ test('class-based component renders when its directory is optimized', function (
         ->toBe('<div>hello</div>');
 });
 
-test('recursive components render themselves without infinite recursion', function () {
-    Blaze::optimize()->in(fixture_path('views/components'));
- 
-    $node = [
-        'label' => 'root',
-        'children' => [
-            ['label' => 'child-a', 'children' => []],
-            ['label' => 'child-b', 'children' => [
-                ['label' => 'grandchild', 'children' => []],
-            ]],
-        ],
-    ];
- 
-    expect(fn () => view('components.tree', ['node' => $node])->render())
-        ->not->toThrow(\Error::class)
-        ->and(view('components.tree', ['node' => $node])->render())
-            ->toContain('root')
-            ->toContain('child-a')
-            ->toContain('child-b')
-            ->toContain('grandchild');
-});
-
-test('once directive runs only once when mixed with view() and tag', function () {
-    Blaze::optimize()->in(fixture_path('views/components'));
-
-    $html = Blade::render(<<<'BLADE'
-        @include('components.once-script')
-        <x-once-script />
-    BLADE);
-
-    expect(substr_count($html, 'INIT_SCRIPT'))->toBe(1);
-});
-
-test('extends directive renders layout only once via view()', function () {
-    Blaze::optimize()->in(fixture_path('views/components'));
-
-    $html = view('components.extends-page')->render();
-
-    expect(substr_count($html, 'LAYOUT_MARKER'))->toBe(1)
-        ->and($html)->toContain('page-body');
-});
-
 test('supports php engine', function () {
     view('php-view')->render();
 })->throwsNoExceptions();

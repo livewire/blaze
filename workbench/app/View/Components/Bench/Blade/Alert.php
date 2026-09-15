@@ -2,10 +2,14 @@
 
 namespace App\View\Components\Bench\Blade;
 
-use App\View\Components\Alert as BaseAlert;
+use Illuminate\View\Component;
 
-class Alert extends BaseAlert
+class Alert extends Component
 {
+    public function __construct(
+        public string $message,
+    ) {}
+
     public function render()
     {
         return view('components.bench.blade.alert');

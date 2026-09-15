@@ -45,7 +45,7 @@ class Wrapper
         $compiled = $this->blade->storeVerbatimBlocks($compiled);
 
         $imports = '';
-
+        
         $compiled = $this->useExtractor->extract($compiled, function ($statement) use (&$imports) {
             $imports .= $statement . "\n";
         });
@@ -96,26 +96,14 @@ class Wrapper
         }
 
         $output .= '} endif;'."\n";
-
-        $output .= $this->viewRenderTrigger($name);
-
-        return $this->blade->restoreRawBlocks($output);
-    }
-
-    /**
-     * When the compiled file is required via view() / PhpEngine, call the
-     * Blaze function so the template produces output.
-     */
-    protected function viewRenderTrigger(string $name): string
-    {
-        $output = 'if (isset($__path) && ($__path === __FILE__ || realpath($__path) === realpath(__FILE__))) {'."\n";
+        $output .= 'if (isset($__path) && ($__path === __FILE__ || realpath($__path) === __FILE__)) {'."\n";
         $output .= $name.'($__blaze, $__data, [], [], [], null, true);'."\n";
         $output .= '}'."\n";
         $output .= '?>';
 
         return $output;
     }
-
+    
     protected function globalVariables(string $source, string $compiled): string
     {
         $output = '';
