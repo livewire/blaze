@@ -60,7 +60,7 @@ class Wrapper
         $output .= 'function '.$name.'($__blaze, $__data = [], $__slots = [], $__bound = [], $__keys = [], $__this = null, $__view = false) {'."\n";
 
         if ($sourceUsesThis) {
-            $output .= '$__blazeFn = function () use ($__blaze, $__data, $__slots, $__bound, $__keys) {'."\n";
+            $output .= '$__blazeFn = function () use ($__blaze, $__data, $__slots, $__bound, $__keys, $__view) {'."\n";
         }
 
         $output .= 'if ($__view):'."\n";
@@ -72,8 +72,8 @@ class Wrapper
         $output .= 'extract($__data, EXTR_SKIP);'."\n";
         $output .= '$attributes = \\Livewire\\Blaze\\Runtime\\BlazeAttributeBag::make($__data, $__bound, $__keys);'."\n";
         $output .= 'unset($__data, $__bound, $__keys);'."\n";
-        $output .= 'endif;'."\n";
         $output .= 'ob_start();' . "\n";
+        $output .= 'endif;'."\n";
         $output .= '?>' . "\n";
 
         $compiled = DirectiveCompiler::make()
@@ -89,7 +89,7 @@ class Wrapper
 
         $contentHandler = $this->manager->isFolding() ? '$__blaze->processPassthroughContent(\'ltrim\', ltrim(ob_get_clean()))' : 'ltrim(ob_get_clean())';
 
-        $output .= 'echo ' . $contentHandler . ';' . "\n";
+        $output .= 'if (!$__view) { echo ' . $contentHandler . '; }'."\n";
 
         if ($sourceUsesThis) {
             $output .= '}; if ($__this !== null) { $__blazeFn->call($__this); } else { $__blazeFn(); }'."\n";
