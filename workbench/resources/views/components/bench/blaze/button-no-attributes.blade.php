@@ -1,3 +1,1 @@
-@blaze
-
 <button>Hello</button>
