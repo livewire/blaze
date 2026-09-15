@@ -98,7 +98,7 @@ test('injects variables', function ($source, $expected) {
 test('injects echo handler', function () {
     Blade::stringable((new class {})::class, fn () => 'dummy');
 
-    expect(app(Wrapper::class)->wrap('{{ $a }}', ''))->toContain('$__bladeCompiler = app(\'blade.compiler\');');
+    expect(app(Wrapper::class)->wrap('{{ $a }}', ''))->toContain('$__bladeCompiler = $__blaze->compiler;');
 });
 
 test('hoists use statements to top of output', function ($statement) {

@@ -39,7 +39,7 @@ class BlazeRuntime
         public Factory $env,
         public Application $app,
         public Debugger $debugger,
-        protected BladeCompiler $compiler,
+        public BladeCompiler $compiler,
         protected BladeService $blade,
     ) {
     }

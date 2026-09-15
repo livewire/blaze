@@ -111,7 +111,7 @@ class Wrapper
         $output .= '$__env = $__blaze->env;' . "\n";
 
         if ($this->hasEchoHandlers() && ($this->hasEchoSyntax($source) || $this->hasEchoSyntax($compiled))) {
-            $output .= '$__bladeCompiler = app(\'blade.compiler\');' . "\n";
+            $output .= '$__bladeCompiler = $__blaze->compiler;' . "\n";
         }
 
         $output .= implode("\n", array_filter(Arr::map([
