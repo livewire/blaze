@@ -39,6 +39,7 @@ class Wrapper
         $name = ($this->manager->isFolding() ? '__' : '_') . Utils::hash($path);
 
         $sourceUsesThis = str_contains($source, '$this') || str_contains($compiled, '@entangle') || str_contains($compiled, '@script') || str_contains($compiled, '@assets');
+        $sourceUsesProps = str_contains($source, '@props') || str_contains($compiled, '@props');
 
         $compiled = $this->blade->compileUseStatements($compiled);
         $compiled = $this->blade->restoreRawBlocks($compiled);
@@ -64,7 +65,18 @@ class Wrapper
         }
 
         $output .= 'if ($__view):'."\n";
+        $output .= '$__env = $__blaze->env;'."\n";
+
         $output .= 'extract($__data, EXTR_SKIP);'."\n";
+
+        if ($sourceUsesProps) {
+            $output .= 'if (isset($attributes) && $attributes instanceof \Illuminate\View\ComponentAttributeBag) {'."\n";
+            $output .= '$attributes = \Livewire\Blaze\Runtime\BlazeAttributeBag::make($attributes->all());'."\n";
+            $output .= '} else {'."\n";
+            $output .= '$attributes ??= \Livewire\Blaze\Runtime\BlazeAttributeBag::make([]);'."\n";
+            $output .= '}'."\n";
+        }
+
         $output .= 'else:'."\n";
         $output .= $this->globalVariables($source, $compiled);
         $output .= 'if (($__data[\'attributes\'] ?? null) instanceof \Illuminate\View\ComponentAttributeBag) { $__data = $__data + $__data[\'attributes\']->all(); unset($__data[\'attributes\']); }'."\n";
@@ -83,6 +95,11 @@ class Wrapper
 
         $compiled = $this->blade->restoreRawBlocks($compiled);
 
+        $compiled = $this->blade->compiler->usingEchoFormat(
+            'e($__blaze->compiler->applyEchoHandler(%s))',
+            fn () => $this->blade->compiler->compileEchos($compiled)
+        );
+
         $output .= $compiled;
 
         $output .= '<?php' . "\n";
@@ -97,7 +114,7 @@ class Wrapper
 
         $output .= '} endif;'."\n";
         $output .= 'if (isset($__path) && ($__path === __FILE__ || realpath($__path) === __FILE__)) {'."\n";
-        $output .= $name.'($__blaze, $__data, [], [], [], null, true);'."\n";
+        $output .= $name.'($__blaze, $__data, [], [], [], $__this ?? null, true);'."\n";
         $output .= '}'."\n";
         $output .= '?>';
 

@@ -4,6 +4,7 @@ use Illuminate\Container\Container;
 use Illuminate\Contracts\View\Engine;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Blade;
+use Illuminate\Support\Stringable;
 use Illuminate\View\Component;
 use Livewire\Blaze\Blaze;
 use Livewire\Blaze\BlazeManager;
@@ -105,3 +106,43 @@ test('folds and compiles the same component', function () {
         ['required' => true]
     );
 })->throwsNoExceptions();
+
+test('echo handlers work for direct view renders', function () {
+    Blade::stringable(fn (Stringable $v) => $v->upper());
+
+    Blaze::optimize()->in(fixture_path('views/components'));
+
+    expect(view('components.alert', ['message' => str('hello')])->render())->toBe('<div>HELLO</div>');
+});
+
+test('aware resolves parent data on class-based / direct view path', function () {
+    Blaze::optimize()->in(fixture_path('views/components'));
+
+    $html = Blade::render('<x-card type="number"><x-input-aware /></x-card>');
+
+    expect($html)->toContain('type="number"');
+});
+
+test('direct view render does not mutate caller attribute bag', function () {
+    Blaze::optimize()->in(fixture_path('views/components'));
+
+    $bag = new \Illuminate\View\ComponentAttributeBag([
+        'type' => 'email',
+        'class' => 'foo',
+    ]);
+
+    view('components.input', ['attributes' => $bag])->render();
+
+    expect($bag->get('type'))->toBe('email')
+        ->and($bag->get('class'))->toBe('foo');
+});
+
+test('props work without an attributes bag on direct view render', function () {
+    Blaze::optimize()->in(fixture_path('views/components'));
+
+    expect(fn () => view('components.input')->render())
+        ->not->toThrow(\ErrorException::class)
+        ->and(view('components.input')->render())
+        ->toContain('<input')
+        ->toContain('type="text"');
+});
