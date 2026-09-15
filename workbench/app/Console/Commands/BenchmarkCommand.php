@@ -46,6 +46,8 @@ class BenchmarkCommand extends Command
             return Command::FAILURE;
         }
 
+        $this->checkOPCacheConfiguration();
+
         if ($attempts > 1) {
             return $this->runMultipleAttempts($attempts);
         }
@@ -73,6 +75,24 @@ class BenchmarkCommand extends Command
         }
 
         return Command::SUCCESS;
+    }
+
+    protected function checkOPCacheConfiguration(): void
+    {
+        $enabled = function_exists('opcache_get_status') && (opcache_get_status(false)['opcache_enabled'] ?? false);
+        $protection = (int) ini_get('opcache.file_update_protection');
+
+        if ($enabled && $protection === 0) {
+            return;
+        }
+
+        $this->warn('OPcache is not configured for benchmarking, results will not reflect production performance.');
+        $this->warn('Add the following to your php.ini and rerun the benchmark:');
+        $this->newLine();
+        $this->line('opcache.enable=1');
+        $this->line('opcache.enable_cli=1');
+        $this->line('opcache.file_update_protection=0');
+        $this->newLine();
     }
 
     protected function runBenchmark(): array
