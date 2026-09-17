@@ -13,6 +13,7 @@ class ComponentNode extends Node
     public function __construct(
         public string $name,
         public string $prefix,
+        public string $namespace = '',
         public string $attributeString = '',
         public array $children = [],
         public bool $selfClosing = false,
@@ -49,7 +50,7 @@ class ComponentNode extends Node
     /** {@inheritdoc} */
     public function render(): string
     {
-        $name = $this->stripNamespaceFromName($this->name, $this->prefix);
+        $name = $this->stripNamespaceFromName($this->name);
 
         $output = "<{$this->prefix}{$name}";
 
@@ -76,18 +77,10 @@ class ComponentNode extends Node
     /**
      * Strip the namespace prefix from a component name for tag rendering.
      */
-    protected function stripNamespaceFromName(string $name, string $prefix): string
+    protected function stripNamespaceFromName(string $name): string
     {
-        $prefixes = [
-            'flux:' => ['namespace' => 'flux::'],
-            'x:' => ['namespace' => ''],
-            'x-' => ['namespace' => ''],
-        ];
-        if (isset($prefixes[$prefix])) {
-            $namespace = $prefixes[$prefix]['namespace'];
-            if (! empty($namespace) && str_starts_with($name, $namespace)) {
-                return substr($name, strlen($namespace));
-            }
+        if ($this->namespace !== '' && str_starts_with($name, $this->namespace)) {
+            return substr($name, strlen($this->namespace));
         }
 
         return $name;

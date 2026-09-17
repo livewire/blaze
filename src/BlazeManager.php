@@ -16,6 +16,7 @@ use Livewire\Blaze\Folder\Folder;
 use Livewire\Blaze\Memoizer\Memoizer;
 use Livewire\Blaze\Parser\Nodes\ComponentNode;
 use Livewire\Blaze\Parser\Parser;
+use Livewire\Blaze\Parser\PrefixRegistry;
 use Livewire\Blaze\Parser\Tokenizer;
 use Livewire\Blaze\Parser\Walker;
 use Livewire\Blaze\Support\Directives;
@@ -48,9 +49,10 @@ class BlazeManager
         protected BladeCompiler $bladeCompiler,
         protected BlazeRuntime $runtime,
         protected BladeService $blade,
+        protected PrefixRegistry $registry,
     ) {
         $this->renderer = new BladeRenderer($bladeCompiler, app('view'), $this->runtime, $this);
-        $this->parser = new Parser(new Tokenizer($this->blade), new AttributeParser($this->blade));
+        $this->parser = new Parser(new Tokenizer($this->blade, $this->registry), new AttributeParser($this->blade));
         $this->walker = new Walker;
         $this->compiler = new Compiler($config, $this->blade, $this);
         $this->folder = new Folder($config, $this->blade, $this->renderer, $this);
@@ -395,6 +397,14 @@ class BlazeManager
     public function optimize(): Config
     {
         return $this->config;
+    }
+
+    /**
+     * Register a custom component tag prefix (e.g. 'tk:' => Blade namespace 'tk::').
+     */
+    public function registerPrefix(string $prefix, string $namespace = '', string $slotPrefix = 'x-slot'): void
+    {
+        $this->registry->register($prefix, $namespace, $slotPrefix);
     }
 
     /**

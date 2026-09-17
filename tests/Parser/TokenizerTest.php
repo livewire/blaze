@@ -1,5 +1,6 @@
 <?php
 
+use Livewire\Blaze\Parser\PrefixRegistry;
 use Livewire\Blaze\Parser\Tokenizer;
 use Livewire\Blaze\Parser\Tokens\SlotCloseToken;
 use Livewire\Blaze\Parser\Tokens\SlotOpenToken;
@@ -17,6 +18,19 @@ test('tokenizes tags', function () {
     expect($result)->toEqual([
         new TagOpenToken(name: 'button', prefix: 'x-', attributes: ['type="button"']),
         new TagCloseToken(name: 'button', prefix: 'x-'),
+    ]);
+});
+
+test('tokenizes custom registered prefixes', function () {
+    app(PrefixRegistry::class)->register('tk:', 'tk::');
+
+    $input = '<tk:icon></tk:icon>';
+
+    $result = app(Tokenizer::class)->tokenize($input);
+
+    expect($result)->toEqual([
+        new TagOpenToken(name: 'icon', prefix: 'tk:', namespace: 'tk::'),
+        new TagCloseToken(name: 'icon', prefix: 'tk:', namespace: 'tk::'),
     ]);
 });
 

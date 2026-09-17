@@ -63,6 +63,7 @@ class Parser
         $node = new ComponentNode(
             name: $token->namespace . $token->name,
             prefix: $token->prefix,
+            namespace: $token->namespace,
             attributeString: $attributeString,
             children: [],
             selfClosing: false,
@@ -82,6 +83,7 @@ class Parser
         $node = new ComponentNode(
             name: $token->namespace . $token->name,
             prefix: $token->prefix,
+            namespace: $token->namespace,
             attributeString: $attributeString,
             children: [],
             selfClosing: true,

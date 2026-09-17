@@ -21,23 +21,9 @@ class Tokenizer
 {
     public function __construct(
         protected BladeService $blade,
+        protected PrefixRegistry $registry,
     ) {
     }
-
-    protected array $prefixes = [
-        'flux:' => [
-            'namespace' => 'flux::',
-            'slot' => 'x-slot',
-        ],
-        'x:' => [
-            'namespace' => '',
-            'slot' => 'x-slot',
-        ],
-        'x-' => [
-            'namespace' => '',
-            'slot' => 'x-slot',
-        ],
-    ];
 
     protected string $content = '';
 
@@ -495,7 +481,7 @@ class Tokenizer
      */
     protected function matchSlotOpen(): ?array
     {
-        foreach ($this->prefixes as $prefix => $config) {
+        foreach ($this->registry->all() as $prefix => $config) {
             $slotPrefix = $config['slot'];
 
             if ($this->match('<\s*' . $slotPrefix . ':')) {
@@ -515,7 +501,7 @@ class Tokenizer
      */
     protected function matchSlotClose(): ?array
     {
-        foreach ($this->prefixes as $prefix => $config) {
+        foreach ($this->registry->all() as $prefix => $config) {
             $slotPrefix = $config['slot'];
 
             if ($this->match('<\/\s*' . $slotPrefix)) {
@@ -531,7 +517,7 @@ class Tokenizer
      */
     protected function matchComponentOpen(): ?array
     {
-        foreach ($this->prefixes as $prefix => $config) {
+        foreach ($this->registry->all() as $prefix => $config) {
             if ($this->match('<\s*' . $prefix)) {
                 return [
                     'prefix' => $prefix,
@@ -548,7 +534,7 @@ class Tokenizer
      */
     protected function matchComponentClose(): ?array
     {
-        foreach ($this->prefixes as $prefix => $config) {
+        foreach ($this->registry->all() as $prefix => $config) {
             if ($this->match('<\/\s*' . $prefix)) {
                 return [
                     'prefix' => $prefix,

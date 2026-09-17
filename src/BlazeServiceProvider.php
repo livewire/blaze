@@ -26,6 +26,7 @@ class BlazeServiceProvider extends ServiceProvider
         $this->app->singleton(Config::class);
         $this->app->singleton(Debugger::class);
         $this->app->singleton(Instrumenter::class);
+        $this->app->singleton(\Livewire\Blaze\Parser\PrefixRegistry::class);
         $this->app->singleton(BlazeManager::class);
 
         $this->app->singleton(\PhpParser\Parser::class, function () {

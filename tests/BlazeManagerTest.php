@@ -1,8 +1,10 @@
 <?php
 
 use Illuminate\Support\Facades\Artisan;
+use Illuminate\Support\Facades\Blade;
 use Livewire\Blaze\Blaze;
 use Livewire\Blaze\BlazeManager;
+use Livewire\Blaze\Support\Utils;
 
 beforeEach(fn () => Artisan::call('view:clear'));
 
@@ -53,4 +55,17 @@ test('viewContainsExpiredFrontMatter returns false when view isnt compiled', fun
     $view = view('blaze');
 
     expect($manager->viewContainsExpiredFrontMatter($view))->toBeFalse();
+});
+
+test('registerPrefix makes a custom tag prefix compilable', function () {
+    Blade::anonymousComponentNamespace('components', 'tk');
+
+    Blaze::registerPrefix('tk:', namespace: 'tk::');
+
+    $path = fixture_path('views/components/card.blade.php');
+    $hash = Utils::hash($path);
+
+    $output = Blaze::compileForFolding('<tk:card class="mt-8" />');
+
+    expect($output)->toContain("_{$hash}(");
 });

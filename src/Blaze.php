@@ -23,6 +23,7 @@ use Illuminate\Support\Facades\Facade;
  * @method static void debug()
  * @method static bool isDebugging()
  * @method static string compileForDebug(string $template)
+ * @method static void registerPrefix(string $prefix, string $namespace = '', string $slotPrefix = 'x-slot')
  *
  * @see \Livewire\Blaze\BlazeManager
  */

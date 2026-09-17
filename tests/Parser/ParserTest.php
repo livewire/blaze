@@ -1,5 +1,6 @@
 <?php
 
+use Livewire\Blaze\Blaze;
 use Livewire\Blaze\Parser\Parser;
 use Livewire\Blaze\Parser\Nodes\ComponentNode;
 use Livewire\Blaze\Parser\Nodes\DirectiveNode;
@@ -109,16 +110,24 @@ test('parses explicit default slot', function () {
     ]);
 });
 
-test('parses component prefixes', function ($input, $prefix, $name) {
+test('parses component prefixes', function ($input, $prefix, $name, $namespace = '') {
     expect(app(Parser::class)->parse($input))->toEqual([
-        new ComponentNode($name, $prefix),
+        new ComponentNode($name, $prefix, $namespace),
     ]);
 })->with([
     'standard' => ['<x-button>', 'x-', 'button'],
     'short' => ['<x:button>', 'x:', 'button'],
     'namespaced' => ['<x-ui::button>', 'x-', 'ui::button'],
-    'flux' => ['<flux:button>', 'flux:', 'flux::button'],
+    'flux' => ['<flux:button>', 'flux:', 'flux::button', 'flux::'],
 ]);
+
+test('parses custom registered prefixes', function () {
+    Blaze::registerPrefix('tk:', namespace: 'tk::');
+
+    expect(app(Parser::class)->parse('<tk:icon />'))->toEqual([
+        new ComponentNode('tk::icon', 'tk:', 'tk::', selfClosing: true),
+    ]);
+});
 
 test('preprocesses attributes using Laravel pipeline', function ($input, $expected) {
     $result = app(Parser::class)->parse($input);
