@@ -6,8 +6,12 @@ use Illuminate\View\Component;
 
 class Alert extends Component
 {
-    public function render(): string
+    public function __construct(
+        public string $message,
+    ) {}
+
+    public function render()
     {
-        return '<div class="alert"></div>';
+        return view('components.alert');
     }
 }
