@@ -93,3 +93,9 @@ test('folds and compiles the same component', function () {
         ['required' => true]
     );
 })->throwsNoExceptions();
+
+test('renders components with a custom echo format', function () {
+    Blade::withoutDoubleEncoding();
+
+    view('mix')->render();
+})->throwsNoExceptions();
