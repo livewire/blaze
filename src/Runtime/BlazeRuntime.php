@@ -47,11 +47,15 @@ class BlazeRuntime
     /**
      * Compile a component if needed.
      */
-    public function compile(string $path, string $compiledPath): void
+    public function compile(string $path, ?string $compiledPath = null): string
     {
-        if (! file_exists($compiledPath) || filemtime($path) >= filemtime($compiledPath)) {
+        $compiled = $this->compiler->getCompiledPath($path);
+
+        if (! file_exists($compiled) || filemtime($path) >= filemtime($compiled)) {
             $this->compiler->compile($path);
         }
+
+        return $compiled;
     }
 
     /**
@@ -71,9 +75,7 @@ class BlazeRuntime
             return;
         }
 
-        $this->compile($path, $compiledPath);
-
-        require $compiledPath;
+        require $this->compile($path);
 
         $this->required[$compiledPath] = true;
     }
@@ -98,12 +100,9 @@ class BlazeRuntime
         }
 
         $hash = Utils::hash($path);
-        $compiled = $this->getCompiledPath().'/'.$hash.'.php';
 
-        if (! function_exists(($this->folding ? '__' : '_') . basename($compiled, '.php'))) {
-            $this->compile($path, $compiled);
-
-            require $compiled;
+        if (! function_exists(($this->folding ? '__' : '_') . $hash)) {
+            require $this->compile($path);
         }
 
         return $hash;

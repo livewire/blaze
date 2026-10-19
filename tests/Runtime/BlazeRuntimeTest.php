@@ -51,3 +51,22 @@ it('processPassthroughContent', function ($input, $results) {
     ['<div>[UNBLAZE]', [null, 'rtrim', 'rtrim']],
     ['<div>[UNBLAZE]</div>', [null, null, null]],
 ]);
+
+test('compiles to the compiler path when the echo format is not the default', function () {
+    $dir = sys_get_temp_dir().'/blaze-'.uniqid();
+    $path = $dir.'/button.blade.php';
+    $compiler = app(BladeCompiler::class);
+
+    try {
+        File::ensureDirectoryExists($dir);
+        File::put($path, 'fresh');
+
+        $compiled = $compiler->usingEchoFormat('e(%s, false)', fn () => app(BlazeRuntime::class)->compile($path));
+
+        expect($compiled)->not->toBe($compiler->getCompiledPath($path));
+        expect(File::get($compiled))->toContain('fresh');
+    } finally {
+        File::delete($compiled ?? '');
+        File::deleteDirectory($dir);
+    }
+})->skip(fn () => ! defined(BladeCompiler::class.'::DEFAULT_ECHO_FORMAT'));

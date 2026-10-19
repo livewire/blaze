@@ -106,7 +106,7 @@ class BladeRenderer
 
         $obLevel = ob_get_level();
         $hash = Utils::hash($path);
-        $compiled = $temporaryCachePath . '/' . $hash . '.php';
+        $compiled = $this->blade->getCompiledPath($path);
         $fn = '__' . $hash;
 
         $this->manager->startFolding();
