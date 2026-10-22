@@ -4,6 +4,8 @@ use Flux\FluxServiceProvider;
 use FluxPro\FluxProServiceProvider;
 use Illuminate\Support\Facades\App;
 use Illuminate\Support\Facades\Artisan;
+use Illuminate\Support\Facades\Blade;
+use Illuminate\View\ComponentAttributeBag;
 use Livewire\LivewireServiceProvider;
 
 beforeEach(fn () => App::register(LivewireServiceProvider::class));
@@ -85,3 +87,36 @@ test('checkbox with bound attribute with quotes and html', fn () => compare(<<<'
     BLADE,
     ['value' => 'a"b<c>&d\'e'],
 ));
+
+/**
+ * Checks that entities in static attributes passed through delegate component are not encoded twice
+ */
+test('checkbox with static attribute with entities', fn () => compare(<<<'BLADE'
+    <flux:checkbox label="Label" aria-label="A &copy; &nbsp; &#169; &amp; B" />
+    BLADE
+));
+
+test('select option with static attribute with entities', fn () => compare(<<<'BLADE'
+    <flux:select><flux:select.option value="1" data-label="A &copy;&nbsp;B">A &amp; B</flux:select.option></flux:select>
+    BLADE
+));
+
+test('checkbox with attributes bag', fn () => compare(<<<'BLADE'
+    <flux:checkbox label="Label" :attributes="$bag" />
+    BLADE,
+    ['bag' => new ComponentAttributeBag(['data-label' => 'A &copy; B'])],
+));
+
+/**
+ * Checks that kebab-case props passed through delegate component are escaped once
+ */
+test('delegate component with kebab-case prop', function () {
+    Blade::anonymousComponentPath(fixture_path('views/flux'), 'flux');
+
+    compare(<<<'BLADE'
+        <flux:delegated foo-bar="A & B" :data-value="$value" />
+        <flux:delegated :foo-bar="$value" />
+        BLADE,
+        ['value' => 'a"b<c>&d\'e'],
+    );
+});

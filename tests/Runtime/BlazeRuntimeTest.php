@@ -2,6 +2,7 @@
 
 use Illuminate\Support\Facades\File;
 use Illuminate\View\Compilers\BladeCompiler;
+use Livewire\Blaze\Runtime\BlazeAttributeBag;
 use Livewire\Blaze\Runtime\BlazeRuntime;
 
 test('compiles stale cache when source and compiled timestamps are equal', function () {
@@ -30,6 +31,21 @@ test('compiles stale cache when source and compiled timestamps are equal', funct
         File::delete($compiled ?? '');
         File::deleteDirectory($dir);
     }
+});
+
+test('delegated attributes render exactly as the parent attributes', function () {
+    $attributes = [
+        'aria-label' => e('x" onmouseover="alert(1)'),
+        'data-label' => 'A &copy; B',
+        'foo-bar' => 'A &amp; B',
+        'foo_bar' => 'C',
+        'disabled' => true,
+    ];
+
+    [$data, $bound, $keys] = app(BlazeRuntime::class)->delegatedAttributes($attributes);
+
+    expect(BlazeAttributeBag::make($data, $bound, $keys)->getAttributes())->toBe($attributes);
+    expect($data['fooBar'])->toBe('A & B');
 });
 
 it('processPassthroughContent', function ($input, $results) {

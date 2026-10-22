@@ -71,15 +71,15 @@ test('compiles delegate components', function () {
 
     expect($compiled->render())->toEqualCollapsingWhitespace(join('', [
         '<?php $__resolved = $__blaze->resolve(\'flux::\' . card); ?> ',
-        '<?php $__delegatedData = $__blaze->unescapeAttributes($attributes->getAttributes()); ?> ',
+        '<?php [$__delegatedData, $__delegatedBound, $__delegatedKeys] = $__blaze->delegatedAttributes($attributes->getAttributes()); ?> ',
         '<?php $__blaze->pushData($__delegatedData); ?> ',
         '<?php if ($__resolved !== false): ?> ',
-        '<?php (\'_\' . $__resolved)($__blaze, $__delegatedData, $__blaze->mergedComponentSlots(), array_keys($__delegatedData), [], $__this ?? (isset($this) ? $this : null)); ?> ',
+        '<?php (\'_\' . $__resolved)($__blaze, $__delegatedData, $__blaze->mergedComponentSlots(), $__delegatedBound, $__delegatedKeys, $__this ?? (isset($this) ? $this : null)); ?> ',
         '<?php else: ?> ',
         '<flux:delegate-component component="card" /> ',
         '<?php endif; ?> ',
         '<?php $__blaze->popData(); ?> ',
-        '<?php unset($__resolved, $__delegatedData) ?>',
+        '<?php unset($__resolved, $__delegatedData, $__delegatedBound, $__delegatedKeys) ?>',
     ]));
 });
 
