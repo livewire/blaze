@@ -120,3 +120,12 @@ test('delegate component with kebab-case prop', function () {
         ['value' => 'a"b<c>&d\'e'],
     );
 });
+
+/**
+ * Checks that attribute bags forwarded into delegate components are still escaped
+ */
+test('delegate component with forwarded attributes bag', fn () => compare(<<<'BLADE'
+    <x-icon-wrapper :data-value="$value" :class="$value" />
+    BLADE,
+    ['value' => 'q"><img src=x onerror=alert(1)>'],
+));
