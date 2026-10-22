@@ -167,7 +167,7 @@ class Compiler
         $output .= '<' . '?php if ($__resolved !== false): ?>' . "\n";
 
         if ($node->selfClosing) {
-            $output .= '<' . '?php ' . $functionName . '($__blaze, $__delegatedData, $__blaze->mergedComponentSlots(), [], [], $__this ?? (isset($this) ? $this : null)); ?>' . "\n";
+            $output .= '<' . '?php ' . $functionName . '($__blaze, $__delegatedData, $__blaze->mergedComponentSlots(), array_keys($__delegatedData), [], $__this ?? (isset($this) ? $this : null)); ?>' . "\n";
         } else {
             $hash = Utils::hash($componentName);
             $slotsVariableName = '$__slots' . $hash;
@@ -176,7 +176,7 @@ class Compiler
             $output .= '<' . '?php ' . $slotsVariableName . ' = []; ?>' . "\n";
             $output .= $this->slotCompiler->compile($slotsVariableName, $node->children);
             $output .= '<' . '?php ' . $slotsVariableName . ' = array_merge($__blaze->mergedComponentSlots(), ' . $slotsVariableName . '); ?>' . "\n";
-            $output .= '<' . '?php ' . $functionName . '($__blaze, $__delegatedData, ' . $slotsVariableName . ', [], [], $__this ?? (isset($this) ? $this : null)); ?>' . "\n";
+            $output .= '<' . '?php ' . $functionName . '($__blaze, $__delegatedData, ' . $slotsVariableName . ', array_keys($__delegatedData), [], $__this ?? (isset($this) ? $this : null)); ?>' . "\n";
             $output .= '<' . '?php if (! empty(' . $slotsStackName . ')) { ' . $slotsVariableName . ' = array_pop(' . $slotsStackName . '); } ?>' . "\n";
         }
 

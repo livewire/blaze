@@ -74,7 +74,7 @@ test('compiles delegate components', function () {
         '<?php $__delegatedData = $__blaze->unescapeAttributes($attributes->getAttributes()); ?> ',
         '<?php $__blaze->pushData($__delegatedData); ?> ',
         '<?php if ($__resolved !== false): ?> ',
-        '<?php (\'_\' . $__resolved)($__blaze, $__delegatedData, $__blaze->mergedComponentSlots(), [], [], $__this ?? (isset($this) ? $this : null)); ?> ',
+        '<?php (\'_\' . $__resolved)($__blaze, $__delegatedData, $__blaze->mergedComponentSlots(), array_keys($__delegatedData), [], $__this ?? (isset($this) ? $this : null)); ?> ',
         '<?php else: ?> ',
         '<flux:delegate-component component="card" /> ',
         '<?php endif; ?> ',

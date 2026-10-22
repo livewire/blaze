@@ -76,3 +76,12 @@ test('select with bound attribute with ampersand', fn () => compare(<<<'BLADE'
     <flux:select :placeholder="'Country & Region'" />
     BLADE
 ));
+
+/**
+ * Checks that bound attributes passed through delegate component are still escaped
+ */
+test('checkbox with bound attribute with quotes and html', fn () => compare(<<<'BLADE'
+    <flux:checkbox :label="'Label'" :aria-label="$value" />
+    BLADE,
+    ['value' => 'a"b<c>&d\'e'],
+));
