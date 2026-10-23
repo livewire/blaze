@@ -19,6 +19,7 @@ test('defers translations to runtime', function () {
             {{ app('translator')->get('Save & close') }}
             {{ app('translator')->get('Save & close') }}
             {{ app('translator')->choice('apples', 2) }}
+            {{ app('translator')->string('Save & close') }}
             {!! app('translator')->get('Save & close') !!}
             <span>{{ e(app('translator')->get('Save & close')) }}</span>
         </button>

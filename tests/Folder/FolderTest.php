@@ -301,7 +301,7 @@ test('throws exception for components with problematic patterns', function (stri
 
     expect(fn () => app(Folder::class)->fold($node))
         ->toThrow(InvalidBlazeFoldUsageException::class);
-})->with(['errors', 'session', 'error', 'csrf', 'auth', 'request', 'old', 'once', 'livewire', 'livewire-directive', 'livewire-wrapped', 'translation-transformed', 'translation-unblaze']);
+})->with(['errors', 'session', 'error', 'csrf', 'auth', 'request', 'old', 'once', 'livewire', 'livewire-directive', 'livewire-wrapped', 'translation-transformed', 'translation-uppercased', 'translation-json', 'translation-has', 'translation-unblaze']);
 
 test('throws exception for translations built from dynamic attributes', function () {
     $input = '<x-foldable.translated :key="$key" />';

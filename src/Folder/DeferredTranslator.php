@@ -11,6 +11,9 @@ use Livewire\Blaze\Exceptions\InvalidBlazeFoldUsageException;
  * Translation calls return placeholders that are restored into runtime translator calls after
  * rendering. Placeholders contain "&" so the number of times they were escaped can be
  * detected from the output ("&", "&amp;", "&amp;amp;", ...) and applied at runtime.
+ *
+ * Placeholders also mix letter cases and contain a backslash so common transformations
+ * (case changes, JSON encoding) leave them unrecognizable, which aborts folding.
  */
 class DeferredTranslator implements Translator
 {
@@ -34,6 +37,11 @@ class DeferredTranslator implements Translator
         return $this->defer('choice', func_get_args(), required: 2);
     }
 
+    public function string($key, array $replace = [], $locale = null)
+    {
+        return $this->defer('string', func_get_args(), required: 1);
+    }
+
     public function getLocale()
     {
         return $this->translator->getLocale();
@@ -44,9 +52,12 @@ class DeferredTranslator implements Translator
         $this->translator->setLocale($locale);
     }
 
+    /**
+     * Other translator methods (has(), array(), ...) depend on the locale and can't be deferred.
+     */
     public function __call($method, $parameters)
     {
-        return $this->translator->{$method}(...$parameters);
+        throw InvalidBlazeFoldUsageException::forTranslation($this->path);
     }
 
     /**
@@ -59,11 +70,11 @@ class DeferredTranslator implements Translator
         }
 
         // Placeholders inside PHP blocks (e.g. @unblaze scope) are not supported...
-        if (preg_match('/<\?php(?:(?!\?>).)*BLAZE_TRANSLATION_/si', $html)) {
+        if (preg_match('/<\?php(?:(?!\?>).)*blaze_translation_/si', $html)) {
             throw InvalidBlazeFoldUsageException::forTranslation($this->path);
         }
 
-        $html = preg_replace_callback('/BLAZE_TRANSLATION_(\d+)&((?:amp;)*)_/', function ($matches) {
+        $html = preg_replace_callback('/blaze_translation_(\d+)_T\\\\&((?:amp;)*)_/', function ($matches) {
             $expression = $this->expressions[$matches[1]];
             $escapes = substr_count($matches[2], 'amp;');
 
@@ -75,7 +86,7 @@ class DeferredTranslator implements Translator
         }, $html);
 
         // Remaining placeholders were transformed and can't be restored...
-        if (stripos($html, 'BLAZE_TRANSLATION_') !== false) {
+        if (stripos($html, 'blaze_translation_') !== false) {
             throw InvalidBlazeFoldUsageException::forTranslation($this->path);
         }
 
@@ -102,6 +113,6 @@ class DeferredTranslator implements Translator
 
         $this->expressions[$index] = "app('translator')->{$method}(" . implode(', ', array_map(fn ($argument) => var_export($argument, true), $arguments)) . ')';
 
-        return 'BLAZE_TRANSLATION_' . $index . '&_';
+        return 'blaze_translation_' . $index . '_T\\&_';
     }
 }
