@@ -80,52 +80,18 @@ test('select with bound attribute with ampersand', fn () => compare(<<<'BLADE'
 ));
 
 /**
- * Checks that bound attributes passed through delegate component are still escaped
+ * Checks that attributes passed through delegate component are escaped exactly once, like in Blade
  */
-test('checkbox with bound attribute with quotes and html', fn () => compare(<<<'BLADE'
-    <flux:checkbox :label="'Label'" :aria-label="$value" />
-    BLADE,
-    ['value' => 'a"b<c>&d\'e'],
-));
-
-/**
- * Checks that entities in static attributes passed through delegate component are not encoded twice
- */
-test('checkbox with static attribute with entities', fn () => compare(<<<'BLADE'
-    <flux:checkbox label="Label" aria-label="A &copy; &nbsp; &#169; &amp; B" />
-    BLADE
-));
-
-test('select option with static attribute with entities', fn () => compare(<<<'BLADE'
-    <flux:select><flux:select.option value="1" data-label="A &copy;&nbsp;B">A &amp; B</flux:select.option></flux:select>
-    BLADE
-));
-
-test('checkbox with attributes bag', fn () => compare(<<<'BLADE'
-    <flux:checkbox label="Label" :attributes="$bag" />
-    BLADE,
-    ['bag' => new ComponentAttributeBag(['data-label' => 'A &copy; B'])],
-));
-
-/**
- * Checks that kebab-case props passed through delegate component are escaped once
- */
-test('delegate component with kebab-case prop', function () {
+test('delegate component forwards attributes like Blade', function (string $template, array $data = []) {
     Blade::anonymousComponentPath(fixture_path('views/flux'), 'flux');
 
-    compare(<<<'BLADE'
-        <flux:delegated foo-bar="A & B" :data-value="$value" />
-        <flux:delegated :foo-bar="$value" />
-        BLADE,
-        ['value' => 'a"b<c>&d\'e'],
-    );
-});
-
-/**
- * Checks that attribute bags forwarded into delegate components are still escaped
- */
-test('delegate component with forwarded attributes bag', fn () => compare(<<<'BLADE'
-    <x-icon-wrapper :data-value="$value" :class="$value" />
-    BLADE,
-    ['value' => 'q"><img src=x onerror=alert(1)>'],
-));
+    compare($template, $data);
+})->with([
+    'bound value with quotes and html' => ['<flux:checkbox :label="\'Label\'" :aria-label="$value" />', ['value' => 'a"b<c>&d\'e']],
+    'static value with entities' => ['<flux:checkbox label="Label" aria-label="A &copy; &nbsp; &#169; &amp; B" />'],
+    'forwarded attribute bag' => ['<flux:icon name="home" :attributes="$bag" />', ['bag' => new ComponentAttributeBag([
+        'data-value' => e('q"><img src=x onerror=alert(1)>'),
+        'data-label' => 'A &copy; B',
+    ])]],
+    'kebab-case prop' => ['<flux:delegated :foo-bar="$value" />', ['value' => 'a"b<c>&d\'e']],
+]);
