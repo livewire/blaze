@@ -4,6 +4,8 @@ use Flux\FluxServiceProvider;
 use FluxPro\FluxProServiceProvider;
 use Illuminate\Support\Facades\App;
 use Illuminate\Support\Facades\Artisan;
+use Illuminate\Support\Facades\Blade;
+use Illuminate\View\ComponentAttributeBag;
 use Livewire\LivewireServiceProvider;
 
 beforeEach(fn () => App::register(LivewireServiceProvider::class));
@@ -76,3 +78,20 @@ test('select with bound attribute with ampersand', fn () => compare(<<<'BLADE'
     <flux:select :placeholder="'Country & Region'" />
     BLADE
 ));
+
+/**
+ * Checks that attributes passed through delegate component are escaped exactly once, like in Blade
+ */
+test('delegate component forwards attributes like Blade', function (string $template, array $data = []) {
+    Blade::anonymousComponentPath(fixture_path('views/flux'), 'flux');
+
+    compare($template, $data);
+})->with([
+    'bound value with quotes and html' => ['<flux:checkbox :label="\'Label\'" :aria-label="$value" />', ['value' => 'a"b<c>&d\'e']],
+    'static value with entities' => ['<flux:checkbox label="Label" aria-label="A &copy; &nbsp; &#169; &amp; B" />'],
+    'forwarded attribute bag' => ['<flux:icon name="home" :attributes="$bag" />', ['bag' => new ComponentAttributeBag([
+        'data-value' => e('q"><img src=x onerror=alert(1)>'),
+        'data-label' => 'A &copy; B',
+    ])]],
+    'kebab-case prop' => ['<flux:delegated :foo-bar="$value" />', ['value' => 'a"b<c>&d\'e']],
+]);

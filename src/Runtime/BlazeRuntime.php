@@ -160,6 +160,8 @@ class BlazeRuntime
 
     /**
     * Revert escaping of data passed through attributes.
+    *
+    * @deprecated Kept for compatibility with previously compiled views. No longer used by the compiler.
     */
     public function unescapeAttributes($data): array
     {
@@ -170,6 +172,42 @@ class BlazeRuntime
         }
 
         return $result;
+    }
+
+    /**
+     * Prepare attributes forwarded through a delegate component, like a regular component call.
+     *
+     * Values escaped by the parent are unescaped so props are not escaped twice, and their keys
+     * are returned as bound so the attribute bag escapes them again. Values that would not come
+     * back unchanged (e.g. a static "&copy;") are passed through as they are. Keys are camel cased
+     * with a map back to the original names, so kebab-case props are read from the data.
+     *
+     * @return array{0: array, 1: array, 2: array} Data, bound keys and original keys.
+     */
+    public function delegatedAttributes(array $attributes): array
+    {
+        $data = $bound = $keys = [];
+
+        foreach ($attributes as $key => $value) {
+            $name = is_string($key) ? Str::camel($key) : $key;
+
+            if ($name !== $key) {
+                if (array_key_exists($name, $attributes) || isset($keys[$name])) {
+                    $name = $key;
+                } else {
+                    $keys[$name] = $key;
+                }
+            }
+
+            if (is_string($value) && ($unescaped = htmlspecialchars_decode($value, ENT_QUOTES)) !== $value && e($unescaped) === $value) {
+                $value = $unescaped;
+                $bound[] = $name;
+            }
+
+            $data[$name] = $value;
+        }
+
+        return [$data, $bound, $keys];
     }
 
     /**
