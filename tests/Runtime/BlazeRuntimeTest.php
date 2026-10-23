@@ -4,6 +4,8 @@ use Illuminate\Support\Facades\File;
 use Illuminate\View\Compilers\BladeCompiler;
 use Livewire\Blaze\Runtime\BlazeRuntime;
 
+use function Livewire\invade;
+
 test('compiles stale cache when source and compiled timestamps are equal', function () {
     $dir = sys_get_temp_dir().'/blaze-'.uniqid();
     $path = $dir.'/button.blade.php';
@@ -53,21 +55,29 @@ it('processPassthroughContent', function ($input, $results) {
 ]);
 
 // Since https://github.com/laravel/framework/pull/61822, compiled paths get a suffix when a custom echo format is used.
-test('compiles to the echo format specific path when a custom echo format is used', function () {
-    $dir = sys_get_temp_dir().'/blaze-'.uniqid();
-    $path = $dir.'/button.blade.php';
+test('compiles to the blade compiler path with a custom echo format', function () {
+    $path = fixture_path('views/components/input.blade.php');
     $compiler = app(BladeCompiler::class);
 
-    try {
-        File::ensureDirectoryExists($dir);
-        File::put($path, 'fresh');
+    $compiler->withoutDoubleEncoding();
 
-        $compiled = $compiler->usingEchoFormat('e(%s, false)', fn () => app(BlazeRuntime::class)->compile($path));
+    expect(app(BlazeRuntime::class)->compile($path))->toBe($compiler->getCompiledPath($path))->toBeFile();
+});
 
-        expect($compiled)->not->toBe($compiler->getCompiledPath($path));
-        expect(File::get($compiled))->toContain('fresh');
-    } finally {
-        File::delete($compiled ?? '');
-        File::deleteDirectory($dir);
-    }
-})->skip(fn () => ! defined(BladeCompiler::class.'::DEFAULT_ECHO_FORMAT'));
+test('compiles to the blade compiler path with a relative hash', function () {
+    $path = fixture_path('views/components/input.blade.php');
+    $compiler = app(BladeCompiler::class);
+
+    invade($compiler)->basePath = dirname(__DIR__, 2);
+
+    expect(app(BlazeRuntime::class)->compile($path))->toBe($compiler->getCompiledPath($path))->toBeFile();
+});
+
+test('compiles to the blade compiler path with a custom compiled extension', function () {
+    $path = fixture_path('views/components/input.blade.php');
+    $compiler = app(BladeCompiler::class);
+
+    invade($compiler)->compiledExtension = 'phtml';
+
+    expect(app(BlazeRuntime::class)->compile($path))->toBe($compiler->getCompiledPath($path))->toBeFile();
+});

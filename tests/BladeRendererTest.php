@@ -123,10 +123,11 @@ test('recompiles stale cache when source and compiled timestamps are equal', fun
         $blade->compile($path);
         $blaze->stopFolding();
 
+        $compiled = $blade->getCompiledPath($path);
+
         invade($blade)->cachePath = $bladeCachePath;
 
         // Now change the source and give it the same timestamp as the compiled file
-        $compiled = $renderer->getTemporaryCachePath().'/'.Utils::hash($path).'.php';
         $timestamp = now()->addSecond()->timestamp;
 
         File::put($path, '@blaze(fold: true) fresh');

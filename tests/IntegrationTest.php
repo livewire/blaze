@@ -4,10 +4,13 @@ use Illuminate\Container\Container;
 use Illuminate\Contracts\View\Engine;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Blade;
+use Illuminate\View\Compilers\BladeCompiler;
 use Illuminate\View\Component;
 use Livewire\Blaze\Blaze;
 use Livewire\Blaze\BlazeManager;
 use Livewire\Blaze\Runtime\BlazeRuntime;
+
+use function Livewire\invade;
 
 beforeEach(fn () => Artisan::call('view:clear'));
 
@@ -96,6 +99,18 @@ test('folds and compiles the same component', function () {
 
 test('renders components with a custom echo format', function () {
     Blade::withoutDoubleEncoding();
+
+    view('mix')->render();
+})->throwsNoExceptions();
+
+test('renders components with a relative hash', function () {
+    invade(app(BladeCompiler::class))->basePath = dirname(__DIR__);
+
+    view('mix')->render();
+})->throwsNoExceptions();
+
+test('renders components with a custom compiled extension', function () {
+    invade(app(BladeCompiler::class))->compiledExtension = 'phtml';
 
     view('mix')->render();
 })->throwsNoExceptions();
