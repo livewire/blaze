@@ -4,6 +4,8 @@ use Illuminate\Support\Facades\File;
 use Illuminate\View\Compilers\BladeCompiler;
 use Livewire\Blaze\Runtime\BlazeRuntime;
 
+use function Livewire\invade;
+
 test('compiles stale cache when source and compiled timestamps are equal', function () {
     $dir = sys_get_temp_dir().'/blaze-'.uniqid();
     $path = $dir.'/button.blade.php';
@@ -23,7 +25,7 @@ test('compiles stale cache when source and compiled timestamps are equal', funct
 
         expect(File::lastModified($path))->toBe(File::lastModified($compiled));
 
-        app(BlazeRuntime::class)->compile($path, $compiled);
+        app(BlazeRuntime::class)->compile($path);
 
         expect(File::get($compiled))->toContain('fresh');
     } finally {
@@ -51,3 +53,31 @@ it('processPassthroughContent', function ($input, $results) {
     ['<div>[UNBLAZE]', [null, 'rtrim', 'rtrim']],
     ['<div>[UNBLAZE]</div>', [null, null, null]],
 ]);
+
+// Since https://github.com/laravel/framework/pull/61822, compiled paths get a suffix when a custom echo format is used.
+test('compiles to the blade compiler path with a custom echo format', function () {
+    $path = fixture_path('views/components/input.blade.php');
+    $compiler = app(BladeCompiler::class);
+
+    $compiler->withoutDoubleEncoding();
+
+    expect(app(BlazeRuntime::class)->compile($path))->toBe($compiler->getCompiledPath($path))->toBeFile();
+});
+
+test('compiles to the blade compiler path with a relative hash', function () {
+    $path = fixture_path('views/components/input.blade.php');
+    $compiler = app(BladeCompiler::class);
+
+    invade($compiler)->basePath = dirname(__DIR__, 2);
+
+    expect(app(BlazeRuntime::class)->compile($path))->toBe($compiler->getCompiledPath($path))->toBeFile();
+});
+
+test('compiles to the blade compiler path with a custom compiled extension', function () {
+    $path = fixture_path('views/components/input.blade.php');
+    $compiler = app(BladeCompiler::class);
+
+    invade($compiler)->compiledExtension = 'phtml';
+
+    expect(app(BlazeRuntime::class)->compile($path))->toBe($compiler->getCompiledPath($path))->toBeFile();
+});
