@@ -94,4 +94,14 @@ test('delegate component forwards attributes like Blade', function (string $temp
         'data-label' => 'A &copy; B',
     ])]],
     'kebab-case prop' => ['<flux:delegated :foo-bar="$value" />', ['value' => 'a"b<c>&d\'e']],
+    'kebab-case prop to non-Blaze target' => ['<flux:delegated variant="non-blaze" :foo-bar="$value" />', ['value' => 'a"b<c>&d\'e']],
 ]);
+
+/**
+ * Checks that a delegate target without @blaze gets the props of its delegating component, not of the Blade component around it
+ */
+test('delegate component forwards props to non-Blaze target inside Blade component like Blade', function () {
+    Blade::anonymousComponentPath(fixture_path('views/flux'), 'flux');
+
+    compare('<x-delegated-wrapper foo-bar="outer" />');
+});
