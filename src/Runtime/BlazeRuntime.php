@@ -45,9 +45,9 @@ class BlazeRuntime
     }
 
     /**
-     * Compile a component if needed.
+     * Compile a component if needed and return its compiled path.
      */
-    public function compile(string $path, ?string $compiledPath = null): string
+    public function compile(string $path): string
     {
         $compiled = $this->compiler->getCompiledPath($path);
 

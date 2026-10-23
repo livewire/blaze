@@ -23,7 +23,7 @@ test('compiles stale cache when source and compiled timestamps are equal', funct
 
         expect(File::lastModified($path))->toBe(File::lastModified($compiled));
 
-        app(BlazeRuntime::class)->compile($path, $compiled);
+        app(BlazeRuntime::class)->compile($path);
 
         expect(File::get($compiled))->toContain('fresh');
     } finally {
@@ -52,7 +52,8 @@ it('processPassthroughContent', function ($input, $results) {
     ['<div>[UNBLAZE]</div>', [null, null, null]],
 ]);
 
-test('compiles to the compiler path when the echo format is not the default', function () {
+// Since https://github.com/laravel/framework/pull/61822, compiled paths get a suffix when a custom echo format is used.
+test('compiles to the echo format specific path when a custom echo format is used', function () {
     $dir = sys_get_temp_dir().'/blaze-'.uniqid();
     $path = $dir.'/button.blade.php';
     $compiler = app(BladeCompiler::class);
