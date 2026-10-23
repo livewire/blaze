@@ -6,7 +6,6 @@
     {{ $label }}
     {{ __($key) }}
     {{ trans_choice('apples', 2) }}
-    {{ Lang::string('Save & close') }}
     @lang('Save & close')
     <x-foldable.translated-child content="{{ __('Save & close') }}" />
 </button>

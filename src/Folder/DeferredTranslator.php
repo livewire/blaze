@@ -37,11 +37,6 @@ class DeferredTranslator implements Translator
         return $this->defer('choice', func_get_args(), required: 2);
     }
 
-    public function string($key, array $replace = [], $locale = null)
-    {
-        return $this->defer('string', func_get_args(), required: 1);
-    }
-
     public function getLocale()
     {
         return $this->translator->getLocale();
@@ -53,7 +48,7 @@ class DeferredTranslator implements Translator
     }
 
     /**
-     * Other translator methods (has(), array(), ...) depend on the locale and can't be deferred.
+     * Other translator methods (has(), string(), array(), ...) depend on the locale and can't be deferred.
      */
     public function __call($method, $parameters)
     {
