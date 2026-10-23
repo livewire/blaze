@@ -135,4 +135,14 @@ class InvalidBlazeFoldUsageException extends \Exception
             'Components with livewire components should not use @blaze fold as Livewire components maintain runtime state'
         );
     }
+
+    /** Create exception for translations that can't be deferred to runtime. */
+    public static function forTranslation(string $componentPath): self
+    {
+        return new self(
+            $componentPath,
+            '__\\(|trans\\(|trans_choice\\(|@lang',
+            'Translations in folded components must be output directly, they can\'t be transformed, passed to @unblaze scope (call them inside the @unblaze block instead) or built from dynamic attributes'
+        );
+    }
 }

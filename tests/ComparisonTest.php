@@ -165,3 +165,7 @@ test('duplicate attribute', fn () => compare(<<<'BLADE'
     <x-input type="email" type="number" />
     BLADE
 ));
+test('foldable translations', fn () => compare(<<<'BLADE'
+    <x-foldable.translated />
+    BLADE
+));
