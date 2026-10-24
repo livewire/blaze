@@ -95,6 +95,9 @@ test('delegate component forwards attributes like Blade', function (string $temp
     ])]],
     'kebab-case prop' => ['<flux:delegated :foo-bar="$value" />', ['value' => 'a"b<c>&d\'e']],
     'kebab-case prop to non-Blaze target' => ['<flux:delegated variant="non-blaze" :foo-bar="$value" />', ['value' => 'a"b<c>&d\'e']],
+    'echoed prop' => ['<flux:delegated foo-bar="Hi {{ $value }}" />', ['value' => 'a"b<c>&d\'e']],
+    'echoed prop to non-Blaze target' => ['<flux:delegated variant="non-blaze" foo-bar="Hi {{ $value }}" />', ['value' => 'a"b<c>&d\'e']],
+    'static prop with entities' => ['<flux:delegated foo-bar="A &amp; B" />'],
 ]);
 
 /**

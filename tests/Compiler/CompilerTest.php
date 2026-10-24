@@ -71,7 +71,7 @@ test('compiles delegate components', function () {
 
     expect($compiled->render())->toEqualCollapsingWhitespace(join('', [
         '<?php $__resolved = $__blaze->resolve(\'flux::\' . card); ?> ',
-        '<?php [$__delegatedData, $__delegatedBound, $__delegatedKeys] = $__blaze->delegatedAttributes($attributes->getAttributes()); ?> ',
+        '<?php [$__delegatedData, $__delegatedBound, $__delegatedKeys] = $__blaze->delegatedAttributes($attributes->getAttributes(), $__delegateOrigin ?? null); ?> ',
         '<?php $__blaze->pushData($__delegatedData); ?> ',
         '<?php if ($__resolved !== false): ?> ',
         '<?php (\'_\' . $__resolved)($__blaze, $__delegatedData, $__blaze->mergedComponentSlots(), $__delegatedBound, $__delegatedKeys, $__this ?? (isset($this) ? $this : null)); ?> ',

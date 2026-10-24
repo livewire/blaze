@@ -162,7 +162,7 @@ class Compiler
         $functionName = '(\'' . ($this->manager->isFolding() ? '__' : '_') . '\' . $__resolved)';
         
         $output = '<' . '?php $__resolved = $__blaze->resolve(' . $componentName . '); ?>' . "\n";
-        $output .= '<' . '?php [$__delegatedData, $__delegatedBound, $__delegatedKeys] = $__blaze->delegatedAttributes($attributes->getAttributes()); ?>' . "\n";
+        $output .= '<' . '?php [$__delegatedData, $__delegatedBound, $__delegatedKeys] = $__blaze->delegatedAttributes($attributes->getAttributes(), $__delegateOrigin ?? null); ?>' . "\n";
         $output .= '<' . '?php $__blaze->pushData($__delegatedData); ?>' . "\n";
         $output .= '<' . '?php if ($__resolved !== false): ?>' . "\n";
 

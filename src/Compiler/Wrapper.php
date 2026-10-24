@@ -68,6 +68,11 @@ class Wrapper
         $output .= 'extract($__slots, EXTR_SKIP); unset($__slots);'."\n";
         $output .= 'extract($__data, EXTR_SKIP);'."\n";
         $output .= '$attributes = \\Livewire\\Blaze\\Runtime\\BlazeAttributeBag::make($__data, $__bound, $__keys);'."\n";
+
+        if (str_contains($source, 'delegate-component')) {
+            $output .= '$__delegateOrigin = [$__data, $__bound];'."\n";
+        }
+
         $output .= 'unset($__data, $__bound, $__keys);'."\n";
         $output .= 'ob_start();' . "\n";
         $output .= '?>' . "\n";
