@@ -177,16 +177,24 @@ class BlazeRuntime
     /**
      * Prepare attributes forwarded through a delegate component, like a regular component call.
      *
-     * Values escaped by the parent are unescaped so props are not escaped twice, and their keys
-     * are returned as bound so the attribute bag escapes them again. Values that would not come
-     * back unchanged (e.g. a static "&copy;") are passed through as they are. Keys are camel cased
-     * with a map back to the original names, so kebab-case props are read from the data.
+     * Bound attributes of the delegating component that are still unchanged in its attribute bag
+     * are forwarded with their original value and returned as bound, so props get the value Blade
+     * would pass and the attribute bag escapes it again. Everything else (static values, echoes
+     * escaped by the caller, attributes the component changed) is forwarded as it is in the bag.
+     * Without the delegating component's data (outside a Blaze component, or in views compiled by
+     * an older version), all values are forwarded as they are. Keys are camel cased with a map back
+     * to the original names, so kebab-case props are read from the data.
      *
+     * @param  array{0: array, 1: array}|null  $origin  Data and bound keys the delegating component was called with.
      * @return array{0: array, 1: array, 2: array} Data, bound keys and original keys.
      */
-    public function delegatedAttributes(array $attributes): array
+    public function delegatedAttributes(array $attributes, ?array $origin = null): array
     {
         $data = $bound = $keys = [];
+
+        [$originData, $originBound] = $origin ?? [[], []];
+
+        $originBound = array_flip($originBound);
 
         foreach ($attributes as $key => $value) {
             $name = is_string($key) ? Str::camel($key) : $key;
@@ -199,8 +207,8 @@ class BlazeRuntime
                 }
             }
 
-            if (is_string($value) && ($unescaped = htmlspecialchars_decode($value, ENT_QUOTES)) !== $value && e($unescaped) === $value) {
-                $value = $unescaped;
+            if (isset($originBound[$name]) && array_key_exists($name, $originData) && BladeCompiler::sanitizeComponentAttribute($originData[$name]) === $value) {
+                $value = $originData[$name];
                 $bound[] = $name;
             }
 
