@@ -290,7 +290,10 @@ class BlazeManager
         $compiled = $compiler->getCompiledPath($path);
         $expired = $compiler->isExpired($path) ? false : (new FrontMatter)->containsExpiredFoldedDependencies($compiled);
 
-        return $this->expiredMemo[$path] = $expired;
+        // Expired views are recompiled right after this check, so later renders don't need it.
+        $this->expiredMemo[$path] = false;
+
+        return $expired;
     }
 
     /**
