@@ -11,6 +11,12 @@ use Livewire\Blaze\Parser\Attribute;
 class Utils
 {
     /**
+     * Version of the generated code. Bump it when a release changes the compiled output,
+     * so views and components compiled by an older version are recompiled.
+     */
+    public const COMPILED_VERSION = 'v3';
+
+    /**
      * Parse a @blaze directive expression into its parameters.
      */
     public static function parseBlazeDirective(string $expression): array
@@ -33,6 +39,6 @@ class Utils
      */
     public static function hash(string $componentPath): string
     {
-        return hash('xxh128', 'v2' . $componentPath);
+        return hash('xxh128', self::COMPILED_VERSION . $componentPath);
     }
 }

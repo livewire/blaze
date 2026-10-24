@@ -9,6 +9,7 @@ use Illuminate\Support\ViewErrorBag;
 use Illuminate\View\Compilers\BladeCompiler;
 use Illuminate\View\Compilers\Compiler;
 use Livewire\Blaze\BladeService;
+use Livewire\Blaze\FrontMatter;
 use Livewire\Blaze\Support\Directives;
 use Livewire\Blaze\Support\Utils;
 use Livewire\Blaze\Debugger\Debugger;
@@ -53,7 +54,7 @@ class BlazeRuntime
     {
         $compiled = $this->compiler->getCompiledPath($path);
 
-        if (! file_exists($compiled) || filemtime($path) >= filemtime($compiled)) {
+        if (! file_exists($compiled) || filemtime($path) >= filemtime($compiled) || ! (new FrontMatter)->isCurrentVersion($compiled)) {
             $this->compiler->compile($path);
         }
 

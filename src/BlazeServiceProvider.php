@@ -155,12 +155,12 @@ class BlazeServiceProvider extends ServiceProvider
 
         $blade->earliestPreCompilationHook(function ($input, $path) use ($blade, $blaze) {
             if ($blade->containsLaravelExceptionView($input)) {
-                return $input;
+                return (new FrontMatter)->compileVersion().$input;
             }
 
             if ($blaze->isDisabled()) {
                 if ($blaze->isDebugging()) {
-                    return $blaze->compileForDebug($input, $path);
+                    return (new FrontMatter)->compileVersion().$blaze->compileForDebug($input, $path);
                 }
 
                 return $input;

@@ -79,7 +79,7 @@ class BladeRenderer
 
                     $input = $this->manager->compileForFolding($input, $this->blade->getPath());
 
-                    return $input;
+                    return (new FrontMatter)->compileVersion().$input;
                 },
             ],
             'precompilers' => fn (array $precompilers) => [
@@ -120,7 +120,7 @@ class BladeRenderer
         $this->manager->startFolding();
 
         try {
-            if (! file_exists($compiled) || filemtime($path) >= filemtime($compiled)) {
+            if (! file_exists($compiled) || filemtime($path) >= filemtime($compiled) || ! (new FrontMatter)->isCurrentVersion($compiled)) {
                 $this->blade->compile($path);
             }
 

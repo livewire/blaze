@@ -6,7 +6,6 @@ use Livewire\Blaze\BladeRenderer;
 use Livewire\Blaze\BlazeManager;
 use Livewire\Blaze\Parser\Parser;
 use Livewire\Blaze\Support\AttributeParser;
-use Livewire\Blaze\Support\Utils;
 
 use function Livewire\invade;
 
@@ -18,7 +17,7 @@ test('compiles component source into the temporary cache', function () {
 
     app(BladeRenderer::class)->render($node, $path);
 
-    expect(File::exists(config('view.compiled').'/blaze/'.Utils::hash($path).'.php'))->toBeTrue();
+    expect(File::exists(config('view.compiled').'/blaze/'.basename(app(BladeCompiler::class)->getCompiledPath($path))))->toBeTrue();
 });
 
 test('makes attributes available to aware props', function () {

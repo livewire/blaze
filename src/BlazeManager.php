@@ -255,7 +255,7 @@ class BlazeManager
     }
 
     /**
-     * Run a compilation callback and prepend front matter from any folded components.
+     * Run a compilation callback and prepend front matter with the Blaze version and any folded components.
      */
     public function collectAndAppendFrontMatter($template, $callback)
     {
@@ -263,15 +263,15 @@ class BlazeManager
 
         $output = $callback($template);
 
-        $frontmatter = (new FrontMatter)->compileFromEvents(
-            $this->flushFoldedEvents()
-        );
+        $frontmatter = new FrontMatter;
 
-        return $frontmatter.$output;
+        return $frontmatter->compileVersion()
+            .$frontmatter->compileFromEvents($this->flushFoldedEvents())
+            .$output;
     }
 
     /**
-     * Check if a view's compiled output contains stale folded component references.
+     * Check if a view's compiled output was compiled by another Blaze version or contains stale folded component references.
      */
     public function viewContainsExpiredFrontMatter($view): bool
     {
@@ -288,7 +288,7 @@ class BlazeManager
 
         $compiler = $engine->getCompiler();
         $compiled = $compiler->getCompiledPath($path);
-        $expired = $compiler->isExpired($path) ? false : (new FrontMatter)->containsExpiredFoldedDependencies($compiled);
+        $expired = $compiler->isExpired($path) ? false : (new FrontMatter)->isExpired($compiled);
 
         return $this->expiredMemo[$path] = $expired;
     }
