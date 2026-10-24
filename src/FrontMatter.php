@@ -3,12 +3,21 @@
 namespace Livewire\Blaze;
 
 use Livewire\Blaze\Events\ComponentFolded;
+use Livewire\Blaze\Support\Utils;
 
 /**
- * Manages BlazeFolded front matter comments that track folded component dependencies.
+ * Manages front matter comments that track the Blaze version and folded component dependencies.
  */
 class FrontMatter
 {
+    /**
+     * Generate the front matter PHP comment that marks output compiled by the current Blaze version.
+     */
+    public function compileVersion(): string
+    {
+        return $this->versionMarker()."\n";
+    }
+
     /**
      * Generate front matter PHP comments from ComponentFolded events.
      */
@@ -28,16 +37,35 @@ class FrontMatter
     }
 
     /**
-     * Check if any folded component referenced in the compiled file has been modified.
+     * Check if a compiled file was compiled by the current Blaze version.
      */
-    public function containsExpiredFoldedDependencies(string $path): bool
+    public function isCurrentVersion(string $path): bool
     {
         $source = @file_get_contents($path);
-        
+
+        return $source !== false && str_contains($source, $this->versionMarker());
+    }
+
+    /**
+     * Check if a compiled file was compiled by another Blaze version or references modified folded components.
+     */
+    public function isExpired(string $path): bool
+    {
+        $source = @file_get_contents($path);
+
         if ($source === false) {
             return false;
         }
 
+        return ! str_contains($source, $this->versionMarker())
+            || $this->containsExpiredFoldedDependencies($source);
+    }
+
+    /**
+     * Check if any folded component referenced in the compiled source has been modified.
+     */
+    public function containsExpiredFoldedDependencies(string $source): bool
+    {
         $foldedComponents = $this->parseFromTemplate($source);
 
         if (empty($foldedComponents)) {
@@ -71,5 +99,13 @@ class FrontMatter
         preg_match_all('/<'.'?php # \[BlazeFolded\]:\{([^}]+)\}:\{([^}]+)\}:\{([^}]+)\} \?>/', $template, $matches, PREG_SET_ORDER);
 
         return $matches;
+    }
+
+    /**
+     * Get the PHP comment that identifies the current Blaze version.
+     */
+    protected function versionMarker(): string
+    {
+        return '<'.'?php # [BlazeVersion]:{'.Utils::COMPILED_VERSION.'} ?>';
     }
 }
