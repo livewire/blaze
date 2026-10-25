@@ -66,7 +66,7 @@ test('extracts props when props are not defined', function () {
 
 test('wraps in self invoking closure', function ($source) {
     expect(app(Wrapper::class)->wrap($source, ''))->toContain(
-        '$__blazeFn = function () use ($__blaze, $__data, $__slots, $__bound, $__keys) {',
+        '$__blazeFn = function () use ($__blaze, $__data, $__slots, $__bound, $__keys, $__attributes) {',
         'if ($__this !== null) { $__blazeFn->call($__this); } else { $__blazeFn(); }',
     );
 })->with([
