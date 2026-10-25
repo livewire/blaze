@@ -26,7 +26,8 @@ class BlazeAttributeBag extends ComponentAttributeBag
     {
         if ($escape) {
             foreach ($attributeDefaults as $key => $value) {
-                if ($this->shouldEscapeAttributeValue($escape, $value)) {
+                // Inlined shouldEscapeAttributeValue() to avoid a method call per value.
+                if (! is_object($value) && ! is_null($value) && ! is_bool($value)) {
                     $attributeDefaults[$key] = e($value);
                 }
             }
@@ -36,24 +37,15 @@ class BlazeAttributeBag extends ComponentAttributeBag
         $nonAppendableAttributes = [];
 
         foreach ($this->attributes as $key => $value) {
-            $isAppendable = $key === 'class' || $key === 'style' || (
-                isset($attributeDefaults[$key]) &&
-                $attributeDefaults[$key] instanceof AppendableAttributeValue
-            );
+            $defaultsValue = $attributeDefaults[$key] ?? '';
 
-            if ($isAppendable) {
-                $appendableAttributes[$key] = $value;
-            } else {
+            if ($defaultsValue instanceof AppendableAttributeValue) {
+                $defaultsValue = $this->resolveAppendableAttributeDefault($attributeDefaults, $key, $escape);
+            } elseif ($key !== 'class' && $key !== 'style') {
                 $nonAppendableAttributes[$key] = $value;
+
+                continue;
             }
-        }
-
-        $attributes = [];
-
-        foreach ($appendableAttributes as $key => $value) {
-            $defaultsValue = isset($attributeDefaults[$key]) && $attributeDefaults[$key] instanceof AppendableAttributeValue
-                ? $this->resolveAppendableAttributeDefault($attributeDefaults, $key, $escape)
-                : ($attributeDefaults[$key] ?? '');
 
             if ($key === 'style') {
                 $value = rtrim((string) $value, ';').';';
@@ -64,19 +56,15 @@ class BlazeAttributeBag extends ComponentAttributeBag
             }
 
             if (! $defaultsValue) {
-                $attributes[$key] = $value ?: '';
+                $appendableAttributes[$key] = $value ?: '';
             } elseif (! $value || $value === $defaultsValue) {
-                $attributes[$key] = $defaultsValue;
+                $appendableAttributes[$key] = $defaultsValue;
             } else {
-                $attributes[$key] = $defaultsValue.' '.$value;
+                $appendableAttributes[$key] = $defaultsValue.' '.$value;
             }
         }
 
-        foreach ($nonAppendableAttributes as $key => $value) {
-            $attributes[$key] = $value;
-        }
-
-        return new static(array_merge($attributeDefaults, $attributes));
+        return new static(array_merge($attributeDefaults, $appendableAttributes, $nonAppendableAttributes));
     }
 
     /** {@inheritdoc} */
