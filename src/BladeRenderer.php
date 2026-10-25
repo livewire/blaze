@@ -120,12 +120,12 @@ class BladeRenderer
                 return [$attribute->name => $attribute->getStaticValue()];
             });
 
-            $attributes = Arr::mapWithKeys($component->attributes, function (Attribute $attribute) {
+            $data = Arr::mapWithKeys($component->attributes, function (Attribute $attribute) {
                 return [$attribute->propName => $attribute->getStaticValue()];
             });
 
-            $keys = Arr::mapWithKeys($component->attributes, function (Attribute $attribute) {
-                return $attribute->propName !== $attribute->name ? [$attribute->propName => $attribute->name] : [];
+            $attributes = Arr::mapWithKeys($component->attributes, function (Attribute $attribute) {
+                return [$attribute->name => $attribute->getStaticValue()];
             });
             
             $slots = Arr::mapWithKeys($component->children, function (SlotNode $slot) {
@@ -133,7 +133,7 @@ class BladeRenderer
             });
 
             $this->runtime->pushData($awareData);
-            $this->runtime->pushData($attributes);
+            $this->runtime->pushData($data);
             $this->runtime->pushSlots($slots);
 
             ob_start();
@@ -142,9 +142,9 @@ class BladeRenderer
 
             $fn(
                 __blaze: $this->runtime,
-                __data: $attributes,
+                __data: $data,
+                __attributes: $attributes,
                 __slots: $slots,
-                __keys: $keys,
             );
 
             $result = ltrim(ob_get_clean());

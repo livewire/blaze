@@ -4,7 +4,6 @@ namespace Livewire\Blaze\Runtime;
 
 use Illuminate\Support\Arr;
 use Illuminate\View\AppendableAttributeValue;
-use Illuminate\View\Compilers\BladeCompiler;
 use Illuminate\View\ComponentAttributeBag;
 
 /**
@@ -14,36 +13,12 @@ class BlazeAttributeBag extends ComponentAttributeBag
 {
     /**
      * Skip the parent setAttributes() check for nested ComponentAttributeBag.
-     * In the Blaze path, attributes are always plain arrays — the nested-bag
-     * case is already handled in the Wrapper boilerplate before sanitized() is called.
+     * In the Blaze path, a bag passed with :attributes is already merged
+     * at the call site by BlazeRuntime::mergeAttributes().
      */
     public function __construct(array $attributes = [])
     {
         $this->attributes = $attributes;
-    }
-
-    /**
-     * Create an attribute bag with bound values sanitized for safe HTML rendering.
-     */
-    public static function make(array $attributes, array $boundKeys = [], array $originalKeys = []): static
-    {
-        foreach ($boundKeys as $key) {
-            if (array_key_exists($key, $attributes)) {
-                $attributes[$key] = BladeCompiler::sanitizeComponentAttribute($attributes[$key]);
-            }
-        }
-
-        if ($originalKeys) {
-            $result = [];
-
-            foreach ($attributes as $key => $value) {
-                $result[$originalKeys[$key] ?? $key] = $value;
-            }
-
-            return new static($result);
-        }
-
-        return new static($attributes);
     }
 
     /** {@inheritdoc} */

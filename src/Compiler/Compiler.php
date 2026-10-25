@@ -94,26 +94,29 @@ class Compiler
     {
         $hash = Utils::hash($source->path);
         $functionName = ($this->manager->isFolding() ? '__' : '_') . $hash;
-        [$attributesArrayString, $boundKeysArrayString, $originalKeysArrayString] = $this->compileAttributes($node);
 
         $output = '<' . '?php if (!function_exists(\'' . $functionName . '\')) { require $__blaze->compile(\'' . $source->path . '\'); } ?>' . "\n";
 
         if ($node->selfClosing) {
-            $output .= '<' . '?php $__blaze->pushData(' . $attributesArrayString . '); ?>' . "\n";
-            $output .= '<' . '?php ' . $functionName . '($__blaze, ' . $attributesArrayString . ', [], ' . $boundKeysArrayString . ', ' . $originalKeysArrayString . ', $__this ?? (isset($this) ? $this : null)); ?>' . "\n";
+            $dataVariableName = '$__data' . $hash;
+            [$dataArrayString, $attributesArrayString] = $this->compileAttributes($node, $dataVariableName);
+            $output .= '<' . '?php ' . $dataVariableName . ' = ' . $dataArrayString . '; ?>' . "\n";
+            $output .= '<' . '?php $__blaze->pushData(' . $dataVariableName . '); ?>' . "\n";
+            $output .= '<' . '?php ' . $functionName . '($__blaze, ' . $dataVariableName . ', ' . $attributesArrayString . ', [], $__this ?? (isset($this) ? $this : null)); ?>' . "\n";
         } else {
             $slotsVariableName = '$__slots' . $hash;
             $attributesVariableName = '$__attrs' . $hash;
             $slotsStackName = '$__slotsStack' . $hash;
             $attrsStackName = '$__attrsStack' . $hash;
+            [$dataArrayString, $attributesArrayString] = $this->compileAttributes($node, $attributesVariableName);
             $output .= '<' . '?php if (isset(' . $slotsVariableName . ')) { ' . $slotsStackName . '[] = ' . $slotsVariableName . '; } ?>' . "\n";
             $output .= '<' . '?php if (isset(' . $attributesVariableName . ')) { ' . $attrsStackName . '[] = ' . $attributesVariableName . '; } ?>' . "\n";
-            $output .= '<' . '?php ' . $attributesVariableName . ' = ' . $attributesArrayString . '; ?>' . "\n";
+            $output .= '<' . '?php ' . $attributesVariableName . ' = ' . $dataArrayString . '; ?>' . "\n";
             $output .= '<' . '?php ' . $slotsVariableName . ' = []; ?>' . "\n";
             $output .= '<' . '?php $__blaze->pushData(' . $attributesVariableName . '); ?>' . "\n";
             $output .= $this->slotCompiler->compile($slotsVariableName, $node->children);
             $output .= '<' . '?php $__blaze->pushSlots(' . $slotsVariableName . '); ?>' . "\n";
-            $output .= '<' . '?php ' . $functionName . '($__blaze, ' . $attributesVariableName . ', ' . $slotsVariableName . ', ' . $boundKeysArrayString . ', ' . $originalKeysArrayString . ', $__this ?? (isset($this) ? $this : null)); ?>' . "\n";
+            $output .= '<' . '?php ' . $functionName . '($__blaze, ' . $attributesVariableName . ', ' . $attributesArrayString . ', ' . $slotsVariableName . ', $__this ?? (isset($this) ? $this : null)); ?>' . "\n";
             $output .= '<' . '?php if (! empty(' . $slotsStackName . ')) { ' . $slotsVariableName . ' = array_pop(' . $slotsStackName . '); } ?>' . "\n";
             $output .= '<' . '?php if (! empty(' . $attrsStackName . ')) { ' . $attributesVariableName . ' = array_pop(' . $attrsStackName . '); } ?>' . "\n";
         }
@@ -124,33 +127,39 @@ class Compiler
     }
 
     /**
-     * Build attribute array string, bound keys, and key map from parsed attributes.
+     * Build the data and attributes array strings a component is called with, like Blade.
      *
-     * @return array{string, string, string} Tuple of [attributesArrayString, boundKeysArrayString, originalKeysArrayString]
+     * Data has camelCased keys and raw bound values, and is read by props. Attributes have the
+     * original keys and escaped bound values, and become the attribute bag. Dynamic attribute
+     * values are read from the data variable, so their expressions are evaluated only once.
+     * An attribute bag passed with :attributes is merged into the attributes.
+     *
+     * @return array{string, string} Tuple of [dataArrayString, attributesArrayString]
      */
-    protected function compileAttributes(ComponentNode $node): array
+    protected function compileAttributes(ComponentNode $node, string $dataVariableName): array
     {
         $data = [];
-        $boundKeys = [];
-        $originalKeys = [];
+        $attributes = [];
 
         foreach ($node->attributes as $attr) {
             $data[] = $this->blade->compileAttribute($attr);
 
-            if ($attr->bound() || $attr->valueless) {
-                $boundKeys[] = "'{$attr->propName}'";
-            }
-
-            if ($attr->propName !== $attr->name) {
-                $originalKeys[] = "'{$attr->propName}' => '{$attr->name}'";
+            if (! $attr->dynamic) {
+                $attributes[] = $this->blade->compileAttribute($attr, escapeBound: true, originalKey: true);
+            } elseif ($attr->bound()) {
+                $attributes[] = "'{$attr->name}' => \\Illuminate\\View\\Compilers\\BladeCompiler::sanitizeComponentAttribute({$dataVariableName}['{$attr->propName}'])";
+            } else {
+                $attributes[] = "'{$attr->name}' => {$dataVariableName}['{$attr->propName}']";
             }
         }
 
-        return [
-            '[' . implode(',', $data) . ']',
-            '[' . implode(', ', $boundKeys) . ']',
-            '[' . implode(', ', $originalKeys) . ']',
-        ];
+        $attributesArrayString = '[' . implode(', ', $attributes) . ']';
+
+        if (isset($node->attributes['attributes'])) {
+            $attributesArrayString = '$__blaze->mergeAttributes(' . $attributesArrayString . ')';
+        }
+
+        return ['[' . implode(',', $data) . ']', $attributesArrayString];
     }
 
     /**
@@ -167,7 +176,7 @@ class Compiler
         $output .= '<' . '?php if ($__resolved !== false): ?>' . "\n";
 
         if ($node->selfClosing) {
-            $output .= '<' . '?php ' . $functionName . '($__blaze, $__delegatedData, $__blaze->mergedComponentSlots(), [], [], $__this ?? (isset($this) ? $this : null), $attributes->getAttributes()); ?>' . "\n";
+            $output .= '<' . '?php ' . $functionName . '($__blaze, $__delegatedData, $attributes->getAttributes(), $__blaze->mergedComponentSlots(), $__this ?? (isset($this) ? $this : null)); ?>' . "\n";
         } else {
             $hash = Utils::hash($componentName);
             $slotsVariableName = '$__slots' . $hash;
@@ -176,7 +185,7 @@ class Compiler
             $output .= '<' . '?php ' . $slotsVariableName . ' = []; ?>' . "\n";
             $output .= $this->slotCompiler->compile($slotsVariableName, $node->children);
             $output .= '<' . '?php ' . $slotsVariableName . ' = array_merge($__blaze->mergedComponentSlots(), ' . $slotsVariableName . '); ?>' . "\n";
-            $output .= '<' . '?php ' . $functionName . '($__blaze, $__delegatedData, ' . $slotsVariableName . ', [], [], $__this ?? (isset($this) ? $this : null), $attributes->getAttributes()); ?>' . "\n";
+            $output .= '<' . '?php ' . $functionName . '($__blaze, $__delegatedData, $attributes->getAttributes(), ' . $slotsVariableName . ', $__this ?? (isset($this) ? $this : null)); ?>' . "\n";
             $output .= '<' . '?php if (! empty(' . $slotsStackName . ')) { ' . $slotsVariableName . ' = array_pop(' . $slotsStackName . '); } ?>' . "\n";
         }
 

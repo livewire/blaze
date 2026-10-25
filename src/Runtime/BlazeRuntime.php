@@ -8,6 +8,7 @@ use Illuminate\Support\Str;
 use Illuminate\Support\ViewErrorBag;
 use Illuminate\View\Compilers\BladeCompiler;
 use Illuminate\View\Compilers\Compiler;
+use Illuminate\View\ComponentAttributeBag;
 use Livewire\Blaze\BladeService;
 use Livewire\Blaze\FrontMatter;
 use Livewire\Blaze\Support\Directives;
@@ -157,6 +158,24 @@ class BlazeRuntime
         }
 
         return $result;
+    }
+
+    /**
+     * Merge an attribute bag passed with :attributes into the component's own attributes.
+     *
+     * @see \Illuminate\View\ComponentAttributeBag::setAttributes()
+     */
+    public function mergeAttributes(array $attributes): array
+    {
+        $parent = $attributes['attributes'] ?? null;
+
+        if (! $parent instanceof ComponentAttributeBag) {
+            return $attributes;
+        }
+
+        unset($attributes['attributes']);
+
+        return $parent->merge($attributes, false)->getAttributes();
     }
 
     /**
