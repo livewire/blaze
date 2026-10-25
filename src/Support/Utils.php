@@ -14,7 +14,7 @@ class Utils
      * Version of the generated code. Bump it when a release changes the compiled output,
      * so views and components compiled by an older version are recompiled.
      */
-    public const COMPILED_VERSION = 'v4';
+    public const COMPILED_VERSION = 'v3';
 
     /**
      * Parse a @blaze directive expression into its parameters.
