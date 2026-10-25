@@ -121,7 +121,11 @@ class BladeRenderer
             });
 
             $attributes = Arr::mapWithKeys($component->attributes, function (Attribute $attribute) {
-                return [$attribute->name => $attribute->getStaticValue()];
+                return [$attribute->propName => $attribute->getStaticValue()];
+            });
+
+            $keys = Arr::mapWithKeys($component->attributes, function (Attribute $attribute) {
+                return $attribute->propName !== $attribute->name ? [$attribute->propName => $attribute->name] : [];
             });
             
             $slots = Arr::mapWithKeys($component->children, function (SlotNode $slot) {
@@ -140,6 +144,7 @@ class BladeRenderer
                 __blaze: $this->runtime,
                 __data: $attributes,
                 __slots: $slots,
+                __keys: $keys,
             );
 
             $result = ltrim(ob_get_clean());

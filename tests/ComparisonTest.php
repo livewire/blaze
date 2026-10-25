@@ -161,6 +161,11 @@ test('foldable aware without props', fn () => compare(<<<'BLADE'
     BLADE
 ));
 
+test('foldable kebab-case attributes as variables', fn () => compare(<<<'BLADE'
+    <x-foldable.variables foo-bar="expected" />
+    BLADE
+));
+
 test('duplicate attribute', fn () => compare(<<<'BLADE'
     <x-input type="email" type="number" />
     BLADE
