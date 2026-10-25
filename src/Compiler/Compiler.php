@@ -132,7 +132,8 @@ class Compiler
      * Data has camelCased keys and raw bound values, and is read by props. Attributes have the
      * original keys and escaped bound values, and become the attribute bag. Dynamic attribute
      * values are read from the data variable, so their expressions are evaluated only once.
-     * An attribute bag passed with :attributes is merged into the attributes.
+     * An attribute bag passed with :attributes is merged into the attributes, which also escapes
+     * the value when it's not a bag.
      *
      * @return array{string, string} Tuple of [dataArrayString, attributesArrayString]
      */
@@ -140,13 +141,14 @@ class Compiler
     {
         $data = [];
         $attributes = [];
+        $forwarded = $node->attributes['attributes'] ?? null;
 
         foreach ($node->attributes as $attr) {
             $data[] = $this->blade->compileAttribute($attr);
 
             if (! $attr->dynamic) {
                 $attributes[] = $this->blade->compileAttribute($attr, escapeBound: true, originalKey: true);
-            } elseif ($attr->bound()) {
+            } elseif ($attr->bound() && $attr !== $forwarded) {
                 $attributes[] = "'{$attr->name}' => \\Illuminate\\View\\Compilers\\BladeCompiler::sanitizeComponentAttribute({$dataVariableName}['{$attr->propName}'])";
             } else {
                 $attributes[] = "'{$attr->name}' => {$dataVariableName}['{$attr->propName}']";
@@ -155,7 +157,7 @@ class Compiler
 
         $attributesArrayString = '[' . implode(', ', $attributes) . ']';
 
-        if (isset($node->attributes['attributes'])) {
+        if ($forwarded?->bound()) {
             $attributesArrayString = '$__blaze->mergeAttributes(' . $attributesArrayString . ')';
         }
 

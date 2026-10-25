@@ -163,6 +163,8 @@ class BlazeRuntime
     /**
      * Merge an attribute bag passed with :attributes into the component's own attributes.
      *
+     * A value that's not a bag stays an attribute and is escaped like any other bound value.
+     *
      * @see \Illuminate\View\ComponentAttributeBag::setAttributes()
      */
     public function mergeAttributes(array $attributes): array
@@ -170,6 +172,8 @@ class BlazeRuntime
         $parent = $attributes['attributes'] ?? null;
 
         if (! $parent instanceof ComponentAttributeBag) {
+            $attributes['attributes'] = BladeCompiler::sanitizeComponentAttribute($parent);
+
             return $attributes;
         }
 
