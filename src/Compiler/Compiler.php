@@ -98,27 +98,27 @@ class Compiler
         $output = '<' . '?php if (!function_exists(\'' . $functionName . '\')) { require $__blaze->compile(\'' . $source->path . '\'); } ?>' . "\n";
 
         if ($node->selfClosing) {
-            $dataVariableName = '$__data' . $hash;
+            $dataVariableName = '$__componentData';
             [$dataArrayString, $attributesArrayString] = $this->compileAttributes($node, $dataVariableName);
             $output .= '<' . '?php ' . $dataVariableName . ' = ' . $dataArrayString . '; ?>' . "\n";
             $output .= '<' . '?php $__blaze->pushData(' . $dataVariableName . '); ?>' . "\n";
             $output .= '<' . '?php ' . $functionName . '($__blaze, ' . $dataVariableName . ', ' . $attributesArrayString . ', [], $__this ?? (isset($this) ? $this : null)); ?>' . "\n";
         } else {
             $slotsVariableName = '$__slots' . $hash;
-            $attributesVariableName = '$__attrs' . $hash;
+            $dataVariableName = '$__data' . $hash;
             $slotsStackName = '$__slotsStack' . $hash;
-            $attrsStackName = '$__attrsStack' . $hash;
-            [$dataArrayString, $attributesArrayString] = $this->compileAttributes($node, $attributesVariableName);
+            $dataStackName = '$__dataStack' . $hash;
+            [$dataArrayString, $attributesArrayString] = $this->compileAttributes($node, $dataVariableName);
             $output .= '<' . '?php if (isset(' . $slotsVariableName . ')) { ' . $slotsStackName . '[] = ' . $slotsVariableName . '; } ?>' . "\n";
-            $output .= '<' . '?php if (isset(' . $attributesVariableName . ')) { ' . $attrsStackName . '[] = ' . $attributesVariableName . '; } ?>' . "\n";
-            $output .= '<' . '?php ' . $attributesVariableName . ' = ' . $dataArrayString . '; ?>' . "\n";
+            $output .= '<' . '?php if (isset(' . $dataVariableName . ')) { ' . $dataStackName . '[] = ' . $dataVariableName . '; } ?>' . "\n";
+            $output .= '<' . '?php ' . $dataVariableName . ' = ' . $dataArrayString . '; ?>' . "\n";
             $output .= '<' . '?php ' . $slotsVariableName . ' = []; ?>' . "\n";
-            $output .= '<' . '?php $__blaze->pushData(' . $attributesVariableName . '); ?>' . "\n";
+            $output .= '<' . '?php $__blaze->pushData(' . $dataVariableName . '); ?>' . "\n";
             $output .= $this->slotCompiler->compile($slotsVariableName, $node->children);
             $output .= '<' . '?php $__blaze->pushSlots(' . $slotsVariableName . '); ?>' . "\n";
-            $output .= '<' . '?php ' . $functionName . '($__blaze, ' . $attributesVariableName . ', ' . $attributesArrayString . ', ' . $slotsVariableName . ', $__this ?? (isset($this) ? $this : null)); ?>' . "\n";
+            $output .= '<' . '?php ' . $functionName . '($__blaze, ' . $dataVariableName . ', ' . $attributesArrayString . ', ' . $slotsVariableName . ', $__this ?? (isset($this) ? $this : null)); ?>' . "\n";
             $output .= '<' . '?php if (! empty(' . $slotsStackName . ')) { ' . $slotsVariableName . ' = array_pop(' . $slotsStackName . '); } ?>' . "\n";
-            $output .= '<' . '?php if (! empty(' . $attrsStackName . ')) { ' . $attributesVariableName . ' = array_pop(' . $attrsStackName . '); } ?>' . "\n";
+            $output .= '<' . '?php if (! empty(' . $dataStackName . ')) { ' . $dataVariableName . ' = array_pop(' . $dataStackName . '); } ?>' . "\n";
         }
 
         $output .= '<' . '?php $__blaze->popData(); ?>';
