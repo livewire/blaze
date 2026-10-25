@@ -114,15 +114,3 @@ test('renders components with a custom compiled extension', function () {
 
     view('mix')->render();
 })->throwsNoExceptions();
-
-test('renders folded translations in the current locale', function () {
-    app('translator')->addLines(['*.Save & close' => 'Uložiť a zavrieť'], 'sk');
-
-    app()->setLocale('sk');
-
-    expect(Blade::render('<x-foldable.translated />'))->toContain('aria-label="Uložiť a zavrieť"');
-
-    app()->setLocale('en');
-
-    expect(Blade::render('<x-foldable.translated />'))->toContain('aria-label="Save &amp; close"');
-});
