@@ -179,6 +179,13 @@ class BlazeRuntime
 
         unset($attributes['attributes']);
 
+        $parentAttributes = $parent->getAttributes();
+
+        // Merging into no attributes only changes class and style, so skip it when there are none.
+        if ($attributes === [] && ! array_key_exists('class', $parentAttributes) && ! array_key_exists('style', $parentAttributes)) {
+            return $parentAttributes;
+        }
+
         return $parent->merge($attributes, false)->getAttributes();
     }
 
