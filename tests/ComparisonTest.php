@@ -105,8 +105,13 @@ test('attributes and props', fn () => compare(<<<'BLADE'
     BLADE
 ));
 
+test('merged styles are separated with a semicolon', fn () => compare(<<<'BLADE'
+    <x-merged-style style="display: none" />
+    BLADE
+));
+
 test('forwarded attributes are merged with attributes on the component', fn () => compare(<<<'BLADE'
-    <x-forwarded-attributes class="outer" data-foo="outer" />
+    <x-forwarded-attributes class="outer" style="display: none" data-foo="outer" />
     BLADE
 ));
 

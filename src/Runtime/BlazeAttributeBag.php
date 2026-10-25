@@ -57,6 +57,10 @@ class BlazeAttributeBag extends ComponentAttributeBag
 
             if ($key === 'style') {
                 $value = rtrim((string) $value, ';').';';
+
+                if (is_string($defaultsValue) && $defaultsValue !== '') {
+                    $defaultsValue = rtrim($defaultsValue, ';').';';
+                }
             }
 
             if (! $defaultsValue) {
