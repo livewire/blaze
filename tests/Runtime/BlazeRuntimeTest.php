@@ -2,7 +2,6 @@
 
 use Illuminate\Support\Facades\File;
 use Illuminate\View\Compilers\BladeCompiler;
-use Livewire\Blaze\Runtime\BlazeAttributeBag;
 use Livewire\Blaze\Runtime\BlazeRuntime;
 
 use function Livewire\invade;
@@ -33,46 +32,6 @@ test('compiles stale cache when source and compiled timestamps are equal', funct
         File::delete($compiled ?? '');
         File::deleteDirectory($dir);
     }
-});
-
-test('delegated attributes render exactly as the parent attributes', function () {
-    $attributes = [
-        'aria-label' => e('x" onmouseover="alert(1)'),
-        'data-label' => 'A &copy; B',
-        'foo-bar' => 'A &amp; B',
-        'foo_bar' => 'C',
-        'baz-qux' => 'Hi ' . e('<b>'),
-        'disabled' => true,
-    ];
-
-    $origin = [[
-        'ariaLabel' => 'x" onmouseover="alert(1)',
-        'dataLabel' => 'A &copy; B',
-        'fooBar' => 'A &amp; B',
-        'foo_bar' => 'C',
-        'bazQux' => 'Hi ' . e('<b>'),
-        'disabled' => true,
-    ], ['ariaLabel', 'disabled']];
-
-    [$data, $bound, $keys] = app(BlazeRuntime::class)->delegatedAttributes($attributes, $origin);
-
-    expect(BlazeAttributeBag::make($data, $bound, $keys)->getAttributes())->toBe($attributes);
-    expect($data['ariaLabel'])->toBe('x" onmouseover="alert(1)');
-    expect($data['fooBar'])->toBe('A &amp; B');
-    expect($data['bazQux'])->toBe('Hi ' . e('<b>'));
-});
-
-test('delegated attributes are forwarded as they are without the delegating component data', function () {
-    $attributes = [
-        'aria-label' => e('x" onmouseover="alert(1)'),
-        'foo-bar' => 'A &amp; B',
-    ];
-
-    [$data, $bound, $keys] = app(BlazeRuntime::class)->delegatedAttributes($attributes);
-
-    expect($bound)->toBe([]);
-    expect($data)->toBe(['ariaLabel' => e('x" onmouseover="alert(1)'), 'fooBar' => 'A &amp; B']);
-    expect(BlazeAttributeBag::make($data, $bound, $keys)->getAttributes())->toBe($attributes);
 });
 
 it('processPassthroughContent', function ($input, $results) {

@@ -71,10 +71,10 @@ test('compiles delegate components', function () {
 
     expect($compiled->render())->toEqualCollapsingWhitespace(join('', [
         '<?php $__resolved = $__blaze->resolve(\'flux::\' . card); ?> ',
-        '<?php [$__delegatedData, $__delegatedBound, $__delegatedKeys] = $__blaze->delegatedAttributes($attributes->getAttributes(), $__delegateOrigin ?? null); ?> ',
+        '<?php $__delegatedData = $__delegateData ?? $__env->getCurrentComponentData(); ?> ',
         '<?php $__blaze->pushData($__delegatedData); ?> ',
         '<?php if ($__resolved !== false): ?> ',
-        '<?php (\'_\' . $__resolved)($__blaze, $__delegatedData, $__blaze->mergedComponentSlots(), $__delegatedBound, $__delegatedKeys, $__this ?? (isset($this) ? $this : null)); ?> ',
+        '<?php (\'_\' . $__resolved)($__blaze, $__delegatedData, $__blaze->mergedComponentSlots(), [], [], $__this ?? (isset($this) ? $this : null), $attributes->getAttributes()); ?> ',
         '<?php else: ?> ',
         '<?php if (! Flux::componentExists((card))) throw new \Exception(\'Flux component [\' . (card) . \'] does not exist.\'); ?> ',
         '@component(\'Illuminate\View\AnonymousComponent\', \'flux::\' . (card), [\'view\' => (app()->version() >= 12 ? hash(\'xxh128\', \'flux\') : md5(\'flux\')) . \'::\' . (card), \'data\' => array_merge($__delegatedData, $__blaze->mergedComponentSlots())]) ',
@@ -82,7 +82,7 @@ test('compiles delegate components', function () {
         '@endComponentClass ',
         '<?php endif; ?> ',
         '<?php $__blaze->popData(); ?> ',
-        '<?php unset($__resolved, $__delegatedData, $__delegatedBound, $__delegatedKeys) ?>',
+        '<?php unset($__resolved, $__delegatedData) ?>',
     ]));
 });
 
