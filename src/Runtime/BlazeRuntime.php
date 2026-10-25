@@ -8,6 +8,7 @@ use Illuminate\Support\Str;
 use Illuminate\Support\ViewErrorBag;
 use Illuminate\View\Compilers\BladeCompiler;
 use Illuminate\View\Compilers\Compiler;
+use Illuminate\View\ComponentAttributeBag;
 use Livewire\Blaze\BladeService;
 use Livewire\Blaze\FrontMatter;
 use Livewire\Blaze\Support\Directives;
@@ -157,6 +158,35 @@ class BlazeRuntime
         }
 
         return $result;
+    }
+
+    /**
+     * Merge an attribute bag passed with :attributes into the component's own attributes.
+     *
+     * A value that's not a bag stays an attribute and is escaped like any other bound value.
+     *
+     * @see \Illuminate\View\ComponentAttributeBag::setAttributes()
+     */
+    public function mergeAttributes(array $attributes): array
+    {
+        $parent = $attributes['attributes'] ?? null;
+
+        if (! $parent instanceof ComponentAttributeBag) {
+            $attributes['attributes'] = BladeCompiler::sanitizeComponentAttribute($parent);
+
+            return $attributes;
+        }
+
+        unset($attributes['attributes']);
+
+        $parentAttributes = $parent->getAttributes();
+
+        // Merging into no attributes only changes class and style, so skip it when there are none.
+        if ($attributes === [] && ! array_key_exists('class', $parentAttributes) && ! array_key_exists('style', $parentAttributes)) {
+            return $parentAttributes;
+        }
+
+        return $parent->merge($attributes, false)->getAttributes();
     }
 
     /**

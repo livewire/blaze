@@ -17,8 +17,9 @@ test('compiles self-closing components', function () {
 
     expect($compiled->render())->toEqualCollapsingWhitespace(join('', [
         '<?php if (!function_exists(\'_'. $hash .'\')) { require $__blaze->compile(\''. $path .'\'); } ?> ',
-        '<?php $__blaze->pushData([\'type\' => \'text\',\'disabled\' => $disabled]); ?> ',
-        '<?php _'. $hash .'($__blaze, [\'type\' => \'text\',\'disabled\' => $disabled], [], [\'disabled\'], [], $__this ?? (isset($this) ? $this : null)); ?> ',
+        '<?php $__componentData = [\'type\' => \'text\',\'disabled\' => $disabled]; ?> ',
+        '<?php $__blaze->pushData($__componentData); ?> ',
+        '<?php _'. $hash .'($__blaze, $__componentData, [\'type\' => \'text\', \'disabled\' => \Illuminate\View\Compilers\BladeCompiler::sanitizeComponentAttribute($__componentData[\'disabled\'])], [], $__this ?? (isset($this) ? $this : null)); ?> ',
         '<?php $__blaze->popData(); ?>',
     ]));
 });
@@ -46,19 +47,19 @@ test('compiles components', function () {
     expect($compiled->render())->toEqualCollapsingWhitespace(join('', [
         '<?php if (!function_exists(\'_'. $hash .'\')) { require $__blaze->compile(\''. $path .'\'); } ?> ',
         '<?php if (isset($__slots'. $hash .')) { $__slotsStack'. $hash .'[] = $__slots'. $hash .'; } ?> ',
-        '<?php if (isset($__attrs'. $hash .')) { $__attrsStack'. $hash .'[] = $__attrs'. $hash .'; } ?> ',
-        '<?php $__attrs'. $hash .' = [\'class\' => \'mt-8\']; ?> ',
+        '<?php if (isset($__data'. $hash .')) { $__dataStack'. $hash .'[] = $__data'. $hash .'; } ?> ',
+        '<?php $__data'. $hash .' = [\'class\' => \'mt-8\']; ?> ',
         '<?php $__slots'. $hash .' = []; ?> ',
-        '<?php $__blaze->pushData($__attrs'. $hash .'); ?> ',
+        '<?php $__blaze->pushData($__data'. $hash .'); ?> ',
         '<?php ob_start(); ?> ',
         '<?php ob_start(); ?> Header <?php $__slots'. $hash .'[\'header\'] = new \Illuminate\View\ComponentSlot(trim(ob_get_clean()), [\'class\' => \'p-2\']); ?> ',
         'Body ',
         '<?php ob_start(); ?> Footer <?php $__slots'. $hash .'[\'footer\'] = new \Illuminate\View\ComponentSlot(trim(ob_get_clean()), [\'class\' => \'mt-4\']); ?> ',
         '<?php $__slots'. $hash .'[\'slot\'] = new \Illuminate\View\ComponentSlot(trim(ob_get_clean()), []); ?> ',
         '<?php $__blaze->pushSlots($__slots'. $hash .'); ?> ',
-        '<?php _'. $hash .'($__blaze, $__attrs'. $hash .', $__slots'. $hash .', [], [], $__this ?? (isset($this) ? $this : null)); ?> ',
+        '<?php _'. $hash .'($__blaze, $__data'. $hash .', [\'class\' => \'mt-8\'], $__slots'. $hash .', $__this ?? (isset($this) ? $this : null)); ?> ',
         '<?php if (! empty($__slotsStack'. $hash .')) { $__slots'. $hash .' = array_pop($__slotsStack'. $hash .'); } ?> ',
-        '<?php if (! empty($__attrsStack'. $hash .')) { $__attrs'. $hash .' = array_pop($__attrsStack'. $hash .'); } ?> ',
+        '<?php if (! empty($__dataStack'. $hash .')) { $__data'. $hash .' = array_pop($__dataStack'. $hash .'); } ?> ',
         '<?php $__blaze->popData(); ?>',
     ]));
 });
@@ -74,7 +75,7 @@ test('compiles delegate components', function () {
         '<?php $__delegatedData = $__delegateData ?? $__env->getCurrentComponentData(); ?> ',
         '<?php $__blaze->pushData($__delegatedData); ?> ',
         '<?php if ($__resolved !== false): ?> ',
-        '<?php (\'_\' . $__resolved)($__blaze, $__delegatedData, $__blaze->mergedComponentSlots(), [], [], $__this ?? (isset($this) ? $this : null), $attributes->getAttributes()); ?> ',
+        '<?php (\'_\' . $__resolved)($__blaze, $__delegatedData, $attributes->getAttributes(), $__blaze->mergedComponentSlots(), $__this ?? (isset($this) ? $this : null)); ?> ',
         '<?php else: ?> ',
         '<?php if (! Flux::componentExists((card))) throw new \Exception(\'Flux component [\' . (card) . \'] does not exist.\'); ?> ',
         '@component(\'Illuminate\View\AnonymousComponent\', \'flux::\' . (card), [\'view\' => (app()->version() >= 12 ? hash(\'xxh128\', \'flux\') : md5(\'flux\')) . \'::\' . (card), \'data\' => array_merge($__delegatedData, $__blaze->mergedComponentSlots())]) ',

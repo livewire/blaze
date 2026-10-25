@@ -57,23 +57,23 @@ class Wrapper
         $output .= '<'.'?php' . "\n";
         $output .= $imports;
         $output .= 'if (!function_exists(\''.$name.'\')):'."\n";
-        $output .= 'function '.$name.'($__blaze, $__data = [], $__slots = [], $__bound = [], $__keys = [], $__this = null, $__attributes = null) {'."\n";
+        $output .= 'function '.$name.'($__blaze, $__data = [], $__attributes = [], $__slots = [], $__this = null) {'."\n";
 
         if ($sourceUsesThis) {
-            $output .= '$__blazeFn = function () use ($__blaze, $__data, $__slots, $__bound, $__keys, $__attributes) {'."\n";
+            $output .= '$__blazeFn = function () use ($__blaze, $__data, $__attributes, $__slots) {'."\n";
         }
 
         $output .= $this->globalVariables($source, $compiled);
         $output .= 'if (($__data[\'attributes\'] ?? null) instanceof \Illuminate\View\ComponentAttributeBag) { $__data = $__data + $__data[\'attributes\']->all(); unset($__data[\'attributes\']); }'."\n";
         $output .= 'extract($__slots, EXTR_SKIP); unset($__slots);'."\n";
         $output .= 'extract($__data, EXTR_SKIP);'."\n";
-        $output .= '$attributes = $__attributes === null ? \\Livewire\\Blaze\\Runtime\\BlazeAttributeBag::make($__data, $__bound, $__keys) : new \\Livewire\\Blaze\\Runtime\\BlazeAttributeBag($__attributes);'."\n";
+        $output .= '$attributes = new \\Livewire\\Blaze\\Runtime\\BlazeAttributeBag($__attributes);'."\n";
 
         if (str_contains($source, 'delegate-component')) {
             $output .= '$__delegateData = $__data;'."\n";
         }
 
-        $output .= 'unset($__data, $__bound, $__keys, $__attributes);'."\n";
+        $output .= 'unset($__data, $__attributes);'."\n";
         $output .= 'ob_start();' . "\n";
         $output .= '?>' . "\n";
 
