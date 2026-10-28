@@ -200,7 +200,10 @@ test('folded component keeps aware values raw in unblaze', fn (string $value) =>
     BLADE, ['value' => $value], ['foldable.unblaze-aware']
 ))->with('unsafe value');
 
-test('nested folded components escape attribute bags passed to unblaze', fn (string $value) => compareFolded(<<<'BLADE'
+/**
+ * Children of a folded component are rendered while it folds, not folded separately
+ */
+test('folded component escapes attribute bags its children pass to unblaze', fn (string $value) => compareFolded(<<<'BLADE'
     <x-foldable.unblaze-bag-parent :title="$value" />
     BLADE, ['value' => $value], ['foldable.unblaze-bag-parent']
 ))->with('unsafe value');
