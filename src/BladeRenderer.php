@@ -91,6 +91,8 @@ class BladeRenderer
                     return $input;
                 }
              ],
+            // Echoes escape their values, so placeholders of bound attributes are swapped for their escaped variants
+            'echoFormat' => fn (string $format) => sprintf($format, '\Livewire\Blaze\Folder\Foldable::escapePlaceholder(%s)'),
             'path' => null,
             'forElseCounter' => 0,
             'firstCaseInSwitch' => true,

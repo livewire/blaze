@@ -5,6 +5,7 @@ namespace Livewire\Blaze\Runtime;
 use Illuminate\Support\Arr;
 use Illuminate\View\AppendableAttributeValue;
 use Illuminate\View\ComponentAttributeBag;
+use Livewire\Blaze\Folder\Foldable;
 
 /**
  * Optimized ComponentAttributeBag replacement avoiding Collection overhead.
@@ -27,7 +28,7 @@ class BlazeAttributeBag extends ComponentAttributeBag
         if ($escape) {
             foreach ($attributeDefaults as $key => $value) {
                 if ($this->shouldEscapeAttributeValue($escape, $value)) {
-                    $attributeDefaults[$key] = e($value);
+                    $attributeDefaults[$key] = e(Foldable::escapePlaceholder($value));
                 }
             }
         }
@@ -77,6 +78,16 @@ class BlazeAttributeBag extends ComponentAttributeBag
         }
 
         return new static(array_merge($attributeDefaults, $attributes));
+    }
+
+    /** {@inheritdoc} */
+    protected function resolveAppendableAttributeDefault($attributeDefaults, $key, $escape)
+    {
+        if ($this->shouldEscapeAttributeValue($escape, $value = $attributeDefaults[$key]->value)) {
+            $value = e(Foldable::escapePlaceholder($value));
+        }
+
+        return $value;
     }
 
     /** {@inheritdoc} */

@@ -201,6 +201,26 @@ test('foldable bound slot attributes passed to nested components in unblaze', fn
     BLADE, ['value' => '"><img src=x onerror=alert(1)> a"b<c>&d\'e']
 ));
 
+test('foldable echo attributes passed to nested components in unblaze', fn () => compare(<<<'BLADE'
+    <x-foldable.nested-echo-attributes-unblaze :title="$value" />
+    BLADE, ['value' => '"><img src=x onerror=alert(1)> a"b<c>&d\'e']
+));
+
+test('foldable echo slot attributes passed to nested components in unblaze', fn () => compare(<<<'BLADE'
+    <x-foldable.nested-echo-slot-attributes-unblaze :title="$value" />
+    BLADE, ['value' => '"><img src=x onerror=alert(1)> a"b<c>&d\'e']
+));
+
+test('foldable merged attributes in unblaze', fn () => compare(<<<'BLADE'
+    <x-foldable.merged-attributes-unblaze :title="$value" />
+    BLADE, ['value' => '"><img src=x onerror=alert(1)> a"b<c>&d\'e']
+));
+
+test('foldable bound attribute merged into itself', fn () => compare(<<<'BLADE'
+    <x-foldable.class-default :class="$value" />
+    BLADE, ['value' => '"><img src=x onerror=alert(1)> a"b<c>&d\'e']
+));
+
 test('foldable aware in unblaze', fn () => compare(<<<'BLADE'
     <x-wrapper :type="$value">
         <x-foldable.aware-unblaze />

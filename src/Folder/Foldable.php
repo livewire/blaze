@@ -235,12 +235,13 @@ class Foldable
     /**
      * Swap the placeholder of a bound attribute for its escaped variant.
      *
-     * Escaping a placeholder doesn't change it, so wherever Blade escapes bound values
-     * for an attribute bag, the folded render swaps placeholders with this instead.
+     * Escaping a placeholder doesn't change it, so wherever a value is escaped
+     * while folding, the placeholder is swapped with this before escaping it.
      */
     public static function escapePlaceholder(mixed $value): mixed
     {
-        if (is_string($value) && preg_match('/^BLAZE_PLACEHOLDER_[0-9]+:bound_$/', $value)) {
+        // Also called at runtime by attribute bags, so cheaper checks go first
+        if (is_string($value) && str_ends_with($value, ':bound_') && preg_match('/^BLAZE_PLACEHOLDER_[0-9]+:bound_$/', $value)) {
             return substr($value, 0, -1) . ':escaped_';
         }
 
