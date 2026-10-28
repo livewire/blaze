@@ -1,6 +1,9 @@
 <?php
 
 use Illuminate\Support\Facades\Artisan;
+use Illuminate\Support\Facades\Blade;
+use Livewire\Blaze\Blaze;
+use Livewire\Blaze\Exceptions\LeftoverPlaceholdersException;
 
 beforeEach(fn () => Artisan::call('view:clear'));
 
@@ -180,8 +183,38 @@ test('duplicate attribute', fn () => compare(<<<'BLADE'
     <x-input type="email" type="number" />
     BLADE
 ));
+test('folded component escapes its attribute bag passed to unblaze', fn (string $value) => compareFolded(<<<'BLADE'
+    <x-foldable.unblaze-bag :title="$value" :name="$value" :x-data="$value" :wire:key="$value" />
+    BLADE, ['value' => $value], ['foldable.unblaze-bag']
+))->with('unsafe value');
 
-test('folded component escapes its attribute bag passed to unblaze', fn () => compare(<<<'BLADE'
-    <x-foldable.unblaze-bag :title="$value" name="Name" />
-    BLADE, ['value' => '"><img src=x onerror=alert(1)> a"b<c>&d\'e']
-));
+test('folded component restores repeatedly escaped attributes in unblaze', fn (string $value) => compareFolded(<<<'BLADE'
+    <x-foldable.unblaze-escape-depth :title="$value" />
+    BLADE, ['value' => $value], ['foldable.unblaze-escape-depth']
+))->with('unsafe value');
+
+test('folded component keeps aware values raw in unblaze', fn (string $value) => compareFolded(<<<'BLADE'
+    <x-wrapper :type="$value">
+        <x-foldable.unblaze-aware />
+    </x-wrapper>
+    BLADE, ['value' => $value], ['foldable.unblaze-aware']
+))->with('unsafe value');
+
+test('nested folded components escape attribute bags passed to unblaze', fn (string $value) => compareFolded(<<<'BLADE'
+    <x-foldable.unblaze-bag-parent :title="$value" />
+    BLADE, ['value' => $value], ['foldable.unblaze-bag-parent']
+))->with('unsafe value');
+
+test('folded component that transforms an attribute passed to unblaze throws in throw mode', function (string $value) {
+    expect(fn () => Blade::render('<x-foldable.unblaze-transformed :title="$value" />', ['value' => $value]))
+        ->toThrow(LeftoverPlaceholdersException::class, 'Leftover Blaze placeholders detected after folding component \'foldable.unblaze-transformed\'');
+})->with('unsafe value');
+
+test('folded component that transforms an attribute passed to unblaze is compiled without folding', function (string $value) {
+    (fn () => $this->throw = false)->call(Blaze::getFacadeRoot());
+
+    compareFolded(<<<'BLADE'
+        <x-foldable.unblaze-transformed :title="$value" />
+        BLADE, ['value' => $value], []
+    );
+})->with('unsafe value');
