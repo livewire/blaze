@@ -15,11 +15,11 @@ test('replaces and restores bound attributes', function () {
     mock(BladeRenderer::class)
         ->expects('render')
         ->once()->withArgs(function (ComponentNode $node) {
-            expect($node->render())->toBe('<x-input type="BLAZE_PLACEHOLDER_0_" />');
+            expect($node->render())->toBe('<x-input type="BLAZE_PLACEHOLDER_0_&_" />');
 
             return true;
         })
-        ->andReturn('<input type="BLAZE_PLACEHOLDER_0_" >');
+        ->andReturn('<input type="BLAZE_PLACEHOLDER_0_&_" >');
 
     $output = (new Foldable($node, '', app(BladeRenderer::class), app(BladeService::class)))->fold();
 
@@ -52,11 +52,11 @@ test('replaces parents attributes', function () {
         ->expects('render')
         ->once()->withArgs(function (ComponentNode $node) {
             expect($node->render())->toBe('<x-input />');
-            expect($node->parentsAttributes['type']->render())->toBe('type="BLAZE_PLACEHOLDER_0_"');
+            expect($node->parentsAttributes['type']->render())->toBe('type="BLAZE_PLACEHOLDER_0_&_"');
 
             return true;
         })
-        ->andReturn('<input type="BLAZE_PLACEHOLDER_0_">');
+        ->andReturn('<input type="BLAZE_PLACEHOLDER_0_&_">');
 
     $output = (new Foldable($node, '', app(BladeRenderer::class), app(BladeService::class)))->fold();
 
@@ -88,11 +88,11 @@ test('restores bound attributes inside php blocks as raw expressions', function 
     mock(BladeRenderer::class)
         ->expects('render')
         ->once()->withArgs(function (ComponentNode $node) {
-            expect($node->render())->toBe('<x-input type="BLAZE_PLACEHOLDER_0_" />');
+            expect($node->render())->toBe('<x-input type="BLAZE_PLACEHOLDER_0_&_" />');
 
             return true;
         })
-        ->andReturn("<?php echo strtoupper('BLAZE_PLACEHOLDER_0_'); ?>");
+        ->andReturn("<?php echo strtoupper('BLAZE_PLACEHOLDER_0_&_'); ?>");
 
     $output = (new Foldable($node, '', app(BladeRenderer::class), app(BladeService::class)))->fold();
 
@@ -122,11 +122,11 @@ test('compiles bound attributes passed through attribute bag', function () {
     mock(BladeRenderer::class)
         ->expects('render')
         ->once()->withArgs(function (ComponentNode $node) {
-            expect($node->render())->toBe('<x-input required="BLAZE_PLACEHOLDER_0_" />');
+            expect($node->render())->toBe('<x-input required="BLAZE_PLACEHOLDER_0_&_" />');
 
             return true;
         })
-        ->andReturn('<input [BLAZE_ATTR:BLAZE_PLACEHOLDER_0_:required] type="text" >');
+        ->andReturn('<input [BLAZE_ATTR:BLAZE_PLACEHOLDER_0_&_:required] type="text" >');
 
     $output = (new Foldable($node, '', app(BladeRenderer::class), app(BladeService::class)))->fold();
 
@@ -162,11 +162,11 @@ test('uses empty strings for true x-data and wire: attributes passed through att
     mock(BladeRenderer::class)
         ->expects('render')
         ->once()->withArgs(function (ComponentNode $node) use ($attribute) {
-            expect($node->render())->toBe('<x-input '.$attribute.'="BLAZE_PLACEHOLDER_0_" />');
+            expect($node->render())->toBe('<x-input '.$attribute.'="BLAZE_PLACEHOLDER_0_&_" />');
 
             return true;
         })
-        ->andReturn('<input [BLAZE_ATTR:BLAZE_PLACEHOLDER_0_:'.$attribute.']>');
+        ->andReturn('<input [BLAZE_ATTR:BLAZE_PLACEHOLDER_0_&_:'.$attribute.']>');
 
     $output = (new Foldable($node, '', app(BladeRenderer::class), app(BladeService::class)))->fold();
 
@@ -185,11 +185,11 @@ test('handles newlines consumed by attribute php blocks', function () {
     mock(BladeRenderer::class)
         ->expects('render')
         ->once()->withArgs(function (ComponentNode $node) {
-            expect($node->render())->toBe('<x-input required="BLAZE_PLACEHOLDER_0_" />');
+            expect($node->render())->toBe('<x-input required="BLAZE_PLACEHOLDER_0_&_" />');
 
             return true;
         })
-        ->andReturn("<input\n[BLAZE_ATTR:BLAZE_PLACEHOLDER_0_:required]\n>");
+        ->andReturn("<input\n[BLAZE_ATTR:BLAZE_PLACEHOLDER_0_&_:required]\n>");
 
     $output = (new Foldable($node, '', app(BladeRenderer::class), app(BladeService::class)))->fold();
 
@@ -330,7 +330,7 @@ test('compiles dynamic attributes in aware macros', function () {
     mock(BladeRenderer::class)
         ->expects('render')
         ->once()->withArgs(function (ComponentNode $node) {
-            expect($node->render())->toBe('<x-layout theme="BLAZE_PLACEHOLDER_0_" />');
+            expect($node->render())->toBe('<x-layout theme="BLAZE_PLACEHOLDER_0_&_" />');
 
             return true;
         })
@@ -435,4 +435,36 @@ test('does not add a placeholder for a whitespace-only slot', function () {
     $output = (new Foldable($node, '', app(BladeRenderer::class), app(BladeService::class)))->fold();
 
     expect($output)->toBe('<div></div>');
+});
+
+test('restores bound attributes escaped while rendering inside php blocks as escaped expressions', function () {
+    $node = app(Parser::class)->parse('<x-input :type="$type" />')[0];
+
+    mock(BladeRenderer::class)
+        ->expects('render')
+        ->once()
+        ->andReturn("<?php \$scope = ['raw' => 'BLAZE_PLACEHOLDER_0_&_', 'escaped' => 'BLAZE_PLACEHOLDER_0_&amp;_', 'twice' => 'BLAZE_PLACEHOLDER_0_&amp;amp;_']; ?>");
+
+    $output = (new Foldable($node, '', app(BladeRenderer::class), app(BladeService::class)))->fold();
+
+    expect($output)->toBe("<?php \$scope = ['raw' => \$type, 'escaped' => \\Illuminate\\View\\Compilers\\BladeCompiler::sanitizeComponentAttribute(\$type), 'twice' => e(\\Illuminate\\View\\Compilers\\BladeCompiler::sanitizeComponentAttribute(\$type))]; ?>");
+});
+
+test('restores bound attributes escaped while rendering in html as echoes', function () {
+    $node = app(Parser::class)->parse('<x-input :type="$type" />')[0];
+
+    mock(BladeRenderer::class)
+        ->expects('render')
+        ->once()
+        ->andReturn('<input type="BLAZE_PLACEHOLDER_0_&amp;_" [BLAZE_ATTR:BLAZE_PLACEHOLDER_0_&amp;_:data-type]>');
+
+    $output = (new Foldable($node, '', app(BladeRenderer::class), app(BladeService::class)))->fold();
+
+    expect($output)->toBe(implode('', [
+        '<input type="{{ $type }}" ',
+        '<?php if (($__blazeAttr = $type) !== false && !is_null($__blazeAttr)): ?>',
+        'data-type="<?php echo e($__blazeAttr === true ? \'data-type\' : $__blazeAttr); ?>"',
+        '<?php endif; unset($__blazeAttr); ?>',
+        '>',
+    ]));
 });

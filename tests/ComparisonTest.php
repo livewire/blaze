@@ -180,3 +180,8 @@ test('duplicate attribute', fn () => compare(<<<'BLADE'
     <x-input type="email" type="number" />
     BLADE
 ));
+
+test('folded component escapes its attribute bag passed to unblaze', fn () => compare(<<<'BLADE'
+    <x-foldable.unblaze-bag :title="$value" name="Name" />
+    BLADE, ['value' => '"><img src=x onerror=alert(1)> a"b<c>&d\'e']
+));
