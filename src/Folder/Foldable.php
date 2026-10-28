@@ -80,9 +80,13 @@ class Foldable
             return clone $attribute;
         }
 
-        $placeholder = 'BLAZE_PLACEHOLDER_' . $this->placeholderIndex++ . '_';
+        $placeholder = 'BLAZE_PLACEHOLDER_' . $this->placeholderIndex++ . ($attribute->bound() ? ':bound' : '') . '_';
 
         $this->attributeByPlaceholder[$placeholder] = $attribute;
+
+        if ($attribute->bound()) {
+            $this->attributeByPlaceholder[static::escapePlaceholder($placeholder)] = $attribute;
+        }
 
         return new Attribute(
             name: $attribute->name,
@@ -171,7 +175,7 @@ class Foldable
      */
     protected function processUncompiledAttributes(): void
     {
-        $this->html = preg_replace_callback('/\[BLAZE_ATTR:(BLAZE_PLACEHOLDER_[0-9]+_):(.+?)\](\r?\n)?/', function ($matches) {
+        $this->html = preg_replace_callback('/\[BLAZE_ATTR:(BLAZE_PLACEHOLDER_[0-9]+(?::[a-z]+)*_):(.+?)\](\r?\n)?/', function ($matches) {
             $attribute = $this->attributeByPlaceholder[$matches[1]];
             $name = $matches[2];
 
@@ -193,12 +197,16 @@ class Foldable
      */
     protected function restorePlaceholders(): void
     {
-        // Attribute placeholders inside PHP blocks need raw values
+        // Attribute placeholders inside PHP blocks need raw values, or escaped ones for their escaped variants
         $this->html = preg_replace_callback('/<\?php.*?\?>/s', function ($match) {
             $content = $match[0];
 
             foreach ($this->attributeByPlaceholder as $placeholder => $attribute) {
-                $value = $attribute->bound() ? $attribute->value : $this->blade->compileAttributeEchos($attribute->value);
+                $value = match (true) {
+                    str_ends_with($placeholder, ':escaped_') => '\Illuminate\View\Compilers\BladeCompiler::sanitizeComponentAttribute(' . $attribute->value . ')',
+                    $attribute->bound() => $attribute->value,
+                    default => $this->blade->compileAttributeEchos($attribute->value),
+                };
 
                 $content = str_replace("'" . $placeholder . "'", $value, $content);
             }
@@ -222,6 +230,21 @@ class Foldable
                 return '<?php ob_start(); ?>' . $slot->content() . '<?php echo trim(ob_get_clean()); ?>' . $whitespace . $whitespace;
             }, $this->html);
         }
+    }
+
+    /**
+     * Swap the placeholder of a bound attribute for its escaped variant.
+     *
+     * Escaping a placeholder doesn't change it, so wherever Blade escapes bound values
+     * for an attribute bag, the folded render swaps placeholders with this instead.
+     */
+    public static function escapePlaceholder(mixed $value): mixed
+    {
+        if (is_string($value) && preg_match('/^BLAZE_PLACEHOLDER_[0-9]+:bound_$/', $value)) {
+            return substr($value, 0, -1) . ':escaped_';
+        }
+
+        return $value;
     }
 
     /**

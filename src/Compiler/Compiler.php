@@ -149,7 +149,14 @@ class Compiler
             if (! $attr->dynamic) {
                 $attributes[] = $this->blade->compileAttribute($attr, escapeBound: true, originalKey: true);
             } elseif ($attr->bound() && $attr !== $forwarded) {
-                $attributes[] = "'{$attr->name}' => \\Illuminate\\View\\Compilers\\BladeCompiler::sanitizeComponentAttribute({$dataVariableName}['{$attr->propName}'])";
+                $value = "{$dataVariableName}['{$attr->propName}']";
+
+                // While folding, the value can be a placeholder, which has to be swapped for its escaped variant
+                if ($this->manager->isFolding()) {
+                    $value = "\\Livewire\\Blaze\\Folder\\Foldable::escapePlaceholder({$value})";
+                }
+
+                $attributes[] = "'{$attr->name}' => \\Illuminate\\View\\Compilers\\BladeCompiler::sanitizeComponentAttribute({$value})";
             } else {
                 $attributes[] = "'{$attr->name}' => {$dataVariableName}['{$attr->propName}']";
             }

@@ -103,6 +103,13 @@ class SlotCompiler
         $parts = [];
 
         foreach ($attributes as $attr) {
+            // While folding, the value can be a placeholder, which has to be swapped for its escaped variant
+            if ($attr->bound() && ! $attr->valueless && $this->manager->isFolding()) {
+                $parts[] = "'{$attr->name}' => \\Illuminate\\View\\Compilers\\BladeCompiler::sanitizeComponentAttribute(\\Livewire\\Blaze\\Folder\\Foldable::escapePlaceholder({$attr->value}))";
+
+                continue;
+            }
+
             $parts[] = $this->blade->compileAttribute($attr, escapeBound: true, originalKey: true);
         }
 

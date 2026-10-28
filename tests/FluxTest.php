@@ -108,3 +108,12 @@ test('delegate component forwards props to non-Blaze target inside Blade compone
 
     compare('<x-delegated-wrapper foo-bar="outer" />');
 });
+
+/**
+ * Field components pass their error attributes to flux:error through @unblaze
+ */
+test('folded field component escapes bound error attributes like Blade', function () {
+    compare('<flux:input name="email" label="Email" :error:aria-label="$value" />', [
+        'value' => '"><img src=x onerror=alert(1)> a"b<c>&d\'e',
+    ]);
+});

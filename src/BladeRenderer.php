@@ -9,6 +9,7 @@ use Illuminate\Support\Facades\File;
 use Illuminate\View\Compilers\BladeCompiler;
 use Illuminate\View\ComponentSlot;
 use Livewire\Blaze\Exceptions\InvalidBlazeFoldUsageException;
+use Livewire\Blaze\Folder\Foldable;
 use Livewire\Blaze\Parser\Attribute;
 use Livewire\Blaze\Parser\Nodes\ComponentNode;
 use Livewire\Blaze\Parser\Nodes\SlotNode;
@@ -124,8 +125,9 @@ class BladeRenderer
                 return [$attribute->propName => $attribute->getStaticValue()];
             });
 
+            // Bound values are escaped in the attribute bag, like at the call site in Blade
             $attributes = Arr::mapWithKeys($component->attributes, function (Attribute $attribute) {
-                return [$attribute->name => $attribute->getStaticValue()];
+                return [$attribute->name => Foldable::escapePlaceholder($attribute->getStaticValue())];
             });
             
             $slots = Arr::mapWithKeys($component->children, function (SlotNode $slot) {

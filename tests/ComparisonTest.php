@@ -180,3 +180,30 @@ test('duplicate attribute', fn () => compare(<<<'BLADE'
     <x-input type="email" type="number" />
     BLADE
 ));
+
+test('foldable bound attributes', fn () => compare(<<<'BLADE'
+    <x-foldable.input :type="$value" :placeholder="$value" />
+    BLADE, ['value' => '"><img src=x onerror=alert(1)> a"b<c>&d\'e']
+));
+
+test('foldable bound attributes in unblaze', fn () => compare(<<<'BLADE'
+    <x-foldable.attributes-unblaze :title="$value" :name="$value" />
+    BLADE, ['value' => '"><img src=x onerror=alert(1)> a"b<c>&d\'e']
+));
+
+test('foldable bound attributes passed to nested components in unblaze', fn () => compare(<<<'BLADE'
+    <x-foldable.nested-attributes-unblaze :title="$value" />
+    BLADE, ['value' => '"><img src=x onerror=alert(1)> a"b<c>&d\'e']
+));
+
+test('foldable bound slot attributes passed to nested components in unblaze', fn () => compare(<<<'BLADE'
+    <x-foldable.nested-slot-attributes-unblaze :title="$value" />
+    BLADE, ['value' => '"><img src=x onerror=alert(1)> a"b<c>&d\'e']
+));
+
+test('foldable aware in unblaze', fn () => compare(<<<'BLADE'
+    <x-wrapper :type="$value">
+        <x-foldable.aware-unblaze />
+    </x-wrapper>
+    BLADE, ['value' => '"><img src=x onerror=alert(1)> a"b<c>&d\'e']
+));
