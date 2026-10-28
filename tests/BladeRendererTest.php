@@ -17,7 +17,10 @@ test('compiles component source into the temporary cache', function () {
 
     app(BladeRenderer::class)->render($node, $path);
 
-    expect(File::exists(config('view.compiled').'/blaze/'.basename(app(BladeCompiler::class)->getCompiledPath($path))))->toBeTrue();
+    // Since https://github.com/laravel/framework/pull/61822, compiled paths get a suffix when a custom echo format is used, which folding does.
+    $name = pathinfo(app(BladeCompiler::class)->getCompiledPath($path), PATHINFO_FILENAME);
+
+    expect(File::glob(config('view.compiled').'/blaze/'.$name.'*.php'))->not->toBeEmpty();
 });
 
 test('makes attributes available to aware props', function () {
