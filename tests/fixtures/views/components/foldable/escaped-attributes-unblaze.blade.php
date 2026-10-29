@@ -3,7 +3,7 @@
 @props(['title' => null])
 
 <div>
-    @unblaze(scope: ['title' => e($title), 'name' => e($attributes->get('name')), 'label' => e(e($attributes->get('name')))])
-    <span title="{!! $scope['title'] !!}" data-name="{!! $scope['name'] !!}" data-label="{!! $scope['label'] !!}"></span>
+    @unblaze(scope: ['title' => e($title)])
+    <span title="{!! $scope['title'] !!}"></span>
     @endunblaze
 </div>

@@ -125,11 +125,12 @@ class BladeRenderer
                 return [$attribute->propName => $attribute->getStaticValue()];
             });
 
-            // Bound values are escaped in the attribute bag like Blade does, which their placeholders record
+            // The attribute bag gets the escaped copy of bound values, like in Blade
             $attributes = Arr::mapWithKeys($component->attributes, function (Attribute $attribute) {
                 $value = $attribute->getStaticValue();
+                $placeholder = Placeholder::parse($value);
 
-                return [$attribute->name => Placeholder::parse($value)?->bound ? e($value) : $value];
+                return [$attribute->name => $placeholder?->bound ? (string) $placeholder->escaped() : $value];
             });
             
             $slots = Arr::mapWithKeys($component->children, function (SlotNode $slot) {

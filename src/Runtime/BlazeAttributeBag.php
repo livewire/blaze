@@ -5,6 +5,7 @@ namespace Livewire\Blaze\Runtime;
 use Illuminate\Support\Arr;
 use Illuminate\View\AppendableAttributeValue;
 use Illuminate\View\ComponentAttributeBag;
+use Livewire\Blaze\Folder\Placeholder;
 
 /**
  * Optimized ComponentAttributeBag replacement avoiding Collection overhead.
@@ -65,7 +66,8 @@ class BlazeAttributeBag extends ComponentAttributeBag
 
             if (! $defaultsValue) {
                 $attributes[$key] = $value ?: '';
-            } elseif (! $value || $value === $defaultsValue) {
+            } elseif (! $value || $value === $defaultsValue || Placeholder::same($value, $defaultsValue)) {
+                // While folding, the copies of a bound attribute stand for one value and merge into one, like equal values do
                 $attributes[$key] = $defaultsValue;
             } else {
                 $attributes[$key] = $defaultsValue.' '.$value;
@@ -192,7 +194,7 @@ class BlazeAttributeBag extends ComponentAttributeBag
                 $value = $key === 'x-data' || str_starts_with($key, 'wire:') ? '' : $key;
             }
 
-            if (str_starts_with($value, 'BLAZE_PLACEHOLDER_') && str_ends_with($value, '_')) {
+            if (Placeholder::parse($value)) {
                 $parts[] = '[BLAZE_ATTR:'.$value.':'.$key.']';
             } else {
                 $parts[] = $key.'="'.str_replace('"', '\\"', trim($value)).'"';
