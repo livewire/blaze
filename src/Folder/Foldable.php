@@ -247,7 +247,7 @@ class Foldable
     /**
      * Resolve a placeholder to the attribute it stands for.
      *
-     * A bound attribute's placeholder is only recognized with its copy marker intact. Without it,
+     * A bound attribute's placeholder is only recognized with its "&_" marker intact. Without it,
      * the component transformed the value, so it is left in place and fails the fold.
      *
      * @return array{0: ?Placeholder, 1: ?Attribute}
@@ -279,23 +279,15 @@ class Foldable
     }
 
     /**
-     * Get the expression of a bound value as it reads after being escaped as many times as its placeholder.
+     * Get the expression of a bound value escaped as many times as its placeholder was while rendering.
      *
-     * The escaped copy from the attribute bag is escaped once. The raw copy counts the escapes the
-     * component applied to it, which keep booleans and null like sanitizeComponentAttribute() does.
+     * sanitizeComponentAttribute() keeps booleans and null like the attribute bag and merge() do.
      */
     protected function escapedExpression(string $value, Placeholder $placeholder): string
     {
-        if ($placeholder->escapes === 0) {
-            return $value;
-        }
-
         $sanitize = '\\Illuminate\\View\\Compilers\\BladeCompiler::sanitizeComponentAttribute(';
 
-        // Laravel always double encodes, so only the component itself can have called e($value, false)
-        $expression = $placeholder->doubleEncoded ? $sanitize . $value . ')' : 'e(' . $value . ', false)';
-
-        return str_repeat($sanitize, $placeholder->escapes - 1) . $expression . str_repeat(')', $placeholder->escapes - 1);
+        return str_repeat($sanitize, $placeholder->escapes) . $value . str_repeat(')', $placeholder->escapes);
     }
 
     /**

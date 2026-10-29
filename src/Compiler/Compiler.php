@@ -143,18 +143,13 @@ class Compiler
         $attributes = [];
         $forwarded = $node->attributes['attributes'] ?? null;
 
-        // While folding, the raw copy of a placeholder becomes its escaped copy in the attribute bag
-        $sanitizer = $this->manager->isFolding()
-            ? '\\Livewire\\Blaze\\Folder\\Placeholder::sanitize'
-            : '\\Illuminate\\View\\Compilers\\BladeCompiler::sanitizeComponentAttribute';
-
         foreach ($node->attributes as $attr) {
             $data[] = $this->blade->compileAttribute($attr);
 
             if (! $attr->dynamic) {
-                $attributes[] = $this->blade->compileAttribute($attr, escapeBound: true, originalKey: true, sanitizer: $sanitizer);
+                $attributes[] = $this->blade->compileAttribute($attr, escapeBound: true, originalKey: true);
             } elseif ($attr->bound() && $attr !== $forwarded) {
-                $attributes[] = "'{$attr->name}' => {$sanitizer}({$dataVariableName}['{$attr->propName}'])";
+                $attributes[] = "'{$attr->name}' => \\Illuminate\\View\\Compilers\\BladeCompiler::sanitizeComponentAttribute({$dataVariableName}['{$attr->propName}'])";
             } else {
                 $attributes[] = "'{$attr->name}' => {$dataVariableName}['{$attr->propName}']";
             }

@@ -100,15 +100,10 @@ class SlotCompiler
             return '[]';
         }
 
-        // While folding, the raw copy of a placeholder becomes its escaped copy in the slot's attribute bag
-        $sanitizer = $this->manager->isFolding()
-            ? '\\Livewire\\Blaze\\Folder\\Placeholder::sanitize'
-            : '\\Illuminate\\View\\Compilers\\BladeCompiler::sanitizeComponentAttribute';
-
         $parts = [];
 
         foreach ($attributes as $attr) {
-            $parts[] = $this->blade->compileAttribute($attr, escapeBound: true, originalKey: true, sanitizer: $sanitizer);
+            $parts[] = $this->blade->compileAttribute($attr, escapeBound: true, originalKey: true);
         }
 
         return '[' . implode(', ', $parts) . ']';

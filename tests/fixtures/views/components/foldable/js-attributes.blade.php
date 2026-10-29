@@ -2,4 +2,4 @@
 
 @props(['name' => null])
 
-<div data-name="{{ strtoupper($name) }}"></div>
+<div x-data="{ name: @js($name) }"></div>

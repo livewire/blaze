@@ -125,12 +125,11 @@ class BladeRenderer
                 return [$attribute->propName => $attribute->getStaticValue()];
             });
 
-            // The attribute bag gets the escaped copy of bound values, like in Blade
+            // Like in Blade, the attribute bag gets bound values escaped
             $attributes = Arr::mapWithKeys($component->attributes, function (Attribute $attribute) {
                 $value = $attribute->getStaticValue();
-                $placeholder = Placeholder::parse($value);
 
-                return [$attribute->name => $placeholder?->bound ? (string) $placeholder->escaped() : $value];
+                return [$attribute->name => Placeholder::parse($value)?->bound ? BladeCompiler::sanitizeComponentAttribute($value) : $value];
             });
             
             $slots = Arr::mapWithKeys($component->children, function (SlotNode $slot) {

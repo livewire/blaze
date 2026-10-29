@@ -189,10 +189,8 @@ class BladeService
 
     /**
      * Compile an attribute to a PHP array entry string (e.g. "'propName' => value").
-     *
-     * @param  string|null  $sanitizer  Function that escapes bound values, defaults to sanitizeComponentAttribute().
      */
-    public function compileAttribute(Attribute $attribute, bool $escapeBound = false, bool $originalKey = false, ?string $sanitizer = null): string
+    public function compileAttribute(Attribute $attribute, bool $escapeBound = false, bool $originalKey = false): string
     {
         $key = $originalKey ? $attribute->name : $attribute->propName;
 
@@ -200,7 +198,7 @@ class BladeService
             $value = 'true';
         } elseif ($attribute->bound()) {
             $value = $escapeBound
-                ? ($sanitizer ?? '\Illuminate\View\Compilers\BladeCompiler::sanitizeComponentAttribute') . '(' . $attribute->value . ')'
+                ? '\Illuminate\View\Compilers\BladeCompiler::sanitizeComponentAttribute(' . $attribute->value . ')'
                 : $attribute->value;
         } else {
             $value = $this->compileAttributeEchos($attribute->value);

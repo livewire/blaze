@@ -1,6 +1,5 @@
 <?php
 
-use Livewire\Blaze\BlazeManager;
 use Livewire\Blaze\Parser\Parser;
 use Livewire\Blaze\Compiler\Compiler;
 use Livewire\Blaze\Config;
@@ -63,31 +62,6 @@ test('compiles components', function () {
         '<?php if (! empty($__dataStack'. $hash .')) { $__data'. $hash .' = array_pop($__dataStack'. $hash .'); } ?> ',
         '<?php $__blaze->popData(); ?>',
     ]));
-});
-
-test('escapes bound attributes of components and slots with placeholder-aware sanitizer while folding', function () {
-    $input = <<<'BLADE'
-        <x-card :disabled="$disabled">
-            <x-slot:header :title="$title">Header</x-slot:header>
-        </x-card>
-        BLADE
-    ;
-
-    app(BlazeManager::class)->startFolding();
-
-    try {
-        $node = app(Parser::class)->parse($input)[0];
-        $compiled = app(Compiler::class)->compile($node)->render();
-    } finally {
-        app(BlazeManager::class)->stopFolding();
-    }
-
-    $hash = Utils::hash(fixture_path('views/components/card.blade.php'));
-
-    expect($compiled)
-        ->toContain('[\'disabled\' => \Livewire\Blaze\Folder\Placeholder::sanitize($__data'. $hash .'[\'disabled\'])]')
-        ->toContain('new \Illuminate\View\ComponentSlot($__blaze->processPassthroughContent(\'trim\', trim(ob_get_clean())), [\'title\' => \Livewire\Blaze\Folder\Placeholder::sanitize($title)])')
-        ->not->toContain('sanitizeComponentAttribute');
 });
 
 test('compiles delegate components', function () {
