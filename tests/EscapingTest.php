@@ -1,6 +1,8 @@
 <?php
 
 use Illuminate\Support\Facades\Artisan;
+use Illuminate\Support\Facades\Blade;
+use Livewire\Blaze\Exceptions\AmbiguousAttributeMergeException;
 use Livewire\Blaze\Exceptions\LeftoverPlaceholdersException;
 
 use function Livewire\invade;
@@ -50,6 +52,16 @@ test('echo slot attributes passed to nested components in unblaze', fn ($value) 
     BLADE, ['value' => $value]
 ))->with('strings');
 
+// A folded component is compiled once per process, so these use their own copies of the fixtures
+test('echo attributes passed to nested components in unblaze without double encoding', function (string $template, string $value) {
+    Blade::withoutDoubleEncoding();
+
+    compare($template, ['value' => $value]);
+})->with([
+    'attribute' => '<x-foldable.without-double-encoding.nested-echo-attributes-unblaze :title="$value" />',
+    'slot attribute' => '<x-foldable.without-double-encoding.nested-echo-slot-attributes-unblaze :title="$value" />',
+])->with('strings');
+
 test('bound attributes passed to nested blade components in unblaze', fn ($value) => compare(<<<'BLADE'
     <x-foldable.nested-blade-attributes-unblaze :title="$value" />
     BLADE, ['value' => $value]
@@ -80,15 +92,22 @@ test('bound attribute merged into itself', fn ($value) => compare(<<<'BLADE'
     BLADE, ['value' => $value]
 ))->with('strings');
 
-test('bound attribute merged into itself from the attribute bag', fn () => compare(<<<'BLADE'
+test('bound attribute merged into itself from the attribute bag fails the fold', fn () => expect(fn () => render(<<<'BLADE'
     <x-foldable.class-attribute :class="$value" />
     BLADE, ['value' => 'text-red-500']
-));
+))->toThrow(AmbiguousAttributeMergeException::class));
 
-test('bound attribute merged into itself from the attribute bag in unblaze', fn () => compare(<<<'BLADE'
-    <x-foldable.class-attribute-unblaze :class="$value" />
-    BLADE, ['value' => 'text-red-500']
-));
+test('bound attribute merged into itself from the attribute bag is compiled without folding', function (string $template, string $value) {
+    invade(app('blaze'))->throw = false;
+
+    compare($template, ['value' => $value]);
+})->with([
+    'attribute' => '<x-foldable.class-attribute :class="$value" />',
+    'attribute in unblaze' => '<x-foldable.class-attribute-unblaze :class="$value" />',
+])->with([
+    'plain' => 'text-red-500',
+    'arbitrary variant' => '[&>span]:hidden',
+]);
 
 test('bound attributes merged into the same class attribute', fn () => compare(<<<'BLADE'
     <x-foldable.class-prop :variant="$variant" :class="$class" />
@@ -99,6 +118,15 @@ test('bound attributes concatenated in unblaze', fn ($value) => compare(<<<'BLAD
     <x-foldable.concatenated-attributes-unblaze :name="$value" :label="$value" />
     BLADE, ['value' => $value]
 ))->with('strings');
+
+test('bound expressions concatenated in unblaze', fn (string $template, mixed $value) => compare($template, ['value' => $value]))->with([
+    'conditional' => '<x-foldable.concatenated-attributes-unblaze :name="$value ? \'email\' : \'phone\'" :label="$value ? \'Email\' : \'Phone\'" />',
+    'coalescing' => '<x-foldable.concatenated-attributes-unblaze :name="$value ?? \'email\'" :label="$value ?? \'Email\'" />',
+])->with([
+    'null' => null,
+    'false' => false,
+    'string' => 'A &amp; B',
+]);
 
 test('bound attributes escaped in the template', fn ($value) => compare(<<<'BLADE'
     <x-foldable.escaped-attributes :title="$value" />

@@ -210,12 +210,12 @@ class Foldable
 
                 $parts = preg_split('/(' . Placeholder::PATTERN . ')/', $matches[1], -1, PREG_SPLIT_DELIM_CAPTURE | PREG_SPLIT_NO_EMPTY);
 
-                return implode(' . ', array_map(function ($part) {
+                return implode(' . ', array_map(function ($part) use ($parts) {
                     [$placeholder, $attribute] = $this->attributeFor($part);
 
                     return match (true) {
                         ! $attribute => "'" . $part . "'",
-                        $attribute->bound() => $this->escapedExpression($attribute->value, $placeholder),
+                        $attribute->bound() => $this->escapedExpression($attribute->value, $placeholder, grouped: count($parts) > 1),
                         default => $this->blade->compileAttributeEchos($attribute->value),
                     };
                 }, $parts));
@@ -279,13 +279,21 @@ class Foldable
     }
 
     /**
-     * Get the expression of a bound value escaped as many times as its placeholder was while rendering.
+     * Get the expression of a bound value escaped the way its placeholder was while rendering.
      *
      * sanitizeComponentAttribute() keeps booleans and null like the attribute bag and merge() do.
+     * A raw expression that becomes part of a concatenation is grouped, so that operators binding
+     * weaker than "." keep their meaning.
      */
-    protected function escapedExpression(string $value, Placeholder $placeholder): string
+    protected function escapedExpression(string $value, Placeholder $placeholder, bool $grouped = false): string
     {
         $sanitize = '\\Illuminate\\View\\Compilers\\BladeCompiler::sanitizeComponentAttribute(';
+
+        $value = match (true) {
+            $placeholder->escapedWithoutDoubleEncoding => 'e(' . $value . ', false)',
+            $grouped && $placeholder->escapes === 0 => '(' . $value . ')',
+            default => $value,
+        };
 
         return str_repeat($sanitize, $placeholder->escapes) . $value . str_repeat(')', $placeholder->escapes);
     }
