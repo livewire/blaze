@@ -198,11 +198,11 @@ class Foldable
         $this->html = preg_replace_callback('/<\?php.*?\?>/s', function ($match) {
             return preg_replace_callback("/'(" . Placeholder::PATTERN . ")'/", function ($matches) {
                 $placeholder = Placeholder::parse($matches[1]);
-                $attribute = $this->attributeByIndex[$placeholder->index] ?? null;
+                $attribute = $placeholder ? $this->attributeByIndex[$placeholder->index] ?? null : null;
 
                 return match (true) {
                     ! $attribute => $matches[0],
-                    $attribute->bound() => $this->escapedExpression($attribute->value, $placeholder->escapes),
+                    $attribute->bound() => $this->escapedExpression($attribute->value, $placeholder),
                     default => $this->blade->compileAttributeEchos($attribute->value),
                 };
             }, $match[0]);
@@ -210,7 +210,8 @@ class Foldable
 
         // Attribute placeholders in HTML context need Blade echo syntax
         $this->html = preg_replace_callback('/' . Placeholder::PATTERN . '/', function ($matches) {
-            $attribute = $this->attributeByIndex[Placeholder::parse($matches[0])->index] ?? null;
+            $placeholder = Placeholder::parse($matches[0]);
+            $attribute = $placeholder ? $this->attributeByIndex[$placeholder->index] ?? null : null;
 
             return match (true) {
                 ! $attribute => $matches[0],
@@ -231,18 +232,23 @@ class Foldable
     }
 
     /**
-     * Get the expression of a bound value as it reads after being escaped the given number of times
-     * while rendering. The first time is the attribute bag, the others are escaped by the component.
+     * Get the expression of a bound value as it reads after being escaped as many times as its placeholder.
+     *
+     * Escapes come from attribute bags or merge(), which keep booleans and null like sanitizeComponentAttribute().
+     * A component calling e() itself on such values can't be told apart and keeps them too.
      */
-    protected function escapedExpression(string $value, int $times): string
+    protected function escapedExpression(string $value, Placeholder $placeholder): string
     {
-        if ($times === 0) {
+        if ($placeholder->escapes === 0) {
             return $value;
         }
 
-        $expression = '\\Illuminate\\View\\Compilers\\BladeCompiler::sanitizeComponentAttribute(' . $value . ')';
+        $sanitize = '\\Illuminate\\View\\Compilers\\BladeCompiler::sanitizeComponentAttribute(';
 
-        return str_repeat('e(', $times - 1) . $expression . str_repeat(')', $times - 1);
+        // Laravel always double encodes, so only the component itself can have called e($value, false)
+        $expression = $placeholder->doubleEncoded ? $sanitize . $value . ')' : 'e(' . $value . ', false)';
+
+        return str_repeat($sanitize, $placeholder->escapes - 1) . $expression . str_repeat(')', $placeholder->escapes - 1);
     }
 
     /**

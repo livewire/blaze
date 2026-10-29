@@ -241,6 +241,18 @@ test('foldable bound attributes escaped in the template in unblaze', fn () => co
     BLADE, ['value' => '"><img src=x onerror=alert(1)> a"b<c>&d\'e']
 ));
 
+test('foldable bound boolean attributes merged into attribute bags in unblaze', function (mixed $value) {
+    compare('<x-foldable.merged-bag-attributes-unblaze :disabled="$value" />', ['value' => $value]);
+})->with([false, null, true, '"><img src=x onerror=alert(1)> a"b<c>&d\'e']);
+
+test('foldable bound boolean attributes forwarded to nested blade components in unblaze', function (mixed $value) {
+    compare('<x-foldable.forwarded-blade-attributes-unblaze :disabled="$value" />', ['value' => $value]);
+})->with([false, null, true, '"><img src=x onerror=alert(1)> a"b<c>&d\'e']);
+
+test('foldable bound attributes escaped without double encoding in unblaze', function (string $value) {
+    compare('<x-foldable.escaped-without-double-encoding-unblaze :title="$value" />', ['value' => $value]);
+})->with(['A &amp; B', '"><img src=x onerror=alert(1)> a"b<c>&d\'e']);
+
 test('foldable aware in unblaze', fn () => compare(<<<'BLADE'
     <x-wrapper :type="$value">
         <x-foldable.aware-unblaze />
