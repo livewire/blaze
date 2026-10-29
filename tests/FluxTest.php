@@ -110,11 +110,10 @@ test('delegate component forwards props to non-Blaze target inside Blade compone
 });
 
 /**
- * Checks that an attribute bag a folded component passes to @unblaze is escaped, like in Blade
+ * Field components pass their error attributes to flux:error through @unblaze
  */
-test('folded component escapes attributes passed to unblaze like Blade', function (string $template, array $folded) {
-    compareFolded($template, ['value' => '"><img src=x onerror=alert(1)> a"b<c>&d\'e'], $folded);
-})->with([
-    'input error attributes' => ['<flux:input name="email" label="Email" :error:aria-label="$value" />', ['flux::input']],
-    'checkbox group error attributes' => ['<flux:checkbox.group label="Label" :error:aria-label="$value"><flux:checkbox value="a" label="A" /></flux:checkbox.group>', ['flux::checkbox.group']],
-]);
+test('folded field component escapes bound error attributes like Blade', function () {
+    compare('<flux:input name="email" label="Email" :error:aria-label="$value" />', [
+        'value' => '"><img src=x onerror=alert(1)> a"b<c>&d\'e',
+    ]);
+});

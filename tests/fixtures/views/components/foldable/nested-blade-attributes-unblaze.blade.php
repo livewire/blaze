@@ -3,5 +3,5 @@
 @props(['title' => null])
 
 <section>
-    <x-foldable.unblaze-bag :title="$title" :name="$title" />
+    <x-foldable.blade-attributes-unblaze :title="$title" />
 </section>

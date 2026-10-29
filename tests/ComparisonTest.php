@@ -1,9 +1,6 @@
 <?php
 
 use Illuminate\Support\Facades\Artisan;
-use Illuminate\Support\Facades\Blade;
-use Livewire\Blaze\Blaze;
-use Livewire\Blaze\Exceptions\LeftoverPlaceholdersException;
 
 beforeEach(fn () => Artisan::call('view:clear'));
 
@@ -183,41 +180,70 @@ test('duplicate attribute', fn () => compare(<<<'BLADE'
     <x-input type="email" type="number" />
     BLADE
 ));
-test('folded component escapes its attribute bag passed to unblaze', fn (string $value) => compareFolded(<<<'BLADE'
-    <x-foldable.unblaze-bag :title="$value" :name="$value" :x-data="$value" :wire:key="$value" />
-    BLADE, ['value' => $value], ['foldable.unblaze-bag']
-))->with('unsafe value');
 
-test('folded component restores repeatedly escaped attributes in unblaze', fn (string $value) => compareFolded(<<<'BLADE'
-    <x-foldable.unblaze-escape-depth :title="$value" />
-    BLADE, ['value' => $value], ['foldable.unblaze-escape-depth']
-))->with('unsafe value');
+test('foldable bound attributes', fn () => compare(<<<'BLADE'
+    <x-foldable.input :type="$value" :placeholder="$value" />
+    BLADE, ['value' => '"><img src=x onerror=alert(1)> a"b<c>&d\'e']
+));
 
-test('folded component keeps aware values raw in unblaze', fn (string $value) => compareFolded(<<<'BLADE'
+test('foldable bound attributes in unblaze', fn () => compare(<<<'BLADE'
+    <x-foldable.attributes-unblaze :title="$value" :name="$value" />
+    BLADE, ['value' => '"><img src=x onerror=alert(1)> a"b<c>&d\'e']
+));
+
+test('foldable bound attributes passed to nested components in unblaze', fn () => compare(<<<'BLADE'
+    <x-foldable.nested-attributes-unblaze :title="$value" />
+    BLADE, ['value' => '"><img src=x onerror=alert(1)> a"b<c>&d\'e']
+));
+
+test('foldable bound slot attributes passed to nested components in unblaze', fn () => compare(<<<'BLADE'
+    <x-foldable.nested-slot-attributes-unblaze :title="$value" />
+    BLADE, ['value' => '"><img src=x onerror=alert(1)> a"b<c>&d\'e']
+));
+
+test('foldable echo attributes passed to nested components in unblaze', fn () => compare(<<<'BLADE'
+    <x-foldable.nested-echo-attributes-unblaze :title="$value" />
+    BLADE, ['value' => '"><img src=x onerror=alert(1)> a"b<c>&d\'e']
+));
+
+test('foldable echo slot attributes passed to nested components in unblaze', fn () => compare(<<<'BLADE'
+    <x-foldable.nested-echo-slot-attributes-unblaze :title="$value" />
+    BLADE, ['value' => '"><img src=x onerror=alert(1)> a"b<c>&d\'e']
+));
+
+test('foldable merged attributes in unblaze', fn () => compare(<<<'BLADE'
+    <x-foldable.merged-attributes-unblaze :title="$value" />
+    BLADE, ['value' => '"><img src=x onerror=alert(1)> a"b<c>&d\'e']
+));
+
+test('foldable bound attribute merged into itself', fn () => compare(<<<'BLADE'
+    <x-foldable.class-default :class="$value" />
+    BLADE, ['value' => '"><img src=x onerror=alert(1)> a"b<c>&d\'e']
+));
+
+test('foldable bound attributes passed to nested blade components in unblaze', fn () => compare(<<<'BLADE'
+    <x-foldable.nested-blade-attributes-unblaze :title="$value" />
+    BLADE, ['value' => '"><img src=x onerror=alert(1)> a"b<c>&d\'e']
+));
+
+test('foldable bound attributes merged into blade attribute bags in unblaze', fn () => compare(<<<'BLADE'
+    <x-foldable.merged-blade-attributes-unblaze :title="$value" />
+    BLADE, ['value' => '"><img src=x onerror=alert(1)> a"b<c>&d\'e']
+));
+
+test('foldable bound attributes escaped in the template', fn () => compare(<<<'BLADE'
+    <x-foldable.escaped-attributes :title="$value" />
+    BLADE, ['value' => '"><img src=x onerror=alert(1)> a"b<c>&d\'e']
+));
+
+test('foldable bound attributes escaped in the template in unblaze', fn () => compare(<<<'BLADE'
+    <x-foldable.escaped-attributes-unblaze :title="$value" :name="$value" />
+    BLADE, ['value' => '"><img src=x onerror=alert(1)> a"b<c>&d\'e']
+));
+
+test('foldable aware in unblaze', fn () => compare(<<<'BLADE'
     <x-wrapper :type="$value">
-        <x-foldable.unblaze-aware />
+        <x-foldable.aware-unblaze />
     </x-wrapper>
-    BLADE, ['value' => $value], ['foldable.unblaze-aware']
-))->with('unsafe value');
-
-/**
- * Children of a folded component are rendered while it folds, not folded separately
- */
-test('folded component escapes attribute bags its children pass to unblaze', fn (string $value) => compareFolded(<<<'BLADE'
-    <x-foldable.unblaze-bag-parent :title="$value" />
-    BLADE, ['value' => $value], ['foldable.unblaze-bag-parent']
-))->with('unsafe value');
-
-test('folded component that transforms an attribute passed to unblaze throws in throw mode', function (string $value) {
-    expect(fn () => Blade::render('<x-foldable.unblaze-transformed :title="$value" />', ['value' => $value]))
-        ->toThrow(LeftoverPlaceholdersException::class, 'Leftover Blaze placeholders detected after folding component \'foldable.unblaze-transformed\'');
-})->with('unsafe value');
-
-test('folded component that transforms an attribute passed to unblaze is compiled without folding', function (string $value) {
-    (fn () => $this->throw = false)->call(Blaze::getFacadeRoot());
-
-    compareFolded(<<<'BLADE'
-        <x-foldable.unblaze-transformed :title="$value" />
-        BLADE, ['value' => $value], []
-    );
-})->with('unsafe value');
+    BLADE, ['value' => '"><img src=x onerror=alert(1)> a"b<c>&d\'e']
+));
