@@ -5,6 +5,8 @@ namespace Livewire\Blaze\Runtime;
 use Illuminate\Support\Arr;
 use Illuminate\View\AppendableAttributeValue;
 use Illuminate\View\ComponentAttributeBag;
+use Livewire\Blaze\Exceptions\AmbiguousAttributeMergeException;
+use Livewire\Blaze\Folder\Placeholder;
 
 /**
  * Optimized ComponentAttributeBag replacement avoiding Collection overhead.
@@ -67,6 +69,10 @@ class BlazeAttributeBag extends ComponentAttributeBag
                 $attributes[$key] = $value ?: '';
             } elseif (! $value || $value === $defaultsValue) {
                 $attributes[$key] = $defaultsValue;
+            } elseif (Placeholder::same($value, $defaultsValue)) {
+                // While folding, whether Blade would merge differently escaped copies of a bound
+                // attribute into one depends on the value, which isn't known yet
+                throw new AmbiguousAttributeMergeException($key);
             } else {
                 $attributes[$key] = $defaultsValue.' '.$value;
             }
@@ -192,7 +198,7 @@ class BlazeAttributeBag extends ComponentAttributeBag
                 $value = $key === 'x-data' || str_starts_with($key, 'wire:') ? '' : $key;
             }
 
-            if (str_starts_with($value, 'BLAZE_PLACEHOLDER_') && str_ends_with($value, '_')) {
+            if (Placeholder::parse($value)) {
                 $parts[] = '[BLAZE_ATTR:'.$value.':'.$key.']';
             } else {
                 $parts[] = $key.'="'.str_replace('"', '\\"', trim($value)).'"';
