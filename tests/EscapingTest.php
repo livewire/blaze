@@ -65,6 +65,12 @@ test('bound objects', fn ($value) => compare(<<<'BLADE'
     BLADE, ['value' => $value]
 ))->with('objects');
 
+// merge() doesn't escape objects, so the bag casts the marked object to a string only once
+test('bound objects merged as defaults', fn ($value) => compare(<<<'BLADE'
+    <x-foldable.merged-attributes :title="$value" />
+    BLADE, ['value' => $value]
+))->with('objects');
+
 test('bound objects in unblaze', fn ($value) => compare(<<<'BLADE'
     <x-foldable.attributes-unblaze :title="$value" :name="$value" />
     BLADE, ['value' => $value]

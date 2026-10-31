@@ -195,7 +195,7 @@ class BlazeRuntime
      *
      * Blade escapes the attribute bag copy with sanitizeComponentAttribute(), which marks objects
      * like collections to be escaped when cast to a string. The raw copy is the same object,
-     * so it's marked too.
+     * so it's marked too. Folded components use it only where the raw copy isn't escaped again.
      */
     public function rawAttribute(mixed $value): mixed
     {

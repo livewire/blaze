@@ -193,12 +193,10 @@ class Foldable
                 return $matches[0];
             }
 
-            $value = $placeholder->is('bag') ? $attribute->value : $this->rawCopy($attribute);
-
             // x-data and wire:* get empty string for true, others get key name
             $booleanValue = ($name === 'x-data' || str_starts_with($name, 'wire:')) ? "''" : "'".addslashes($name)."'";
 
-            return '<'.'?php if (($__blazeAttr = '.$value.') !== false && !is_null($__blazeAttr)): ?'.'>'
+            return '<'.'?php if (($__blazeAttr = '.$attribute->value.') !== false && !is_null($__blazeAttr)): ?'.'>'
             . $name.'="<'.'?php echo e($__blazeAttr === true ? '.$booleanValue.' : $__blazeAttr); ?'.'>"'
             .'<'.'?php endif; unset($__blazeAttr); ?'.'>' . (isset($matches[3]) ? $matches[3] . $matches[3] : '');
         }, $this->html);
@@ -218,7 +216,7 @@ class Foldable
                 ! $attribute => $matches[0],
                 ! $attribute->bound() => $attribute->value,
                 $placeholder->is('raw') => '{!! ' . $this->rawCopy($attribute) . ' !!}',
-                $placeholder->is('raw', escapes: 1) => '{{ ' . $this->rawCopy($attribute) . ' }}',
+                $placeholder->is('raw', escapes: 1) => '{{ ' . $attribute->value . ' }}',
                 $placeholder->is('bag') => '{!! ' . $this->bagCopy($attribute) . ' !!}',
                 default => $matches[0],
             };
@@ -289,7 +287,10 @@ class Foldable
     }
 
     /**
-     * Get the runtime expression of the raw copy of a bound attribute.
+     * Get the runtime expression of the raw copy of a bound attribute that isn't escaped again.
+     *
+     * A raw copy escaped once comes from an echo or from merge(), which skips escaping objects,
+     * so it's restored as the plain expression and escaped once, like a merged default in Blade.
      */
     protected function rawCopy(Attribute $attribute): string
     {

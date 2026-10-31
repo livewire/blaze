@@ -2,4 +2,4 @@
 
 @props(['content' => null])
 
-<div title="{{ $content }}">{!! $content !!}</div>
+<div>{!! $content !!}</div>

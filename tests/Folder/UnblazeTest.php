@@ -50,7 +50,7 @@ test('folds dynamic attributes used inside unblaze directive', function () {
     expect($foldable->fold())->toEqualCollapsingWhitespace(
         sprintf('<input %s >', join('', [
             '<?php if (isset($scope)) $__scope = $scope; ?>',
-            '<?php $scope = [\'name\' => $field]; ?>',
+            '<?php $scope = [\'name\' => $__blaze->rawAttribute($field)]; ?>',
             ' {{ $errors->has($scope[\'name\']) }} ',
             '<?php if (isset($__scope)) { $scope = $__scope; unset($__scope); } ?>'
         ]))
