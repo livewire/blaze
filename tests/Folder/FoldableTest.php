@@ -24,7 +24,7 @@ test('replaces and restores bound attributes', function () {
 
     $output = (new Foldable($node, '', app(BladeRenderer::class), app(BladeService::class)))->fold();
 
-    expect($output)->toEqualCollapsingWhitespace('<input type="{{ $type }}" >');
+    expect($output)->toEqualCollapsingWhitespace('<input type="{{ $__blaze->rawAttribute($type) }}" >');
 });
 
 test('preserves bound attributes with static constant values', function (string $value) {
@@ -61,7 +61,7 @@ test('replaces parents attributes', function () {
 
     $output = (new Foldable($node, '', app(BladeRenderer::class), app(BladeService::class)))->fold();
 
-    expect($output)->toEqualCollapsingWhitespace('<input type="{{ $type }}">');
+    expect($output)->toEqualCollapsingWhitespace('<input type="{{ $__blaze->rawAttribute($type) }}">');
 });
 
 test('restores every occurrence of a dynamic attribute placeholder', function () {
@@ -95,10 +95,12 @@ test('restores bound attributes in html', function (string $rendered, string $ex
 
     expect($output)->toBe($expected);
 })->with([
-    'raw copy' => ['<input type="BLAZE_PLACEHOLDER_0_raw&_">', '<input type="{!! $type !!}">'],
-    'raw copy escaped once' => ['<input type="BLAZE_PLACEHOLDER_0_raw&amp;_">', '<input type="{{ $type }}">'],
-    'attribute bag copy' => ['<input type="BLAZE_PLACEHOLDER_0_bag&_">', '<input type="{!! e($type) !!}">'],
-    'next to other values' => ['<input class="p-4 BLAZE_PLACEHOLDER_0_bag&_">', '<input class="p-4 {!! e($type) !!}">'],
+    'raw copy' => ['<input type="BLAZE_PLACEHOLDER_0_raw&_">', '<input type="{!! $__blaze->rawAttribute($type) !!}">'],
+    'raw copy escaped once' => ['<input type="BLAZE_PLACEHOLDER_0_raw&amp;_">', '<input type="{{ $__blaze->rawAttribute($type) }}">'],
+    'attribute bag copy' => ['<input type="BLAZE_PLACEHOLDER_0_bag&_">', '<input type="{!! \\Illuminate\\View\\Compilers\\BladeCompiler::sanitizeComponentAttribute($type) !!}">'],
+    'next to other values' => ['<input class="p-4 BLAZE_PLACEHOLDER_0_bag&_">', '<input class="p-4 {!! \\Illuminate\\View\\Compilers\\BladeCompiler::sanitizeComponentAttribute($type) !!}">'],
+    'same copy twice' => ['<input type="BLAZE_PLACEHOLDER_0_raw&amp;_" title="BLAZE_PLACEHOLDER_0_raw&amp;_">', '<input type="{{ $__blaze->rawAttribute($type) }}" title="{{ $__blaze->rawAttribute($type) }}">'],
+    'attribute bag copy next to the attribute bag' => ['<input [BLAZE_ATTR:BLAZE_PLACEHOLDER_0_bag&_:type] title="BLAZE_PLACEHOLDER_0_raw&amp;_">', '<input <?php if (($__blazeAttr = $type) !== false && !is_null($__blazeAttr)): ?>type="<?php echo e($__blazeAttr === true ? \'type\' : $__blazeAttr); ?>"<?php endif; unset($__blazeAttr); ?> title="{{ $__blaze->rawAttribute($type) }}">'],
 ]);
 
 test('exports bound attributes in unblaze scopes', function (Closure $scope, string $expected) {
@@ -113,7 +115,7 @@ test('exports bound attributes in unblaze scopes', function (Closure $scope, str
 
     expect($output)->toBe($expected);
 })->with([
-    'raw copy' => [fn () => ['type' => 'BLAZE_PLACEHOLDER_0_raw&_'], "['type' => \$type]"],
+    'raw copy' => [fn () => ['type' => 'BLAZE_PLACEHOLDER_0_raw&_'], "['type' => \$__blaze->rawAttribute(\$type)]"],
     'attribute bag copy' => [fn () => ['type' => 'BLAZE_PLACEHOLDER_0_bag&_'], "['type' => \\Illuminate\\View\\Compilers\\BladeCompiler::sanitizeComponentAttribute(\$type)]"],
     'echo attribute' => [fn () => ['theme' => 'BLAZE_PLACEHOLDER_1_'], "['theme' => 'dark-'.e(\$variant)]"],
     'nested' => [fn () => ['attributes' => ['type' => 'BLAZE_PLACEHOLDER_0_bag&_', 'name' => 'email'], 0 => true], "['attributes' => ['type' => \\Illuminate\\View\\Compilers\\BladeCompiler::sanitizeComponentAttribute(\$type), 'name' => 'email'], 0 => true]"],
@@ -157,6 +159,9 @@ test('fails when a bound attribute was transformed by the component', function (
     'url encoded' => '<input type="BLAZE_PLACEHOLDER_0_raw%26_">',
     'json encoded' => '<input x-data="{ type: \'BLAZE_PLACEHOLDER_0_raw\u0026_\' }">',
     'merged with itself' => '<input class="BLAZE_PLACEHOLDER_0_raw&amp;_ BLAZE_PLACEHOLDER_0_bag&_">',
+    'merged with itself after a quote in text' => '<p>12" screen</p><input class="BLAZE_PLACEHOLDER_0_raw&amp;_ BLAZE_PLACEHOLDER_0_bag&_">',
+    'merged with itself in single quotes' => "<input class='BLAZE_PLACEHOLDER_0_raw&amp;_ BLAZE_PLACEHOLDER_0_bag&_'>",
+    'merged with itself after an escaped quote' => '<input x-data="{ a: \\"b\\" }" class="BLAZE_PLACEHOLDER_0_raw&amp;_ BLAZE_PLACEHOLDER_0_bag&_">',
     'without copy marker' => '<input type="BLAZE_PLACEHOLDER_0_">',
     'without copy marker in attribute bag' => '<input [BLAZE_ATTR:BLAZE_PLACEHOLDER_0_:type]>',
     'raw copy in attribute bag' => '<input [BLAZE_ATTR:BLAZE_PLACEHOLDER_0_raw&_:type]>',

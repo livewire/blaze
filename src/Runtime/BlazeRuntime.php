@@ -2,6 +2,7 @@
 
 namespace Livewire\Blaze\Runtime;
 
+use Illuminate\Contracts\Support\CanBeEscapedWhenCastToString;
 use Illuminate\Contracts\View\Factory;
 use Illuminate\Foundation\Application;
 use Illuminate\Support\Str;
@@ -187,6 +188,18 @@ class BlazeRuntime
         }
 
         return $parent->merge($attributes, false)->getAttributes();
+    }
+
+    /**
+     * Get the raw copy of a bound attribute the way a component reads it in Blade.
+     *
+     * Blade escapes the attribute bag copy with sanitizeComponentAttribute(), which marks objects
+     * like collections to be escaped when cast to a string. The raw copy is the same object,
+     * so it's marked too.
+     */
+    public function rawAttribute(mixed $value): mixed
+    {
+        return $value instanceof CanBeEscapedWhenCastToString ? $value->escapeWhenCastingToString() : $value;
     }
 
     /**

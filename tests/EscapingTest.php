@@ -1,6 +1,8 @@
 <?php
 
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Artisan;
+use Illuminate\Support\Facades\Blade;
 use Illuminate\Support\HtmlString;
 use Illuminate\View\Component;
 use Livewire\Blaze\Exceptions\LeftoverPlaceholdersException;
@@ -51,6 +53,32 @@ test('bound attributes escaped in the template', fn ($value) => compare(<<<'BLAD
     <x-foldable.escaped-attributes :title="$value" />
     BLADE, ['value' => $value]
 ))->with('values');
+
+// Blade escapes the attribute bag copy of objects like collections by marking them to be escaped
+// when cast to a string, which marks the raw copy too, since it's the same object
+dataset('objects', [
+    'collection' => fn () => collect(['"><img src=x onerror=alert(1)>']),
+]);
+
+test('bound objects', fn ($value) => compare(<<<'BLADE'
+    <x-foldable.raw-attributes :content="$value" />
+    BLADE, ['value' => $value]
+))->with('objects');
+
+test('bound objects in unblaze', fn ($value) => compare(<<<'BLADE'
+    <x-foldable.attributes-unblaze :title="$value" :name="$value" />
+    BLADE, ['value' => $value]
+))->with('objects');
+
+test('bound objects with echo handlers', function ($value) {
+    Blade::stringable(Collection::class, fn () => 'handled');
+
+    compare(<<<'BLADE'
+        <x-foldable.raw-attributes :content="$value" />
+        <x-foldable.raw-bag-attributes :title="$value" />
+        BLADE, ['value' => $value]
+    );
+})->with('objects');
 
 test('bound attributes merged into the same class attribute', fn () => compare(<<<'BLADE'
     <x-foldable.class-prop :variant="$variant" :class="$class" />

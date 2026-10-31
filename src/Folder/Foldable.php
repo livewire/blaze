@@ -193,10 +193,12 @@ class Foldable
                 return $matches[0];
             }
 
+            $value = $placeholder->is('bag') ? $attribute->value : $this->rawCopy($attribute);
+
             // x-data and wire:* get empty string for true, others get key name
             $booleanValue = ($name === 'x-data' || str_starts_with($name, 'wire:')) ? "''" : "'".addslashes($name)."'";
 
-            return '<'.'?php if (($__blazeAttr = '.$attribute->value.') !== false && !is_null($__blazeAttr)): ?'.'>'
+            return '<'.'?php if (($__blazeAttr = '.$value.') !== false && !is_null($__blazeAttr)): ?'.'>'
             . $name.'="<'.'?php echo e($__blazeAttr === true ? '.$booleanValue.' : $__blazeAttr); ?'.'>"'
             .'<'.'?php endif; unset($__blazeAttr); ?'.'>' . (isset($matches[3]) ? $matches[3] . $matches[3] : '');
         }, $this->html);
@@ -215,9 +217,9 @@ class Foldable
             return match (true) {
                 ! $attribute => $matches[0],
                 ! $attribute->bound() => $attribute->value,
-                $placeholder->is('raw') => '{!! ' . $attribute->value . ' !!}',
-                $placeholder->is('raw', escapes: 1) => '{{ ' . $attribute->value . ' }}',
-                $placeholder->is('bag') => '{!! e(' . $attribute->value . ') !!}',
+                $placeholder->is('raw') => '{!! ' . $this->rawCopy($attribute) . ' !!}',
+                $placeholder->is('raw', escapes: 1) => '{{ ' . $this->rawCopy($attribute) . ' }}',
+                $placeholder->is('bag') => '{!! ' . $this->bagCopy($attribute) . ' !!}',
                 default => $matches[0],
             };
         }, $this->html);
@@ -257,8 +259,8 @@ class Foldable
         $code = match (true) {
             ! $attribute => var_export($value, true),
             ! $attribute->bound() => $this->blade->compileAttributeEchos($attribute->value),
-            $placeholder->is('raw') => $attribute->value,
-            $placeholder->is('bag') => '\\Illuminate\\View\\Compilers\\BladeCompiler::sanitizeComponentAttribute(' . $attribute->value . ')',
+            $placeholder->is('raw') => $this->rawCopy($attribute),
+            $placeholder->is('bag') => $this->bagCopy($attribute),
             default => null,
         };
 
@@ -287,20 +289,46 @@ class Foldable
     }
 
     /**
-     * Fail the fold when copies of the same bound attribute meet in one attribute value.
+     * Get the runtime expression of the raw copy of a bound attribute.
+     */
+    protected function rawCopy(Attribute $attribute): string
+    {
+        return '$__blaze->rawAttribute(' . $attribute->value . ')';
+    }
+
+    /**
+     * Get the runtime expression of the attribute bag copy of a bound attribute.
+     */
+    protected function bagCopy(Attribute $attribute): string
+    {
+        return '\\Illuminate\\View\\Compilers\\BladeCompiler::sanitizeComponentAttribute(' . $attribute->value . ')';
+    }
+
+    /**
+     * Fail the fold when different copies of the same bound attribute reach the output.
      *
      * That's usually a merge, like $attributes->class($class), which Blade dedupes or not
-     * depending on whether the copies are equal at runtime.
+     * depending on whether the copies are equal at runtime. Equal copies are deduped like
+     * in Blade, so they're fine. Attribute values aren't parsed out of the HTML, so different
+     * copies anywhere in the output fail the fold, except ones rendered by the attribute bag.
      */
     protected function ensureNoMergedCopies(): void
     {
-        preg_match_all('/"[^"]*"/', $this->html, $values);
+        preg_match_all('/\[BLAZE_ATTR:[^\]]*\](*SKIP)(*FAIL)|' . Placeholder::PATTERN . '/', $this->html, $matches);
 
-        foreach ($values[0] as $value) {
-            preg_match_all('/BLAZE_PLACEHOLDER_([0-9]+)_(?:raw|bag)&/', $value, $matches);
+        $copies = [];
 
-            if (count($matches[1]) !== count(array_unique($matches[1]))) {
-                throw new LeftoverPlaceholdersException($this->node->name, $value, Str::limit($this->html, 500));
+        foreach (array_unique($matches[0]) as $value) {
+            $placeholder = Placeholder::parse($value);
+
+            if ($placeholder?->copy) {
+                $copies[$placeholder->index][] = $value;
+            }
+        }
+
+        foreach ($copies as $values) {
+            if (count($values) > 1) {
+                throw new LeftoverPlaceholdersException($this->node->name, implode(', ', $values), Str::limit($this->html, 500));
             }
         }
     }
