@@ -86,6 +86,17 @@ test('bound objects with echo handlers', function ($value) {
     );
 })->with('objects');
 
+// Flux::forwardedAttributes() decodes attribute bag copies it reads as props, which the component escapes again
+test('bound attributes decoded from the attribute bag and escaped again', fn ($value) => compare(<<<'BLADE'
+    <x-foldable.decoded-bag-attributes :href="$value" />
+    BLADE, ['value' => $value]
+))->with('values');
+
+test('bound objects decoded from the attribute bag and escaped again', fn ($value) => compare(<<<'BLADE'
+    <x-foldable.decoded-bag-attributes :href="$value" />
+    BLADE, ['value' => $value]
+))->with('objects');
+
 test('bound attributes merged into the same class attribute', fn () => compare(<<<'BLADE'
     <x-foldable.class-prop :variant="$variant" :class="$class" />
     BLADE, ['variant' => 'text-sm', 'class' => 'p-4']
@@ -112,6 +123,7 @@ test('bound attributes used in other ways are compiled without folding', fn (str
     'escaped in the template in unblaze' => '<x-foldable.escaped-attributes-unblaze :title="$value" />',
     'from the attribute bag escaped in the template in unblaze' => '<x-foldable.escaped-bag-attributes-unblaze :name="$value" />',
     'from the attribute bag echoed in the template' => '<x-foldable.echoed-bag-attributes :title="$value" />',
+    'decoded from the attribute bag in unblaze' => '<x-foldable.decoded-bag-attributes-unblaze :href="$value" />',
 ])->with('values');
 
 test('bound attributes used in other ways with strings are compiled without folding', fn (string $template, string $value) => compareUnfolded($template, ['value' => $value]))->with([

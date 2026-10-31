@@ -203,6 +203,16 @@ class BlazeRuntime
     }
 
     /**
+     * Get the attribute bag copy of a bound attribute decoded the way Flux::forwardedAttributes() does it.
+     */
+    public function decodedAttribute(mixed $value): mixed
+    {
+        $value = BladeCompiler::sanitizeComponentAttribute($value);
+
+        return is_string($value) ? htmlspecialchars_decode($value, ENT_QUOTES) : $value;
+    }
+
+    /**
      * Push component data onto the stack for @aware lookups.
      */
     public function pushData(array $data): void

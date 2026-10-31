@@ -117,3 +117,13 @@ test('folded field component escapes bound error attributes like Blade', functio
         'value' => '"><img src=x onerror=alert(1)> a"b<c>&d\'e',
     ]);
 });
+
+/**
+ * Buttons read href and tooltip from the attribute bag with Flux::forwardedAttributes(), which decodes them
+ */
+test('folded button escapes bound attributes decoded from the attribute bag like Blade', function (string $template) {
+    compare($template, ['value' => '"><img src=x onerror=alert(1)> /a?b=1&c=2&amp;d']);
+})->with([
+    'href' => '<flux:button :href="$value">Go</flux:button>',
+    'tooltip' => '<flux:button :tooltip="$value">Go</flux:button>',
+]);

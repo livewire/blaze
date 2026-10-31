@@ -216,8 +216,10 @@ class Foldable
                 ! $attribute => $matches[0],
                 ! $attribute->bound() => $attribute->value,
                 $placeholder->is('raw') => '{!! ' . $this->rawCopy($attribute) . ' !!}',
-                $placeholder->is('raw', escapes: 1) => '{{ ' . $attribute->value . ' }}',
+                $placeholder->is('raw', escapes: 1),
+                $placeholder->is('raw', escapes: 1, doubleEncode: false) => '{{ ' . $attribute->value . ' }}',
                 $placeholder->is('bag') => '{!! ' . $this->bagCopy($attribute) . ' !!}',
+                $placeholder->is('bag', escapes: 1, doubleEncode: false) => '{!! e(' . $this->decodedBagCopy($attribute) . ') !!}',
                 default => $matches[0],
             };
         }, $this->html);
@@ -303,6 +305,19 @@ class Foldable
     protected function bagCopy(Attribute $attribute): string
     {
         return '\\Illuminate\\View\\Compilers\\BladeCompiler::sanitizeComponentAttribute(' . $attribute->value . ')';
+    }
+
+    /**
+     * Get the runtime expression of the attribute bag copy of a bound attribute after decoding.
+     *
+     * Flux::forwardedAttributes() decodes attribute bag copies that it reads as props, which the
+     * component then escapes again. Escaping without double encoding gives the same placeholder,
+     * and the same string at runtime, so both are restored as decoding and escaping. Escaping is
+     * restored as e(), so an echo under Blade::withoutDoubleEncoding() double encodes entities.
+     */
+    protected function decodedBagCopy(Attribute $attribute): string
+    {
+        return '$__blaze->decodedAttribute(' . $attribute->value . ')';
     }
 
     /**
