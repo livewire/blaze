@@ -108,3 +108,22 @@ test('delegate component forwards props to non-Blaze target inside Blade compone
 
     compare('<x-delegated-wrapper foo-bar="outer" />');
 });
+
+/**
+ * Field components pass their error attributes to flux:error through @unblaze
+ */
+test('folded field component escapes bound error attributes like Blade', function () {
+    compare('<flux:input name="email" label="Email" :error:aria-label="$value" />', [
+        'value' => '"><img src=x onerror=alert(1)> a"b<c>&d\'e',
+    ]);
+});
+
+/**
+ * Buttons read href and tooltip from the attribute bag with Flux::forwardedAttributes(), which decodes them
+ */
+test('folded button escapes bound attributes decoded from the attribute bag like Blade', function (string $template) {
+    compare($template, ['value' => '"><img src=x onerror=alert(1)> /a?b=1&c=2&amp;d']);
+})->with([
+    'href' => '<flux:button :href="$value">Go</flux:button>',
+    'tooltip' => '<flux:button :tooltip="$value">Go</flux:button>',
+]);

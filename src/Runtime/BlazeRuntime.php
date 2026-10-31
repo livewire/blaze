@@ -2,6 +2,7 @@
 
 namespace Livewire\Blaze\Runtime;
 
+use Illuminate\Contracts\Support\CanBeEscapedWhenCastToString;
 use Illuminate\Contracts\View\Factory;
 use Illuminate\Foundation\Application;
 use Illuminate\Support\Str;
@@ -187,6 +188,28 @@ class BlazeRuntime
         }
 
         return $parent->merge($attributes, false)->getAttributes();
+    }
+
+    /**
+     * Get the raw copy of a bound attribute the way a component reads it in Blade.
+     *
+     * Blade escapes the attribute bag copy with sanitizeComponentAttribute(), which marks objects
+     * like collections to be escaped when cast to a string. The raw copy is the same object,
+     * so it's marked too. Folded components use it only where the raw copy isn't escaped again.
+     */
+    public function rawAttribute(mixed $value): mixed
+    {
+        return $value instanceof CanBeEscapedWhenCastToString ? $value->escapeWhenCastingToString() : $value;
+    }
+
+    /**
+     * Get the attribute bag copy of a bound attribute decoded the way Flux::forwardedAttributes() does it.
+     */
+    public function decodedAttribute(mixed $value): mixed
+    {
+        $value = BladeCompiler::sanitizeComponentAttribute($value);
+
+        return is_string($value) ? htmlspecialchars_decode($value, ENT_QUOTES) : $value;
     }
 
     /**

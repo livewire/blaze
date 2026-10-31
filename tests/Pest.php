@@ -22,11 +22,22 @@ function fixture_path(string $filename): string
     return __DIR__ . '/fixtures/' . $filename;
 }
 
-function compare(string $input, array $data = []): void
+/**
+ * Render a template with Blaze.
+ */
+function render(string $input, array $data = []): string
 {
     View::share('errors', new ViewErrorBag);
 
-    $blaze = Blade::render($input, $data);
+    return Blade::render($input, $data);
+}
+
+/**
+ * Check that a template renders the same with Blaze and with Blade.
+ */
+function compare(string $input, array $data = []): void
+{
+    $blaze = render($input, $data);
 
     Blaze::disable();
     Artisan::call('view:clear');

@@ -5,6 +5,7 @@ namespace Livewire\Blaze\Folder;
 use Illuminate\Support\Str;
 use Livewire\Blaze\BladeRenderer;
 use Livewire\Blaze\BladeService;
+use Livewire\Blaze\Exceptions\LeftoverPlaceholdersException;
 use Livewire\Blaze\Parser\Attribute;
 use Livewire\Blaze\Parser\Nodes\ComponentNode;
 use Livewire\Blaze\Parser\Nodes\SlotNode;
@@ -19,7 +20,7 @@ use Livewire\Blaze\Support\ComponentSource;
  */
 class Foldable
 {
-    protected array $attributeByPlaceholder = [];
+    protected array $attributeByIndex = [];
     protected array $slotByPlaceholder = [];
     protected int $placeholderIndex = 0;
 
@@ -48,10 +49,12 @@ class Foldable
         $this->setupAttributes();
         $this->setupSlots();
 
-        $this->html = $this->renderer->render($this->renderable, $this->path);
-        
+        $this->html = $this->renderer->render($this->renderable, $this->path, $this->exportScope(...));
+
+        $this->ensureNoMergedCopies();
         $this->processUncompiledAttributes();
         $this->restorePlaceholders();
+        $this->ensureNoLeftoverPlaceholders();
         $this->wrapWithAwareMacros();
 
         return $this->html;
@@ -80,13 +83,13 @@ class Foldable
             return clone $attribute;
         }
 
-        $placeholder = 'BLAZE_PLACEHOLDER_' . $this->placeholderIndex++ . '_';
+        $placeholder = new Placeholder($this->placeholderIndex++, copy: $attribute->bound() ? 'raw' : null);
 
-        $this->attributeByPlaceholder[$placeholder] = $attribute;
+        $this->attributeByIndex[$placeholder->index] = $attribute;
 
         return new Attribute(
             name: $attribute->name,
-            value: $placeholder,
+            value: (string) $placeholder,
             propName: $attribute->propName,
             dynamic: false,
         );
@@ -105,7 +108,7 @@ class Foldable
                 $children = [];
 
                 if ($this->hasActualContent($child->children)) {
-                    $placeholder = 'BLAZE_PLACEHOLDER_' . $this->placeholderIndex++ . '_';
+                    $placeholder = (string) new Placeholder($this->placeholderIndex++);
     
                     $this->slotByPlaceholder[$placeholder] = $child;
 
@@ -128,7 +131,7 @@ class Foldable
 
         // Synthesize a default slot from loose content when there's not an explicit one
         if ($this->hasActualContent($looseContent) && ! isset($slots['slot'])) {
-            $placeholder = 'BLAZE_PLACEHOLDER_' . $this->placeholderIndex++ . '_';
+            $placeholder = (string) new Placeholder($this->placeholderIndex++);
 
             $defaultSlot = new SlotNode(
                 name: 'slot',
@@ -168,50 +171,58 @@ class Foldable
 
     /**
      * Convert [BLAZE_ATTR:...] markers into conditional PHP for dynamic attributes.
+     *
+     * A bound attribute is rendered from the attribute bag copy, or from the raw copy escaped once,
+     * like merge() does with defaults. Both hold what Blade would have in the bag.
      */
     protected function processUncompiledAttributes(): void
     {
-        $this->html = preg_replace_callback('/\[BLAZE_ATTR:(BLAZE_PLACEHOLDER_[0-9]+_):(.+?)\](\r?\n)?/', function ($matches) {
-            $attribute = $this->attributeByPlaceholder[$matches[1]];
+        $this->html = preg_replace_callback('/\[BLAZE_ATTR:(' . Placeholder::PATTERN . '):(.+?)\](\r?\n)?/', function ($matches) {
+            [$placeholder, $attribute] = $this->attributeFor($matches[1]);
             $name = $matches[2];
 
-            if ($attribute->bound()) {
-                // x-data and wire:* get empty string for true, others get key name
-                $booleanValue = ($name === 'x-data' || str_starts_with($name, 'wire:')) ? "''" : "'".addslashes($name)."'";
+            if (! $attribute) {
+                return $matches[0];
+            }
 
-                return '<'.'?php if (($__blazeAttr = '.$attribute->value.') !== false && !is_null($__blazeAttr)): ?'.'>'
-                . $name.'="<'.'?php echo e($__blazeAttr === true ? '.$booleanValue.' : $__blazeAttr); ?'.'>"'
-                .'<'.'?php endif; unset($__blazeAttr); ?'.'>' . (isset($matches[3]) ? $matches[3] . $matches[3] : '');
-            } else {
+            if (! $attribute->bound()) {
                 return $name.'="'.$attribute->value.'"';
             }
+
+            if (! $placeholder->is('bag') && ! $placeholder->is('raw', escapes: 1)) {
+                return $matches[0];
+            }
+
+            // x-data and wire:* get empty string for true, others get key name
+            $booleanValue = ($name === 'x-data' || str_starts_with($name, 'wire:')) ? "''" : "'".addslashes($name)."'";
+
+            return '<'.'?php if (($__blazeAttr = '.$attribute->value.') !== false && !is_null($__blazeAttr)): ?'.'>'
+            . $name.'="<'.'?php echo e($__blazeAttr === true ? '.$booleanValue.' : $__blazeAttr); ?'.'>"'
+            .'<'.'?php endif; unset($__blazeAttr); ?'.'>' . (isset($matches[3]) ? $matches[3] . $matches[3] : '');
         }, $this->html);
     }
 
     /**
-     * Replace all placeholders with their original dynamic values or slot content.
+     * Replace placeholders in HTML with their original dynamic values or slot content.
+     *
+     * Placeholders inside PHP blocks are left alone and fail the fold.
      */
     protected function restorePlaceholders(): void
     {
-        // Attribute placeholders inside PHP blocks need raw values
-        $this->html = preg_replace_callback('/<\?php.*?\?>/s', function ($match) {
-            $content = $match[0];
+        $this->html = preg_replace_callback('/<\?php.*?\?>(*SKIP)(*FAIL)|' . Placeholder::PATTERN . '/s', function ($matches) {
+            [$placeholder, $attribute] = $this->attributeFor($matches[0]);
 
-            foreach ($this->attributeByPlaceholder as $placeholder => $attribute) {
-                $value = $attribute->bound() ? $attribute->value : $this->blade->compileAttributeEchos($attribute->value);
-
-                $content = str_replace("'" . $placeholder . "'", $value, $content);
-            }
-
-            return $content;
+            return match (true) {
+                ! $attribute => $matches[0],
+                ! $attribute->bound() => $attribute->value,
+                $placeholder->is('raw') => '{!! ' . $this->rawCopy($attribute) . ' !!}',
+                $placeholder->is('raw', escapes: 1),
+                $placeholder->is('raw', escapes: 1, doubleEncode: false) => '{{ ' . $attribute->value . ' }}',
+                $placeholder->is('bag') => '{!! ' . $this->bagCopy($attribute) . ' !!}',
+                $placeholder->is('bag', escapes: 1, doubleEncode: false) => '{!! e(' . $this->decodedBagCopy($attribute) . ') !!}',
+                default => $matches[0],
+            };
         }, $this->html);
-
-        // Attribute placeholders in HTML context need Blade echo syntax
-        foreach ($this->attributeByPlaceholder as $placeholder => $attribute) {
-            $value = $attribute->bound() ? '{{ ' . $attribute->value . ' }}' : $attribute->value;
-
-            $this->html = str_replace($placeholder, $value, $this->html);
-        }
 
         foreach ($this->slotByPlaceholder as $placeholder => $slot) {
             // In Blade slots are rendered using output buffer and echo syntax,
@@ -221,6 +232,134 @@ class Foldable
 
                 return '<?php ob_start(); ?>' . $slot->content() . '<?php echo trim(ob_get_clean()); ?>' . $whitespace . $whitespace;
             }, $this->html);
+        }
+    }
+
+    /**
+     * Export the scope of an @unblaze block as PHP code.
+     *
+     * The scope is evaluated while rendering, so a value that is exactly the placeholder of a raw
+     * or attribute bag copy is exported as the runtime expression it stands for. Any other value
+     * holding a placeholder fails the fold.
+     */
+    public function exportScope(mixed $value): string
+    {
+        if (is_array($value)) {
+            $items = [];
+
+            foreach ($value as $key => $item) {
+                $items[] = var_export($key, true) . ' => ' . $this->exportScope($item);
+            }
+
+            return '[' . implode(', ', $items) . ']';
+        }
+
+        [$placeholder, $attribute] = is_string($value) ? $this->attributeFor($value) : [null, null];
+
+        $code = match (true) {
+            ! $attribute => var_export($value, true),
+            ! $attribute->bound() => $this->blade->compileAttributeEchos($attribute->value),
+            $placeholder->is('raw') => $this->rawCopy($attribute),
+            $placeholder->is('bag') => $this->bagCopy($attribute),
+            default => null,
+        };
+
+        if ($code === null || (! $attribute && stripos($code, 'BLAZE_PLACEHOLDER_') !== false)) {
+            throw new LeftoverPlaceholdersException($this->node->name, var_export($value, true));
+        }
+
+        return $code;
+    }
+
+    /**
+     * Resolve a placeholder to the attribute it stands for.
+     *
+     * @return array{0: ?Placeholder, 1: ?Attribute}
+     */
+    protected function attributeFor(string $value): array
+    {
+        $placeholder = Placeholder::parse($value);
+        $attribute = $placeholder ? $this->attributeByIndex[$placeholder->index] ?? null : null;
+
+        if ($attribute && $attribute->bound() !== (bool) $placeholder->copy) {
+            return [null, null];
+        }
+
+        return [$placeholder, $attribute];
+    }
+
+    /**
+     * Get the runtime expression of the raw copy of a bound attribute that isn't escaped again.
+     *
+     * A raw copy escaped once comes from an echo or from merge(), which skips escaping objects,
+     * so it's restored as the plain expression and escaped once, like a merged default in Blade.
+     */
+    protected function rawCopy(Attribute $attribute): string
+    {
+        return '$__blaze->rawAttribute(' . $attribute->value . ')';
+    }
+
+    /**
+     * Get the runtime expression of the attribute bag copy of a bound attribute.
+     */
+    protected function bagCopy(Attribute $attribute): string
+    {
+        return '\\Illuminate\\View\\Compilers\\BladeCompiler::sanitizeComponentAttribute(' . $attribute->value . ')';
+    }
+
+    /**
+     * Get the runtime expression of the attribute bag copy of a bound attribute after decoding.
+     *
+     * Flux::forwardedAttributes() decodes attribute bag copies that it reads as props, which the
+     * component then escapes again. Escaping without double encoding gives the same placeholder,
+     * and the same string at runtime, so both are restored as decoding and escaping. Escaping is
+     * restored as e(), so an echo under Blade::withoutDoubleEncoding() double encodes entities.
+     */
+    protected function decodedBagCopy(Attribute $attribute): string
+    {
+        return '$__blaze->decodedAttribute(' . $attribute->value . ')';
+    }
+
+    /**
+     * Fail the fold when different copies of the same bound attribute reach the output.
+     *
+     * That's usually a merge, like $attributes->class($class), which Blade dedupes or not
+     * depending on whether the copies are equal at runtime. Equal copies are deduped like
+     * in Blade, so they're fine. Attribute values aren't parsed out of the HTML, so different
+     * copies anywhere in the output fail the fold, except ones rendered by the attribute bag.
+     */
+    protected function ensureNoMergedCopies(): void
+    {
+        preg_match_all('/\[BLAZE_ATTR:[^\]]*\](*SKIP)(*FAIL)|' . Placeholder::PATTERN . '/', $this->html, $matches);
+
+        $copies = [];
+
+        foreach (array_unique($matches[0]) as $value) {
+            $placeholder = Placeholder::parse($value);
+
+            if ($placeholder?->copy) {
+                $copies[$placeholder->index][] = $value;
+            }
+        }
+
+        foreach ($copies as $values) {
+            if (count($values) > 1) {
+                throw new LeftoverPlaceholdersException($this->node->name, implode(', ', $values), Str::limit($this->html, 500));
+            }
+        }
+    }
+
+    /**
+     * Fail the fold when placeholders or attribute markers remain, so the component is compiled without folding.
+     */
+    protected function ensureNoLeftoverPlaceholders(): void
+    {
+        if (preg_match_all('/BLAZE_PLACEHOLDER_[0-9]+_\S*|\[BLAZE_ATTR:[^\]]*\]/i', $this->html, $matches)) {
+            throw new LeftoverPlaceholdersException(
+                $this->node->name,
+                implode(', ', array_unique($matches[0])),
+                Str::limit($this->html, 500),
+            );
         }
     }
 
