@@ -9,6 +9,7 @@ use Illuminate\Support\Facades\File;
 use Illuminate\View\Compilers\BladeCompiler;
 use Illuminate\View\ComponentSlot;
 use Livewire\Blaze\Exceptions\InvalidBlazeFoldUsageException;
+use Livewire\Blaze\Folder\Placeholder;
 use Livewire\Blaze\Parser\Attribute;
 use Livewire\Blaze\Parser\Nodes\ComponentNode;
 use Livewire\Blaze\Parser\Nodes\SlotNode;
@@ -39,8 +40,10 @@ class BladeRenderer
 
     /**
      * Render a Blade template string in isolation by freezing and restoring compiler state.
+     *
+     * @param  (Closure(mixed): string)|null  $exportScope  Exports the scope of @unblaze blocks as PHP code
      */
-    public function render(ComponentNode $component, string $path): string
+    public function render(ComponentNode $component, string $path, ?Closure $exportScope = null): string
     {
         $temporaryCachePath = $this->getTemporaryCachePath();
 
@@ -124,8 +127,12 @@ class BladeRenderer
                 return [$attribute->propName => $attribute->getStaticValue()];
             });
 
+            // Like in Blade, the attribute bag gets its own copy of bound values
             $attributes = Arr::mapWithKeys($component->attributes, function (Attribute $attribute) {
-                return [$attribute->name => $attribute->getStaticValue()];
+                $value = $attribute->getStaticValue();
+                $placeholder = Placeholder::parse($value);
+
+                return [$attribute->name => $placeholder?->copy ? (string) $placeholder->inBag() : $value];
             });
             
             $slots = Arr::mapWithKeys($component->children, function (SlotNode $slot) {
@@ -162,7 +169,7 @@ class BladeRenderer
             $restoreRuntime();
         }
 
-        $result = Unblaze::replaceUnblazePrecompiledDirectives($result);
+        $result = Unblaze::replaceUnblazePrecompiledDirectives($result, $exportScope);
 
         return $result;
     }
