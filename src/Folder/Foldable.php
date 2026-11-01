@@ -5,6 +5,7 @@ namespace Livewire\Blaze\Folder;
 use Illuminate\Support\Str;
 use Livewire\Blaze\BladeRenderer;
 use Livewire\Blaze\BladeService;
+use Livewire\Blaze\Exceptions\LeftoverPlaceholdersException;
 use Livewire\Blaze\Parser\Attribute;
 use Livewire\Blaze\Parser\Nodes\ComponentNode;
 use Livewire\Blaze\Parser\Nodes\SlotNode;
@@ -19,7 +20,7 @@ use Livewire\Blaze\Support\ComponentSource;
  */
 class Foldable
 {
-    protected array $attributeByPlaceholder = [];
+    protected array $attributeByIndex = [];
     protected array $slotByPlaceholder = [];
     protected int $placeholderIndex = 0;
 
@@ -48,10 +49,11 @@ class Foldable
         $this->setupAttributes();
         $this->setupSlots();
 
-        $this->html = $this->renderer->render($this->renderable, $this->path);
-        
+        $this->html = $this->renderer->render($this->renderable, $this->path, $this->exportScope(...));
+
         $this->processUncompiledAttributes();
         $this->restorePlaceholders();
+        $this->ensureNoLeftoverPlaceholders();
         $this->wrapWithAwareMacros();
 
         return $this->html;
@@ -80,9 +82,10 @@ class Foldable
             return clone $attribute;
         }
 
-        $placeholder = 'BLAZE_PLACEHOLDER_' . $this->placeholderIndex++ . '_';
+        $index = $this->placeholderIndex++;
+        $placeholder = Placeholder::make($index, $attribute->bound());
 
-        $this->attributeByPlaceholder[$placeholder] = $attribute;
+        $this->attributeByIndex[$index] = $attribute;
 
         return new Attribute(
             name: $attribute->name,
@@ -105,7 +108,7 @@ class Foldable
                 $children = [];
 
                 if ($this->hasActualContent($child->children)) {
-                    $placeholder = 'BLAZE_PLACEHOLDER_' . $this->placeholderIndex++ . '_';
+                    $placeholder = Placeholder::make($this->placeholderIndex++);
     
                     $this->slotByPlaceholder[$placeholder] = $child;
 
@@ -128,7 +131,7 @@ class Foldable
 
         // Synthesize a default slot from loose content when there's not an explicit one
         if ($this->hasActualContent($looseContent) && ! isset($slots['slot'])) {
-            $placeholder = 'BLAZE_PLACEHOLDER_' . $this->placeholderIndex++ . '_';
+            $placeholder = Placeholder::make($this->placeholderIndex++);
 
             $defaultSlot = new SlotNode(
                 name: 'slot',
@@ -171,9 +174,13 @@ class Foldable
      */
     protected function processUncompiledAttributes(): void
     {
-        $this->html = preg_replace_callback('/\[BLAZE_ATTR:(BLAZE_PLACEHOLDER_[0-9]+_):(.+?)\](\r?\n)?/', function ($matches) {
-            $attribute = $this->attributeByPlaceholder[$matches[1]];
-            $name = $matches[2];
+        $this->html = preg_replace_callback('/\[BLAZE_ATTR:(' . Placeholder::PATTERN . '):(.+?)\](\r?\n)?/', function ($matches) {
+            $attribute = $this->attributeFor($matches[1]);
+            $name = $matches[4];
+
+            if (! $attribute) {
+                return $matches[0];
+            }
 
             if ($attribute->bound()) {
                 // x-data and wire:* get empty string for true, others get key name
@@ -181,7 +188,7 @@ class Foldable
 
                 return '<'.'?php if (($__blazeAttr = '.$attribute->value.') !== false && !is_null($__blazeAttr)): ?'.'>'
                 . $name.'="<'.'?php echo e($__blazeAttr === true ? '.$booleanValue.' : $__blazeAttr); ?'.'>"'
-                .'<'.'?php endif; unset($__blazeAttr); ?'.'>' . (isset($matches[3]) ? $matches[3] . $matches[3] : '');
+                .'<'.'?php endif; unset($__blazeAttr); ?'.'>' . (isset($matches[5]) ? $matches[5] . $matches[5] : '');
             } else {
                 return $name.'="'.$attribute->value.'"';
             }
@@ -189,29 +196,22 @@ class Foldable
     }
 
     /**
-     * Replace all placeholders with their original dynamic values or slot content.
+     * Replace placeholders in HTML with their original dynamic values or slot content.
+     *
+     * Bound attributes are echoed escaped, however many times the component escaped them. PHP blocks
+     * are skipped, the only ones holding placeholders are @unblaze scopes, exported by exportScope().
      */
     protected function restorePlaceholders(): void
     {
-        // Attribute placeholders inside PHP blocks need raw values
-        $this->html = preg_replace_callback('/<\?php.*?\?>/s', function ($match) {
-            $content = $match[0];
+        $this->html = preg_replace_callback('/<\?php.*?\?>(*SKIP)(*FAIL)|' . Placeholder::PATTERN . '/s', function ($matches) {
+            $attribute = $this->attributeFor($matches[0]);
 
-            foreach ($this->attributeByPlaceholder as $placeholder => $attribute) {
-                $value = $attribute->bound() ? $attribute->value : $this->blade->compileAttributeEchos($attribute->value);
-
-                $content = str_replace("'" . $placeholder . "'", $value, $content);
-            }
-
-            return $content;
+            return match (true) {
+                ! $attribute => $matches[0],
+                $attribute->bound() => '{{ ' . $attribute->value . ' }}',
+                default => $attribute->value,
+            };
         }, $this->html);
-
-        // Attribute placeholders in HTML context need Blade echo syntax
-        foreach ($this->attributeByPlaceholder as $placeholder => $attribute) {
-            $value = $attribute->bound() ? '{{ ' . $attribute->value . ' }}' : $attribute->value;
-
-            $this->html = str_replace($placeholder, $value, $this->html);
-        }
 
         foreach ($this->slotByPlaceholder as $placeholder => $slot) {
             // In Blade slots are rendered using output buffer and echo syntax,
@@ -221,6 +221,73 @@ class Foldable
 
                 return '<?php ob_start(); ?>' . $slot->content() . '<?php echo trim(ob_get_clean()); ?>' . $whitespace . $whitespace;
             }, $this->html);
+        }
+    }
+
+    /**
+     * Export the scope of an @unblaze block as PHP code that evaluates to what it holds without folding.
+     *
+     * A bound attribute is restored raw, like props get it, or escaped once, like the attribute bag
+     * gets it. Any other value holding a placeholder, like one escaped twice or concatenated, fails
+     * the fold, so the component is compiled without folding.
+     */
+    public function exportScope(mixed $value): string
+    {
+        if (is_array($value)) {
+            $items = [];
+
+            foreach ($value as $key => $item) {
+                $items[] = var_export($key, true) . ' => ' . $this->exportScope($item);
+            }
+
+            return '[' . implode(', ', $items) . ']';
+        }
+
+        if (is_string($value) && $attribute = $this->attributeFor($value)) {
+            return match (Placeholder::parse($value)[1]) {
+                null => $this->blade->compileAttributeEchos($attribute->value),
+                0 => $attribute->value,
+                1 => '\Illuminate\View\Compilers\BladeCompiler::sanitizeComponentAttribute(' . $attribute->value . ')',
+                default => throw new LeftoverPlaceholdersException($this->node->name, $value),
+            };
+        }
+
+        $code = var_export($value, true);
+
+        if (stripos($code, 'BLAZE_PLACEHOLDER_') !== false) {
+            throw new LeftoverPlaceholdersException($this->node->name, $code);
+        }
+
+        return $code;
+    }
+
+    /**
+     * Get the attribute a placeholder stands for, or null when it's a slot or doesn't match the attribute.
+     */
+    protected function attributeFor(string $placeholder): ?Attribute
+    {
+        [$index, $escapes] = Placeholder::parse($placeholder) ?? [-1, null];
+
+        $attribute = $this->attributeByIndex[$index] ?? null;
+
+        if (! $attribute || $attribute->bound() !== ($escapes !== null)) {
+            return null;
+        }
+
+        return $attribute;
+    }
+
+    /**
+     * Fail the fold when placeholders or attribute markers are left, so the component is compiled without folding.
+     */
+    protected function ensureNoLeftoverPlaceholders(): void
+    {
+        if (preg_match_all('/BLAZE_PLACEHOLDER_[0-9]+_\S*|\[BLAZE_ATTR:[^\]]*\]/i', $this->html, $matches)) {
+            throw new LeftoverPlaceholdersException(
+                $this->node->name,
+                implode(', ', array_unique($matches[0])),
+                Str::limit($this->html, 500),
+            );
         }
     }
 

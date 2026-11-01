@@ -80,6 +80,14 @@ test('select with bound attribute with ampersand', fn () => compare(<<<'BLADE'
 ));
 
 /**
+ * Checks that bound attributes flux:with-field passes to flux:error through @unblaze stay escaped
+ */
+test('input with bound error attribute', fn () => compare(<<<'BLADE'
+    <flux:input name="email" label="Email" :error:aria-label="$value" />
+    BLADE, ['value' => '"><img src=x onerror=alert(1)>']
+));
+
+/**
  * Checks that attributes passed through delegate component are escaped exactly once, like in Blade
  */
 test('delegate component forwards attributes like Blade', function (string $template, array $data = []) {

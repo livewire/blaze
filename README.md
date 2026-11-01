@@ -572,6 +572,25 @@ When a component is mostly foldable but contains a dynamic section, use `@unblaz
 
 Variables from the component scope must be passed explicitly using the `scope` parameter.
 
+`$scope` holds the same values it would without folding: props are raw and attribute bag values are escaped, like in Blade. Pass dynamic values in unchanged and transform them inside the block, where they hold their real values:
+
+```blade
+{{-- ✅ Transform inside the block --}}
+@unblaze(scope: ['name' => $name])
+    <input id="field_{{ $scope['name'] }}">
+@endunblaze
+
+{{-- ❌ Transform in the scope --}}
+@unblaze(scope: ['id' => 'field_' . $name])
+    <input id="{{ $scope['id'] }}">
+@endunblaze
+```
+
+Blaze compiles the component without folding when a dynamic value in the scope was transformed in a way it can detect, like concatenation or escaping it again. Changes that leave no trace, like comparing a value, can't be detected. There are also two cases where the restored value can differ from Blade:
+
+- A prop escaped or merged into an attribute bag in the scope is restored like an attribute bag value, so `HtmlString` objects become strings, which are escaped again when echoed, and `e()` of `false` or `null` is restored as `false` or `null` instead of an empty string.
+- Under `Blade::withoutDoubleEncoding()`, an attribute echoed into a nested component's attribute bag and passed to the scope double encodes entities.
+
 # Debug Mode
 
 Blaze includes a powerful debug mode to help you measure rendering performance, compare Blaze against standard Blade and find performance bottlenecks.

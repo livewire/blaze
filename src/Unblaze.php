@@ -77,11 +77,13 @@ class Unblaze
 
     /**
      * Restore @unblaze placeholders with their compiled content and scope wrappers.
+     *
+     * @param  (callable(mixed): string)|null  $exportScope  Exports the scope as PHP code, var_export() by default
      */
-    public static function replaceUnblazePrecompiledDirectives(string $template)
+    public static function replaceUnblazePrecompiledDirectives(string $template, ?callable $exportScope = null)
     {
         if (str_contains($template, '[STARTCOMPILEDUNBLAZE')) {
-            $template = preg_replace_callback('/(\[STARTCOMPILEDUNBLAZE:([0-9a-zA-Z:]+)?\])(.*?)(\[ENDCOMPILEDUNBLAZE:\2\])(\r?\n)?/s', function ($matches) use (&$expressionsByToken) {
+            $template = preg_replace_callback('/(\[STARTCOMPILEDUNBLAZE:([0-9a-zA-Z:]+)?\])(.*?)(\[ENDCOMPILEDUNBLAZE:\2\])(\r?\n)?/s', function ($matches) use ($exportScope) {
                 $token = $matches[2];
 
                 // Because unblaze content is not available at render-time during folding,
@@ -98,7 +100,7 @@ class Unblaze
 
                 $scope = static::$unblazeScopes[$token];
 
-                $runtimeScopeString = var_export($scope, true);
+                $runtimeScopeString = $exportScope ? $exportScope($scope) : var_export($scope, true);
 
                 $whitespace = $matches[5] ?? '';
 

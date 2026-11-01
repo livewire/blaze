@@ -18,7 +18,7 @@ test('compiles unblaze blocks', function () {
     expect($foldable->fold())->toEqualCollapsingWhitespace(
         sprintf('<input %s >', join('', [
             '<?php if (isset($scope)) $__scope = $scope; ?>',
-            '<?php $scope = array ( \'name\' => \'address\', ); ?>',
+            '<?php $scope = [\'name\' => \'address\']; ?>',
             ' {{ $errors->has($scope[\'name\']) }} ',
             '<?php if (isset($__scope)) { $scope = $__scope; unset($__scope); } ?>'
         ]))
@@ -34,7 +34,7 @@ test('compiles nested unblaze blocks', function () {
     expect($foldable->fold())->toEqualCollapsingWhitespace(
         sprintf('<div> <input %s ></div>', join('', [
             '<?php if (isset($scope)) $__scope = $scope; ?>',
-            '<?php $scope = array ( \'name\' => \'address\', ); ?>',
+            '<?php $scope = [\'name\' => \'address\']; ?>',
             ' {{ $errors->has($scope[\'name\']) }} ',
             '<?php if (isset($__scope)) { $scope = $__scope; unset($__scope); } ?>'
         ]))
@@ -50,7 +50,7 @@ test('folds dynamic attributes used inside unblaze directive', function () {
     expect($foldable->fold())->toEqualCollapsingWhitespace(
         sprintf('<input %s >', join('', [
             '<?php if (isset($scope)) $__scope = $scope; ?>',
-            '<?php $scope = array ( \'name\' => $field, ); ?>',
+            '<?php $scope = [\'name\' => $field]; ?>',
             ' {{ $errors->has($scope[\'name\']) }} ',
             '<?php if (isset($__scope)) { $scope = $__scope; unset($__scope); } ?>'
         ]))
