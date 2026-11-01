@@ -5,39 +5,54 @@ namespace Livewire\Blaze\Folder;
 /**
  * Placeholders stand in for dynamic attributes and slots while a component is rendered for folding.
  *
- * Placeholders of bound attributes end with "&_". Like any string, escaping turns the "&" into "&amp;",
+ * Placeholders of attributes end with "&_". Like any string, escaping turns the "&" into "&amp;",
  * so the placeholder shows how many times the value it stands for was escaped:
  *
- *   BLAZE_PLACEHOLDER_0_         slot or attribute that's not bound
- *   BLAZE_PLACEHOLDER_0_&_       bound attribute, raw like in props
- *   BLAZE_PLACEHOLDER_0_&amp;_   bound attribute, escaped once like in the attribute bag
+ *   BLAZE_PLACEHOLDER_0_         slot
+ *   BLAZE_PLACEHOLDER_0_&_       attribute, raw like in props
+ *   BLAZE_PLACEHOLDER_0_&amp;_   attribute, escaped once like bound attributes in the attribute bag
  */
 class Placeholder
 {
-    /**
-     * Matches a placeholder, capturing its index and, for a bound attribute, the "amp;" of each escape.
-     */
-    public const PATTERN = 'BLAZE_PLACEHOLDER_([0-9]+)_(?:&((?:amp;)*)_)?';
+    public const PREFIX = 'BLAZE_PLACEHOLDER_';
 
     /**
-     * Create the placeholder of a slot or attribute.
+     * Matches a placeholder, capturing its index and, for an attribute, the suffix.
      */
-    public static function make(int $index, bool $bound = false): string
-    {
-        return 'BLAZE_PLACEHOLDER_' . $index . '_' . ($bound ? '&_' : '');
+    public const PATTERN = self::PREFIX . '(?<index>[0-9]+)_(?<suffix>&(?:amp;)*_)?';
+
+    /**
+     * @param  int|null  $escapes  How many times the attribute was escaped, null for slots
+     */
+    public function __construct(
+        public readonly int $index,
+        public readonly ?int $escapes,
+    ) {
     }
 
     /**
-     * Parse a value that is exactly one placeholder into its index and escapes, which are null when it's not bound.
-     *
-     * @return array{0: int, 1: ?int}|null
+     * Create the placeholder of an attribute.
      */
-    public static function parse(mixed $value): ?array
+    public static function attribute(int $index): string
     {
-        if (! is_string($value) || ! preg_match('/^' . static::PATTERN . '$/', $value, $matches, PREG_UNMATCHED_AS_NULL)) {
-            return null;
-        }
+        return self::PREFIX . $index . '_&_';
+    }
 
-        return [(int) $matches[1], isset($matches[2]) ? substr_count($matches[2], 'amp;') : null];
+    /**
+     * Create the placeholder of a slot.
+     */
+    public static function slot(int $index): string
+    {
+        return self::PREFIX . $index . '_';
+    }
+
+    /**
+     * Create from the matches of a pattern that includes PATTERN.
+     */
+    public static function fromMatch(array $matches): self
+    {
+        $suffix = $matches['suffix'] ?? '';
+
+        return new self((int) $matches['index'], $suffix === '' ? null : substr_count($suffix, 'amp;'));
     }
 }

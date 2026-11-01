@@ -9,7 +9,6 @@ use Illuminate\Support\Facades\File;
 use Illuminate\View\Compilers\BladeCompiler;
 use Illuminate\View\ComponentSlot;
 use Livewire\Blaze\Exceptions\InvalidBlazeFoldUsageException;
-use Livewire\Blaze\Folder\Placeholder;
 use Livewire\Blaze\Parser\Attribute;
 use Livewire\Blaze\Parser\Nodes\ComponentNode;
 use Livewire\Blaze\Parser\Nodes\SlotNode;
@@ -40,10 +39,8 @@ class BladeRenderer
 
     /**
      * Render a Blade template string in isolation by freezing and restoring compiler state.
-     *
-     * @param  (Closure(mixed): string)|null  $exportScope  Exports the scope of @unblaze blocks as PHP code
      */
-    public function render(ComponentNode $component, string $path, ?Closure $exportScope = null): string
+    public function render(ComponentNode $component, string $path): string
     {
         $temporaryCachePath = $this->getTemporaryCachePath();
 
@@ -127,15 +124,11 @@ class BladeRenderer
                 return [$attribute->propName => $attribute->getStaticValue()];
             });
 
-            // Like Blade, the attribute bag gets bound values escaped, which turns their placeholders into "&amp;_"
+            // Like Blade, the attribute bag gets bound values escaped
             $attributes = Arr::mapWithKeys($component->attributes, function (Attribute $attribute) {
                 $value = $attribute->getStaticValue();
 
-                if ((Placeholder::parse($value)[1] ?? null) === 0) {
-                    $value = BladeCompiler::sanitizeComponentAttribute($value);
-                }
-
-                return [$attribute->name => $value];
+                return [$attribute->name => $attribute->bound() ? BladeCompiler::sanitizeComponentAttribute($value) : $value];
             });
             
             $slots = Arr::mapWithKeys($component->children, function (SlotNode $slot) {
@@ -172,7 +165,7 @@ class BladeRenderer
             $restoreRuntime();
         }
 
-        $result = Unblaze::replaceUnblazePrecompiledDirectives($result, $exportScope);
+        $result = Unblaze::replaceUnblazePrecompiledDirectives($result);
 
         return $result;
     }

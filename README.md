@@ -586,10 +586,7 @@ Variables from the component scope must be passed explicitly using the `scope` p
 @endunblaze
 ```
 
-Blaze compiles the component without folding when a dynamic value in the scope was transformed in a way it can detect, like concatenation or escaping it again. Changes that leave no trace, like comparing a value, can't be detected. There are also two cases where the restored value can differ from Blade:
-
-- A prop escaped or merged into an attribute bag in the scope is restored like an attribute bag value, so `HtmlString` objects become strings, which are escaped again when echoed, and `e()` of `false` or `null` is restored as `false` or `null` instead of an empty string.
-- Under `Blade::withoutDoubleEncoding()`, an attribute echoed into a nested component's attribute bag and passed to the scope double encodes entities.
+When Blaze detects a transformed value in the scope, it compiles the component without folding, so it still renders correctly but without the speedup. Use `Blaze::throw()` to find out which value caused it. Not every transformation can be detected, like comparing a value, so don't rely on this.
 
 # Debug Mode
 

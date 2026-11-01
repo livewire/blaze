@@ -2,6 +2,7 @@
 
 use Livewire\Blaze\BladeRenderer;
 use Livewire\Blaze\BladeService;
+use Livewire\Blaze\Exceptions\InvalidUnblazeScopeException;
 use Livewire\Blaze\Exceptions\LeftoverPlaceholdersException;
 use Livewire\Blaze\Folder\Foldable;
 use Livewire\Blaze\Parser\Nodes\ComponentNode;
@@ -16,7 +17,7 @@ test('replaces and restores bound attributes', function () {
     mock(BladeRenderer::class)
         ->expects('render')
         ->once()->withArgs(function (ComponentNode $node) {
-            expect($node->render())->toBe('<x-input type="BLAZE_PLACEHOLDER_0_&_" />');
+            expect($node->render())->toBe('<x-input :type="BLAZE_PLACEHOLDER_0_&_" />');
 
             return true;
         })
@@ -53,7 +54,7 @@ test('replaces parents attributes', function () {
         ->expects('render')
         ->once()->withArgs(function (ComponentNode $node) {
             expect($node->render())->toBe('<x-input />');
-            expect($node->parentsAttributes['type']->render())->toBe('type="BLAZE_PLACEHOLDER_0_&_"');
+            expect($node->parentsAttributes['type']->render())->toBe(':type="BLAZE_PLACEHOLDER_0_&_"');
 
             return true;
         })
@@ -70,11 +71,11 @@ test('restores every occurrence of a dynamic attribute placeholder', function ()
     mock(BladeRenderer::class)
         ->expects('render')
         ->once()->withArgs(function (ComponentNode $node) {
-            expect($node->render())->toBe('<x-button wire:click="BLAZE_PLACEHOLDER_0_" />');
+            expect($node->render())->toBe('<x-button wire:click="BLAZE_PLACEHOLDER_0_&_" />');
 
             return true;
         })
-        ->andReturn('<button wire:target="BLAZE_PLACEHOLDER_0_" wire:click="BLAZE_PLACEHOLDER_0_"></button>');
+        ->andReturn('<button wire:target="BLAZE_PLACEHOLDER_0_&_" wire:click="BLAZE_PLACEHOLDER_0_&_"></button>');
 
     $output = (new Foldable($node, '', app(BladeRenderer::class), app(BladeService::class)))->fold();
 
@@ -83,17 +84,60 @@ test('restores every occurrence of a dynamic attribute placeholder', function ()
     );
 });
 
-test('fails the fold when placeholders are left inside php blocks', function () {
+test('restores placeholders inside php blocks like the unblaze scope holds them without folding', function (string $component, string $scope, string $expected) {
+    $node = app(Parser::class)->parse($component)[0];
+
+    mock(BladeRenderer::class)
+        ->expects('render')
+        ->once()
+        ->andReturn("<?php \$scope = array ( 'value' => {$scope}, ); ?>");
+
+    $output = (new Foldable($node, '', app(BladeRenderer::class), app(BladeService::class)))->fold();
+
+    expect($output)->toBe("<?php \$scope = array ( 'value' => {$expected}, ); ?>");
+})->with([
+    'bound attribute in props' => ['<x-input :type="$type" />', "'BLAZE_PLACEHOLDER_0_&_'", '$type'],
+    'bound attribute in the attribute bag' => ['<x-input :type="$type" />', "'BLAZE_PLACEHOLDER_0_&amp;_'", '\\Illuminate\\View\\Compilers\\BladeCompiler::sanitizeComponentAttribute($type)'],
+    'echo attribute' => ['<x-layout theme="dark-{{ $variant }}" />', "'BLAZE_PLACEHOLDER_0_&_'", "'dark-'.e(\$variant)"],
+]);
+
+test('fails the fold when a placeholder inside php blocks was changed', function (string $component, string $scope) {
+    $node = app(Parser::class)->parse($component)[0];
+
+    mock(BladeRenderer::class)
+        ->expects('render')
+        ->once()
+        ->andReturn("<?php \$scope = array ( 'value' => {$scope}, ); ?>");
+
+    $foldable = new Foldable($node, '', app(BladeRenderer::class), app(BladeService::class));
+
+    expect(fn () => $foldable->fold())->toThrow(InvalidUnblazeScopeException::class, "transforms the dynamic value of 'type'");
+})->with([
+    'bound attribute escaped twice' => ['<x-input :type="$type" />', "'BLAZE_PLACEHOLDER_0_&amp;amp;_'"],
+    'echo attribute escaped' => ['<x-input type="{{ $type }}" />', "'BLAZE_PLACEHOLDER_0_&amp;_'"],
+    'concatenated' => ['<x-input :type="$type" />', "'field_BLAZE_PLACEHOLDER_0_&_'"],
+]);
+
+test('fails the fold when a slot is passed to php blocks', function () {
+    $node = app(Parser::class)->parse('<x-card>Content</x-card>')[0];
+
+    mock(BladeRenderer::class)
+        ->expects('render')
+        ->once()
+        ->andReturn("<?php \$scope = array ( 'slot' => 'BLAZE_PLACEHOLDER_0_', ); ?>");
+
+    $foldable = new Foldable($node, '', app(BladeRenderer::class), app(BladeService::class));
+
+    expect(fn () => $foldable->fold())->toThrow(InvalidUnblazeScopeException::class, "transforms the dynamic value of 'slot'");
+});
+
+test('fails the fold when placeholders are left in html', function () {
     $node = app(Parser::class)->parse('<x-input :type="$type" />')[0];
 
     mock(BladeRenderer::class)
         ->expects('render')
-        ->once()->withArgs(function (ComponentNode $node) {
-            expect($node->render())->toBe('<x-input type="BLAZE_PLACEHOLDER_0_&_" />');
-
-            return true;
-        })
-        ->andReturn("<?php echo strtoupper('BLAZE_PLACEHOLDER_0_&_'); ?>");
+        ->once()
+        ->andReturn('<input type="BLAZE_PLACEHOLDER_0_&AMP;_">');
 
     $foldable = new Foldable($node, '', app(BladeRenderer::class), app(BladeService::class));
 
@@ -106,7 +150,7 @@ test('compiles bound attributes passed through attribute bag', function () {
     mock(BladeRenderer::class)
         ->expects('render')
         ->once()->withArgs(function (ComponentNode $node) {
-            expect($node->render())->toBe('<x-input required="BLAZE_PLACEHOLDER_0_&_" />');
+            expect($node->render())->toBe('<x-input :required="BLAZE_PLACEHOLDER_0_&_" />');
 
             return true;
         })
@@ -129,11 +173,11 @@ test('restores unbound attributes passed through attribute bag', function () {
     mock(BladeRenderer::class)
         ->expects('render')
         ->once()->withArgs(function (ComponentNode $node) {
-            expect($node->render())->toBe('<x-button wire:click="BLAZE_PLACEHOLDER_0_" />');
+            expect($node->render())->toBe('<x-button wire:click="BLAZE_PLACEHOLDER_0_&_" />');
 
             return true;
         })
-        ->andReturn('<button [BLAZE_ATTR:BLAZE_PLACEHOLDER_0_:wire:click]></button>');
+        ->andReturn('<button [BLAZE_ATTR:BLAZE_PLACEHOLDER_0_&_:wire:click]></button>');
 
     $output = (new Foldable($node, '', app(BladeRenderer::class), app(BladeService::class)))->fold();
 
@@ -146,7 +190,7 @@ test('uses empty strings for true x-data and wire: attributes passed through att
     mock(BladeRenderer::class)
         ->expects('render')
         ->once()->withArgs(function (ComponentNode $node) use ($attribute) {
-            expect($node->render())->toBe('<x-input '.$attribute.'="BLAZE_PLACEHOLDER_0_&_" />');
+            expect($node->render())->toBe('<x-input :'.$attribute.'="BLAZE_PLACEHOLDER_0_&_" />');
 
             return true;
         })
@@ -169,7 +213,7 @@ test('handles newlines consumed by attribute php blocks', function () {
     mock(BladeRenderer::class)
         ->expects('render')
         ->once()->withArgs(function (ComponentNode $node) {
-            expect($node->render())->toBe('<x-input required="BLAZE_PLACEHOLDER_0_&_" />');
+            expect($node->render())->toBe('<x-input :required="BLAZE_PLACEHOLDER_0_&_" />');
 
             return true;
         })
@@ -314,7 +358,7 @@ test('compiles dynamic attributes in aware macros', function () {
     mock(BladeRenderer::class)
         ->expects('render')
         ->once()->withArgs(function (ComponentNode $node) {
-            expect($node->render())->toBe('<x-layout theme="BLAZE_PLACEHOLDER_0_&_" />');
+            expect($node->render())->toBe('<x-layout :theme="BLAZE_PLACEHOLDER_0_&_" />');
 
             return true;
         })
@@ -336,7 +380,7 @@ test('compiles echo attributes in aware macros', function () {
     mock(BladeRenderer::class)
         ->expects('render')
         ->once()->withArgs(function (ComponentNode $node) {
-            expect($node->render())->toBe('<x-layout theme="BLAZE_PLACEHOLDER_0_" />');
+            expect($node->render())->toBe('<x-layout theme="BLAZE_PLACEHOLDER_0_&_" />');
 
             return true;
         })
