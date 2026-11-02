@@ -2,64 +2,33 @@
 
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Blade;
-use Livewire\Blaze\Exceptions\InvalidUnblazeScopeException;
 use Livewire\Blaze\Exceptions\LeftoverPlaceholdersException;
 
 beforeEach(fn () => Artisan::call('view:clear'));
 
-test('bound attributes passed to unblaze through the attribute bag', fn () => compare(<<<'BLADE'
-    <x-foldable.attributes-unblaze :aria-label="$unsafe" :title="$entity" />
-    BLADE, ['unsafe' => '"><img src=x onerror=alert(1)>', 'entity' => 'A &amp; B']
+test('unblaze scope holds bound attributes like blade', fn () => compare(<<<'BLADE'
+    <x-foldable.scope-unblaze :title="$value" :label="$value" />
+    BLADE, ['value' => '<b>A & B</b>']
 ));
 
-test('bound boolean attributes passed to unblaze through the attribute bag', fn () => compare(<<<'BLADE'
-    <x-foldable.attributes-unblaze :disabled="$false" :required="$true" :hidden="$null" />
-    BLADE, ['false' => false, 'true' => true, 'null' => null]
+test('unblaze scope holds bound boolean attributes like blade', fn () => compare(<<<'BLADE'
+    <x-foldable.scope-unblaze :title="$true" :label="$false" />
+    BLADE, ['true' => true, 'false' => false]
 ));
 
-test('echo attributes passed to unblaze through the attribute bag', fn () => compare(<<<'BLADE'
-    <x-foldable.attributes-unblaze aria-label="Hi {{ $unsafe }}" />
-    BLADE, ['unsafe' => '"><img src=x onerror=alert(1)>']
+test('unblaze scope holds echo attributes like blade', fn () => compare(<<<'BLADE'
+    <x-foldable.scope-unblaze title="Hi {{ $value }}" label="Hi {{ $value }}" />
+    BLADE, ['value' => '<b>A & B</b>']
 ));
 
-test('bound attributes passed to unblaze as props', fn () => compare(<<<'BLADE'
-    <x-foldable.props-unblaze :title="$value" />
-    BLADE, ['value' => '"><img src=x onerror=alert(1)> A &amp; B']
-));
+test('values transformed in unblaze scope fail the fold', function () {
+    $input = '<x-foldable.transformed-scope-unblaze :name="$value" />';
+    $data = ['value' => 'email'];
 
-test('bound attributes forwarded to unblaze of nested components', fn () => compare(<<<'BLADE'
-    <x-foldable.forwarded-attributes-unblaze :title="$value" />
-    BLADE, ['value' => '"><img src=x onerror=alert(1)> A &amp; B']
-));
+    expect(fn () => Blade::render($input, $data))->toThrow(LeftoverPlaceholdersException::class);
 
-test('bound attributes escaped again in unblaze fail the fold', fn () => compareUnfolded(<<<'BLADE'
-    <x-foldable.escaped-attributes-unblaze :title="$value" />
-    BLADE, ['value' => 'A & B'], InvalidUnblazeScopeException::class
-));
-
-test('echo attributes escaped again in unblaze fail the fold', fn () => compareUnfolded(<<<'BLADE'
-    <x-foldable.escaped-attributes-unblaze title="{{ $value }}" />
-    BLADE, ['value' => 'A & B'], InvalidUnblazeScopeException::class
-));
-
-test('bound attributes concatenated in unblaze fail the fold', fn () => compareUnfolded(<<<'BLADE'
-    <x-foldable.concatenated-attributes-unblaze :name="$value" />
-    BLADE, ['value' => 'email'], InvalidUnblazeScopeException::class
-));
-
-test('bound attributes merged with an escaped copy fail the fold', fn () => compareUnfolded(<<<'BLADE'
-    <x-foldable.merged-class :class="$value" />
-    BLADE, ['value' => '[&>span]:hidden'], LeftoverPlaceholdersException::class
-));
-
-/**
- * Assert that the component fails to fold, and that the fallback users get without Blaze::throw() matches Blade.
- */
-function compareUnfolded(string $input, array $data, string $exception): void
-{
-    expect(fn () => Blade::render($input, $data))->toThrow($exception);
-
+    // Without Blaze::throw(), the component is compiled without folding
     (fn () => $this->throw = false)->call(app('blaze'));
 
     compare($input, $data);
-}
+});

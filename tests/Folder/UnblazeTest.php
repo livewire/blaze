@@ -62,13 +62,13 @@ test('processes replacements in compiled files', function () {
     $node = app(Parser::class)->parse('<x-foldable.input-unblaze name="address" />')[0];
 
     // Force compilation and store replacements...
-    $before = app(BladeRenderer::class)->render($node, $path);
+    $before = (new Foldable($node, $path, app(BladeRenderer::class), app(BladeService::class)))->fold();
 
     // Flush replacements to simulate a separate process...
     Unblaze::flushState();
 
     // Ensure we can restore replacements from the compiled file...
-    $after = app(BladeRenderer::class)->render($node, $path);
+    $after = (new Foldable($node, $path, app(BladeRenderer::class), app(BladeService::class)))->fold();
 
     expect($before)->toBe($after);
 });

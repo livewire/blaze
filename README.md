@@ -586,7 +586,7 @@ Variables from the component scope must be passed explicitly using the `scope` p
 @endunblaze
 ```
 
-When Blaze detects a transformed value in the scope, it compiles the component without folding, so it still renders correctly but without the speedup. Use `Blaze::throw()` to find out which value caused it. Not every transformation can be detected, like comparing a value, so don't rely on this.
+When Blaze detects a transformed value in the scope, it compiles the component without folding, so it still renders correctly but without the speedup. Use `Blaze::throw()` to find out when this happens. Not every transformation can be detected, like comparing a value, so don't rely on this.
 
 # Debug Mode
 

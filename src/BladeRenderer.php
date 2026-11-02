@@ -165,8 +165,6 @@ class BladeRenderer
             $restoreRuntime();
         }
 
-        $result = Unblaze::replaceUnblazePrecompiledDirectives($result);
-
         return $result;
     }
 

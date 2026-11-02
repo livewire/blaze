@@ -17,16 +17,13 @@ class Placeholder
     public const PREFIX = 'BLAZE_PLACEHOLDER_';
 
     /**
-     * Matches a placeholder, capturing its index and, for an attribute, the suffix.
+     * Matches the placeholder of an attribute, escaped any number of times.
      */
-    public const PATTERN = self::PREFIX . '(?<index>[0-9]+)_(?<suffix>&(?:amp;)*_)?';
+    public const ATTRIBUTE_PATTERN = self::PREFIX . '[0-9]+_&(?:amp;)*_';
 
-    /**
-     * @param  int|null  $escapes  How many times the attribute was escaped, null for slots
-     */
     public function __construct(
         public readonly int $index,
-        public readonly ?int $escapes,
+        public readonly int $escapes,
     ) {
     }
 
@@ -47,12 +44,14 @@ class Placeholder
     }
 
     /**
-     * Create from the matches of a pattern that includes PATTERN.
+     * Parse the placeholder of an attribute.
      */
-    public static function fromMatch(array $matches): self
+    public static function parse(string $placeholder): self
     {
-        $suffix = $matches['suffix'] ?? '';
+        if (! preg_match('/^' . self::PREFIX . '(?<index>[0-9]+)_(?<escapes>&(?:amp;)*)_$/', $placeholder, $matches)) {
+            throw new \InvalidArgumentException("[{$placeholder}] is not the placeholder of an attribute.");
+        }
 
-        return new self((int) $matches['index'], $suffix === '' ? null : substr_count($suffix, 'amp;'));
+        return new self((int) $matches['index'], substr_count($matches['escapes'], 'amp;'));
     }
 }

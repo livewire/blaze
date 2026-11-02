@@ -48,19 +48,6 @@ test('makes parents attributes available to aware props', function () {
     expect($output)->toEqualCollapsingWhitespace('<input type="number" >');
 });
 
-test('processes unblaze blocks', function () {
-    $node = app(Parser::class)->parse('<x-foldable.input-unblaze name="address" />')[0];
-
-    $output = app(BladeRenderer::class)->render($node, fixture_path('views/components/foldable/input-unblaze.blade.php'));
-
-    expect($output)->toEqualCollapsingWhitespace(sprintf('<input %s >', join('', [
-        '<?php if (isset($scope)) $__scope = $scope; ?>',
-        '<?php $scope = array ( \'name\' => \'address\', ); ?>',
-        ' {{ $errors->has($scope[\'name\']) }} ',
-        '<?php if (isset($__scope)) { $scope = $__scope; unset($__scope); } ?>',
-    ])));
-});
-
 test('recompiles stale cache of folded components', function () {
     $dir = sys_get_temp_dir().'/blaze-'.uniqid();
     $path = $dir.'/button.blade.php';
