@@ -60,27 +60,27 @@ class Foldable
     protected function setupAttributes(): void
     {
         foreach ($this->node->attributes as $attribute) {
-            $value = $this->prepareAttribute($attribute);
-
-            $this->data[$attribute->propName] = $value;
-            $this->attributes[$attribute->name] = $value;
+            $this->data[$attribute->propName] = $this->prepareAttribute($attribute, 'PROP');
+            $this->attributes[$attribute->name] = $this->prepareAttribute($attribute, 'ATTR');
         }
 
         foreach ($this->node->parentsAttributes as $attribute) {
-            $this->awareData[$attribute->name] = $this->prepareAttribute($attribute);
+            $this->awareData[$attribute->name] = $this->prepareAttribute($attribute, 'PROP');
         }
     }
 
     /**
      * Get the value of an attribute for isolated rendering, using a placeholder for a dynamic value.
+     *
+     * Props and the attribute bag get their own placeholders, so each can be restored like Blade holds it there.
      */
-    protected function prepareAttribute(Attribute $attribute): mixed
+    protected function prepareAttribute(Attribute $attribute, string $type): mixed
     {
         if ($attribute->isStaticValue()) {
             return $attribute->getStaticValue();
         }
 
-        $placeholder = 'BLAZE_PLACEHOLDER_' . $this->placeholderIndex++ . '_';
+        $placeholder = 'BLAZE_PLACEHOLDER_' . $type . '_' . $this->placeholderIndex++ . '_';
 
         $this->attributeByPlaceholder[$placeholder] = $attribute;
 
@@ -145,7 +145,7 @@ class Foldable
      */
     protected function processUncompiledAttributes(): void
     {
-        $this->html = preg_replace_callback('/\[BLAZE_ATTR:(BLAZE_PLACEHOLDER_[0-9]+_):(.+?)\](\r?\n)?/', function ($matches) {
+        $this->html = preg_replace_callback('/\[BLAZE_ATTR:(BLAZE_PLACEHOLDER_(?:PROP|ATTR)_[0-9]+_):(.+?)\](\r?\n)?/', function ($matches) {
             $attribute = $this->attributeByPlaceholder[$matches[1]];
             $name = $matches[2];
 
@@ -167,12 +167,17 @@ class Foldable
      */
     protected function restorePlaceholders(): void
     {
-        // Attribute placeholders inside PHP blocks need raw values
+        // Attribute placeholders inside PHP blocks, like @unblaze scopes, need PHP expressions
         $this->html = preg_replace_callback('/<\?php.*?\?>/s', function ($match) {
             $content = $match[0];
 
             foreach ($this->attributeByPlaceholder as $placeholder => $attribute) {
                 $value = $attribute->bound() ? $attribute->value : $this->blade->compileAttributeEchos($attribute->value);
+
+                // Like Blade, the attribute bag holds bound attributes escaped
+                if ($attribute->bound() && str_starts_with($placeholder, 'BLAZE_PLACEHOLDER_ATTR_')) {
+                    $value = '\Illuminate\View\Compilers\BladeCompiler::sanitizeComponentAttribute(' . $value . ')';
+                }
 
                 $content = str_replace("'" . $placeholder . "'", $value, $content);
             }
