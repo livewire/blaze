@@ -3,7 +3,6 @@
 use Livewire\Blaze\BladeRenderer;
 use Livewire\Blaze\BladeService;
 use Livewire\Blaze\Folder\Foldable;
-use Livewire\Blaze\Parser\Nodes\ComponentNode;
 use Livewire\Blaze\Parser\Parser;
 use Livewire\Blaze\Support\AttributeParser;
 
@@ -14,8 +13,8 @@ test('replaces and restores bound attributes', function () {
 
     mock(BladeRenderer::class)
         ->expects('render')
-        ->once()->withArgs(function (ComponentNode $node) {
-            expect($node->render())->toBe('<x-input type="BLAZE_PLACEHOLDER_0_" />');
+        ->once()->withArgs(function (string $path, array $data, array $attributes) {
+            expect($attributes)->toBe(['type' => 'BLAZE_PLACEHOLDER_0_']);
 
             return true;
         })
@@ -26,20 +25,20 @@ test('replaces and restores bound attributes', function () {
     expect($output)->toEqualCollapsingWhitespace('<input type="{{ $type }}" >');
 });
 
-test('preserves bound attributes with static constant values', function (string $value) {
+test('preserves bound attributes with static constant values', function (string $value, ?bool $expected) {
     $node = app(Parser::class)->parse('<x-input :disabled="' . $value . '" />')[0];
 
     mock(BladeRenderer::class)
         ->expects('render')
-        ->once()->withArgs(function (ComponentNode $node) use ($value) {
-            expect($node->render())->toBe('<x-input :disabled="' . $value . '" />');
+        ->once()->withArgs(function (string $path, array $data, array $attributes) use ($expected) {
+            expect($attributes)->toBe(['disabled' => $expected]);
 
             return true;
         })
         ->andReturn('');
 
     (new Foldable($node, '', app(BladeRenderer::class), app(BladeService::class)))->fold();
-})->with(['false', 'true', 'null']);
+})->with([['false', false], ['true', true], ['null', null]]);
 
 test('replaces parents attributes', function () {
     $node = app(Parser::class)->parse('<x-input />')[0];
@@ -50,9 +49,9 @@ test('replaces parents attributes', function () {
 
     mock(BladeRenderer::class)
         ->expects('render')
-        ->once()->withArgs(function (ComponentNode $node) {
-            expect($node->render())->toBe('<x-input />');
-            expect($node->parentsAttributes['type']->render())->toBe('type="BLAZE_PLACEHOLDER_0_"');
+        ->once()->withArgs(function (string $path, array $data, array $attributes, array $slots, array $awareData) {
+            expect($attributes)->toBe([]);
+            expect($awareData)->toBe(['type' => 'BLAZE_PLACEHOLDER_0_']);
 
             return true;
         })
@@ -68,8 +67,8 @@ test('restores every occurrence of a dynamic attribute placeholder', function ()
 
     mock(BladeRenderer::class)
         ->expects('render')
-        ->once()->withArgs(function (ComponentNode $node) {
-            expect($node->render())->toBe('<x-button wire:click="BLAZE_PLACEHOLDER_0_" />');
+        ->once()->withArgs(function (string $path, array $data, array $attributes) {
+            expect($attributes)->toBe(['wire:click' => 'BLAZE_PLACEHOLDER_0_']);
 
             return true;
         })
@@ -87,8 +86,8 @@ test('restores bound attributes inside php blocks as raw expressions', function 
 
     mock(BladeRenderer::class)
         ->expects('render')
-        ->once()->withArgs(function (ComponentNode $node) {
-            expect($node->render())->toBe('<x-input type="BLAZE_PLACEHOLDER_0_" />');
+        ->once()->withArgs(function (string $path, array $data, array $attributes) {
+            expect($attributes)->toBe(['type' => 'BLAZE_PLACEHOLDER_0_']);
 
             return true;
         })
@@ -104,8 +103,8 @@ test('compiles echo attributes restored inside php blocks', function () {
 
     mock(BladeRenderer::class)
         ->expects('render')
-        ->once()->withArgs(function (ComponentNode $node) {
-            expect($node->render())->toBe('<x-layout theme="BLAZE_PLACEHOLDER_0_" />');
+        ->once()->withArgs(function (string $path, array $data, array $attributes) {
+            expect($attributes)->toBe(['theme' => 'BLAZE_PLACEHOLDER_0_']);
 
             return true;
         })
@@ -121,8 +120,8 @@ test('compiles bound attributes passed through attribute bag', function () {
 
     mock(BladeRenderer::class)
         ->expects('render')
-        ->once()->withArgs(function (ComponentNode $node) {
-            expect($node->render())->toBe('<x-input required="BLAZE_PLACEHOLDER_0_" />');
+        ->once()->withArgs(function (string $path, array $data, array $attributes) {
+            expect($attributes)->toBe(['required' => 'BLAZE_PLACEHOLDER_0_']);
 
             return true;
         })
@@ -144,8 +143,8 @@ test('restores unbound attributes passed through attribute bag', function () {
 
     mock(BladeRenderer::class)
         ->expects('render')
-        ->once()->withArgs(function (ComponentNode $node) {
-            expect($node->render())->toBe('<x-button wire:click="BLAZE_PLACEHOLDER_0_" />');
+        ->once()->withArgs(function (string $path, array $data, array $attributes) {
+            expect($attributes)->toBe(['wire:click' => 'BLAZE_PLACEHOLDER_0_']);
 
             return true;
         })
@@ -161,8 +160,8 @@ test('uses empty strings for true x-data and wire: attributes passed through att
 
     mock(BladeRenderer::class)
         ->expects('render')
-        ->once()->withArgs(function (ComponentNode $node) use ($attribute) {
-            expect($node->render())->toBe('<x-input '.$attribute.'="BLAZE_PLACEHOLDER_0_" />');
+        ->once()->withArgs(function (string $path, array $data, array $attributes) use ($attribute) {
+            expect($attributes)->toBe([$attribute => 'BLAZE_PLACEHOLDER_0_']);
 
             return true;
         })
@@ -184,8 +183,8 @@ test('handles newlines consumed by attribute php blocks', function () {
 
     mock(BladeRenderer::class)
         ->expects('render')
-        ->once()->withArgs(function (ComponentNode $node) {
-            expect($node->render())->toBe('<x-input required="BLAZE_PLACEHOLDER_0_" />');
+        ->once()->withArgs(function (string $path, array $data, array $attributes) {
+            expect($attributes)->toBe(['required' => 'BLAZE_PLACEHOLDER_0_']);
 
             return true;
         })
@@ -221,15 +220,12 @@ test('restores named and default slots after rendering', function () {
 
     mock(BladeRenderer::class)
         ->expects('render')
-        ->once()->withArgs(function (ComponentNode $node) {
-            expect($node->render())->toBe(join('', [
-                '<x-card>',
-                    '<x-slot:header>BLAZE_PLACEHOLDER_0_</x-slot:header>',
-                    '<x-slot:footer>BLAZE_PLACEHOLDER_1_</x-slot:footer>',
-                    '<x-slot name="slot">BLAZE_PLACEHOLDER_2_</x-slot>',
-                '</x-card>',
-                ])
-            );
+        ->once()->withArgs(function (string $path, array $data, array $attributes, array $slots) {
+            expect($slots)->toBe([
+                'header' => 'BLAZE_PLACEHOLDER_0_',
+                'footer' => 'BLAZE_PLACEHOLDER_1_',
+                'slot' => 'BLAZE_PLACEHOLDER_2_',
+            ]);
 
             return true;
         })
@@ -270,8 +266,8 @@ test('does not synthesize a default slot when one is explicit', function () {
 
     mock(BladeRenderer::class)
         ->expects('render')
-        ->once()->withArgs(function (ComponentNode $node) {
-            expect($node->render())->toBe('<x-card><x-slot name="slot">BLAZE_PLACEHOLDER_0_</x-slot></x-card>');
+        ->once()->withArgs(function (string $path, array $data, array $attributes, array $slots) {
+            expect($slots)->toBe(['slot' => 'BLAZE_PLACEHOLDER_0_']);
 
             return true;
         })
@@ -287,8 +283,8 @@ test('handles newlines consumed by slot php blocks', function () {
 
     mock(BladeRenderer::class)
         ->expects('render')
-        ->once()->withArgs(function (ComponentNode $node) {
-            expect($node->render())->toBe('<x-card><x-slot name="slot">BLAZE_PLACEHOLDER_0_</x-slot></x-card>');
+        ->once()->withArgs(function (string $path, array $data, array $attributes, array $slots) {
+            expect($slots)->toBe(['slot' => 'BLAZE_PLACEHOLDER_0_']);
 
             return true;
         })
@@ -306,8 +302,8 @@ test('wraps output with aware macros if descendants use aware', function () {
 
     mock(BladeRenderer::class)
         ->expects('render')
-        ->once()->withArgs(function (ComponentNode $node) {
-            expect($node->render())->toBe('<x-layout theme="dark" />');
+        ->once()->withArgs(function (string $path, array $data, array $attributes) {
+            expect($attributes)->toBe(['theme' => 'dark']);
 
             return true;
         })
@@ -329,8 +325,8 @@ test('compiles dynamic attributes in aware macros', function () {
 
     mock(BladeRenderer::class)
         ->expects('render')
-        ->once()->withArgs(function (ComponentNode $node) {
-            expect($node->render())->toBe('<x-layout theme="BLAZE_PLACEHOLDER_0_" />');
+        ->once()->withArgs(function (string $path, array $data, array $attributes) {
+            expect($attributes)->toBe(['theme' => 'BLAZE_PLACEHOLDER_0_']);
 
             return true;
         })
@@ -351,8 +347,8 @@ test('compiles echo attributes in aware macros', function () {
 
     mock(BladeRenderer::class)
         ->expects('render')
-        ->once()->withArgs(function (ComponentNode $node) {
-            expect($node->render())->toBe('<x-layout theme="BLAZE_PLACEHOLDER_0_" />');
+        ->once()->withArgs(function (string $path, array $data, array $attributes) {
+            expect($attributes)->toBe(['theme' => 'BLAZE_PLACEHOLDER_0_']);
 
             return true;
         })
@@ -373,8 +369,8 @@ test('does not add aware macros to components without attributes', function () {
 
     mock(BladeRenderer::class)
         ->expects('render')
-        ->once()->withArgs(function (ComponentNode $node) {
-            expect($node->render())->toBe('<x-layout />');
+        ->once()->withArgs(function (string $path, array $data, array $attributes) {
+            expect($attributes)->toBe([]);
 
             return true;
         })
@@ -391,9 +387,9 @@ test('does not add aware macros for inherited attributes only', function () {
 
     mock(BladeRenderer::class)
         ->expects('render')
-        ->once()->withArgs(function (ComponentNode $node) {
-            expect($node->render())->toBe('<x-layout />');
-            expect($node->parentsAttributes['theme']->render())->toBe('theme="dark"');
+        ->once()->withArgs(function (string $path, array $data, array $attributes, array $slots, array $awareData) {
+            expect($attributes)->toBe([]);
+            expect($awareData)->toBe(['theme' => 'dark']);
 
             return true;
         })
@@ -408,8 +404,8 @@ test('does not synthesize a default slot for whitespace-only loose content', fun
 
     mock(BladeRenderer::class)
         ->expects('render')
-        ->once()->withArgs(function (ComponentNode $node) {
-            expect($node->render())->toBe('<x-card></x-card>');
+        ->once()->withArgs(function (string $path, array $data, array $attributes, array $slots) {
+            expect($slots)->toBe([]);
 
             return true;
         })
@@ -425,8 +421,8 @@ test('does not add a placeholder for a whitespace-only slot', function () {
 
     mock(BladeRenderer::class)
         ->expects('render')
-        ->once()->withArgs(function (ComponentNode $node) {
-            expect($node->render())->toBe('<x-card><x-slot:footer></x-slot:footer></x-card>');
+        ->once()->withArgs(function (string $path, array $data, array $attributes, array $slots) {
+            expect($slots)->toBe(['footer' => '']);
 
             return true;
         })

@@ -9,9 +9,6 @@ use Illuminate\Support\Facades\File;
 use Illuminate\View\Compilers\BladeCompiler;
 use Illuminate\View\ComponentSlot;
 use Livewire\Blaze\Exceptions\InvalidBlazeFoldUsageException;
-use Livewire\Blaze\Parser\Attribute;
-use Livewire\Blaze\Parser\Nodes\ComponentNode;
-use Livewire\Blaze\Parser\Nodes\SlotNode;
 use Livewire\Blaze\Runtime\BlazeRuntime;
 use Livewire\Blaze\Support\Utils;
 use ReflectionClass;
@@ -38,9 +35,9 @@ class BladeRenderer
     }
 
     /**
-     * Render a Blade template string in isolation by freezing and restoring compiler state.
+     * Render a component in isolation with the given props, attribute bag, slot contents and aware data.
      */
-    public function render(ComponentNode $component, string $path): string
+    public function render(string $path, array $data = [], array $attributes = [], array $slots = [], array $awareData = []): string
     {
         $temporaryCachePath = $this->getTemporaryCachePath();
 
@@ -116,21 +113,7 @@ class BladeRenderer
                 $this->blade->compile($path);
             }
 
-            $awareData = Arr::mapWithKeys($component->parentsAttributes, function (Attribute $attribute) {
-                return [$attribute->name => $attribute->getStaticValue()];
-            });
-
-            $data = Arr::mapWithKeys($component->attributes, function (Attribute $attribute) {
-                return [$attribute->propName => $attribute->getStaticValue()];
-            });
-
-            $attributes = Arr::mapWithKeys($component->attributes, function (Attribute $attribute) {
-                return [$attribute->name => $attribute->getStaticValue()];
-            });
-            
-            $slots = Arr::mapWithKeys($component->children, function (SlotNode $slot) {
-                return [$slot->name => new ComponentSlot($slot->content())];
-            });
+            $slots = array_map(fn (string $contents) => new ComponentSlot($contents), $slots);
 
             $this->runtime->pushData($awareData);
             $this->runtime->pushData($data);
