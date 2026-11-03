@@ -87,6 +87,11 @@ test('input with bound error attribute', fn () => compare(<<<'BLADE'
     BLADE, ['value' => 'a"b<c>&d\'e']
 ));
 
+test('folded wrapper binds its prop to an input error attribute', fn () => compare(<<<'BLADE'
+    <x-foldable.flux-input-unblaze :error-label="$value" />
+    BLADE, ['value' => 'a"b<c>&d\'e']
+));
+
 /**
  * Checks that attributes passed through delegate component are escaped exactly once, like in Blade
  */

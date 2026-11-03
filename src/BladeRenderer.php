@@ -85,7 +85,13 @@ class BladeRenderer
                     }
 
                     return $input;
-                }
+                },
+                // Runs after component tags are compiled, so it covers the attributes of Blaze and Blade components
+                fn (string $input) => str_replace(
+                    '\Illuminate\View\Compilers\BladeCompiler::sanitizeComponentAttribute(',
+                    '\Livewire\Blaze\Runtime\BlazeRuntime::sanitizeFoldedAttribute(',
+                    $input,
+                ),
              ],
             'path' => null,
             'forElseCounter' => 0,

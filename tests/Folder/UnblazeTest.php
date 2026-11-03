@@ -72,3 +72,8 @@ test('processes replacements in compiled files', function () {
 
     expect($before)->toBe($after);
 });
+
+test('escapes props bound to child attributes', fn () => compare(<<<'BLADE'
+    <x-foldable.forwarded-prop-unblaze :value="$value" />
+    BLADE, ['value' => 'a"b<c>&d\'e']
+));

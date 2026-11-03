@@ -161,6 +161,21 @@ class BlazeRuntime
     }
 
     /**
+     * Escape an attribute value like Blade, while folding.
+     *
+     * Escaping leaves a placeholder unchanged, so a PROP placeholder, which is restored raw,
+     * is turned into an ATTR placeholder of the same attribute, which is restored escaped.
+     *
+     * @see \Livewire\Blaze\BladeRenderer::render()
+     */
+    public static function sanitizeFoldedAttribute(mixed $value): mixed
+    {
+        $value = BladeCompiler::sanitizeComponentAttribute($value);
+
+        return is_string($value) ? str_replace('BLAZE_PLACEHOLDER_PROP_', 'BLAZE_PLACEHOLDER_ATTR_', $value) : $value;
+    }
+
+    /**
      * Merge an attribute bag passed with :attributes into the component's own attributes.
      *
      * A value that's not a bag stays an attribute and is escaped like any other bound value.
@@ -172,7 +187,9 @@ class BlazeRuntime
         $parent = $attributes['attributes'] ?? null;
 
         if (! $parent instanceof ComponentAttributeBag) {
-            $attributes['attributes'] = BladeCompiler::sanitizeComponentAttribute($parent);
+            $attributes['attributes'] = $this->folding
+                ? static::sanitizeFoldedAttribute($parent)
+                : BladeCompiler::sanitizeComponentAttribute($parent);
 
             return $attributes;
         }
