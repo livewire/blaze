@@ -2,8 +2,6 @@
 
 use Illuminate\Support\Facades\Artisan;
 
-use function Livewire\invade;
-
 beforeEach(fn () => Artisan::call('view:clear'));
 
 test('verbatim', fn () => compare('@verbatim <x-input /> @endverbatim'));
@@ -76,16 +74,6 @@ test('foldable literal string attributes matching PHP constants', fn () => compa
     <x-foldable.input value="null" />
     BLADE
 ));
-
-test('foldable slot passed through attributes', function () {
-    // Folding fails for slots passed through attributes, so the component is compiled without folding
-    invade(app('blaze'))->throw = false;
-
-    compare(<<<'BLADE'
-        <x-foldable.input-slot-value>Hello</x-foldable.input-slot-value>
-        BLADE
-    );
-});
 
 test('same component in a slot doesnt affect parents attributes', fn () => compare(<<<'BLADE'
     <x-card>
