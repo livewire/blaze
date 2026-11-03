@@ -142,7 +142,7 @@ class Foldable
      */
     protected function processUncompiledAttributes(): void
     {
-        $this->html = preg_replace_callback('/\[BLAZE_ATTR:(BLAZE_PLACEHOLDER_(?:PROP|ATTR)_[0-9]+_):(.+?)\](\r?\n)?/', function ($matches) {
+        $this->html = preg_replace_callback('/\[BLAZE_ATTR:(BLAZE_PLACEHOLDER_(?:PROP_|ATTR_)?[0-9]+_):(.+?)\](\r?\n)?/', function ($matches) {
             $attribute = $this->attributeByPlaceholder[$matches[1]];
             $name = $matches[2];
 

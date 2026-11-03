@@ -75,6 +75,11 @@ test('foldable literal string attributes matching PHP constants', fn () => compa
     BLADE
 ));
 
+test('foldable slot passed through attributes', fn () => compare(<<<'BLADE'
+    <x-foldable.input-slot-value>Hello</x-foldable.input-slot-value>
+    BLADE
+));
+
 test('same component in a slot doesnt affect parents attributes', fn () => compare(<<<'BLADE'
     <x-card>
         <x-card x-data>
