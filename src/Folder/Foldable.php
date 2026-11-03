@@ -71,9 +71,16 @@ class Foldable
             return $attribute->getStaticValue();
         }
 
-        $placeholder = 'BLAZE_PLACEHOLDER_' . $type . '_' . $this->placeholderIndex++ . '_';
+        $index = $this->placeholderIndex++;
+        $placeholder = 'BLAZE_PLACEHOLDER_' . $type . '_' . $index . '_';
 
         $this->attributeByPlaceholder[$placeholder] = $attribute;
+
+        // Escaping a prop while folding turns it into an attribute placeholder with the same index
+        // @see \Livewire\Blaze\Runtime\BlazeRuntime::sanitizeFoldedAttribute()
+        if ($type === 'PROP') {
+            $this->attributeByPlaceholder['BLAZE_PLACEHOLDER_ATTR_' . $index . '_'] = $attribute;
+        }
 
         return $placeholder;
     }

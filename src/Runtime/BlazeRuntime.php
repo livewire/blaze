@@ -2,6 +2,7 @@
 
 namespace Livewire\Blaze\Runtime;
 
+use Illuminate\Contracts\Support\Htmlable;
 use Illuminate\Contracts\View\Factory;
 use Illuminate\Foundation\Application;
 use Illuminate\Support\Str;
@@ -161,6 +162,26 @@ class BlazeRuntime
     }
 
     /**
+     * Escape an attribute value like Blade, while folding.
+     *
+     * Escaping leaves a placeholder unchanged, so a PROP placeholder, which is restored raw,
+     * is turned into an ATTR placeholder of the same attribute, which is restored escaped.
+     *
+     * @see \Livewire\Blaze\BladeRenderer::render()
+     */
+    public static function sanitizeFoldedAttribute(mixed $value): mixed
+    {
+        $sanitized = BladeCompiler::sanitizeComponentAttribute($value);
+
+        // Like Blade, trusted HTML stays unescaped, so its placeholder stays raw
+        if ($value instanceof Htmlable || ! is_string($sanitized)) {
+            return $sanitized;
+        }
+
+        return str_replace('BLAZE_PLACEHOLDER_PROP_', 'BLAZE_PLACEHOLDER_ATTR_', $sanitized);
+    }
+
+    /**
      * Merge an attribute bag passed with :attributes into the component's own attributes.
      *
      * A value that's not a bag stays an attribute and is escaped like any other bound value.
@@ -172,7 +193,9 @@ class BlazeRuntime
         $parent = $attributes['attributes'] ?? null;
 
         if (! $parent instanceof ComponentAttributeBag) {
-            $attributes['attributes'] = BladeCompiler::sanitizeComponentAttribute($parent);
+            $attributes['attributes'] = $this->folding
+                ? static::sanitizeFoldedAttribute($parent)
+                : BladeCompiler::sanitizeComponentAttribute($parent);
 
             return $attributes;
         }
