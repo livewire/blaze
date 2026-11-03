@@ -77,3 +77,8 @@ test('escapes props bound to child attributes', fn () => compare(<<<'BLADE'
     <x-foldable.forwarded-prop-unblaze :value="$value" />
     BLADE, ['value' => 'a"b<c>&d\'e']
 ));
+
+test('keeps props bound to child attributes as trusted html unescaped', fn () => compare(<<<'BLADE'
+    <x-foldable.forwarded-html-prop-unblaze :value="$value" />
+    BLADE, ['value' => 'Terms &amp; conditions']
+));

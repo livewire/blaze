@@ -2,6 +2,7 @@
 
 namespace Livewire\Blaze\Runtime;
 
+use Illuminate\Contracts\Support\Htmlable;
 use Illuminate\Contracts\View\Factory;
 use Illuminate\Foundation\Application;
 use Illuminate\Support\Str;
@@ -170,9 +171,14 @@ class BlazeRuntime
      */
     public static function sanitizeFoldedAttribute(mixed $value): mixed
     {
-        $value = BladeCompiler::sanitizeComponentAttribute($value);
+        $sanitized = BladeCompiler::sanitizeComponentAttribute($value);
 
-        return is_string($value) ? str_replace('BLAZE_PLACEHOLDER_PROP_', 'BLAZE_PLACEHOLDER_ATTR_', $value) : $value;
+        // Like Blade, trusted HTML stays unescaped, so its placeholder stays raw
+        if ($value instanceof Htmlable || ! is_string($sanitized)) {
+            return $sanitized;
+        }
+
+        return str_replace('BLAZE_PLACEHOLDER_PROP_', 'BLAZE_PLACEHOLDER_ATTR_', $sanitized);
     }
 
     /**
