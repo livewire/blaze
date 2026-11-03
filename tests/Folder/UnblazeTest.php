@@ -79,12 +79,14 @@ test('escapes props bound to child attributes', function () {
     $node = app(Parser::class)->parse($input)[0];
     $foldable = new Foldable($node, fixture_path('views/components/foldable/forwarded-prop-unblaze.blade.php'), app(BladeRenderer::class), app(BladeService::class));
 
-    expect($foldable->fold())->toEqualCollapsingWhitespace(join('', [
-        '<?php if (isset($scope)) $__scope = $scope; ?>',
-        '<?php $scope = array ( \'attributes\' => array ( \'aria-label\' => \Illuminate\View\Compilers\BladeCompiler::sanitizeComponentAttribute($value), ), ); ?>',
-        '<div {{ new \Illuminate\View\ComponentAttributeBag($scope[\'attributes\']) }}></div> ',
-        '<?php if (isset($__scope)) { $scope = $__scope; unset($__scope); } ?>',
-    ]));
+    expect($foldable->fold())->toEqualCollapsingWhitespace(
+        sprintf('<div %s ></div>', join('', [
+            '<?php if (isset($scope)) $__scope = $scope; ?>',
+            '<?php $scope = array ( \'attributes\' => array ( \'aria-label\' => \Illuminate\View\Compilers\BladeCompiler::sanitizeComponentAttribute($value), ), ); ?>',
+            ' {{ new \Illuminate\View\ComponentAttributeBag($scope[\'attributes\']) }} ',
+            '<?php if (isset($__scope)) { $scope = $__scope; unset($__scope); } ?>'
+        ]))
+    );
 });
 
 test('keeps props bound to child attributes as trusted html unescaped', function () {
@@ -93,10 +95,12 @@ test('keeps props bound to child attributes as trusted html unescaped', function
     $node = app(Parser::class)->parse($input)[0];
     $foldable = new Foldable($node, fixture_path('views/components/foldable/forwarded-html-prop-unblaze.blade.php'), app(BladeRenderer::class), app(BladeService::class));
 
-    expect($foldable->fold())->toEqualCollapsingWhitespace(join('', [
-        '<?php if (isset($scope)) $__scope = $scope; ?>',
-        '<?php $scope = array ( \'attributes\' => array ( \'aria-label\' => $value, ), ); ?>',
-        '<div {{ new \Illuminate\View\ComponentAttributeBag($scope[\'attributes\']) }}></div> ',
-        '<?php if (isset($__scope)) { $scope = $__scope; unset($__scope); } ?>',
-    ]));
+    expect($foldable->fold())->toEqualCollapsingWhitespace(
+        sprintf('<div %s ></div>', join('', [
+            '<?php if (isset($scope)) $__scope = $scope; ?>',
+            '<?php $scope = array ( \'attributes\' => array ( \'aria-label\' => $value, ), ); ?>',
+            ' {{ new \Illuminate\View\ComponentAttributeBag($scope[\'attributes\']) }} ',
+            '<?php if (isset($__scope)) { $scope = $__scope; unset($__scope); } ?>'
+        ]))
+    );
 });
