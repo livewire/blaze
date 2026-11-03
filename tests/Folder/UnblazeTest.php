@@ -59,16 +59,16 @@ test('folds dynamic attributes used inside unblaze directive', function () {
 
 test('processes replacements in compiled files', function () {
     $path = fixture_path('views/components/foldable/input-unblaze.blade.php');
-    $node = app(Parser::class)->parse('<x-foldable.input-unblaze name="address" />')[0];
+    $data = ['name' => 'address'];
 
     // Force compilation and store replacements...
-    $before = app(BladeRenderer::class)->render($node, $path);
+    $before = app(BladeRenderer::class)->render($path, $data, $data);
 
     // Flush replacements to simulate a separate process...
     Unblaze::flushState();
 
     // Ensure we can restore replacements from the compiled file...
-    $after = app(BladeRenderer::class)->render($node, $path);
+    $after = app(BladeRenderer::class)->render($path, $data, $data);
 
     expect($before)->toBe($after);
 });

@@ -4,8 +4,6 @@ use Illuminate\Support\Facades\File;
 use Illuminate\View\Compilers\BladeCompiler;
 use Livewire\Blaze\BladeRenderer;
 use Livewire\Blaze\BlazeManager;
-use Livewire\Blaze\Parser\Parser;
-use Livewire\Blaze\Support\AttributeParser;
 
 use function Livewire\invade;
 
@@ -13,45 +11,46 @@ beforeEach(fn () => app(BladeRenderer::class)->deleteTemporaryCacheDirectory());
 
 test('compiles component source into the temporary cache', function () {
     $path = fixture_path('views/components/foldable/input.blade.php');
-    $node = app(Parser::class)->parse('<x-foldable.input />')[0];
 
-    app(BladeRenderer::class)->render($node, $path);
+    app(BladeRenderer::class)->render($path);
 
     expect(File::exists(config('view.compiled').'/blaze/'.basename(app(BladeCompiler::class)->getCompiledPath($path))))->toBeTrue();
 });
 
 test('makes attributes available to aware props', function () {
-    $node = app(Parser::class)->parse('<x-foldable.input-aware type="number" />')[0];
-
-    $output = app(BladeRenderer::class)->render($node, fixture_path('views/components/foldable/input-aware.blade.php'));
+    $output = app(BladeRenderer::class)->render(
+        fixture_path('views/components/foldable/input-aware.blade.php'),
+        data: ['type' => 'number'],
+        attributes: ['type' => 'number'],
+    );
 
     expect($output)->toEqualCollapsingWhitespace('<input type="number" >');
 });
 
 test('makes slots available to aware props', function () {
-    $node = app(Parser::class)->parse('<x-foldable.input-aware><x-slot:type>number</x-slot:type></x-foldable.input-aware>')[0];
-
-    $output = app(BladeRenderer::class)->render($node, fixture_path('views/components/foldable/input-aware.blade.php'));
+    $output = app(BladeRenderer::class)->render(
+        fixture_path('views/components/foldable/input-aware.blade.php'),
+        slots: ['type' => 'number'],
+    );
 
     expect($output)->toEqualCollapsingWhitespace('<input type="number" >');
 });
 
 test('makes parents attributes available to aware props', function () {
-    $node = app(Parser::class)->parse('<x-foldable.input-aware />')[0];
-
-    $node->setParentsAttributes(
-        app(AttributeParser::class)->parse('type="number"')
+    $output = app(BladeRenderer::class)->render(
+        fixture_path('views/components/foldable/input-aware.blade.php'),
+        awareData: ['type' => 'number'],
     );
-
-    $output = app(BladeRenderer::class)->render($node, fixture_path('views/components/foldable/input-aware.blade.php'));
 
     expect($output)->toEqualCollapsingWhitespace('<input type="number" >');
 });
 
 test('processes unblaze blocks', function () {
-    $node = app(Parser::class)->parse('<x-foldable.input-unblaze name="address" />')[0];
-
-    $output = app(BladeRenderer::class)->render($node, fixture_path('views/components/foldable/input-unblaze.blade.php'));
+    $output = app(BladeRenderer::class)->render(
+        fixture_path('views/components/foldable/input-unblaze.blade.php'),
+        data: ['name' => 'address'],
+        attributes: ['name' => 'address'],
+    );
 
     expect($output)->toEqualCollapsingWhitespace(sprintf('<input %s >', join('', [
         '<?php if (isset($scope)) $__scope = $scope; ?>',
@@ -91,9 +90,7 @@ test('recompiles stale cache of folded components', function () {
 
         touch($path, time() + 2);
 
-        $node = app(Parser::class)->parse('<x-button />')[0];
-
-        expect($renderer->render($node, $path))->toContain('fresh');
+        expect($renderer->render($path))->toContain('fresh');
     } finally {
         File::deleteDirectory($dir);
     }
@@ -137,9 +134,7 @@ test('recompiles stale cache when source and compiled timestamps are equal', fun
 
         expect(File::lastModified($path))->toBe(File::lastModified($compiled));
 
-        $node = app(Parser::class)->parse('<x-button />')[0];
-
-        expect($renderer->render($node, $path))->toContain('fresh');
+        expect($renderer->render($path))->toContain('fresh');
     } finally {
         File::deleteDirectory($dir);
     }

@@ -2,6 +2,7 @@
 
 namespace Livewire\Blaze\Folder;
 
+use Illuminate\Support\Arr;
 use Illuminate\Support\Str;
 use Livewire\Blaze\BladeRenderer;
 use Livewire\Blaze\BladeService;
@@ -23,7 +24,6 @@ class Foldable
     protected array $slotByPlaceholder = [];
     protected int $placeholderIndex = 0;
 
-    protected ComponentNode $renderable;
     protected string $html;
 
     public function __construct(
@@ -39,17 +39,22 @@ class Foldable
      */
     public function fold(): string
     {
-        $this->renderable = new ComponentNode(
-            name: $this->node->name,
-            prefix: $this->node->prefix,
-            selfClosing: $this->node->selfClosing,
-        );
+        $data = Arr::mapWithKeys($this->node->attributes, fn (Attribute $attribute) => [
+            $attribute->propName => $this->storeAttribute($attribute, 'PROP'),
+        ]);
 
-        $this->setupAttributes();
-        $this->setupSlots();
+        $attributes = Arr::mapWithKeys($this->node->attributes, fn (Attribute $attribute) => [
+            $attribute->name => $this->storeAttribute($attribute, 'ATTR'),
+        ]);
 
-        $this->html = $this->renderer->render($this->renderable, $this->path);
-        
+        $awareData = Arr::mapWithKeys($this->node->parentsAttributes, fn (Attribute $attribute) => [
+            $attribute->name => $this->storeAttribute($attribute, 'PROP'),
+        ]);
+
+        $slots = Arr::map($this->getSlots(), fn (SlotNode $slot) => $this->storeSlot($slot));
+
+        $this->html = $this->renderer->render($this->path, $data, $attributes, $slots, $awareData);
+
         $this->processUncompiledAttributes();
         $this->restorePlaceholders();
         $this->wrapWithAwareMacros();
@@ -58,98 +63,64 @@ class Foldable
     }
 
     /**
-     * Prepare component and inherited attributes for isolated rendering.
+     * Store a dynamic attribute behind a placeholder, or return the value of a static one as is.
      */
-    protected function setupAttributes(): void
+    protected function storeAttribute(Attribute $attribute, string $type): mixed
     {
-        foreach ($this->node->attributes as $key => $attribute) {
-            $this->renderable->attributes[$key] = $this->prepareAttribute($attribute);
+        if ($attribute->isStaticValue()) {
+            return $attribute->getStaticValue();
         }
 
-        foreach ($this->node->parentsAttributes as $key => $attribute) {
-            $this->renderable->parentsAttributes[$key] = $this->prepareAttribute($attribute);
-        }
+        $placeholder = 'BLAZE_PLACEHOLDER_' . $type . '_' . $this->placeholderIndex++ . '_';
+
+        $this->attributeByPlaceholder[$placeholder] = $attribute;
+
+        return $placeholder;
     }
 
     /**
-     * Replace a dynamic attribute with a static placeholder for isolated rendering.
+     * Store a slot's content behind a placeholder, or return an empty string if it has none.
      */
-    protected function prepareAttribute(Attribute $attribute): Attribute
+    protected function storeSlot(SlotNode $slot): string
     {
-        if ($attribute->isStaticValue()) {
-            return clone $attribute;
+        if (! $this->hasActualContent($slot->children)) {
+            return '';
         }
 
         $placeholder = 'BLAZE_PLACEHOLDER_' . $this->placeholderIndex++ . '_';
 
-        $this->attributeByPlaceholder[$placeholder] = $attribute;
+        $this->slotByPlaceholder[$placeholder] = $slot;
 
-        return new Attribute(
-            name: $attribute->name,
-            value: $placeholder,
-            propName: $attribute->propName,
-            dynamic: false,
-        );
+        return $placeholder;
     }
 
     /**
-     * Replace slot children with placeholders for rendering, storing originals for restoration.
+     * Get the component's slots by name, with loose content as the default slot if there's no explicit one.
      */
-    protected function setupSlots(): void
+    protected function getSlots(): array
     {
         $slots = [];
         $looseContent = [];
 
         foreach ($this->node->children as $child) {
             if ($child instanceof SlotNode) {
-                $children = [];
-
-                if ($this->hasActualContent($child->children)) {
-                    $placeholder = 'BLAZE_PLACEHOLDER_' . $this->placeholderIndex++ . '_';
-    
-                    $this->slotByPlaceholder[$placeholder] = $child;
-
-                    $children = [new TextNode($placeholder)];
-                }
-
-                $slots[$child->name] = new SlotNode(
-                    name: $child->name,
-                    attributeString: $child->attributeString,
-                    slotStyle: $child->slotStyle,
-                    children: $children,
-                    prefix: $child->prefix,
-                    closeHasName: $child->closeHasName,
-                    attributes: $child->attributes,
-                );
+                $slots[$child->name] = $child;
             } else {
                 $looseContent[] = $child;
             }
         }
 
-        // Synthesize a default slot from loose content when there's not an explicit one
         if ($this->hasActualContent($looseContent) && ! isset($slots['slot'])) {
-            $placeholder = 'BLAZE_PLACEHOLDER_' . $this->placeholderIndex++ . '_';
-
-            $defaultSlot = new SlotNode(
+            $slots['slot'] = new SlotNode(
                 name: 'slot',
                 attributeString: '',
                 slotStyle: 'standard',
                 children: $looseContent,
                 prefix: 'x-slot',
             );
-
-            $this->slotByPlaceholder[$placeholder] = $defaultSlot;
-
-            $slots['slot'] = new SlotNode(
-                name: 'slot',
-                attributeString: '',
-                slotStyle: 'standard',
-                children: [new TextNode($placeholder)],
-                prefix: 'x-slot',
-            );
         }
 
-        $this->renderable->children = $slots;
+        return $slots;
     }
 
     /**
@@ -171,7 +142,7 @@ class Foldable
      */
     protected function processUncompiledAttributes(): void
     {
-        $this->html = preg_replace_callback('/\[BLAZE_ATTR:(BLAZE_PLACEHOLDER_[0-9]+_):(.+?)\](\r?\n)?/', function ($matches) {
+        $this->html = preg_replace_callback('/\[BLAZE_ATTR:(BLAZE_PLACEHOLDER_(?:PROP_|ATTR_)?[0-9]+_):(.+?)\](\r?\n)?/', function ($matches) {
             $attribute = $this->attributeByPlaceholder[$matches[1]];
             $name = $matches[2];
 
@@ -193,12 +164,17 @@ class Foldable
      */
     protected function restorePlaceholders(): void
     {
-        // Attribute placeholders inside PHP blocks need raw values
+        // Attribute placeholders inside PHP blocks, like @unblaze scopes, need PHP expressions
         $this->html = preg_replace_callback('/<\?php.*?\?>/s', function ($match) {
             $content = $match[0];
 
             foreach ($this->attributeByPlaceholder as $placeholder => $attribute) {
                 $value = $attribute->bound() ? $attribute->value : $this->blade->compileAttributeEchos($attribute->value);
+
+                // Like Blade, the attribute bag holds bound attributes escaped
+                if ($attribute->bound() && str_starts_with($placeholder, 'BLAZE_PLACEHOLDER_ATTR_')) {
+                    $value = '\Illuminate\View\Compilers\BladeCompiler::sanitizeComponentAttribute(' . $value . ')';
+                }
 
                 $content = str_replace("'" . $placeholder . "'", $value, $content);
             }
@@ -229,7 +205,7 @@ class Foldable
      */
     protected function wrapWithAwareMacros(): void
     {
-        if (! $this->renderable->attributes) {
+        if (! $this->node->attributes) {
             return;
         }
 

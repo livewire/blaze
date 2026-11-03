@@ -130,3 +130,13 @@ test('select listbox with dynamic indicator', fn () => compare(<<<'BLADE'
     </flux:select>
     BLADE
 ));
+
+/**
+ * Checks that bound attributes select.option passes from its attribute bag to flux:avatar through @unblaze stay escaped
+ */
+test('select listbox option with bound avatar attribute', fn () => compare(<<<'BLADE'
+    <flux:select variant="listbox">
+        <flux:select.option avatar="avatar.png" :avatar:aria-label="$value">Option</flux:select.option>
+    </flux:select>
+    BLADE, ['value' => 'a"b<c>&d\'e']
+));
