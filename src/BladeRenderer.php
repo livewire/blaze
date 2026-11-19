@@ -6,9 +6,12 @@ use Closure;
 use Illuminate\Contracts\View\Factory;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\File;
+use Illuminate\Support\Facades\Lang;
 use Illuminate\View\Compilers\BladeCompiler;
 use Illuminate\View\ComponentSlot;
 use Livewire\Blaze\Exceptions\InvalidBlazeFoldUsageException;
+use Livewire\Blaze\Exceptions\TranslatedWhileFoldingException;
+use Livewire\Blaze\Folder\TranslationRecorder;
 use Livewire\Blaze\Runtime\BlazeRuntime;
 use Livewire\Blaze\Support\Utils;
 use ReflectionClass;
@@ -107,6 +110,12 @@ class BladeRenderer
             'folding' => true,
         ]);
 
+        // Translations depend on the request locale, so a component that translates is left unfolded...
+        $translator = app('translator');
+        $translationRecorder = new TranslationRecorder($translator);
+
+        Lang::swap($translationRecorder);
+
         $obLevel = ob_get_level();
         $hash = Utils::hash($path);
         $compiled = $this->blade->getCompiledPath($path);
@@ -149,6 +158,12 @@ class BladeRenderer
             $restoreCompiler();
             $restoreFactory();
             $restoreRuntime();
+
+            Lang::swap($translator);
+        }
+
+        if ($translationRecorder->translated()) {
+            throw new TranslatedWhileFoldingException($path);
         }
 
         $result = Unblaze::replaceUnblazePrecompiledDirectives($result);

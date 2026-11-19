@@ -338,3 +338,19 @@ test('folds components with non-closing directive before slot followed by closin
 
     expect($result)->toBeInstanceOf(TextNode::class);
 });
+
+test('does not fold components that translate, even in throw mode', function (string $component) {
+    $node = app(Parser::class)->parse("<x-foldable.{$component} />")[0];
+    $folded = app(Folder::class)->fold($node);
+
+    expect($folded)->toBeInstanceOf(ComponentNode::class);
+})->with(['translated', 'translated-parent']);
+
+test('restores the translator after folding', function () {
+    $translator = app('translator');
+
+    $node = app(Parser::class)->parse('<x-foldable.translated />')[0];
+    app(Folder::class)->fold($node);
+
+    expect(app('translator'))->toBe($translator);
+});
