@@ -278,6 +278,8 @@ Blaze tries to avoid folding when it's likely to cause problems, but it cannot d
 
 > This applies to internal logic. Passing global state into the component via attributes or slots can be fine — however, there are exceptions. We'll explore these in the following sections.
 
+Translations (`__()`, `trans()`, `trans_choice()`, `@lang`) depend on the request locale too. Blaze detects them while folding and leaves a component that translates unfolded, so it renders in the current locale.
+
 ### Static attributes 
 
 Let's explore the folding process with a simple example where everything works smoothly.

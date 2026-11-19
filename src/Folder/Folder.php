@@ -5,6 +5,7 @@ namespace Livewire\Blaze\Folder;
 use Illuminate\Support\Facades\Event;
 use Livewire\Blaze\Events\ComponentFolded;
 use Livewire\Blaze\Exceptions\InvalidBlazeFoldUsageException;
+use Livewire\Blaze\Exceptions\TranslatedWhileFoldingException;
 use Livewire\Blaze\Parser\Nodes\ComponentNode;
 use Livewire\Blaze\Parser\Nodes\Node;
 use Livewire\Blaze\Parser\Nodes\SlotNode;
@@ -71,6 +72,8 @@ class Folder
             ));
 
             return new TextNode('<?php ob_start(); ?>' . $html . '<?php echo ltrim(ob_get_clean()); ?>');
+        } catch (TranslatedWhileFoldingException) {
+            return $node;
         } catch (Throwable $th) {
             if ($this->manager->shouldThrow()) {
                 throw $th;
